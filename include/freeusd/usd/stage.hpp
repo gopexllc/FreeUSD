@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "freeusd/ar/defaultResolver.hpp"
@@ -68,6 +69,12 @@ class FREEUSD_API Stage : public std::enable_shared_from_this<Stage> {
   /// Stable union of all `customData` keys authored on \p prim_path across the layer stack.
   std::vector<std::string> ListComposedPrimCustomDataKeys(const freeusd::sdf::Path& prim_path) const;
 
+  /// Composed layer \c customLayerData entry: strongest layer with an opinion wins.
+  bool GetComposedCustomLayerData(const std::string& key, freeusd::vt::Value* out) const;
+  bool CustomLayerDataKeyInAnyLayer(const std::string& key) const;
+  /// Stable union of all \c customLayerData keys across the composed layer stack.
+  std::vector<std::string> ListComposedCustomLayerDataKeys() const;
+
   /// Composed `variantSelection` for \p variantSet: strongest layer with an opinion wins.
   bool GetComposedPrimVariantSelection(const freeusd::sdf::Path& prim_path, const std::string& variantSet,
                                        std::string* outName) const;
@@ -96,6 +103,18 @@ class FREEUSD_API Stage : public std::enable_shared_from_this<Stage> {
 
   /// Stable-sorted union of prim paths authored in any composed layer.
   std::vector<freeusd::sdf::Path> ListComposedPrimPaths() const;
+
+  /// Layer \c relocates across the stack: strongest layer wins when the same source path is authored twice.
+  bool GetComposedRelocateTarget(const freeusd::sdf::Path& fromPrimPath, freeusd::sdf::Path* outToPrimPath) const;
+  bool RelocateSourceInAnyLayer(const freeusd::sdf::Path& fromPrimPath) const;
+  /// All composed pairs sorted by source path (strongest opinion per source).
+  std::vector<std::pair<freeusd::sdf::Path, freeusd::sdf::Path>> ListComposedRelocates() const;
+
+  /// Layer \c prefixSubstitutions across the stack: strongest layer wins when the same source prefix is authored twice.
+  bool GetComposedPrefixSubstitution(const std::string& fromPrefix, std::string* outToPrefix) const;
+  bool PrefixSubstitutionKeyInAnyLayer(const std::string& fromPrefix) const;
+  /// All composed pairs sorted by \p fromPrefix (strongest opinion per key).
+  std::vector<std::pair<std::string, std::string>> ListComposedPrefixSubstitutions() const;
 
   /// \c defaultPrim on the root (strongest) layer.
   bool HasDefaultPrim() const;

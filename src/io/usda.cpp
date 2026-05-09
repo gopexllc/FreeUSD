@@ -14,6 +14,7 @@
 
 #include "freeusd/gf/vec3d.hpp"
 #include "freeusd/sdf/layer.hpp"
+#include "freeusd/sdf/layerOffset.hpp"
 #include "freeusd/sdf/path.hpp"
 #include "freeusd/tf/token.hpp"
 #include "freeusd/vt/value.hpp"
@@ -257,6 +258,96 @@ freeusd::vt::Value parse_value(std::string_view t, ParseResult* err, std::size_t
   }
   // unquoted non-numeric literal -> TfToken
   return freeusd::vt::Value::MakeToken(freeusd::tf::Token{t});
+}
+
+bool value_scalar_to_double(const freeusd::vt::Value& v, double* out) {
+  if (!out) {
+    return false;
+  }
+  if (v.GetDouble(out)) {
+    return true;
+  }
+  float f{};
+  if (v.GetFloat(&f)) {
+    *out = static_cast<double>(f);
+    return true;
+  }
+  std::int32_t i32{};
+  if (v.GetInt32(&i32)) {
+    *out = static_cast<double>(i32);
+    return true;
+  }
+  std::int64_t i64{};
+  if (v.GetInt64(&i64)) {
+    *out = static_cast<double>(i64);
+    return true;
+  }
+  return false;
+}
+
+bool parse_layer_offset_value(std::string_view t, freeusd::sdf::LayerOffset* out, ParseResult* err, std::size_t line) {
+  if (!out) {
+    return false;
+  }
+  t = trim(t);
+  if (t.empty()) {
+    set_err(err, line, "empty subLayerOffset value");
+    return false;
+  }
+  if (t.size() >= 2 && t.front() == '(' && t.back() == ')') {
+    const std::string_view inner = trim(t.substr(1, t.size() - 2));
+    if (inner.empty()) {
+      set_err(err, line, "empty subLayerOffset tuple");
+      return false;
+    }
+    const std::size_t comma = inner.find(',');
+    if (comma == std::string_view::npos) {
+      const freeusd::vt::Value v = parse_value(inner, err, line);
+      if (err && !err->ok) {
+        return false;
+      }
+      double o = 0.0;
+      if (!value_scalar_to_double(v, &o)) {
+        set_err(err, line, "subLayerOffset tuple needs numeric offset");
+        return false;
+      }
+      *out = freeusd::sdf::LayerOffset{o, 1.0};
+      return true;
+    }
+    const std::string_view left = trim(inner.substr(0, comma));
+    const std::string_view right = trim(inner.substr(comma + 1));
+    if (right.find(',') != std::string_view::npos) {
+      set_err(err, line, "subLayerOffset tuple must be (offset) or (offset, scale)");
+      return false;
+    }
+    const freeusd::vt::Value va = parse_value(left, err, line);
+    if (err && !err->ok) {
+      return false;
+    }
+    const freeusd::vt::Value vb = parse_value(right, err, line);
+    if (err && !err->ok) {
+      return false;
+    }
+    double off = 0.0;
+    double sc = 1.0;
+    if (!value_scalar_to_double(va, &off) || !value_scalar_to_double(vb, &sc)) {
+      set_err(err, line, "subLayerOffset (offset, scale) requires two numbers");
+      return false;
+    }
+    *out = freeusd::sdf::LayerOffset{off, sc};
+    return true;
+  }
+  const freeusd::vt::Value v = parse_value(t, err, line);
+  if (err && !err->ok) {
+    return false;
+  }
+  double o = 0.0;
+  if (!value_scalar_to_double(v, &o)) {
+    set_err(err, line, "subLayerOffset must be a number or (offset, scale) tuple");
+    return false;
+  }
+  *out = freeusd::sdf::LayerOffset{o, 1.0};
+  return true;
 }
 
 constexpr std::string_view kTimeSamplesSuffix = ".timeSamples";
@@ -946,6 +1037,41 @@ bool split_assignment(std::string_view line, std::string_view* lhs, std::string_
   return false;
 }
 
+/// Layer metadata dictionaries (e.g. \c prefixSubstitutions) often use \c `:` between key and value like \c relocates.
+bool split_dictionary_entry_key_value(std::string_view line, std::string_view* lhs, std::string_view* rhs) {
+  if (split_assignment(line, lhs, rhs)) {
+    return true;
+  }
+  bool in_double = false;
+  bool in_single = false;
+  for (std::size_t i = 0; i < line.size(); ++i) {
+    const char c = line[i];
+    if (!in_single && c == '"' && (i == 0 || line[i - 1] != '\\')) {
+      in_double = !in_double;
+      continue;
+    }
+    if (!in_double && c == '\'' && (i == 0 || line[i - 1] != '\\')) {
+      in_single = !in_single;
+      continue;
+    }
+    if (!in_double && !in_single && c == ':') {
+      *lhs = trim(line.substr(0, i));
+      *rhs = trim(line.substr(i + 1));
+      std::size_t j = rhs->size();
+      while (j > 0 && ((*rhs)[j - 1] == ';' || std::isspace(static_cast<unsigned char>((*rhs)[j - 1])))) {
+        if ((*rhs)[j - 1] == ';') {
+          *rhs = trim(rhs->substr(0, j - 1));
+          break;
+        }
+        --j;
+      }
+      *rhs = trim(*rhs);
+      return !lhs->empty();
+    }
+  }
+  return false;
+}
+
 bool apply_prim_custom_data_from_dictionary(const std::shared_ptr<freeusd::sdf::Layer>& layer,
                                             const freeusd::sdf::Path& prim, std::string_view dict_inner,
                                             ParseResult* err, std::size_t line_no) {
@@ -981,6 +1107,44 @@ bool apply_prim_custom_data_from_dictionary(const std::shared_ptr<freeusd::sdf::
       return false;
     }
     layer->SetPrimCustomDataEntry(prim, key, val);
+  }
+  return true;
+}
+
+bool apply_layer_custom_layer_data_from_dictionary(freeusd::sdf::Layer* layer, std::string_view dict_inner, ParseResult* err,
+                                                   std::size_t line_no) {
+  layer->ClearCustomLayerData();
+  dict_inner = trim(dict_inner);
+  if (dict_inner.empty()) {
+    return true;
+  }
+  std::vector<std::string_view> chunks;
+  split_custom_data_dictionary_entries(dict_inner, &chunks);
+  for (std::string_view piece : chunks) {
+    piece = trim(piece);
+    if (piece.empty()) {
+      continue;
+    }
+    std::string_view lk;
+    std::string_view rv;
+    if (!split_assignment(piece, &lk, &rv)) {
+      set_err(err, line_no, "bad customLayerData entry (expected key = value)");
+      return false;
+    }
+    const std::string key = normalize_custom_data_key(lk);
+    if (key.empty()) {
+      set_err(err, line_no, "empty customLayerData key");
+      return false;
+    }
+    freeusd::vt::Value val = parse_value(trim(rv), err, line_no);
+    if (err && !err->ok) {
+      return false;
+    }
+    if (val.IsEmpty()) {
+      set_err(err, line_no, "empty customLayerData value");
+      return false;
+    }
+    layer->SetCustomLayerDataEntry(key, val);
   }
   return true;
 }
@@ -1237,6 +1401,92 @@ bool gather_abs_prim_path_list(std::string_view val_c, std::vector<freeusd::sdf:
   return true;
 }
 
+bool apply_layer_prefix_substitutions_from_dictionary(freeusd::sdf::Layer* layer, std::string_view dict_inner, ParseResult* err,
+                                                      std::size_t line_no) {
+  layer->ClearPrefixSubstitutions();
+  dict_inner = trim(dict_inner);
+  if (dict_inner.empty()) {
+    return true;
+  }
+  std::vector<std::string_view> chunks;
+  split_custom_data_dictionary_entries(dict_inner, &chunks);
+  for (std::string_view piece : chunks) {
+    piece = trim(piece);
+    if (piece.empty()) {
+      continue;
+    }
+    std::string_view lk;
+    std::string_view rv;
+    if (!split_dictionary_entry_key_value(piece, &lk, &rv)) {
+      set_err(err, line_no, "bad prefixSubstitutions entry (expected key = value or key : value)");
+      return false;
+    }
+    const std::string key = normalize_custom_data_key(lk);
+    if (key.empty()) {
+      set_err(err, line_no, "empty prefixSubstitutions key");
+      return false;
+    }
+    freeusd::vt::Value val = parse_value(trim(rv), err, line_no);
+    if (err && !err->ok) {
+      return false;
+    }
+    std::string to_prefix;
+    if (!variant_selection_string_from_value(val, &to_prefix) || to_prefix.empty()) {
+      set_err(err, line_no, "prefixSubstitutions value must be non-empty string or token");
+      return false;
+    }
+    layer->SetPrefixSubstitution(key, std::move(to_prefix));
+  }
+  return true;
+}
+
+bool apply_layer_sublayer_offsets_from_dictionary(freeusd::sdf::Layer* layer, std::string_view dict_inner, ParseResult* err,
+                                                std::size_t line_no) {
+  layer->ClearSubLayerOffsets();
+  dict_inner = trim(dict_inner);
+  if (dict_inner.empty()) {
+    return true;
+  }
+  std::vector<std::string_view> chunks;
+  split_custom_data_dictionary_entries(dict_inner, &chunks);
+  for (std::string_view piece : chunks) {
+    piece = trim(piece);
+    if (piece.empty()) {
+      continue;
+    }
+    std::string_view lk;
+    std::string_view rv;
+    if (!split_dictionary_entry_key_value(piece, &lk, &rv)) {
+      set_err(err, line_no, "bad subLayerOffsets entry (expected key = value or key : value)");
+      return false;
+    }
+    const freeusd::vt::Value key_val = parse_value(trim(lk), err, line_no);
+    if (err && !err->ok) {
+      return false;
+    }
+    std::string path_key;
+    if (!key_val.GetString(&path_key)) {
+      freeusd::tf::Token tk;
+      if (key_val.GetToken(&tk)) {
+        path_key = tk.GetText();
+      } else {
+        set_err(err, line_no, "subLayerOffsets key must be string, token, or @asset@ path");
+        return false;
+      }
+    }
+    if (path_key.empty()) {
+      set_err(err, line_no, "empty subLayerOffsets key");
+      return false;
+    }
+    freeusd::sdf::LayerOffset off{};
+    if (!parse_layer_offset_value(trim(rv), &off, err, line_no)) {
+      return false;
+    }
+    layer->SetSubLayerOffset(std::move(path_key), off);
+  }
+  return true;
+}
+
 void apply_layer_metadata_blob(const std::string& blob, freeusd::sdf::Layer* layer, ParseResult* err, std::size_t anchor_line) {
   const std::string flat_sq = flatten_newlines_inside_square_brackets(blob);
   const std::string flat = flatten_newlines_inside_curly_braces(flat_sq);
@@ -1269,6 +1519,19 @@ void apply_layer_metadata_blob(const std::string& blob, freeusd::sdf::Layer* lay
       if (v.GetString(&t)) {
         layer->SetDocumentation(std::move(t));
       }
+    } else if (key == "comment") {
+      freeusd::vt::Value v = parse_value(rhs, err, anchor_line);
+      if (err && !err->ok) {
+        return;
+      }
+      std::string t;
+      if (v.GetString(&t)) {
+        layer->SetComment(std::move(t));
+      } else if (v.HoldsToken()) {
+        freeusd::tf::Token tok;
+        v.GetToken(&tok);
+        layer->SetComment(tok.GetText());
+      }
     } else if (key == "defaultprim") {
       freeusd::vt::Value v = parse_value(rhs, err, anchor_line);
       if (err && !err->ok) {
@@ -1288,6 +1551,22 @@ void apply_layer_metadata_blob(const std::string& blob, freeusd::sdf::Layer* lay
         return;
       }
       layer->SetSubLayers(std::move(subs));
+    } else if (key == "sublayeroffsets") {
+      std::string_view ov = trim(rhs);
+      const std::size_t open_brace = ov.find('{');
+      if (open_brace == std::string_view::npos) {
+        set_err(err, anchor_line, "subLayerOffsets requires a {...} dictionary");
+        return;
+      }
+      const std::optional<std::size_t> close = outer_closing_brace_index(ov, open_brace);
+      if (!close.has_value()) {
+        set_err(err, anchor_line, "unclosed '{' in subLayerOffsets dictionary");
+        return;
+      }
+      const std::string_view inner_dict = trim(ov.substr(open_brace + 1, *close - open_brace - 1));
+      if (!apply_layer_sublayer_offsets_from_dictionary(layer, inner_dict, err, anchor_line)) {
+        return;
+      }
     } else if (key == "relocates") {
       std::string_view rv = trim(rhs);
       const std::size_t open_brace = rv.find('{');
@@ -1302,6 +1581,38 @@ void apply_layer_metadata_blob(const std::string& blob, freeusd::sdf::Layer* lay
       }
       const std::string_view inner_dict = trim(rv.substr(open_brace + 1, *close - open_brace - 1));
       if (!apply_layer_relocates_from_dictionary(layer, inner_dict, err, anchor_line)) {
+        return;
+      }
+    } else if (key == "prefixsubstitutions") {
+      std::string_view pv = trim(rhs);
+      const std::size_t open_brace = pv.find('{');
+      if (open_brace == std::string_view::npos) {
+        set_err(err, anchor_line, "prefixSubstitutions requires a {...} dictionary");
+        return;
+      }
+      const std::optional<std::size_t> close = outer_closing_brace_index(pv, open_brace);
+      if (!close.has_value()) {
+        set_err(err, anchor_line, "unclosed '{' in prefixSubstitutions dictionary");
+        return;
+      }
+      const std::string_view inner_dict = trim(pv.substr(open_brace + 1, *close - open_brace - 1));
+      if (!apply_layer_prefix_substitutions_from_dictionary(layer, inner_dict, err, anchor_line)) {
+        return;
+      }
+    } else if (key == "customlayerdata") {
+      std::string_view cv = trim(rhs);
+      const std::size_t open_brace = cv.find('{');
+      if (open_brace == std::string_view::npos) {
+        set_err(err, anchor_line, "customLayerData requires a {...} dictionary");
+        return;
+      }
+      const std::optional<std::size_t> close = outer_closing_brace_index(cv, open_brace);
+      if (!close.has_value()) {
+        set_err(err, anchor_line, "unclosed '{' in customLayerData dictionary");
+        return;
+      }
+      const std::string_view inner_dict = trim(cv.substr(open_brace + 1, *close - open_brace - 1));
+      if (!apply_layer_custom_layer_data_from_dictionary(layer, inner_dict, err, anchor_line)) {
         return;
       }
     }
@@ -1896,6 +2207,9 @@ std::string SaveToString(const freeusd::sdf::Layer& layer) {
   if (!layer.GetDocumentation().empty()) {
     os << "    documentation = " << escape_string(layer.GetDocumentation()) << "\n";
   }
+  if (!layer.GetComment().empty()) {
+    os << "    comment = " << escape_string(layer.GetComment()) << "\n";
+  }
   if (layer.HasDefaultPrim()) {
     const auto dp = layer.GetDefaultPrim();
     os << "    defaultPrim = \"" << (dp.has_value() ? std::string{*dp} : std::string{}) << "\"\n";
@@ -1911,6 +2225,14 @@ std::string SaveToString(const freeusd::sdf::Layer& layer) {
     }
     os << "]\n";
   }
+  const auto sub_offs = layer.ListSubLayerOffsets();
+  if (!sub_offs.empty()) {
+    os << "    subLayerOffsets = {\n";
+    for (const auto& pr : sub_offs) {
+      os << "        " << asset_path_to_usda(pr.first) << ": (" << pr.second.offset << ", " << pr.second.scale << "),\n";
+    }
+    os << "    }\n";
+  }
   const auto relocs = layer.ListRelocates();
   if (!relocs.empty()) {
     os << "    relocates = {\n";
@@ -1919,7 +2241,34 @@ std::string SaveToString(const freeusd::sdf::Layer& layer) {
     }
     os << "    }\n";
   }
-  if (!layer.HasDefaultPrim() && layer.GetDocumentation().empty() && subs.empty() && relocs.empty()) {
+  const auto prefix_subs = layer.ListPrefixSubstitutions();
+  if (!prefix_subs.empty()) {
+    os << "    prefixSubstitutions = {\n";
+    for (const auto& pr : prefix_subs) {
+      os << "        " << escape_string(pr.first) << ": " << escape_string(pr.second) << ",\n";
+    }
+    os << "    }\n";
+  }
+  const auto layer_custom_keys = layer.ListCustomLayerDataKeys();
+  if (!layer_custom_keys.empty()) {
+    os << "    customLayerData = {\n";
+    for (const std::string& ck : layer_custom_keys) {
+      freeusd::vt::Value cv;
+      if (!layer.GetCustomLayerDataEntry(ck, &cv)) {
+        continue;
+      }
+      os << "        ";
+      if (bare_custom_dict_key_emit(ck)) {
+        os << ck;
+      } else {
+        os << escape_string(ck);
+      }
+      os << " = " << value_to_usda(cv) << ",\n";
+    }
+    os << "    }\n";
+  }
+  if (!layer.HasDefaultPrim() && layer.GetDocumentation().empty() && layer.GetComment().empty() && subs.empty() &&
+      sub_offs.empty() && relocs.empty() && prefix_subs.empty() && layer_custom_keys.empty()) {
     os << "    doc = \"FreeUSD minimal USDA export\"\n";
   }
   os << ")\n\n";

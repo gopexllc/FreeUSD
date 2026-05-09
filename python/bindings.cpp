@@ -24,6 +24,7 @@
 #include "freeusd/sdf/tokens.hpp"
 #include "freeusd/tf/token.hpp"
 #include "freeusd/trace/collector.hpp"
+#include "freeusd/usd/crateFile.hpp"
 #include "freeusd/usd/editTarget.hpp"
 #include "freeusd/usd/kindTokens.hpp"
 #include "freeusd/usd/tokens.hpp"
@@ -291,6 +292,7 @@ PYBIND11_MODULE(_native, m) {
 
     py::class_<freeusd::sdf::LayerOffset>(sdf, "LayerOffset")
         .def(py::init<>())
+        .def(py::init<double, double>(), py::arg("offset") = 0.0, py::arg("scale") = 1.0)
         .def_readwrite("offset", &freeusd::sdf::LayerOffset::offset)
         .def_readwrite("scale", &freeusd::sdf::LayerOffset::scale)
         .def("is_identity", &freeusd::sdf::LayerOffset::IsIdentity);
@@ -308,6 +310,31 @@ PYBIND11_MODULE(_native, m) {
         .def(
             "set_documentation",
             [](freeusd::sdf::Layer& layer, std::string d) { layer.SetDocumentation(std::move(d)); })
+        .def("comment", [](const freeusd::sdf::Layer& layer) { return layer.GetComment(); })
+        .def("set_comment", [](freeusd::sdf::Layer& layer, std::string c) { layer.SetComment(std::move(c)); })
+        .def("clear_comment", &freeusd::sdf::Layer::ClearComment)
+        .def("clear_sub_layer_offsets", &freeusd::sdf::Layer::ClearSubLayerOffsets)
+        .def(
+            "set_sub_layer_offset",
+            [](freeusd::sdf::Layer& layer, std::string path, const freeusd::sdf::LayerOffset& off) {
+              layer.SetSubLayerOffset(std::move(path), off);
+            })
+        .def("erase_sub_layer_offset", &freeusd::sdf::Layer::EraseSubLayerOffset)
+        .def(
+            "has_sub_layer_offset",
+            [](const freeusd::sdf::Layer& layer, const std::string& path) { return layer.HasSubLayerOffset(path); })
+        .def(
+            "get_sub_layer_offset",
+            [](const freeusd::sdf::Layer& layer, const std::string& path) -> py::object {
+              freeusd::sdf::LayerOffset off{};
+              if (layer.GetSubLayerOffset(path, &off)) {
+                return py::cast(off);
+              }
+              return py::none();
+            })
+        .def(
+            "list_sub_layer_offsets",
+            [](const freeusd::sdf::Layer& layer) { return layer.ListSubLayerOffsets(); })
         .def(
             "default_prim",
             [](const freeusd::sdf::Layer& layer) -> py::object {
@@ -350,6 +377,54 @@ PYBIND11_MODULE(_native, m) {
         .def(
             "list_relocates",
             [](const freeusd::sdf::Layer& layer) { return layer.ListRelocates(); })
+        .def("clear_prefix_substitutions", &freeusd::sdf::Layer::ClearPrefixSubstitutions)
+        .def(
+            "set_prefix_substitution",
+            [](freeusd::sdf::Layer& layer, std::string from_p, std::string to_p) {
+              layer.SetPrefixSubstitution(std::move(from_p), std::move(to_p));
+            })
+        .def("erase_prefix_substitution", &freeusd::sdf::Layer::ErasePrefixSubstitution)
+        .def(
+            "has_prefix_substitution",
+            [](const freeusd::sdf::Layer& layer, const std::string& from_p) {
+              return layer.HasPrefixSubstitution(from_p);
+            })
+        .def(
+            "get_prefix_substitution",
+            [](const freeusd::sdf::Layer& layer, const std::string& from_p) -> py::object {
+              std::string to;
+              if (layer.GetPrefixSubstitution(from_p, &to)) {
+                return py::cast(to);
+              }
+              return py::none();
+            })
+        .def(
+            "list_prefix_substitutions",
+            [](const freeusd::sdf::Layer& layer) { return layer.ListPrefixSubstitutions(); })
+        .def("clear_custom_layer_data", &freeusd::sdf::Layer::ClearCustomLayerData)
+        .def(
+            "set_custom_layer_data_entry",
+            [](freeusd::sdf::Layer& layer, std::string key, const freeusd::vt::Value& value) {
+              layer.SetCustomLayerDataEntry(std::move(key), value);
+            })
+        .def("erase_custom_layer_data_entry", &freeusd::sdf::Layer::EraseCustomLayerDataEntry)
+        .def(
+            "has_custom_layer_data_key",
+            [](const freeusd::sdf::Layer& layer, const std::string& key) {
+              return layer.HasCustomLayerDataKey(key);
+            })
+        .def(
+            "get_custom_layer_data_entry",
+            [](const freeusd::sdf::Layer& layer, const std::string& key) -> py::object {
+              freeusd::vt::Value v;
+              if (layer.GetCustomLayerDataEntry(key, &v)) {
+                return py::cast(v);
+              }
+              return py::none();
+            })
+        .def(
+            "list_custom_layer_data_keys",
+            [](const freeusd::sdf::Layer& layer) { return layer.ListCustomLayerDataKeys(); })
         .def("identifier", &freeusd::sdf::Layer::GetIdentifier, py::return_value_policy::copy)
         .def("set_field", &freeusd::sdf::Layer::SetField)
         .def("has_field", &freeusd::sdf::Layer::HasField)
@@ -630,8 +705,10 @@ PYBIND11_MODULE(_native, m) {
     {
       auto bt = sdf.def_submodule("builtin_tokens");
       bt.def("SubLayers", [] { return freeusd::sdf::tokens::SubLayers(); });
+      bt.def("SubLayerOffsets", [] { return freeusd::sdf::tokens::SubLayerOffsets(); });
       bt.def("DefaultPrim", [] { return freeusd::sdf::tokens::DefaultPrim(); });
       bt.def("Documentation", [] { return freeusd::sdf::tokens::Documentation(); });
+      bt.def("Comment", [] { return freeusd::sdf::tokens::Comment(); });
       bt.def("PrimOrder", [] { return freeusd::sdf::tokens::PrimOrder(); });
       bt.def("MetersPerUnit", [] { return freeusd::sdf::tokens::MetersPerUnit(); });
       bt.def("UpAxis", [] { return freeusd::sdf::tokens::UpAxis(); });
@@ -643,6 +720,7 @@ PYBIND11_MODULE(_native, m) {
       bt.def("Kind", [] { return freeusd::sdf::tokens::Kind(); });
       bt.def("Active", [] { return freeusd::sdf::tokens::Active(); });
       bt.def("CustomData", [] { return freeusd::sdf::tokens::CustomData(); });
+      bt.def("CustomLayerData", [] { return freeusd::sdf::tokens::CustomLayerData(); });
       bt.def("VariantSetNames", [] { return freeusd::sdf::tokens::VariantSetNames(); });
     }
   }
@@ -765,6 +843,24 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
           return oss.str();
         });
 
+    {
+      auto crate = usd.def_submodule("crate");
+      crate.doc() = "Binary crate / container sniffing (no .usdc decode yet).";
+      py::enum_<freeusd::usd::crate::UsdFileKind>(crate, "UsdFileKind")
+          .value("io_or_empty", freeusd::usd::crate::UsdFileKind::IoOrEmpty)
+          .value("usda_ascii", freeusd::usd::crate::UsdFileKind::UsdaAscii)
+          .value("usdc_crate", freeusd::usd::crate::UsdFileKind::UsdcCrate)
+          .value("unknown", freeusd::usd::crate::UsdFileKind::Unknown);
+      crate.def(
+          "detect_usd_file_kind_from_path",
+          [](const std::string& path) {
+            std::string detail;
+            const auto k = freeusd::usd::crate::DetectUsdFileKindFromPath(path, &detail);
+            return py::make_tuple(k, detail);
+          },
+          py::arg("path"));
+    }
+
     py::class_<freeusd::usd::EditTarget>(usd, "EditTarget")
         .def(py::init<>())
         .def(py::init<std::shared_ptr<freeusd::sdf::Layer>>(), py::arg("layer"))
@@ -832,6 +928,23 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
               return stage.ListComposedPrimCustomDataKeys(path);
             })
         .def(
+            "get_composed_custom_layer_data",
+            [](const freeusd::usd::Stage& stage, const std::string& key) -> py::object {
+              freeusd::vt::Value v;
+              if (stage.GetComposedCustomLayerData(key, &v)) {
+                return py::cast(v);
+              }
+              return py::none();
+            })
+        .def(
+            "custom_layer_data_key_in_any_layer",
+            [](const freeusd::usd::Stage& stage, const std::string& key) {
+              return stage.CustomLayerDataKeyInAnyLayer(key);
+            })
+        .def(
+            "list_composed_custom_layer_data_keys",
+            [](const freeusd::usd::Stage& stage) { return stage.ListComposedCustomLayerDataKeys(); })
+        .def(
             "get_composed_prim_variant_selection",
             [](const freeusd::usd::Stage& stage, const freeusd::sdf::Path& path, const std::string& variant_set) -> py::object {
               std::string name;
@@ -865,6 +978,38 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
             [](const freeusd::usd::Stage& stage, const freeusd::sdf::Path& path, const std::string& set_name) {
               return stage.GetComposedPrimVariantNames(path, set_name);
             })
+        .def(
+            "get_composed_relocate_target",
+            [](const freeusd::usd::Stage& stage, const freeusd::sdf::Path& from) -> py::object {
+              freeusd::sdf::Path to;
+              if (stage.GetComposedRelocateTarget(from, &to)) {
+                return py::cast(to);
+              }
+              return py::none();
+            })
+        .def(
+            "relocate_source_in_any_layer",
+            [](const freeusd::usd::Stage& stage, const freeusd::sdf::Path& from) {
+              return stage.RelocateSourceInAnyLayer(from);
+            })
+        .def("list_composed_relocates", [](const freeusd::usd::Stage& stage) { return stage.ListComposedRelocates(); })
+        .def(
+            "get_composed_prefix_substitution",
+            [](const freeusd::usd::Stage& stage, const std::string& from_p) -> py::object {
+              std::string to;
+              if (stage.GetComposedPrefixSubstitution(from_p, &to)) {
+                return py::cast(to);
+              }
+              return py::none();
+            })
+        .def(
+            "prefix_substitution_key_in_any_layer",
+            [](const freeusd::usd::Stage& stage, const std::string& from_p) {
+              return stage.PrefixSubstitutionKeyInAnyLayer(from_p);
+            })
+        .def(
+            "list_composed_prefix_substitutions",
+            [](const freeusd::usd::Stage& stage) { return stage.ListComposedPrefixSubstitutions(); })
         .def("list_composed_field_names", &freeusd::usd::Stage::ListComposedFieldNames)
         .def("list_composed_field_sample_times", &freeusd::usd::Stage::ListComposedFieldSampleTimes)
         .def("list_composed_relationship_names", &freeusd::usd::Stage::ListComposedRelationshipNames)
@@ -981,7 +1126,14 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
   {
     auto usdUtils = m.def_submodule("usdUtils");
     usdUtils.doc() = "UsdUtils-shaped utilities (clean-room; extend with flatten/cache helpers as they land).";
-    py::class_<freeusd::usdUtils::FlattenOptions>(usdUtils, "FlattenOptions").def(py::init<>());
+    py::class_<freeusd::usdUtils::FlattenOptions>(usdUtils, "FlattenOptions")
+        .def(py::init<>())
+        .def_readwrite("merge_authored_layer_metadata",
+                       &freeusd::usdUtils::FlattenOptions::merge_authored_layer_metadata)
+        .def_readwrite("flatten_contribution_sublayers",
+                       &freeusd::usdUtils::FlattenOptions::flatten_contribution_sublayers)
+        .def_readwrite("preserve_relative_asset_paths",
+                       &freeusd::usdUtils::FlattenOptions::preserve_relative_asset_paths);
   }
 
   {
@@ -1001,7 +1153,7 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
 
   {
     auto trace = m.def_submodule("trace");
-    trace.doc() = "TraceCollector-shaped no-op (clean-room).";
+    trace.doc() = "Lightweight trace stack (depth counter; clean-room).";
     trace.def(
         "push",
         [](const std::string& tag) {
@@ -1009,10 +1161,17 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         },
         py::arg("tag") = std::string{});
     trace.def("pop", []() { freeusd::trace::Collector::Get().Pop(); });
+    trace.def("stack_depth", []() { return freeusd::trace::Collector::Get().StackDepth(); });
+    trace.def("reset", []() { freeusd::trace::Collector::Get().Reset(); });
   }
 
   {
     auto plug = m.def_submodule("plug");
     plug.def("load_all", [] { freeusd::plug::Registry::Get().LoadAllPlugins(); });
+    plug.def(
+        "register_plugin_paths",
+        [](std::vector<std::string> paths) { freeusd::plug::Registry::Get().RegisterPluginPaths(std::move(paths)); },
+        py::arg("paths"));
+    plug.def("registered_plugin_paths", []() { return freeusd::plug::Registry::Get().RegisteredPluginPaths(); });
   }
 }

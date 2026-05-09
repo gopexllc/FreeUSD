@@ -23,6 +23,19 @@ int main() {
     relocates = {
         </World/Pipe>: </World/Sink>,
     }
+    prefixSubstitutions = {
+        string "/Old": "/New",
+        "/Geom": "/Assets",
+    }
+    comment = "hdr"
+    subLayers = [@./payload.usda@]
+    subLayerOffsets = {
+        @./payload.usda@: (3, 2),
+    }
+    customLayerData = {
+        int layerBuild = 42,
+        string layerNote = "meta",
+    }
 )
 
 def Xform "World"
@@ -103,6 +116,29 @@ def Xform "World"
   assert(layer->HasRelocate(pipe));
   assert(layer->GetRelocateTarget(pipe, &rel_to));
   assert(rel_to == sink);
+
+  std::string pfx;
+  assert(layer->HasPrefixSubstitution("/Old"));
+  assert(layer->GetPrefixSubstitution("/Old", &pfx));
+  assert(pfx == "/New");
+  assert(layer->GetPrefixSubstitution("/Geom", &pfx));
+  assert(pfx == "/Assets");
+
+  assert(layer->GetComment() == "hdr");
+  const auto& subs_hdr = layer->GetSubLayers();
+  assert(subs_hdr.size() == 1u);
+  assert(subs_hdr[0] == "./payload.usda");
+  freeusd::sdf::LayerOffset loff{};
+  assert(layer->GetSubLayerOffset("./payload.usda", &loff));
+  assert(loff.offset == 3.0 && loff.scale == 2.0);
+
+  assert(layer->HasCustomLayerDataKey("layerBuild"));
+  assert(layer->GetCustomLayerDataEntry("layerNote", &ctmp));
+  assert(ctmp.GetString(&pv));
+  assert(pv == "meta");
+  assert(layer->GetCustomLayerDataEntry("layerBuild", &ctmp));
+  assert(ctmp.GetDouble(&bd));
+  assert(bd == 42.0);
 
   const Path vprim = Path::FromString("/World/VPrim");
   assert(layer->HasPrimVariantSelectionKey(vprim, "shapeVariant"));
@@ -215,6 +251,22 @@ def Xform "World"
   assert(layer2->HasRelocate(pipe));
   assert(layer2->GetRelocateTarget(pipe, &rel_to));
   assert(rel_to == sink);
+
+  assert(layer2->HasPrefixSubstitution("/Old"));
+  assert(layer2->GetPrefixSubstitution("/Old", &pfx));
+  assert(pfx == "/New");
+  assert(layer2->GetPrefixSubstitution("/Geom", &pfx));
+  assert(pfx == "/Assets");
+
+  assert(layer2->GetComment() == "hdr");
+  assert(layer2->GetSubLayers().size() == 1u);
+  assert(layer2->GetSubLayerOffset("./payload.usda", &loff));
+  assert(loff.offset == 3.0 && loff.scale == 2.0);
+
+  assert(layer2->HasCustomLayerDataKey("layerBuild"));
+  assert(layer2->GetCustomLayerDataEntry("layerNote", &ctmp));
+  assert(ctmp.GetString(&pv));
+  assert(pv == "meta");
 
   assert(layer2->HasAttributeConnection(Path::FromString("/World/Sink"), Token("ported")));
   auto st1 = Stage::AttachRootLayer(layer2);

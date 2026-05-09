@@ -2,15 +2,24 @@
 
 namespace freeusd::trace {
 
-/// No-op tracing hook (TraceCollector-shaped).
+/// Lightweight tracing hook (TraceCollector-shaped): tracks stack depth only (no string storage).
 class Collector {
  public:
   static Collector& Get() noexcept {
     static Collector c;
     return c;
   }
-  void Push(const char*) noexcept {}
-  void Pop() noexcept {}
+  void Push(const char*) noexcept { ++stack_depth_; }
+  void Pop() noexcept {
+    if (stack_depth_ > 0) {
+      --stack_depth_;
+    }
+  }
+  unsigned StackDepth() const noexcept { return stack_depth_; }
+  void Reset() noexcept { stack_depth_ = 0; }
+
+ private:
+  unsigned stack_depth_{0};
 };
 
 }  // namespace freeusd::trace

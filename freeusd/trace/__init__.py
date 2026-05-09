@@ -1,4 +1,4 @@
-"""Tracing hooks (no-op collector; clean-room)."""
+"""Tracing hooks (stack-depth collector; clean-room)."""
 
 from __future__ import annotations
 
@@ -15,4 +15,12 @@ def pop() -> None:
     _trace.pop()
 
 
-__all__ = ["pop", "push"]
+def stack_depth() -> int:
+    return int(_trace.stack_depth())
+
+
+def reset() -> None:
+    _trace.reset()
+
+
+__all__ = ["pop", "push", "reset", "stack_depth"]

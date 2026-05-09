@@ -16,6 +16,8 @@ def test_time_code_numeric() -> None:
     assert t.is_numeric() and t.value() == 2.25
 
 
-def test_usd_utils_flatten_options_stub() -> None:
+def test_usd_utils_flatten_options() -> None:
     opt = freeusd.usdUtils.FlattenOptions()
-    assert opt is not None
+    assert opt.merge_authored_layer_metadata
+    opt.merge_authored_layer_metadata = False
+    assert not opt.merge_authored_layer_metadata

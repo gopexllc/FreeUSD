@@ -1,10 +1,17 @@
 #include <cassert>
+#include <filesystem>
+#include <fstream>
 
+#include "freeusd/plug/registry.hpp"
 #include "freeusd/sdf/layer.hpp"
 #include "freeusd/sdf/path.hpp"
 #include "freeusd/tf/token.hpp"
+#include "freeusd/trace/collector.hpp"
+#include "freeusd/usd/crateFile.hpp"
 #include "freeusd/usd/stage.hpp"
+#include "freeusd/usdGeom/xformable.hpp"
 #include "freeusd/usdShade/tokens.hpp"
+#include "freeusd/usdUtils/pipeline.hpp"
 #include "freeusd/vt/value.hpp"
 
 int main() {
@@ -32,6 +39,49 @@ int main() {
   assert(d == 2.5);
 
   assert(freeusd::usdShade::tokens::Material().GetText() == "Material");
+
+  namespace fs = std::filesystem;
+  {
+    const fs::path p = fs::temp_directory_path() / "freeusd_smoke_ascii.usda";
+    {
+      std::ofstream o(p);
+      o << "#usda 1.0\n(\n)\ndef X \"x\" {}\n";
+    }
+    std::string detail;
+    assert(freeusd::usd::crate::DetectUsdFileKindFromPath(p.string(), &detail) ==
+           freeusd::usd::crate::UsdFileKind::UsdaAscii);
+    fs::remove(p);
+  }
+  {
+    const fs::path p = fs::temp_directory_path() / "freeusd_smoke_crate.usdc";
+    {
+      std::ofstream o(p, std::ios::binary);
+      const std::string m = std::string{freeusd::usd::crate::UsdcCrateIdentifier()};
+      o.write(m.data(), static_cast<std::streamsize>(m.size()));
+      o.put('\0');
+    }
+    assert(freeusd::usd::crate::DetectUsdFileKindFromPath(p.string(), nullptr) ==
+           freeusd::usd::crate::UsdFileKind::UsdcCrate);
+    fs::remove(p);
+  }
+
+  freeusd::plug::Registry::Get().RegisterPluginPaths({"/tmp/freeusd_nonexistent_plugin_path"});
+  assert(!freeusd::plug::Registry::Get().RegisteredPluginPaths().empty());
+
+  freeusd::trace::Collector::Get().Reset();
+  freeusd::trace::Collector::Get().Push("scope");
+  assert(freeusd::trace::Collector::Get().StackDepth() == 1u);
+  freeusd::trace::Collector::Get().Pop();
+  assert(freeusd::trace::Collector::Get().StackDepth() == 0u);
+
+  freeusd::usdUtils::FlattenOptions fo;
+  assert(fo.merge_authored_layer_metadata);
+  fo.merge_authored_layer_metadata = false;
+  assert(!fo.merge_authored_layer_metadata);
+
+  const freeusd::usdGeom::Xformable xf(prim);
+  assert(static_cast<bool>(xf));
+  assert(xf.ComputeLocalToWorldTransform() == freeusd::gf::Matrix4d::Identity());
 
   return 0;
 }

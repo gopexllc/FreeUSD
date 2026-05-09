@@ -5,10 +5,18 @@
 
 namespace freeusd::usdGeom {
 
-/// Placeholder for Xformable utilities (UsdGeomXformable parity is future work).
+/// Minimal ``Xformable`` wrapper: holds a @c Prim; transforms are identity until schema attrs are modeled.
 struct Xformable {
   freeusd::usd::Prim prim;
-  freeusd::gf::Matrix4d ComputeLocalToWorld() const { return freeusd::gf::Matrix4d::Identity(); }
+
+  Xformable() = default;
+  explicit Xformable(freeusd::usd::Prim p) : prim(std::move(p)) {}
+
+  explicit operator bool() const noexcept { return prim.IsValid(); }
+  const freeusd::usd::Prim& GetPrim() const noexcept { return prim; }
+
+  /// Always identity in this build (no ``xformOp`` stack evaluation).
+  freeusd::gf::Matrix4d ComputeLocalToWorldTransform() const { return freeusd::gf::Matrix4d::Identity(); }
 };
 
 }  // namespace freeusd::usdGeom

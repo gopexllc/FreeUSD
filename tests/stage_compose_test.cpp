@@ -87,6 +87,16 @@ int main() {
   assert(px_prim.HasCustomDataKey("onlyWeak"));
   assert(px_prim.ListCustomDataKeys().size() >= 2u);
 
+  strong->SetCustomLayerDataEntry("pipelineId", Value::MakeString("main"));
+  weaker->SetCustomLayerDataEntry("pipelineId", Value::MakeString("alt"));
+  assert(composed->GetComposedCustomLayerData("pipelineId", &tagv));
+  assert(tagv.GetString(&ts));
+  assert(ts == "main");
+  weaker->SetCustomLayerDataEntry("layerOnly", Value::MakeInt32(1));
+  assert(composed->CustomLayerDataKeyInAnyLayer("layerOnly"));
+  const auto lkeys = composed->ListComposedCustomLayerDataKeys();
+  assert(lkeys.size() >= 2u);
+
   weaker->SetPrimVariantSelectionEntry(px, "shape", "Lo");
   strong->SetPrimVariantSelectionEntry(px, "shape", "Hi");
   strong->SetPrimVariantSelectionEntry(px, "lod", "Full");
@@ -117,6 +127,35 @@ int main() {
   assert(px_prim.HasVariantSet("geo"));
   assert(px_prim.ListVariantSetNames().size() == 2u);
   assert(px_prim.ListVariantNames("geo").size() == 2u);
+
+  const Path src = Path::FromString("/RelocateSrc");
+  const Path dst_strong = Path::FromString("/RelocateStrong");
+  const Path dst_weak = Path::FromString("/RelocateWeak");
+  strong->SetRelocate(src, dst_strong);
+  weaker->SetRelocate(src, dst_weak);
+  freeusd::sdf::Path got;
+  assert(composed->GetComposedRelocateTarget(src, &got));
+  assert(got == dst_strong);
+  assert(composed->RelocateSourceInAnyLayer(src));
+  const Path only_weak_src = Path::FromString("/OnlyWeakRelo");
+  const Path only_weak_dst = Path::FromString("/OnlyWeakDst");
+  weaker->SetRelocate(only_weak_src, only_weak_dst);
+  assert(composed->GetComposedRelocateTarget(only_weak_src, &got));
+  assert(got == only_weak_dst);
+  const auto all_r = composed->ListComposedRelocates();
+  assert(all_r.size() == 2u);
+
+  strong->SetPrefixSubstitution("/Models", "/ModelsV2");
+  weaker->SetPrefixSubstitution("/Models", "/ModelsWeak");
+  weaker->SetPrefixSubstitution("/OnlyW", "/W");
+  std::string psub;
+  assert(composed->GetComposedPrefixSubstitution("/Models", &psub));
+  assert(psub == "/ModelsV2");
+  assert(composed->GetComposedPrefixSubstitution("/OnlyW", &psub));
+  assert(psub == "/W");
+  assert(composed->PrefixSubstitutionKeyInAnyLayer("/Models"));
+  const auto all_p = composed->ListComposedPrefixSubstitutions();
+  assert(all_p.size() == 2u);
 
   return 0;
 }

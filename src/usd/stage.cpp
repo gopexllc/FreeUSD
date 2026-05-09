@@ -244,6 +244,43 @@ std::vector<std::string> Stage::ListComposedPrimCustomDataKeys(const freeusd::sd
   return std::vector<std::string>(keys.begin(), keys.end());
 }
 
+bool Stage::GetComposedCustomLayerData(const std::string& key, freeusd::vt::Value* out) const {
+  if (!out || key.empty()) {
+    return false;
+  }
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (L && L->HasCustomLayerDataKey(key)) {
+      return L->GetCustomLayerDataEntry(key, out);
+    }
+  }
+  return false;
+}
+
+bool Stage::CustomLayerDataKeyInAnyLayer(const std::string& key) const {
+  if (key.empty()) {
+    return false;
+  }
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (L && L->HasCustomLayerDataKey(key)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+std::vector<std::string> Stage::ListComposedCustomLayerDataKeys() const {
+  std::set<std::string> keys;
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (!L) {
+      continue;
+    }
+    for (const std::string& k : L->ListCustomLayerDataKeys()) {
+      keys.insert(k);
+    }
+  }
+  return std::vector<std::string>(keys.begin(), keys.end());
+}
+
 bool Stage::GetComposedPrimVariantSelection(const freeusd::sdf::Path& prim_path, const std::string& variantSet,
                                             std::string* outName) const {
   if (!outName || variantSet.empty()) {
@@ -380,6 +417,95 @@ std::vector<freeusd::sdf::Path> Stage::ListComposedPrimPaths() const {
     out.push_back(freeusd::sdf::Path::FromString(s));
   }
   return out;
+}
+
+bool Stage::GetComposedRelocateTarget(const freeusd::sdf::Path& fromPrimPath, freeusd::sdf::Path* outToPrimPath) const {
+  if (!outToPrimPath || !fromPrimPath.IsPrimPath()) {
+    return false;
+  }
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (L && L->HasRelocate(fromPrimPath)) {
+      return L->GetRelocateTarget(fromPrimPath, outToPrimPath);
+    }
+  }
+  return false;
+}
+
+bool Stage::RelocateSourceInAnyLayer(const freeusd::sdf::Path& fromPrimPath) const {
+  if (!fromPrimPath.IsPrimPath()) {
+    return false;
+  }
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (L && L->HasRelocate(fromPrimPath)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+std::vector<std::pair<freeusd::sdf::Path, freeusd::sdf::Path>> Stage::ListComposedRelocates() const {
+  std::unordered_set<std::string> seen_from;
+  std::vector<std::pair<freeusd::sdf::Path, freeusd::sdf::Path>> acc;
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (!L) {
+      continue;
+    }
+    for (const auto& pr : L->ListRelocates()) {
+      const std::string& fs = pr.first.GetString();
+      if (seen_from.insert(fs).second) {
+        acc.emplace_back(pr.first, pr.second);
+      }
+    }
+  }
+  std::sort(acc.begin(), acc.end(), [](const std::pair<freeusd::sdf::Path, freeusd::sdf::Path>& a,
+                                        const std::pair<freeusd::sdf::Path, freeusd::sdf::Path>& b) {
+    return a.first.GetString() < b.first.GetString();
+  });
+  return acc;
+}
+
+bool Stage::GetComposedPrefixSubstitution(const std::string& fromPrefix, std::string* outToPrefix) const {
+  if (!outToPrefix || fromPrefix.empty()) {
+    return false;
+  }
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (L && L->HasPrefixSubstitution(fromPrefix)) {
+      return L->GetPrefixSubstitution(fromPrefix, outToPrefix);
+    }
+  }
+  return false;
+}
+
+bool Stage::PrefixSubstitutionKeyInAnyLayer(const std::string& fromPrefix) const {
+  if (fromPrefix.empty()) {
+    return false;
+  }
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (L && L->HasPrefixSubstitution(fromPrefix)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+std::vector<std::pair<std::string, std::string>> Stage::ListComposedPrefixSubstitutions() const {
+  std::unordered_set<std::string> seen_from;
+  std::vector<std::pair<std::string, std::string>> acc;
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (!L) {
+      continue;
+    }
+    for (const auto& pr : L->ListPrefixSubstitutions()) {
+      if (seen_from.insert(pr.first).second) {
+        acc.emplace_back(pr.first, pr.second);
+      }
+    }
+  }
+  std::sort(acc.begin(), acc.end(), [](const std::pair<std::string, std::string>& a,
+                                        const std::pair<std::string, std::string>& b) {
+    return a.first < b.first;
+  });
+  return acc;
 }
 
 bool Stage::HasDefaultPrim() const {

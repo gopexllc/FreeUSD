@@ -167,9 +167,13 @@ void Layer::Clear() noexcept {
   hierarchy_.clear();
   prim_kinds_.clear();
   documentation_.clear();
+  comment_.clear();
   default_prim_.reset();
   sublayer_paths_.clear();
+  sublayer_offsets_.clear();
   relocates_.clear();
+  prefix_substitutions_.clear();
+  custom_layer_data_.clear();
   references_.clear();
   prim_inherits_.clear();
   prim_specializes_.clear();
@@ -201,6 +205,51 @@ void Layer::SetSubLayers(std::vector<std::string> paths) {
       sublayer_paths_.emplace_back(v);
     }
   }
+}
+
+void Layer::ClearSubLayerOffsets() noexcept {
+  sublayer_offsets_.clear();
+}
+
+void Layer::SetSubLayerOffset(std::string authoredSublayerPath, LayerOffset offset) {
+  std::string_view v = trim_sv(authoredSublayerPath);
+  if (v.empty()) {
+    return;
+  }
+  sublayer_offsets_[std::string{v}] = offset;
+}
+
+void Layer::EraseSubLayerOffset(const std::string& authoredSublayerPath) {
+  sublayer_offsets_.erase(authoredSublayerPath);
+}
+
+bool Layer::HasSubLayerOffset(const std::string& authoredSublayerPath) const {
+  return sublayer_offsets_.find(authoredSublayerPath) != sublayer_offsets_.end();
+}
+
+bool Layer::GetSubLayerOffset(const std::string& authoredSublayerPath, LayerOffset* out) const {
+  if (!out) {
+    return false;
+  }
+  const auto it = sublayer_offsets_.find(authoredSublayerPath);
+  if (it == sublayer_offsets_.end()) {
+    return false;
+  }
+  *out = it->second;
+  return true;
+}
+
+std::vector<std::pair<std::string, LayerOffset>> Layer::ListSubLayerOffsets() const {
+  std::vector<std::pair<std::string, LayerOffset>> out;
+  out.reserve(sublayer_offsets_.size());
+  for (const auto& e : sublayer_offsets_) {
+    out.emplace_back(e.first, e.second);
+  }
+  std::sort(out.begin(), out.end(),
+            [](const std::pair<std::string, LayerOffset>& a, const std::pair<std::string, LayerOffset>& b) {
+              return a.first < b.first;
+            });
+  return out;
 }
 
 void Layer::ClearRelocates() noexcept {
@@ -247,6 +296,97 @@ std::vector<std::pair<Path, Path>> Layer::ListRelocates() const {
             [](const std::pair<Path, Path>& a, const std::pair<Path, Path>& b) {
               return a.first.GetString() < b.first.GetString();
             });
+  return out;
+}
+
+void Layer::ClearPrefixSubstitutions() noexcept {
+  prefix_substitutions_.clear();
+}
+
+void Layer::SetPrefixSubstitution(std::string fromPrefix, std::string toPrefix) {
+  if (fromPrefix.empty() || toPrefix.empty()) {
+    return;
+  }
+  prefix_substitutions_[std::move(fromPrefix)] = std::move(toPrefix);
+}
+
+void Layer::ErasePrefixSubstitution(const std::string& fromPrefix) {
+  prefix_substitutions_.erase(fromPrefix);
+}
+
+bool Layer::HasPrefixSubstitution(const std::string& fromPrefix) const {
+  return prefix_substitutions_.find(fromPrefix) != prefix_substitutions_.end();
+}
+
+bool Layer::GetPrefixSubstitution(const std::string& fromPrefix, std::string* outToPrefix) const {
+  if (!outToPrefix) {
+    return false;
+  }
+  const auto it = prefix_substitutions_.find(fromPrefix);
+  if (it == prefix_substitutions_.end()) {
+    return false;
+  }
+  *outToPrefix = it->second;
+  return true;
+}
+
+std::vector<std::pair<std::string, std::string>> Layer::ListPrefixSubstitutions() const {
+  std::vector<std::pair<std::string, std::string>> out;
+  out.reserve(prefix_substitutions_.size());
+  for (const auto& e : prefix_substitutions_) {
+    out.emplace_back(e.first, e.second);
+  }
+  std::sort(out.begin(), out.end(),
+            [](const std::pair<std::string, std::string>& a, const std::pair<std::string, std::string>& b) {
+              return a.first < b.first;
+            });
+  return out;
+}
+
+void Layer::ClearCustomLayerData() noexcept {
+  custom_layer_data_.clear();
+}
+
+void Layer::SetCustomLayerDataEntry(std::string key, const freeusd::vt::Value& value) {
+  if (key.empty() || value.IsEmpty()) {
+    return;
+  }
+  custom_layer_data_[std::move(key)] = value;
+}
+
+void Layer::EraseCustomLayerDataEntry(const std::string& key) {
+  if (key.empty()) {
+    return;
+  }
+  custom_layer_data_.erase(key);
+}
+
+bool Layer::HasCustomLayerDataKey(const std::string& key) const {
+  if (key.empty()) {
+    return false;
+  }
+  return custom_layer_data_.find(key) != custom_layer_data_.end();
+}
+
+bool Layer::GetCustomLayerDataEntry(const std::string& key, freeusd::vt::Value* out) const {
+  if (!out || key.empty()) {
+    return false;
+  }
+  const auto it = custom_layer_data_.find(key);
+  if (it == custom_layer_data_.end()) {
+    return false;
+  }
+  *out = it->second;
+  return true;
+}
+
+std::vector<std::string> Layer::ListCustomLayerDataKeys() const {
+  std::vector<std::string> out;
+  out.reserve(custom_layer_data_.size());
+  for (const auto& e : custom_layer_data_) {
+    out.push_back(e.first);
+  }
+  std::sort(out.begin(), out.end());
   return out;
 }
 

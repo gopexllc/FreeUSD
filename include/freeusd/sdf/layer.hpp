@@ -11,6 +11,7 @@
 
 #include "freeusd/export.hpp"
 #include "freeusd/sdf/fieldOpinion.hpp"
+#include "freeusd/sdf/layerOffset.hpp"
 #include "freeusd/sdf/path.hpp"
 #include "freeusd/sdf/primReference.hpp"
 #include "freeusd/tf/hash.hpp"
@@ -85,6 +86,11 @@ class FREEUSD_API Layer : public std::enable_shared_from_this<Layer> {
   const std::string& GetDocumentation() const noexcept { return documentation_; }
   void SetDocumentation(std::string doc) { documentation_ = std::move(doc); }
 
+  /// Layer header \c comment (SdfLayer \c comment; distinct from \c documentation).
+  const std::string& GetComment() const noexcept { return comment_; }
+  void SetComment(std::string text) { comment_ = std::move(text); }
+  void ClearComment() noexcept { comment_.clear(); }
+
   void SetDefaultPrim(std::string_view rootPrimName);
   void ClearDefaultPrim() noexcept { default_prim_.reset(); }
   bool HasDefaultPrim() const noexcept { return default_prim_.has_value(); }
@@ -99,6 +105,15 @@ class FREEUSD_API Layer : public std::enable_shared_from_this<Layer> {
   void ClearSubLayers() noexcept { sublayer_paths_.clear(); }
   const std::vector<std::string>& GetSubLayers() const noexcept { return sublayer_paths_; }
 
+  /// Per-sublayer time mapping (USD \c subLayerOffsets; keys are authored asset path strings, e.g. \c @./a.usda@).
+  void ClearSubLayerOffsets() noexcept;
+  void SetSubLayerOffset(std::string authoredSublayerPath, LayerOffset offset);
+  void EraseSubLayerOffset(const std::string& authoredSublayerPath);
+  bool HasSubLayerOffset(const std::string& authoredSublayerPath) const;
+  bool GetSubLayerOffset(const std::string& authoredSublayerPath, LayerOffset* out) const;
+  /// Pairs sorted by sublayer path for stable USDA output.
+  std::vector<std::pair<std::string, LayerOffset>> ListSubLayerOffsets() const;
+
   /// Layer-scope \c relocates map (source absolute prim path → target absolute prim path). Stored only; no graph rewrite.
   void ClearRelocates() noexcept;
   void SetRelocate(Path fromPrimPath, Path toPrimPath);
@@ -107,6 +122,23 @@ class FREEUSD_API Layer : public std::enable_shared_from_this<Layer> {
   bool GetRelocateTarget(const Path& fromPrimPath, Path* outToPrimPath) const;
   /// Sorted by source path string for stable USDA output.
   std::vector<std::pair<Path, Path>> ListRelocates() const;
+
+  /// Layer-scope \c prefixSubstitutions (prefix string → replacement string). Stored only; no path rewriting in queries.
+  void ClearPrefixSubstitutions() noexcept;
+  void SetPrefixSubstitution(std::string fromPrefix, std::string toPrefix);
+  void ErasePrefixSubstitution(const std::string& fromPrefix);
+  bool HasPrefixSubstitution(const std::string& fromPrefix) const;
+  bool GetPrefixSubstitution(const std::string& fromPrefix, std::string* outToPrefix) const;
+  /// Pairs sorted by \p fromPrefix for stable USDA output.
+  std::vector<std::pair<std::string, std::string>> ListPrefixSubstitutions() const;
+
+  /// Layer-scope \c customLayerData (string keys → \c Value). Same role as SdfLayer \c customLayerData.
+  void ClearCustomLayerData() noexcept;
+  void SetCustomLayerDataEntry(std::string key, const freeusd::vt::Value& value);
+  void EraseCustomLayerDataEntry(const std::string& key);
+  bool HasCustomLayerDataKey(const std::string& key) const;
+  bool GetCustomLayerDataEntry(const std::string& key, freeusd::vt::Value* out) const;
+  std::vector<std::string> ListCustomLayerDataKeys() const;
 
   /// Reference arcs on prim (@asset@ with optional </Prim> tail), ordering preserved—minimal Pcp precursor.
   void AddPrimReference(const Path& primPath, PrimReference ref);
@@ -182,9 +214,13 @@ class FREEUSD_API Layer : public std::enable_shared_from_this<Layer> {
 
   std::string identifier_;
   std::string documentation_;
+  std::string comment_;
   std::optional<std::string> default_prim_;
   std::vector<std::string> sublayer_paths_;
+  std::unordered_map<std::string, LayerOffset, freeusd::tf::HashString, std::equal_to<>> sublayer_offsets_;
   std::unordered_map<Path, Path, Path::Hash> relocates_;
+  std::unordered_map<std::string, std::string, freeusd::tf::HashString, std::equal_to<>> prefix_substitutions_;
+  std::unordered_map<std::string, freeusd::vt::Value, freeusd::tf::HashString, std::equal_to<>> custom_layer_data_;
 
   std::unordered_map<Path, FieldMap, Path::Hash> fields_;
   std::unordered_set<Path, Path::Hash> hierarchy_;
