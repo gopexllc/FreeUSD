@@ -1,14 +1,18 @@
+#include <pybind11/functional.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <optional>
 #include <sstream>
 
 #include "freeusd/ar/defaultResolver.hpp"
 #include "freeusd/io/usda.hpp"
+#include "freeusd/pcp/compose.hpp"
 #include "freeusd/pcp/layerStack.hpp"
 #include "freeusd/plug/registry.hpp"
 #include "freeusd/sdf/layer.hpp"
 #include "freeusd/sdf/path.hpp"
+#include "freeusd/sdf/primReference.hpp"
 #include "freeusd/tf/token.hpp"
 #include "freeusd/usd/stage.hpp"
 #include "freeusd/usdGeom/tokens.hpp"
@@ -89,6 +93,22 @@ PYBIND11_MODULE(_native, m) {
         .def("__eq__", [](const freeusd::sdf::Path& a, const freeusd::sdf::Path& b) { return a == b; })
         .def("__repr__", [](const freeusd::sdf::Path& p) { return "<freeusd.sdf.Path '" + p.GetText() + "'>"; });
 
+    py::class_<freeusd::sdf::PrimReference>(sdf, "PrimReference")
+        .def(py::init<>())
+        .def(py::init<std::string, std::optional<freeusd::sdf::Path>>(), py::arg("asset_path"),
+             py::arg("prim_path") = std::nullopt)
+        .def_readwrite("asset_path", &freeusd::sdf::PrimReference::asset_path)
+        .def_readwrite("prim_path", &freeusd::sdf::PrimReference::prim_path)
+        .def("is_empty", &freeusd::sdf::PrimReference::IsEmpty)
+        .def("format_authored_for_usda", &freeusd::sdf::PrimReference::FormatAuthoredForUsda)
+        .def_static("parse_authored", [](std::string text) -> py::object {
+          freeusd::sdf::PrimReference r;
+          if (!freeusd::sdf::PrimReference::ParseAuthored(text, &r)) {
+            return py::none();
+          }
+          return py::cast(r);
+        });
+
     py::enum_<freeusd::sdf::Layer::PrimSpecifierKind>(sdf, "PrimSpecifierKind")
         .value("default_", freeusd::sdf::Layer::PrimSpecifierKind::Default)
         .value("def_", freeusd::sdf::Layer::PrimSpecifierKind::Def)
@@ -119,6 +139,8 @@ PYBIND11_MODULE(_native, m) {
             [](freeusd::sdf::Layer& layer, std::vector<std::string> p) {
               layer.SetSubLayers(std::move(p));
             })
+        .def("clear_sub_layers", &freeusd::sdf::Layer::ClearSubLayers)
+        .def("has_default_prim", &freeusd::sdf::Layer::HasDefaultPrim)
         .def(
             "sub_layers",
             [](const freeusd::sdf::Layer& layer) { return layer.GetSubLayers(); })
@@ -134,6 +156,22 @@ PYBIND11_MODULE(_native, m) {
         })
         .def("list_prim_paths", &freeusd::sdf::Layer::ListPrimPaths)
         .def("list_field_names", &freeusd::sdf::Layer::ListFieldNames)
+        .def(
+            "set_relationship_targets",
+            [](freeusd::sdf::Layer& layer, const freeusd::sdf::Path& p, const freeusd::tf::Token& rel,
+               std::vector<freeusd::sdf::Path> targets) {
+              layer.SetRelationshipTargets(p, rel, std::move(targets));
+            })
+        .def(
+            "prepend_relationship_targets",
+            [](freeusd::sdf::Layer& layer, const freeusd::sdf::Path& p, const freeusd::tf::Token& rel,
+               std::vector<freeusd::sdf::Path> extra) {
+              layer.PrependRelationshipTargets(p, rel, std::move(extra));
+            })
+        .def("clear_relationship", &freeusd::sdf::Layer::ClearRelationship)
+        .def("has_relationship", &freeusd::sdf::Layer::HasRelationship)
+        .def("get_relationship_targets", &freeusd::sdf::Layer::GetRelationshipTargets)
+        .def("list_relationship_names", &freeusd::sdf::Layer::ListRelationshipNames)
         .def("clear", &freeusd::sdf::Layer::Clear)
         .def("set_prim_kind", &freeusd::sdf::Layer::SetPrimKind)
         .def("has_prim_kind", &freeusd::sdf::Layer::HasPrimKind)
@@ -144,8 +182,26 @@ PYBIND11_MODULE(_native, m) {
               layer.AddReference(p, std::move(a));
             })
         .def(
+            "set_references",
+            [](freeusd::sdf::Layer& layer, const freeusd::sdf::Path& p, std::vector<std::string> assets) {
+              layer.SetReferences(p, std::move(assets));
+            })
+        .def("clear_references", &freeusd::sdf::Layer::ClearReferences)
+        .def(
             "list_references",
             [](const freeusd::sdf::Layer& layer, const freeusd::sdf::Path& p) { return layer.ListReferences(p); })
+        .def("add_prim_reference", &freeusd::sdf::Layer::AddPrimReference)
+        .def(
+            "set_prim_references",
+            [](freeusd::sdf::Layer& layer, const freeusd::sdf::Path& p,
+               std::vector<freeusd::sdf::PrimReference> refs) {
+              layer.SetPrimReferences(p, std::move(refs));
+            })
+        .def(
+            "list_prim_references",
+            [](const freeusd::sdf::Layer& layer, const freeusd::sdf::Path& p) {
+              return layer.ListPrimReferences(p);
+            })
         .def(
             "is_prim_active",
             [](const freeusd::sdf::Layer& layer, const freeusd::sdf::Path& p) {
@@ -156,6 +212,7 @@ PYBIND11_MODULE(_native, m) {
             [](freeusd::sdf::Layer& layer, const freeusd::sdf::Path& p, bool active) {
               layer.SetPrimActive(p, active);
             })
+        .def("has_prim_active_opinion", &freeusd::sdf::Layer::HasPrimActiveOpinion)
         .def(
             "get_prim_specifier",
             [](const freeusd::sdf::Layer& layer, const freeusd::sdf::Path& p) {
@@ -221,11 +278,34 @@ PYBIND11_MODULE(_native, m) {
     py::class_<freeusd::pcp::LayerStack>(pcp, "LayerStack")
         .def(py::init<>())
         .def("append", &freeusd::pcp::LayerStack::Append)
+        .def("clear", &freeusd::pcp::LayerStack::Clear)
         .def("is_empty", &freeusd::pcp::LayerStack::IsEmpty)
         .def(
             "layers",
             [](const freeusd::pcp::LayerStack& s) { return s.GetLayers(); },
             py::return_value_policy::reference_internal);
+
+    pcp.def(
+        "compose_sublayers",
+        [](const std::shared_ptr<freeusd::sdf::Layer>& root,
+           const std::function<std::shared_ptr<freeusd::sdf::Layer>(const std::string&)>& resolve) {
+          return freeusd::pcp::ComposeSublayers(root, resolve);
+        },
+        py::arg("root"), py::arg("resolve"),
+        R"pbdoc(
+Compose root plus direct sublayers. ``resolve(authored_path)`` may return ``None`` to skip a path.
+Order: root strongest, then authored ``subLayers`` entries (early entries stronger among sublayers).)pbdoc");
+
+    pcp.def(
+        "compose_sublayers_depth_first",
+        [](const std::shared_ptr<freeusd::sdf::Layer>& root,
+           const std::function<std::shared_ptr<freeusd::sdf::Layer>(const std::string&)>& resolve) {
+          return freeusd::pcp::ComposeSublayersDepthFirst(root, resolve);
+        },
+        py::arg("root"), py::arg("resolve"),
+        R"pbdoc(
+Recursively compose sublayers depth-first under each resolved layer before the next sibling ordered
+reference; breaks cycles encountered along the DFS stack.)pbdoc");
   }
 
   {
@@ -241,7 +321,9 @@ PYBIND11_MODULE(_native, m) {
         .def("is_valid", &freeusd::usd::Prim::IsValid)
         .def("path", &freeusd::usd::Prim::GetPath)
         .def("has_attribute", &freeusd::usd::Prim::HasAttribute)
-        .def("get_attribute", &freeusd::usd::Prim::GetAttribute);
+        .def("get_attribute", &freeusd::usd::Prim::GetAttribute)
+        .def("has_relationship", &freeusd::usd::Prim::HasRelationship)
+        .def("get_relationship_targets", &freeusd::usd::Prim::GetRelationshipTargets);
   }
 
   {

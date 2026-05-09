@@ -28,10 +28,14 @@ if(FREEUSD_BUILD_TESTS)
   add_executable(freeusd_usda_roundtrip_test tests/usda_roundtrip_test.cpp)
   target_link_libraries(freeusd_usda_roundtrip_test PRIVATE freeusd::io)
 
+  add_executable(freeusd_pcp_compose_test tests/pcp_compose_test.cpp)
+  target_link_libraries(freeusd_pcp_compose_test PRIVATE freeusd::pcp)
+
   add_test(NAME freeusd_selftest COMMAND freeusd_selftest)
   add_test(NAME freeusd_sdf_path_test COMMAND freeusd_sdf_path_test)
   add_test(NAME freeusd_usd_smoke_test COMMAND freeusd_usd_smoke_test)
   add_test(NAME freeusd_usda_roundtrip_test COMMAND freeusd_usda_roundtrip_test)
+  add_test(NAME freeusd_pcp_compose_test COMMAND freeusd_pcp_compose_test)
 endif()
 
 if(FREEUSD_BUILD_PYTHON)

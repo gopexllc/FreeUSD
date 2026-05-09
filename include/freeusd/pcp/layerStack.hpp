@@ -12,6 +12,7 @@ namespace freeusd::pcp {
 class FREEUSD_API LayerStack {
  public:
   void Append(std::shared_ptr<freeusd::sdf::Layer> layer);
+  void Clear() noexcept { layers_.clear(); }
   const std::vector<std::shared_ptr<freeusd::sdf::Layer>>& GetLayers() const noexcept { return layers_; }
   bool IsEmpty() const noexcept { return layers_.empty(); }
 

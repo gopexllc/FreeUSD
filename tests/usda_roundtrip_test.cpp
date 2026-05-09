@@ -21,6 +21,9 @@ int main() {
 )
 
 def Xform "World"
+(
+    prepend references = @./payload.usda@</Geometry/Mesh>
+)
 {
     def "Cube"
     {
@@ -31,6 +34,9 @@ def Xform "World"
         }
         bool visible = true
         string doc = "hello"
+        rel material:binding = </Materials/M>
+        rel proxyPrim = </Materials/M>
+        prepend rel proxyPrim = </Proxy/Draw>
     }
 }
 )USDA";
@@ -66,6 +72,22 @@ def Xform "World"
 
   assert(layer2->HasPrimKind(Path::FromString("/World")));
   assert(layer2->GetPrimKind(Path::FromString("/World")).GetText() == "Xform");
+
+  assert(layer2->HasRelationship(cube, Token("material:binding")));
+  const auto mb = layer2->GetRelationshipTargets(cube, Token("material:binding"));
+  assert(mb.size() == 1);
+  assert(mb[0] == Path::FromString("/Materials/M"));
+  const auto pp = layer2->GetRelationshipTargets(cube, Token("proxyPrim"));
+  assert(pp.size() == 2);
+  assert(pp[0] == Path::FromString("/Proxy/Draw"));
+  assert(pp[1] == Path::FromString("/Materials/M"));
+
+  const Path world = Path::FromString("/World");
+  const auto wl = layer2->ListPrimReferences(world);
+  assert(wl.size() == 1);
+  assert(wl[0].asset_path == "./payload.usda");
+  assert(wl[0].prim_path.has_value());
+  assert(*wl[0].prim_path == Path::FromString("/Geometry/Mesh"));
 
   return 0;
 }

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import freeusd.io as io
+import freeusd.usd as usd
 from freeusd.sdf import Layer, Path, PrimSpecifierKind
 from freeusd.tf import Token
 from freeusd.vt import Value
@@ -121,3 +122,42 @@ def Xform "Hello"
     assert layer.documentation() == ""
     assert layer.default_prim() is None
     assert layer.sub_layers() == []
+
+
+def test_usda_relationships_roundtrip_and_prim() -> None:
+    src = """#usda 1.0
+(
+    doc = \"rel\"
+)
+
+def Xform \"W\"
+{
+    def \"C\"
+    {
+        rel scene:shot = [</Shots/A>, </Shots/B>]
+        rel mat:binding = </Materials/M>
+        prepend rel proxyPrim = </Proxy/P>
+    }
+}
+"""
+    layer = Layer.new_anonymous("r")
+    assert io.load_from_string(src, layer).ok
+    c = Path.from_string("/W/C")
+    mats = layer.list_relationship_names(c)
+    assert "scene:shot" in mats
+    assert "mat:binding" in mats
+    t1 = layer.get_relationship_targets(c, Token("scene:shot"))
+    assert len(t1) == 2
+    assert t1[0].text() == "/Shots/A"
+
+    st = usd.Stage.attach_root_layer(layer)
+    prim_c = st.prim_at(c)
+    assert prim_c.has_relationship(Token("proxyPrim"))
+    proxies = prim_c.get_relationship_targets(Token("proxyPrim"))
+    assert proxies[0].text() == "/Proxy/P"
+
+    out = io.save_to_string(layer)
+    layer2 = Layer.new_anonymous("r2")
+    assert io.load_from_string(out, layer2).ok
+    t2 = layer2.get_relationship_targets(Path.from_string("/W/C"), Token("scene:shot"))
+    assert len(t2) == 2

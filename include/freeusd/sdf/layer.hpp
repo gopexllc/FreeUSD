@@ -11,6 +11,7 @@
 #include "freeusd/export.hpp"
 #include "freeusd/sdf/fieldOpinion.hpp"
 #include "freeusd/sdf/path.hpp"
+#include "freeusd/sdf/primReference.hpp"
 #include "freeusd/tf/hash.hpp"
 #include "freeusd/tf/token.hpp"
 #include "freeusd/vt/value.hpp"
@@ -74,11 +75,23 @@ class FREEUSD_API Layer : public std::enable_shared_from_this<Layer> {
   void ClearSubLayers() noexcept { sublayer_paths_.clear(); }
   const std::vector<std::string>& GetSubLayers() const noexcept { return sublayer_paths_; }
 
-  /// Reference arc asset paths authored on prim (minimal Pcp precursor; ordering preserved).
-  void AddReference(const Path& primPath, std::string assetPath);
-  void SetReferences(const Path& primPath, std::vector<std::string> paths);
+  /// Reference arcs on prim (@asset@ with optional </Prim> tail), ordering preserved—minimal Pcp precursor.
+  void AddPrimReference(const Path& primPath, PrimReference ref);
+  void AddReference(const Path& primPath, std::string authoredFragment);
+  void SetPrimReferences(const Path& primPath, std::vector<PrimReference> refs);
+  void SetReferences(const Path& primPath, std::vector<std::string> authoredFragments);
+  std::vector<PrimReference> ListPrimReferences(const Path& primPath) const;
+  /// Canonical authored strings (@@path@@ and optional prim tail) for debugging and interoperability.
   std::vector<std::string> ListReferences(const Path& primPath) const;
   void ClearReferences(const Path& primPath);
+
+  /// Relationship authored targets (UsdRelationship / SdfPathVector-shaped; strongest-first list order preserved).
+  void SetRelationshipTargets(const Path& primPath, const freeusd::tf::Token& relName, std::vector<Path> targets);
+  void PrependRelationshipTargets(const Path& primPath, const freeusd::tf::Token& relName, std::vector<Path> extraFront);
+  void ClearRelationship(const Path& primPath, const freeusd::tf::Token& relName);
+  bool HasRelationship(const Path& primPath, const freeusd::tf::Token& relName) const;
+  std::vector<Path> GetRelationshipTargets(const Path& primPath, const freeusd::tf::Token& relName) const;
+  std::vector<std::string> ListRelationshipNames(const Path& primPath) const;
 
   bool IsPrimActive(const Path& primPath) const noexcept;
   void SetPrimActive(const Path& primPath, bool active);
@@ -99,6 +112,7 @@ class FREEUSD_API Layer : public std::enable_shared_from_this<Layer> {
   const FieldOpinion* find_opinion(const Path& primPath, const std::string& name) const;
 
   using FieldMap = std::unordered_map<std::string, FieldOpinion, freeusd::tf::HashString, std::equal_to<>>;
+  using RelMap = std::unordered_map<std::string, std::vector<Path>, freeusd::tf::HashString, std::equal_to<>>;
 
   std::string identifier_;
   std::string documentation_;
@@ -108,7 +122,8 @@ class FREEUSD_API Layer : public std::enable_shared_from_this<Layer> {
   std::unordered_map<Path, FieldMap, Path::Hash> fields_;
   std::unordered_set<Path, Path::Hash> hierarchy_;
   std::unordered_map<Path, freeusd::tf::Token, Path::Hash> prim_kinds_;
-  std::unordered_map<Path, std::vector<std::string>, Path::Hash> references_;
+  std::unordered_map<Path, std::vector<PrimReference>, Path::Hash> references_;
+  std::unordered_map<Path, RelMap, Path::Hash> relationships_;
   std::unordered_map<Path, bool, Path::Hash> prim_active_;
   std::unordered_map<Path, PrimSpecifierKind, Path::Hash> prim_specifiers_;
 };

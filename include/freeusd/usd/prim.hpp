@@ -23,6 +23,9 @@ class FREEUSD_API Prim {
   bool HasAttribute(const freeusd::tf::Token& name) const;
   freeusd::vt::Value GetAttribute(const freeusd::tf::Token& name) const;
 
+  bool HasRelationship(const freeusd::tf::Token& relName) const;
+  std::vector<freeusd::sdf::Path> GetRelationshipTargets(const freeusd::tf::Token& relName) const;
+
  private:
   std::shared_ptr<const Stage> lock_stage() const;
   std::weak_ptr<const Stage> stage_;

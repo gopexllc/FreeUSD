@@ -8,6 +8,7 @@ _sdf = importlib.import_module("freeusd._native").sdf
 
 Layer = _sdf.Layer
 Path = _sdf.Path
+PrimReference = _sdf.PrimReference
 PrimSpecifierKind = _sdf.PrimSpecifierKind
 
-__all__ = ["Layer", "Path", "PrimSpecifierKind"]
+__all__ = ["Layer", "Path", "PrimReference", "PrimSpecifierKind"]

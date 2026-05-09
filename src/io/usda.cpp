@@ -507,6 +507,136 @@ void strip_uniform_custom_qualifiers(std::string* line) {
   }
 }
 
+void strip_leading_prepend(std::string* line, bool* out_prepend) {
+  *out_prepend = false;
+  for (;;) {
+    std::string_view s = trim(std::string_view(*line));
+    if (!kw_line(s, "prepend")) {
+      break;
+    }
+    *out_prepend = true;
+    *line = std::string(trim(s.substr(7)));
+    break;
+  }
+}
+
+std::string flatten_newlines_inside_square_brackets(std::string_view in);
+
+std::string ascii_lower(std::string_view in) {
+  std::string o;
+  o.reserve(in.size());
+  for (char c : in) {
+    o.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+  }
+  return o;
+}
+
+bool tag_is_relationship_none(std::string_view t) {
+  t = trim(t);
+  return ascii_lower(t) == "none";
+}
+
+freeusd::sdf::Path parse_relationship_path_token(std::string_view t, ParseResult* err, std::size_t line) {
+  t = trim(t);
+  if (t.size() < 3 || t.front() != '<' || t.back() != '>') {
+    set_err(err, line, "expected path literal like </Prim> in relationship");
+    return {};
+  }
+  const std::string_view inner = trim(t.substr(1, t.size() - 2));
+  const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(inner);
+  if (p.IsEmpty()) {
+    set_err(err, line, "invalid relationship path");
+    return {};
+  }
+  return p;
+}
+
+bool parse_relationship_targets_value(std::string_view val, std::vector<freeusd::sdf::Path>* out, ParseResult* err,
+                                      std::size_t line) {
+  out->clear();
+  const std::string flat = flatten_newlines_inside_square_brackets(val);
+  std::string_view v = trim(std::string_view{flat});
+  if (tag_is_relationship_none(v)) {
+    return true;
+  }
+  if (sv_starts_with(v, "[")) {
+    int depth = 0;
+    bool dq = false;
+    bool sq = false;
+    std::size_t close = std::string::npos;
+    for (std::size_t i = 0; i < v.size(); ++i) {
+      const char c = v[i];
+      if (!sq && c == '"' && (i == 0 || v[i - 1] != '\\')) {
+        dq = !dq;
+        continue;
+      }
+      if (!dq && c == '\'' && (i == 0 || v[i - 1] != '\\')) {
+        sq = !sq;
+        continue;
+      }
+      if (!dq && !sq) {
+        if (c == '[') {
+          ++depth;
+        } else if (c == ']') {
+          --depth;
+          if (depth == 0) {
+            close = i;
+            break;
+          }
+        }
+      }
+    }
+    if (close == std::string_view::npos || close <= 1) {
+      set_err(err, line, "bad relationship path list");
+      return false;
+    }
+    std::string_view inner = trim(v.substr(1, close - 1));
+    while (!inner.empty()) {
+      const std::size_t comma = inner.find(',');
+      const std::string_view piece = trim(inner.substr(0, comma));
+      if (!piece.empty()) {
+        const freeusd::sdf::Path p = parse_relationship_path_token(piece, err, line);
+        if (!err->ok) {
+          return false;
+        }
+        out->push_back(p);
+      }
+      if (comma == std::string_view::npos) {
+        break;
+      }
+      inner.remove_prefix(comma + 1);
+    }
+    return true;
+  }
+  const freeusd::sdf::Path one = parse_relationship_path_token(v, err, line);
+  if (!err->ok) {
+    return false;
+  }
+  out->push_back(one);
+  return true;
+}
+
+std::string path_to_usda_angle(const freeusd::sdf::Path& p) { return std::string{"<"} + p.GetText() + ">"; }
+
+std::string relationship_targets_to_usda(const std::vector<freeusd::sdf::Path>& targets) {
+  if (targets.empty()) {
+    return "none";
+  }
+  if (targets.size() == 1) {
+    return path_to_usda_angle(targets[0]);
+  }
+  std::ostringstream os;
+  os << '[';
+  for (std::size_t i = 0; i < targets.size(); ++i) {
+    if (i != 0) {
+      os << ", ";
+    }
+    os << path_to_usda_angle(targets[i]);
+  }
+  os << ']';
+  return os.str();
+}
+
 /// Turn newlines inside `[`…`]` into spaces so line-based metadata parsing sees one assignment value.
 std::string flatten_newlines_inside_square_brackets(std::string_view in) {
   std::string out;
@@ -639,6 +769,56 @@ bool gather_asset_refs(std::string_view val_c, std::vector<std::string>* out_pat
   return true;
 }
 
+bool gather_prim_reference_list(std::string_view val_c, std::vector<freeusd::sdf::PrimReference>* out_refs, ParseResult* err,
+                                std::size_t line_no) {
+  out_refs->clear();
+  std::string_view val = trim(val_c);
+  if (sv_starts_with(val, "[")) {
+    std::size_t close = std::string::npos;
+    int bdepth = 0;
+    for (std::size_t i = 0; i < val.size(); ++i) {
+      if (val[i] == '[') {
+        bdepth++;
+      } else if (val[i] == ']') {
+        bdepth--;
+        if (bdepth == 0) {
+          close = i;
+          break;
+        }
+      }
+    }
+    if (close == std::string_view::npos || close <= 1) {
+      set_err(err, line_no, "bad references bracket list");
+      return false;
+    }
+    std::string_view inner = trim(val.substr(1, close - 1));
+    while (!inner.empty()) {
+      const std::size_t comma = inner.find(',');
+      const std::string_view piece = trim(inner.substr(0, comma));
+      if (!piece.empty()) {
+        freeusd::sdf::PrimReference r{};
+        if (!freeusd::sdf::PrimReference::ParseAuthored(piece, &r) || r.IsEmpty()) {
+          set_err(err, line_no, "bad prim reference entry");
+          return false;
+        }
+        out_refs->push_back(std::move(r));
+      }
+      if (comma == std::string_view::npos) {
+        break;
+      }
+      inner.remove_prefix(comma + 1);
+    }
+    return true;
+  }
+  freeusd::sdf::PrimReference one{};
+  if (!freeusd::sdf::PrimReference::ParseAuthored(val, &one) || one.IsEmpty()) {
+    set_err(err, line_no, "expected prim reference");
+    return false;
+  }
+  out_refs->push_back(std::move(one));
+  return true;
+}
+
 void apply_layer_metadata_blob(const std::string& blob, freeusd::sdf::Layer* layer, ParseResult* err, std::size_t anchor_line) {
   const std::string flat = flatten_newlines_inside_square_brackets(blob);
   std::istringstream iss(flat);
@@ -720,16 +900,16 @@ void apply_prim_metadata_blob(const std::string& blob,
       return o;
     }(lhs);
 
-    std::vector<std::string> paths;
+    std::vector<freeusd::sdf::PrimReference> refs;
     if (key_full == "prepend references" || key_full == "references") {
-      if (!gather_asset_refs(rhs, &paths, err, anchor_line)) {
+      if (!gather_prim_reference_list(rhs, &refs, err, anchor_line)) {
         break;
       }
       if (key_full == "references") {
         layer->ClearReferences(prim);
       }
-      for (auto& p : paths) {
-        layer->AddReference(prim, std::move(p));
+      for (auto& rf : refs) {
+        layer->AddPrimReference(prim, std::move(rf));
       }
     } else if (key_full == "active") {
       freeusd::vt::Value bv = parse_value(rhs, err, anchor_line);
@@ -1055,6 +1235,8 @@ ParseResult LoadFromString(std::string_view text, const std::shared_ptr<freeusd:
     std::string typ;
     std::string fname;
     std::string fval;
+    bool stmt_prepend = false;
+    strip_leading_prepend(&raw, &stmt_prepend);
     strip_uniform_custom_qualifiers(&raw);
     s = trim(std::string_view(raw));
     if (!parse_type_name_value(s, &typ, &fname, &fval)) {
@@ -1063,7 +1245,24 @@ ParseResult LoadFromString(std::string_view text, const std::shared_ptr<freeusd:
       r.message = "bad attribute line";
       return r;
     }
+    if (stmt_prepend && ascii_lower(typ) != "rel") {
+      set_err(&r, line_no, R"(unsupported "prepend" for non-rel USDA statements)");
+      return r;
+    }
     const std::string_view fname_sv = fname;
+    if (ascii_lower(typ) == "rel") {
+      std::vector<freeusd::sdf::Path> tgts;
+      const std::string_view rhs = trim(std::string_view{fval});
+      if (!parse_relationship_targets_value(rhs, &tgts, &r, line_no)) {
+        return r;
+      }
+      if (stmt_prepend) {
+        layer->PrependRelationshipTargets(stack.back(), freeusd::tf::Token{fname}, std::move(tgts));
+      } else {
+        layer->SetRelationshipTargets(stack.back(), freeusd::tf::Token{fname}, std::move(tgts));
+      }
+      continue;
+    }
     if (ends_with(fname_sv, kTimeSamplesSuffix)) {
       const std::string base = std::string{fname_sv.substr(0, fname_sv.size() - kTimeSamplesSuffix.size())};
       if (base.empty()) {
@@ -1227,8 +1426,8 @@ std::string SaveToString(const freeusd::sdf::Layer& layer) {
       if (meta_active_off) {
         os << pad << "    active = false\n";
       }
-      for (const auto& ref : refs) {
-        os << pad << "    prepend references = " << asset_path_to_usda(ref) << "\n";
+      for (const std::string& authored : layer.ListReferences(p)) {
+        os << pad << "    prepend references = " << authored << "\n";
       }
       if (meta_doc) {
         os << pad << "    doc = " << value_to_usda(pv_doc) << "\n";
@@ -1275,6 +1474,12 @@ std::string SaveToString(const freeusd::sdf::Layer& layer) {
         }
         os << pad << "    }\n";
       }
+    }
+
+    for (const std::string& rn : layer.ListRelationshipNames(p)) {
+      const freeusd::tf::Token rt{rn};
+      const std::vector<freeusd::sdf::Path> rtg = layer.GetRelationshipTargets(p, rt);
+      os << pad << "    rel " << rn << " = " << relationship_targets_to_usda(rtg) << "\n";
     }
 
     const auto it = children.find(p.GetString());

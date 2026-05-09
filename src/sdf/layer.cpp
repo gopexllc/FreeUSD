@@ -170,6 +170,7 @@ void Layer::Clear() noexcept {
   default_prim_.reset();
   sublayer_paths_.clear();
   references_.clear();
+  relationships_.clear();
   prim_active_.clear();
   prim_specifiers_.clear();
 }
@@ -194,26 +195,37 @@ void Layer::SetSubLayers(std::vector<std::string> paths) {
   }
 }
 
-void Layer::AddReference(const Path& primPath, std::string assetPath) {
-  if (!primPath.IsPrimPath()) {
+void Layer::AddPrimReference(const Path& primPath, PrimReference ref) {
+  if (!primPath.IsPrimPath() || ref.IsEmpty()) {
     return;
   }
   touch_hierarchy(primPath);
-  const std::string_view v = trim_sv(assetPath);
-  if (v.empty()) {
+  references_[primPath].push_back(std::move(ref));
+}
+
+void Layer::AddReference(const Path& primPath, std::string authoredFragment) {
+  PrimReference r;
+  if (!PrimReference::ParseAuthored(authoredFragment, &r)) {
     return;
   }
-  references_[primPath].emplace_back(v);
+  AddPrimReference(primPath, std::move(r));
 }
 
-void Layer::SetReferences(const Path& primPath, std::vector<std::string> paths) {
+void Layer::SetPrimReferences(const Path& primPath, std::vector<PrimReference> refs) {
   references_.erase(primPath);
-  for (auto& p : paths) {
-    AddReference(primPath, std::move(p));
+  for (auto& r : refs) {
+    AddPrimReference(primPath, std::move(r));
   }
 }
 
-std::vector<std::string> Layer::ListReferences(const Path& primPath) const {
+void Layer::SetReferences(const Path& primPath, std::vector<std::string> authoredFragments) {
+  references_.erase(primPath);
+  for (auto& s : authoredFragments) {
+    AddReference(primPath, std::move(s));
+  }
+}
+
+std::vector<PrimReference> Layer::ListPrimReferences(const Path& primPath) const {
   const auto it = references_.find(primPath);
   if (it == references_.end()) {
     return {};
@@ -221,7 +233,101 @@ std::vector<std::string> Layer::ListReferences(const Path& primPath) const {
   return it->second;
 }
 
+std::vector<std::string> Layer::ListReferences(const Path& primPath) const {
+  const auto it = references_.find(primPath);
+  if (it == references_.end()) {
+    return {};
+  }
+  std::vector<std::string> out;
+  out.reserve(it->second.size());
+  for (const PrimReference& r : it->second) {
+    out.push_back(r.FormatAuthoredForUsda());
+  }
+  return out;
+}
+
 void Layer::ClearReferences(const Path& primPath) { references_.erase(primPath); }
+
+void Layer::SetRelationshipTargets(const Path& primPath, const freeusd::tf::Token& relName,
+                                  std::vector<Path> targets) {
+  if (!primPath.IsPrimPath() || relName.IsEmpty()) {
+    return;
+  }
+  touch_hierarchy(primPath);
+  auto& book = relationships_[primPath];
+  if (targets.empty()) {
+    book.erase(relName.GetText());
+    if (book.empty()) {
+      relationships_.erase(primPath);
+    }
+    return;
+  }
+  book[relName.GetText()] = std::move(targets);
+}
+
+void Layer::PrependRelationshipTargets(const Path& primPath, const freeusd::tf::Token& relName,
+                                       std::vector<Path> extraFront) {
+  if (!primPath.IsPrimPath() || relName.IsEmpty() || extraFront.empty()) {
+    return;
+  }
+  touch_hierarchy(primPath);
+  auto& vec = relationships_[primPath][relName.GetText()];
+  vec.insert(vec.begin(), extraFront.begin(), extraFront.end());
+}
+
+void Layer::ClearRelationship(const Path& primPath, const freeusd::tf::Token& relName) {
+  if (!primPath.IsPrimPath() || relName.IsEmpty()) {
+    return;
+  }
+  auto it = relationships_.find(primPath);
+  if (it == relationships_.end()) {
+    return;
+  }
+  it->second.erase(relName.GetText());
+  if (it->second.empty()) {
+    relationships_.erase(it);
+  }
+}
+
+bool Layer::HasRelationship(const Path& primPath, const freeusd::tf::Token& relName) const {
+  if (!primPath.IsPrimPath() || relName.IsEmpty()) {
+    return false;
+  }
+  const auto it = relationships_.find(primPath);
+  if (it == relationships_.end()) {
+    return false;
+  }
+  return it->second.find(relName.GetText()) != it->second.end();
+}
+
+std::vector<Path> Layer::GetRelationshipTargets(const Path& primPath, const freeusd::tf::Token& relName) const {
+  if (!primPath.IsPrimPath() || relName.IsEmpty()) {
+    return {};
+  }
+  const auto it = relationships_.find(primPath);
+  if (it == relationships_.end()) {
+    return {};
+  }
+  const auto jt = it->second.find(relName.GetText());
+  if (jt == it->second.end()) {
+    return {};
+  }
+  return jt->second;
+}
+
+std::vector<std::string> Layer::ListRelationshipNames(const Path& primPath) const {
+  std::vector<std::string> out;
+  const auto it = relationships_.find(primPath);
+  if (it == relationships_.end()) {
+    return out;
+  }
+  out.reserve(it->second.size());
+  for (const auto& e : it->second) {
+    out.push_back(e.first);
+  }
+  std::sort(out.begin(), out.end());
+  return out;
+}
 
 bool Layer::IsPrimActive(const Path& primPath) const noexcept {
   const auto it = prim_active_.find(primPath);

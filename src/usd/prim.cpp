@@ -40,4 +40,20 @@ freeusd::vt::Value Prim::GetAttribute(const freeusd::tf::Token& name) const {
   return v;
 }
 
+bool Prim::HasRelationship(const freeusd::tf::Token& relName) const {
+  const auto st = lock_stage();
+  if (!st || relName.IsEmpty()) {
+    return false;
+  }
+  return st->GetRootLayer().HasRelationship(path_, relName);
+}
+
+std::vector<freeusd::sdf::Path> Prim::GetRelationshipTargets(const freeusd::tf::Token& relName) const {
+  const auto st = lock_stage();
+  if (!st || relName.IsEmpty()) {
+    return {};
+  }
+  return st->GetRootLayer().GetRelationshipTargets(path_, relName);
+}
+
 }  // namespace freeusd::usd

@@ -8,9 +8,9 @@ FreeUSD mirrors the **library boundaries** and common **public concepts** of Ope
 | `gf` (linear algebra) | `freeusd::gf` | `Vec3d`, `Matrix4d` containers |
 | `vt` (typed values) | `freeusd::vt` | `Value` variant for layer payloads |
 | `ar` (asset resolution) | `freeusd::ar` | `Resolver` + `DefaultResolver` (filesystem) |
-| `sdf` (scene description) | `freeusd::sdf` | `Path`, `FieldOpinion` (default + time samples), in-memory `Layer` |
-| `pcp` (composition) | `freeusd::pcp` | `LayerStack` ordering only |
-| `usd` (stage graph) | `freeusd::usd` | `Stage`, `Prim` over a single root layer |
+| `sdf` (scene description) | `freeusd::sdf` | `Path`, `Layer`, `FieldOpinion`, prim **references** (`PrimReference`: asset + optional prim path payload), prim **relationships** |
+| `pcp` (composition) | `freeusd::pcp` | `LayerStack`, **`ComposeSublayers`** (flat direct sublayers), **`ComposeSublayersDepthFirst`** (recursive DFS + cycle guard) |
+| `usd` (stage graph) | `freeusd::usd` | `Stage`, `Prim` over a single root layer (attributes + **relationships**) |
 | `usdGeom` | `freeusd::usdGeom` | Schema tokens + `Xformable` stub |
 | `plug` | `freeusd::plug` | `Registry` no-op loader |
 | `trace` | `freeusd::trace` | No-op `Collector` + `FREEUSD_TRACE_FUNCTION` |
