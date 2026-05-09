@@ -20,6 +20,14 @@ int main() {
 #usda 1.0
 (
     doc = "test"
+    startTimeCode = 0
+    endTimeCode = 120
+    timeCodesPerSecond = 24
+    framesPerSecond = 24
+    framePrecision = 3
+    metersPerUnit = 0.01
+    upAxis = "Y"
+    primOrder = [</World/Cube>, </World>]
     relocates = {
         </World/Pipe>: </World/Sink>,
     }
@@ -110,6 +118,10 @@ def Xform "World"
   auto r = LoadFromString(doc, layer);
   assert(r.ok);
 
+  Value ctmp;
+  std::string pv;
+  double bd = 0;
+
   const Path pipe = Path::FromString("/World/Pipe");
   const Path sink = Path::FromString("/World/Sink");
   freeusd::sdf::Path rel_to;
@@ -131,6 +143,17 @@ def Xform "World"
   freeusd::sdf::LayerOffset loff{};
   assert(layer->GetSubLayerOffset("./payload.usda", &loff));
   assert(loff.offset == 3.0 && loff.scale == 2.0);
+
+  assert(layer->GetStartTimeCode().has_value() && *layer->GetStartTimeCode() == 0.0);
+  assert(layer->GetEndTimeCode().has_value() && *layer->GetEndTimeCode() == 120.0);
+  assert(layer->GetTimeCodesPerSecond().has_value() && *layer->GetTimeCodesPerSecond() == 24.0);
+  assert(layer->GetFramesPerSecond().has_value() && *layer->GetFramesPerSecond() == 24.0);
+  assert(layer->GetFramePrecision().has_value() && *layer->GetFramePrecision() == 3);
+  assert(layer->GetMetersPerUnit().has_value() && *layer->GetMetersPerUnit() == 0.01);
+  assert(layer->GetUpAxis().has_value() && *layer->GetUpAxis() == "Y");
+  assert(layer->GetPrimOrder().size() == 2u);
+  assert(layer->GetPrimOrder()[0] == Path::FromString("/World/Cube"));
+  assert(layer->GetPrimOrder()[1] == Path::FromString("/World"));
 
   assert(layer->HasCustomLayerDataKey("layerBuild"));
   assert(layer->GetCustomLayerDataEntry("layerNote", &ctmp));
@@ -159,13 +182,10 @@ def Xform "World"
 
   const Path cube = Path::FromString("/World/Cube");
   assert(layer->HasPrimCustomDataKey(cube, "pipeline"));
-  Value ctmp;
-  std::string pv;
   assert(layer->GetPrimCustomDataEntry(cube, "pipeline", &ctmp));
   assert(ctmp.GetString(&pv));
   assert(pv == "cache");
   assert(layer->GetPrimCustomDataEntry(cube, "build", &ctmp));
-  double bd = 0;
   assert(ctmp.GetDouble(&bd));
   assert(bd == 9.0);
 
@@ -262,6 +282,17 @@ def Xform "World"
   assert(layer2->GetSubLayers().size() == 1u);
   assert(layer2->GetSubLayerOffset("./payload.usda", &loff));
   assert(loff.offset == 3.0 && loff.scale == 2.0);
+
+  assert(layer2->GetStartTimeCode().has_value() && *layer2->GetStartTimeCode() == 0.0);
+  assert(layer2->GetEndTimeCode().has_value() && *layer2->GetEndTimeCode() == 120.0);
+  assert(layer2->GetTimeCodesPerSecond().has_value() && *layer2->GetTimeCodesPerSecond() == 24.0);
+  assert(layer2->GetFramesPerSecond().has_value() && *layer2->GetFramesPerSecond() == 24.0);
+  assert(layer2->GetFramePrecision().has_value() && *layer2->GetFramePrecision() == 3);
+  assert(layer2->GetMetersPerUnit().has_value() && *layer2->GetMetersPerUnit() == 0.01);
+  assert(layer2->GetUpAxis().has_value() && *layer2->GetUpAxis() == "Y");
+  assert(layer2->GetPrimOrder().size() == 2u);
+  assert(layer2->GetPrimOrder()[0] == Path::FromString("/World/Cube"));
+  assert(layer2->GetPrimOrder()[1] == Path::FromString("/World"));
 
   assert(layer2->HasCustomLayerDataKey("layerBuild"));
   assert(layer2->GetCustomLayerDataEntry("layerNote", &ctmp));

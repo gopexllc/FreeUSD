@@ -1,0 +1,24 @@
+#usda 1.0
+(
+    doc = "cross_lang_fixture"
+    defaultPrim = "Scene"
+    metersPerUnit = 0.01
+    upAxis = "Y"
+    startTimeCode = 0
+    endTimeCode = 100
+)
+def Xform "Scene"
+{
+    def Cube "Child"
+    (
+        customData = {
+            int tag = 99
+        }
+    )
+    {
+        double mass = 2.5
+        double mass.timeSamples = {
+            2: 4.0,
+        }
+    }
+}

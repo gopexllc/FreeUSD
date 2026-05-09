@@ -2,6 +2,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <memory>
 #include <optional>
 #include <sstream>
 
@@ -348,6 +349,69 @@ PYBIND11_MODULE(_native, m) {
               layer.SetDefaultPrim(n);
             })
         .def(
+            "start_time_code",
+            [](const freeusd::sdf::Layer& layer) -> py::object {
+              const auto v = layer.GetStartTimeCode();
+              return v.has_value() ? py::cast(*v) : py::none();
+            })
+        .def("set_start_time_code", [](freeusd::sdf::Layer& layer, double v) { layer.SetStartTimeCode(v); })
+        .def("clear_start_time_code", &freeusd::sdf::Layer::ClearStartTimeCode)
+        .def(
+            "end_time_code",
+            [](const freeusd::sdf::Layer& layer) -> py::object {
+              const auto v = layer.GetEndTimeCode();
+              return v.has_value() ? py::cast(*v) : py::none();
+            })
+        .def("set_end_time_code", [](freeusd::sdf::Layer& layer, double v) { layer.SetEndTimeCode(v); })
+        .def("clear_end_time_code", &freeusd::sdf::Layer::ClearEndTimeCode)
+        .def(
+            "time_codes_per_second",
+            [](const freeusd::sdf::Layer& layer) -> py::object {
+              const auto v = layer.GetTimeCodesPerSecond();
+              return v.has_value() ? py::cast(*v) : py::none();
+            })
+        .def("set_time_codes_per_second", [](freeusd::sdf::Layer& layer, double v) { layer.SetTimeCodesPerSecond(v); })
+        .def("clear_time_codes_per_second", &freeusd::sdf::Layer::ClearTimeCodesPerSecond)
+        .def(
+            "frames_per_second",
+            [](const freeusd::sdf::Layer& layer) -> py::object {
+              const auto v = layer.GetFramesPerSecond();
+              return v.has_value() ? py::cast(*v) : py::none();
+            })
+        .def("set_frames_per_second", [](freeusd::sdf::Layer& layer, double v) { layer.SetFramesPerSecond(v); })
+        .def("clear_frames_per_second", &freeusd::sdf::Layer::ClearFramesPerSecond)
+        .def(
+            "frame_precision",
+            [](const freeusd::sdf::Layer& layer) -> py::object {
+              const auto v = layer.GetFramePrecision();
+              return v.has_value() ? py::cast(*v) : py::none();
+            })
+        .def("set_frame_precision", [](freeusd::sdf::Layer& layer, int v) { layer.SetFramePrecision(v); })
+        .def("clear_frame_precision", &freeusd::sdf::Layer::ClearFramePrecision)
+        .def(
+            "meters_per_unit",
+            [](const freeusd::sdf::Layer& layer) -> py::object {
+              const auto v = layer.GetMetersPerUnit();
+              return v.has_value() ? py::cast(*v) : py::none();
+            })
+        .def("set_meters_per_unit", [](freeusd::sdf::Layer& layer, double v) { layer.SetMetersPerUnit(v); })
+        .def("clear_meters_per_unit", &freeusd::sdf::Layer::ClearMetersPerUnit)
+        .def(
+            "up_axis",
+            [](const freeusd::sdf::Layer& layer) -> py::object {
+              const auto v = layer.GetUpAxis();
+              return v.has_value() ? py::cast(*v) : py::none();
+            })
+        .def("set_up_axis", [](freeusd::sdf::Layer& layer, std::string a) { layer.SetUpAxis(std::move(a)); })
+        .def("clear_up_axis", &freeusd::sdf::Layer::ClearUpAxis)
+        .def("prim_order", [](const freeusd::sdf::Layer& layer) { return layer.GetPrimOrder(); })
+        .def(
+            "set_prim_order",
+            [](freeusd::sdf::Layer& layer, std::vector<freeusd::sdf::Path> paths) {
+              layer.SetPrimOrder(std::move(paths));
+            })
+        .def("clear_prim_order", &freeusd::sdf::Layer::ClearPrimOrder)
+        .def(
             "set_sub_layers",
             [](freeusd::sdf::Layer& layer, std::vector<std::string> p) {
               layer.SetSubLayers(std::move(p));
@@ -674,6 +738,7 @@ PYBIND11_MODULE(_native, m) {
             [](const freeusd::sdf::Layer& layer, const freeusd::sdf::Path& p) {
               return layer.GetPrimSpecifier(p);
             })
+        .def("has_prim_specifier_opinion", &freeusd::sdf::Layer::HasPrimSpecifierOpinion)
         .def(
             "set_prim_specifier",
             [](freeusd::sdf::Layer& layer, const freeusd::sdf::Path& p,
@@ -904,8 +969,15 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
               return out;
             })
         .def("has_relationship", &freeusd::usd::Stage::HasRelationship)
+        .def("read_prim_references", &freeusd::usd::Stage::ReadPrimReferences)
+        .def("has_prim_references", &freeusd::usd::Stage::HasPrimReferences)
+        .def("read_prim_inherits", &freeusd::usd::Stage::ReadPrimInherits)
+        .def("has_prim_inherits", &freeusd::usd::Stage::HasPrimInherits)
+        .def("read_prim_payloads", &freeusd::usd::Stage::ReadPrimPayloads)
+        .def("has_prim_payloads", &freeusd::usd::Stage::HasPrimPayloads)
         .def("resolve_prim_kind", &freeusd::usd::Stage::ResolvePrimKind)
         .def("resolve_has_prim_kind", &freeusd::usd::Stage::ResolveHasPrimKind)
+        .def("resolve_prim_specifier_kind", &freeusd::usd::Stage::ResolvePrimSpecifierKind)
         .def("resolve_prim_active", &freeusd::usd::Stage::ResolvePrimActive)
         .def("resolve_has_prim_active_opinion", &freeusd::usd::Stage::ResolveHasPrimActiveOpinion)
         .def(
@@ -1023,19 +1095,122 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
               }
               return py::cast(s.GetDefaultPrimName());
             })
+        .def(
+            "default_prim",
+            [](const freeusd::usd::Stage& s) -> py::object {
+              const freeusd::usd::Prim p = s.GetDefaultPrim();
+              if (!p.IsValid()) {
+                return py::none();
+              }
+              return py::cast(p);
+            })
+        .def(
+            "start_time_code",
+            [](const freeusd::usd::Stage& s) -> py::object {
+              const auto v = s.GetStartTimeCode();
+              return v.has_value() ? py::cast(*v) : py::none();
+            })
+        .def(
+            "end_time_code",
+            [](const freeusd::usd::Stage& s) -> py::object {
+              const auto v = s.GetEndTimeCode();
+              return v.has_value() ? py::cast(*v) : py::none();
+            })
+        .def(
+            "time_codes_per_second",
+            [](const freeusd::usd::Stage& s) -> py::object {
+              const auto v = s.GetTimeCodesPerSecond();
+              return v.has_value() ? py::cast(*v) : py::none();
+            })
+        .def(
+            "frames_per_second",
+            [](const freeusd::usd::Stage& s) -> py::object {
+              const auto v = s.GetFramesPerSecond();
+              return v.has_value() ? py::cast(*v) : py::none();
+            })
+        .def(
+            "frame_precision",
+            [](const freeusd::usd::Stage& s) -> py::object {
+              const auto v = s.GetFramePrecision();
+              return v.has_value() ? py::cast(*v) : py::none();
+            })
+        .def(
+            "meters_per_unit",
+            [](const freeusd::usd::Stage& s) -> py::object {
+              const auto v = s.GetMetersPerUnit();
+              return v.has_value() ? py::cast(*v) : py::none();
+            })
+        .def(
+            "up_axis",
+            [](const freeusd::usd::Stage& s) -> py::object {
+              const auto v = s.GetUpAxis();
+              return v.has_value() ? py::cast(*v) : py::none();
+            })
+        .def("prim_order", [](const freeusd::usd::Stage& s) { return s.GetPrimOrder(); })
         .def("children", &freeusd::usd::Stage::GetChildren)
-        .def("prim_at", &freeusd::usd::Stage::GetPrimAtPath);
+        .def("prim_at", &freeusd::usd::Stage::GetPrimAtPath)
+        .def(
+            "traverse_preorder",
+            [](const freeusd::usd::Stage& st, py::object visitor) {
+              st.TraversePreorder([&visitor](const freeusd::usd::Prim& p) {
+                py::object r = visitor(py::cast(p));
+                if (r.is_none()) {
+                  return true;
+                }
+                return py::cast<bool>(r);
+              });
+            },
+            py::arg("visitor"));
 
     py::class_<freeusd::usd::Prim>(usd, "Prim")
         .def(py::init<>())
         .def("is_valid", &freeusd::usd::Prim::IsValid)
         .def("path", &freeusd::usd::Prim::GetPath)
+        .def("name", &freeusd::usd::Prim::GetName)
+        .def(
+            "stage",
+            [](const freeusd::usd::Prim& p) -> py::object {
+              const auto s = std::const_pointer_cast<freeusd::usd::Stage>(p.GetStage());
+              if (!s) {
+                return py::none();
+              }
+              return py::cast(s);
+            })
+        .def("parent", &freeusd::usd::Prim::GetParent)
+        .def("children", &freeusd::usd::Prim::GetChildren)
         .def("has_attribute", &freeusd::usd::Prim::HasAttribute)
-        .def("get_attribute", &freeusd::usd::Prim::GetAttribute)
+        .def(
+            "get_attribute",
+            [](const freeusd::usd::Prim& prim, const freeusd::tf::Token& name, double time) {
+              return prim.GetAttribute(name, time);
+            },
+            py::arg("name"),
+            py::arg("time") = 1.0)
+        .def("list_attribute_names", &freeusd::usd::Prim::ListAttributeNames)
+        .def("list_relationship_names", &freeusd::usd::Prim::ListRelationshipNames)
+        .def("list_attribute_sample_times", &freeusd::usd::Prim::ListAttributeSampleTimes)
+        .def("has_attribute_connection", &freeusd::usd::Prim::HasAttributeConnection)
+        .def(
+            "get_attribute_connection_target",
+            [](const freeusd::usd::Prim& prim, const freeusd::tf::Token& attr) -> py::object {
+              freeusd::sdf::Path tgt;
+              if (prim.GetAttributeConnectionTarget(attr, &tgt)) {
+                return py::cast(tgt);
+              }
+              return py::none();
+            })
         .def("has_relationship", &freeusd::usd::Prim::HasRelationship)
         .def("get_relationship_targets", &freeusd::usd::Prim::GetRelationshipTargets)
+        .def("get_references", &freeusd::usd::Prim::GetReferences)
+        .def("has_references", &freeusd::usd::Prim::HasReferences)
+        .def("get_inherits", &freeusd::usd::Prim::GetInherits)
+        .def("has_inherits", &freeusd::usd::Prim::HasInherits)
+        .def("get_payloads", &freeusd::usd::Prim::GetPayloads)
+        .def("has_payloads", &freeusd::usd::Prim::HasPayloads)
         .def("get_prim_kind", &freeusd::usd::Prim::GetPrimKind)
         .def("has_prim_kind", &freeusd::usd::Prim::HasPrimKind)
+        .def("specifier_kind", &freeusd::usd::Prim::GetSpecifierKind)
+        .def("is_abstract", &freeusd::usd::Prim::IsAbstract)
         .def("is_active", &freeusd::usd::Prim::IsActive)
         .def("has_prim_active_opinion", &freeusd::usd::Prim::HasPrimActiveOpinion)
         .def("has_custom_data_key", &freeusd::usd::Prim::HasCustomDataKey)

@@ -1,6 +1,7 @@
 #include "freeusd/usd/stage.hpp"
 
 #include <algorithm>
+#include <functional>
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -170,6 +171,54 @@ bool Stage::HasRelationship(const freeusd::sdf::Path& prim_path, const freeusd::
   return false;
 }
 
+std::vector<freeusd::sdf::PrimReference> Stage::ReadPrimReferences(const freeusd::sdf::Path& prim_path) const {
+  std::vector<freeusd::sdf::PrimReference> out;
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (!L) {
+      continue;
+    }
+    const std::vector<freeusd::sdf::PrimReference> part = L->ListPrimReferences(prim_path);
+    out.insert(out.end(), part.begin(), part.end());
+  }
+  return out;
+}
+
+bool Stage::HasPrimReferences(const freeusd::sdf::Path& prim_path) const {
+  return !ReadPrimReferences(prim_path).empty();
+}
+
+std::vector<freeusd::sdf::Path> Stage::ReadPrimInherits(const freeusd::sdf::Path& prim_path) const {
+  std::vector<freeusd::sdf::Path> out;
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (!L) {
+      continue;
+    }
+    const std::vector<freeusd::sdf::Path> part = L->ListPrimInherits(prim_path);
+    out.insert(out.end(), part.begin(), part.end());
+  }
+  return out;
+}
+
+bool Stage::HasPrimInherits(const freeusd::sdf::Path& prim_path) const {
+  return !ReadPrimInherits(prim_path).empty();
+}
+
+std::vector<freeusd::sdf::PrimReference> Stage::ReadPrimPayloads(const freeusd::sdf::Path& prim_path) const {
+  std::vector<freeusd::sdf::PrimReference> out;
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (!L) {
+      continue;
+    }
+    const std::vector<freeusd::sdf::PrimReference> part = L->ListPrimPayloads(prim_path);
+    out.insert(out.end(), part.begin(), part.end());
+  }
+  return out;
+}
+
+bool Stage::HasPrimPayloads(const freeusd::sdf::Path& prim_path) const {
+  return !ReadPrimPayloads(prim_path).empty();
+}
+
 freeusd::tf::Token Stage::ResolvePrimKind(const freeusd::sdf::Path& prim_path) const {
   for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
     if (L && L->HasPrimKind(prim_path)) {
@@ -186,6 +235,15 @@ bool Stage::ResolveHasPrimKind(const freeusd::sdf::Path& prim_path) const {
     }
   }
   return false;
+}
+
+freeusd::sdf::Layer::PrimSpecifierKind Stage::ResolvePrimSpecifierKind(const freeusd::sdf::Path& prim_path) const {
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (L && L->HasPrimSpecifierOpinion(prim_path)) {
+      return L->GetPrimSpecifier(prim_path);
+    }
+  }
+  return freeusd::sdf::Layer::PrimSpecifierKind::Default;
 }
 
 bool Stage::ResolvePrimActive(const freeusd::sdf::Path& prim_path) const {
@@ -525,6 +583,123 @@ std::string Stage::GetDefaultPrimName() const {
   return std::string{*dp};
 }
 
+Prim Stage::GetDefaultPrim() const {
+  if (!HasDefaultPrim()) {
+    return {};
+  }
+  const std::string n = GetDefaultPrimName();
+  if (n.empty()) {
+    return {};
+  }
+  const freeusd::sdf::Path p =
+      freeusd::sdf::Path::AbsoluteRootPath().AppendChild(freeusd::tf::Token(n));
+  return GetPrimAtPath(p);
+}
+
+std::optional<double> Stage::GetStartTimeCode() const {
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (!L) {
+      continue;
+    }
+    const std::optional<double> v = L->GetStartTimeCode();
+    if (v.has_value()) {
+      return v;
+    }
+  }
+  return std::nullopt;
+}
+
+std::optional<double> Stage::GetEndTimeCode() const {
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (!L) {
+      continue;
+    }
+    const std::optional<double> v = L->GetEndTimeCode();
+    if (v.has_value()) {
+      return v;
+    }
+  }
+  return std::nullopt;
+}
+
+std::optional<double> Stage::GetTimeCodesPerSecond() const {
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (!L) {
+      continue;
+    }
+    const std::optional<double> v = L->GetTimeCodesPerSecond();
+    if (v.has_value()) {
+      return v;
+    }
+  }
+  return std::nullopt;
+}
+
+std::optional<double> Stage::GetFramesPerSecond() const {
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (!L) {
+      continue;
+    }
+    const std::optional<double> v = L->GetFramesPerSecond();
+    if (v.has_value()) {
+      return v;
+    }
+  }
+  return std::nullopt;
+}
+
+std::optional<int> Stage::GetFramePrecision() const {
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (!L) {
+      continue;
+    }
+    const std::optional<int> v = L->GetFramePrecision();
+    if (v.has_value()) {
+      return v;
+    }
+  }
+  return std::nullopt;
+}
+
+std::optional<double> Stage::GetMetersPerUnit() const {
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (!L) {
+      continue;
+    }
+    const std::optional<double> v = L->GetMetersPerUnit();
+    if (v.has_value()) {
+      return v;
+    }
+  }
+  return std::nullopt;
+}
+
+std::optional<std::string> Stage::GetUpAxis() const {
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (!L) {
+      continue;
+    }
+    const std::optional<std::string> v = L->GetUpAxis();
+    if (v.has_value()) {
+      return v;
+    }
+  }
+  return std::nullopt;
+}
+
+std::vector<freeusd::sdf::Path> Stage::GetPrimOrder() const {
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (!L) {
+      continue;
+    }
+    const std::vector<freeusd::sdf::Path>& po = L->GetPrimOrder();
+    if (!po.empty()) {
+      return po;
+    }
+  }
+  return {};
+}
+
 freeusd::sdf::Path Stage::GetPseudoRootPath() const { return freeusd::sdf::Path::AbsoluteRootPath(); }
 
 Prim Stage::GetPrimAtPath(const freeusd::sdf::Path& path) const {
@@ -532,6 +707,28 @@ Prim Stage::GetPrimAtPath(const freeusd::sdf::Path& path) const {
     return {};
   }
   return Prim{weak_from_this(), path};
+}
+
+void Stage::TraversePreorder(const std::function<bool(const Prim& prim)>& visitor) const {
+  if (!visitor) {
+    return;
+  }
+  const std::weak_ptr<const Stage> wp = weak_from_this();
+  const std::function<void(const freeusd::sdf::Path&)> descend = [&](const freeusd::sdf::Path& path) {
+    const Prim prim{wp, path};
+    if (!prim.IsValid()) {
+      return;
+    }
+    if (!visitor(prim)) {
+      return;
+    }
+    for (const Prim& ch : GetChildren(path)) {
+      descend(ch.GetPath());
+    }
+  };
+  for (const Prim& root : GetChildren(freeusd::sdf::Path::AbsoluteRootPath())) {
+    descend(root.GetPath());
+  }
 }
 
 std::vector<Prim> Stage::GetChildren(const freeusd::sdf::Path& primPath) const {

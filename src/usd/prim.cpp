@@ -16,6 +16,35 @@ bool Prim::IsValid() const noexcept {
   return st->PrimPathInUse(path_);
 }
 
+std::string Prim::GetName() const {
+  if (!path_.IsPrimPath()) {
+    return {};
+  }
+  return path_.GetName();
+}
+
+std::shared_ptr<const Stage> Prim::GetStage() const { return lock_stage(); }
+
+Prim Prim::GetParent() const {
+  const auto st = lock_stage();
+  if (!st || !path_.IsPrimPath() || path_.IsAbsoluteRootPath()) {
+    return {};
+  }
+  const freeusd::sdf::Path par = path_.GetParentPath();
+  if (par.IsAbsoluteRootPath()) {
+    return {};
+  }
+  return Prim{stage_, par};
+}
+
+std::vector<Prim> Prim::GetChildren() const {
+  const auto st = lock_stage();
+  if (!st || !IsValid()) {
+    return {};
+  }
+  return st->GetChildren(path_);
+}
+
 bool Prim::HasAttribute(const freeusd::tf::Token& name) const {
   const auto st = lock_stage();
   if (!st || name.IsEmpty()) {
@@ -24,15 +53,54 @@ bool Prim::HasAttribute(const freeusd::tf::Token& name) const {
   return st->HasFieldOpinion(path_, name);
 }
 
-freeusd::vt::Value Prim::GetAttribute(const freeusd::tf::Token& name) const {
+freeusd::vt::Value Prim::GetAttribute(const freeusd::tf::Token& name, double time) const {
   const auto st = lock_stage();
   freeusd::vt::Value v;
   if (!st || name.IsEmpty()) {
     return v;
   }
-  constexpr double kDefaultStageTime = 1.0;
-  st->ReadFieldAtEvaluatedTime(path_, name, kDefaultStageTime, &v);
+  st->ReadFieldAtEvaluatedTime(path_, name, time, &v);
   return v;
+}
+
+std::vector<std::string> Prim::ListAttributeNames() const {
+  const auto st = lock_stage();
+  if (!st) {
+    return {};
+  }
+  return st->ListComposedFieldNames(path_);
+}
+
+std::vector<std::string> Prim::ListRelationshipNames() const {
+  const auto st = lock_stage();
+  if (!st) {
+    return {};
+  }
+  return st->ListComposedRelationshipNames(path_);
+}
+
+std::vector<double> Prim::ListAttributeSampleTimes(const freeusd::tf::Token& name) const {
+  const auto st = lock_stage();
+  if (!st) {
+    return {};
+  }
+  return st->ListComposedFieldSampleTimes(path_, name);
+}
+
+bool Prim::HasAttributeConnection(const freeusd::tf::Token& attr_name) const {
+  const auto st = lock_stage();
+  if (!st || attr_name.IsEmpty()) {
+    return false;
+  }
+  return st->HasAttributeConnection(path_, attr_name);
+}
+
+bool Prim::GetAttributeConnectionTarget(const freeusd::tf::Token& attr_name, freeusd::sdf::Path* out_target) const {
+  const auto st = lock_stage();
+  if (!st || !out_target || attr_name.IsEmpty()) {
+    return false;
+  }
+  return st->GetComposedAttributeConnectionTarget(path_, attr_name, out_target);
 }
 
 bool Prim::HasRelationship(const freeusd::tf::Token& relName) const {
@@ -58,6 +126,54 @@ std::vector<freeusd::sdf::Path> Prim::GetRelationshipTargets(const freeusd::tf::
   return out;
 }
 
+std::vector<freeusd::sdf::PrimReference> Prim::GetReferences() const {
+  const auto st = lock_stage();
+  if (!st) {
+    return {};
+  }
+  return st->ReadPrimReferences(path_);
+}
+
+bool Prim::HasReferences() const {
+  const auto st = lock_stage();
+  if (!st) {
+    return false;
+  }
+  return st->HasPrimReferences(path_);
+}
+
+std::vector<freeusd::sdf::Path> Prim::GetInherits() const {
+  const auto st = lock_stage();
+  if (!st) {
+    return {};
+  }
+  return st->ReadPrimInherits(path_);
+}
+
+bool Prim::HasInherits() const {
+  const auto st = lock_stage();
+  if (!st) {
+    return false;
+  }
+  return st->HasPrimInherits(path_);
+}
+
+std::vector<freeusd::sdf::PrimReference> Prim::GetPayloads() const {
+  const auto st = lock_stage();
+  if (!st) {
+    return {};
+  }
+  return st->ReadPrimPayloads(path_);
+}
+
+bool Prim::HasPayloads() const {
+  const auto st = lock_stage();
+  if (!st) {
+    return false;
+  }
+  return st->HasPrimPayloads(path_);
+}
+
 freeusd::tf::Token Prim::GetPrimKind() const {
   const auto st = lock_stage();
   if (!st) {
@@ -72,6 +188,18 @@ bool Prim::HasPrimKind() const {
     return false;
   }
   return st->ResolveHasPrimKind(path_);
+}
+
+freeusd::sdf::Layer::PrimSpecifierKind Prim::GetSpecifierKind() const {
+  const auto st = lock_stage();
+  if (!st) {
+    return freeusd::sdf::Layer::PrimSpecifierKind::Default;
+  }
+  return st->ResolvePrimSpecifierKind(path_);
+}
+
+bool Prim::IsAbstract() const {
+  return GetSpecifierKind() == freeusd::sdf::Layer::PrimSpecifierKind::Class;
 }
 
 bool Prim::IsActive() const {

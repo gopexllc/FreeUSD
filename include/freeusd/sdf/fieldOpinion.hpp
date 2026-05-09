@@ -23,7 +23,7 @@ struct FREEUSD_API FieldOpinion {
   void SetSample(double time, freeusd::vt::Value v);
   void ClearSamples() noexcept { time_samples.clear(); }
 
-  /// Hold: largest sample time <= `time`; if none <=, use earliest sample; if no samples, use default.
+  /// Hold: largest sample time <= `time`; if none <=, use default when set, else earliest sample; if no samples, default.
   bool EvaluateAt(double time, freeusd::vt::Value* out) const;
 
   bool GetExactSample(double time, freeusd::vt::Value* out) const;

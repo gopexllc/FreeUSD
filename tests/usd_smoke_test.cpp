@@ -1,6 +1,7 @@
 #include <cassert>
 #include <filesystem>
 #include <fstream>
+#include <vector>
 
 #include "freeusd/plug/registry.hpp"
 #include "freeusd/sdf/layer.hpp"
@@ -25,6 +26,7 @@ int main() {
   const Path world = Path::FromString("/World");
   const Path cube = Path::FromString("/World/Cube");
   layer->SetField(cube, Token("size"), Value::MakeDouble(2.5));
+  layer->SetDefaultPrim("World");
 
   auto stage = Stage::AttachRootLayer(layer);
   assert(stage);
@@ -33,10 +35,60 @@ int main() {
 
   const auto prim = stage->GetPrimAtPath(cube);
   assert(prim.IsValid());
+  assert(prim.GetName() == "Cube");
+  assert(prim.GetParent().IsValid());
+  assert(prim.GetParent().GetPath() == world);
+  assert(prim.GetStage().get() == stage.get());
+  const auto defp = stage->GetDefaultPrim();
+  assert(defp.IsValid());
+  assert(defp.GetPath() == world);
+  assert(defp.GetName() == "World");
+  const auto world_prim = stage->GetPrimAtPath(world);
+  const auto under_world = world_prim.GetChildren();
+  assert(!under_world.empty());
+
   assert(prim.HasAttribute(Token("size")));
   double d = 0;
   assert(prim.GetAttribute(Token("size")).GetDouble(&d));
   assert(d == 2.5);
+
+  layer->SetTimeSample(cube, Token("height"), 1.0, Value::MakeDouble(10.0));
+  layer->SetTimeSample(cube, Token("height"), 3.0, Value::MakeDouble(30.0));
+  layer->SetField(cube, Token("height"), Value::MakeDouble(0.0));
+  assert(prim.GetAttribute(Token("height"), 2.0).GetDouble(&d));
+  assert(d == 10.0);
+  assert(prim.GetAttribute(Token("height"), 3.0).GetDouble(&d));
+  assert(d == 30.0);
+
+  const std::vector<std::string> attrs = prim.ListAttributeNames();
+  assert(attrs.size() >= 2u);
+  const std::vector<double> ht_times = prim.ListAttributeSampleTimes(Token("height"));
+  assert(ht_times.size() == 2u);
+
+  std::vector<std::string> visited;
+  stage->TraversePreorder([&](const freeusd::usd::Prim& p) {
+    visited.push_back(p.GetPath().GetString());
+    return true;
+  });
+  bool seen_world = false;
+  bool seen_cube = false;
+  for (const std::string& s : visited) {
+    if (s == world.GetString()) {
+      seen_world = true;
+    }
+    if (s == cube.GetString()) {
+      seen_cube = true;
+    }
+  }
+  assert(seen_world && seen_cube);
+  bool cube_after_prune = false;
+  stage->TraversePreorder([&](const freeusd::usd::Prim& p) {
+    if (p.GetPath() == cube) {
+      cube_after_prune = true;
+    }
+    return p.GetPath() != world;
+  });
+  assert(!cube_after_prune);
 
   assert(freeusd::usdShade::tokens::Material().GetText() == "Material");
 

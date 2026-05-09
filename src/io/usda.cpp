@@ -1545,6 +1545,95 @@ void apply_layer_metadata_blob(const std::string& blob, freeusd::sdf::Layer* lay
         v.GetToken(&tok);
         layer->SetDefaultPrim(tok.GetText());
       }
+    } else if (key == "starttimecode") {
+      freeusd::vt::Value v = parse_value(rhs, err, anchor_line);
+      if (err && !err->ok) {
+        return;
+      }
+      double d = 0.0;
+      if (!value_scalar_to_double(v, &d)) {
+        set_err(err, anchor_line, "startTimeCode must be numeric");
+        return;
+      }
+      layer->SetStartTimeCode(d);
+    } else if (key == "endtimecode") {
+      freeusd::vt::Value v = parse_value(rhs, err, anchor_line);
+      if (err && !err->ok) {
+        return;
+      }
+      double d = 0.0;
+      if (!value_scalar_to_double(v, &d)) {
+        set_err(err, anchor_line, "endTimeCode must be numeric");
+        return;
+      }
+      layer->SetEndTimeCode(d);
+    } else if (key == "timecodespersecond") {
+      freeusd::vt::Value v = parse_value(rhs, err, anchor_line);
+      if (err && !err->ok) {
+        return;
+      }
+      double d = 0.0;
+      if (!value_scalar_to_double(v, &d)) {
+        set_err(err, anchor_line, "timeCodesPerSecond must be numeric");
+        return;
+      }
+      layer->SetTimeCodesPerSecond(d);
+    } else if (key == "framespersecond") {
+      freeusd::vt::Value v = parse_value(rhs, err, anchor_line);
+      if (err && !err->ok) {
+        return;
+      }
+      double d = 0.0;
+      if (!value_scalar_to_double(v, &d)) {
+        set_err(err, anchor_line, "framesPerSecond must be numeric");
+        return;
+      }
+      layer->SetFramesPerSecond(d);
+    } else if (key == "frameprecision") {
+      freeusd::vt::Value v = parse_value(rhs, err, anchor_line);
+      if (err && !err->ok) {
+        return;
+      }
+      std::int32_t i32 = 0;
+      std::int64_t i64 = 0;
+      if (v.GetInt32(&i32)) {
+        layer->SetFramePrecision(static_cast<int>(i32));
+      } else if (v.GetInt64(&i64)) {
+        layer->SetFramePrecision(static_cast<int>(i64));
+      } else {
+        set_err(err, anchor_line, "framePrecision must be int");
+        return;
+      }
+    } else if (key == "metersperunit") {
+      freeusd::vt::Value v = parse_value(rhs, err, anchor_line);
+      if (err && !err->ok) {
+        return;
+      }
+      double d = 0.0;
+      if (!value_scalar_to_double(v, &d)) {
+        set_err(err, anchor_line, "metersPerUnit must be numeric");
+        return;
+      }
+      layer->SetMetersPerUnit(d);
+    } else if (key == "upaxis") {
+      freeusd::vt::Value v = parse_value(rhs, err, anchor_line);
+      if (err && !err->ok) {
+        return;
+      }
+      std::string ax;
+      if (v.GetString(&ax)) {
+        layer->SetUpAxis(std::move(ax));
+      } else if (v.HoldsToken()) {
+        freeusd::tf::Token tok;
+        v.GetToken(&tok);
+        layer->SetUpAxis(tok.GetText());
+      }
+    } else if (key == "primorder") {
+      std::vector<freeusd::sdf::Path> po;
+      if (!gather_abs_prim_path_list(rhs, &po, err, anchor_line)) {
+        return;
+      }
+      layer->SetPrimOrder(std::move(po));
     } else if (key == "sublayers") {
       std::vector<std::string> subs;
       if (!gather_asset_refs(rhs, &subs, err, anchor_line)) {
@@ -2214,6 +2303,38 @@ std::string SaveToString(const freeusd::sdf::Layer& layer) {
     const auto dp = layer.GetDefaultPrim();
     os << "    defaultPrim = \"" << (dp.has_value() ? std::string{*dp} : std::string{}) << "\"\n";
   }
+  if (layer.GetStartTimeCode().has_value()) {
+    os << "    startTimeCode = " << std::setprecision(17) << *layer.GetStartTimeCode() << "\n";
+  }
+  if (layer.GetEndTimeCode().has_value()) {
+    os << "    endTimeCode = " << std::setprecision(17) << *layer.GetEndTimeCode() << "\n";
+  }
+  if (layer.GetTimeCodesPerSecond().has_value()) {
+    os << "    timeCodesPerSecond = " << std::setprecision(17) << *layer.GetTimeCodesPerSecond() << "\n";
+  }
+  if (layer.GetFramesPerSecond().has_value()) {
+    os << "    framesPerSecond = " << std::setprecision(17) << *layer.GetFramesPerSecond() << "\n";
+  }
+  if (layer.GetFramePrecision().has_value()) {
+    os << "    framePrecision = " << *layer.GetFramePrecision() << "\n";
+  }
+  if (layer.GetMetersPerUnit().has_value()) {
+    os << "    metersPerUnit = " << std::setprecision(17) << *layer.GetMetersPerUnit() << "\n";
+  }
+  if (layer.GetUpAxis().has_value()) {
+    os << "    upAxis = " << escape_string(*layer.GetUpAxis()) << "\n";
+  }
+  const auto& prim_order = layer.GetPrimOrder();
+  if (!prim_order.empty()) {
+    os << "    primOrder = [";
+    for (std::size_t i = 0; i < prim_order.size(); ++i) {
+      if (i) {
+        os << ", ";
+      }
+      os << path_to_usda_angle(prim_order[i]);
+    }
+    os << "]\n";
+  }
   const auto& subs = layer.GetSubLayers();
   if (!subs.empty()) {
     os << "    subLayers = [";
@@ -2267,8 +2388,14 @@ std::string SaveToString(const freeusd::sdf::Layer& layer) {
     }
     os << "    }\n";
   }
-  if (!layer.HasDefaultPrim() && layer.GetDocumentation().empty() && layer.GetComment().empty() && subs.empty() &&
-      sub_offs.empty() && relocs.empty() && prefix_subs.empty() && layer_custom_keys.empty()) {
+  const bool any_header_meta =
+      layer.HasDefaultPrim() || !layer.GetDocumentation().empty() || !layer.GetComment().empty() || !subs.empty() ||
+      !sub_offs.empty() || !relocs.empty() || !prefix_subs.empty() || !layer_custom_keys.empty() ||
+      layer.GetStartTimeCode().has_value() || layer.GetEndTimeCode().has_value() ||
+      layer.GetTimeCodesPerSecond().has_value() || layer.GetFramesPerSecond().has_value() ||
+      layer.GetFramePrecision().has_value() || layer.GetMetersPerUnit().has_value() || layer.GetUpAxis().has_value() ||
+      !prim_order.empty();
+  if (!any_header_meta) {
     os << "    doc = \"FreeUSD minimal USDA export\"\n";
   }
   os << ")\n\n";

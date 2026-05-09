@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "freeusd/export.hpp"
+#include "freeusd/sdf/layer.hpp"
 #include "freeusd/sdf/path.hpp"
 #include "freeusd/tf/token.hpp"
 #include "freeusd/vt/value.hpp"
@@ -22,15 +23,51 @@ class FREEUSD_API Prim {
   bool IsValid() const noexcept;
   freeusd::sdf::Path GetPath() const noexcept { return path_; }
 
+  /// Final path component (prim name); empty if not a prim path.
+  std::string GetName() const;
+
+  /// Owning stage, or null if the stage was destroyed.
+  std::shared_ptr<const Stage> GetStage() const;
+
+  /// Parent prim; invalid if this prim is the absolute root or not on a stage.
+  Prim GetParent() const;
+
+  /// Direct child prims (composed); empty if invalid.
+  std::vector<Prim> GetChildren() const;
+
   bool HasAttribute(const freeusd::tf::Token& name) const;
-  freeusd::vt::Value GetAttribute(const freeusd::tf::Token& name) const;
+  /// Evaluated attribute at \p time (hold interpolation; default stage time is \c 1.0 when omitted).
+  freeusd::vt::Value GetAttribute(const freeusd::tf::Token& name, double time = 1.0) const;
+
+  /// Composed attribute names (union across the layer stack, stable sort).
+  std::vector<std::string> ListAttributeNames() const;
+  /// Composed relationship names on this prim.
+  std::vector<std::string> ListRelationshipNames() const;
+  /// Union of time-sample times for \p name across composed layers (sorted).
+  std::vector<double> ListAttributeSampleTimes(const freeusd::tf::Token& name) const;
+
+  bool HasAttributeConnection(const freeusd::tf::Token& attr_name) const;
+  /// Strongest composed \c .connect target for \p attr_name (full property path). False if none.
+  bool GetAttributeConnectionTarget(const freeusd::tf::Token& attr_name, freeusd::sdf::Path* out_target) const;
 
   bool HasRelationship(const freeusd::tf::Token& relName) const;
   std::vector<freeusd::sdf::Path> GetRelationshipTargets(const freeusd::tf::Token& relName) const;
 
+  std::vector<freeusd::sdf::PrimReference> GetReferences() const;
+  bool HasReferences() const;
+  std::vector<freeusd::sdf::Path> GetInherits() const;
+  bool HasInherits() const;
+  std::vector<freeusd::sdf::PrimReference> GetPayloads() const;
+  bool HasPayloads() const;
+
   /// Composed USD schema type token (first authored kind on the layer stack wins).
   freeusd::tf::Token GetPrimKind() const;
   bool HasPrimKind() const;
+
+  /// Composed prim specifier (\c def / \c class / \c over); \c Default means \c def-style.
+  freeusd::sdf::Layer::PrimSpecifierKind GetSpecifierKind() const;
+  /// True if composed specifier is \c class (Usd \c IsAbstract).
+  bool IsAbstract() const;
 
   /// Effective authored **active**: strongest explicit opinion; default active if none.
   bool IsActive() const;

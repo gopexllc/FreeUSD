@@ -169,6 +169,14 @@ void Layer::Clear() noexcept {
   documentation_.clear();
   comment_.clear();
   default_prim_.reset();
+  start_time_code_.reset();
+  end_time_code_.reset();
+  time_codes_per_second_.reset();
+  frames_per_second_.reset();
+  frame_precision_.reset();
+  meters_per_unit_.reset();
+  up_axis_.reset();
+  prim_order_.clear();
   sublayer_paths_.clear();
   sublayer_offsets_.clear();
   relocates_.clear();
@@ -194,6 +202,24 @@ void Layer::SetDefaultPrim(std::string_view rootPrimName) {
     return;
   }
   default_prim_ = std::string{t};
+}
+
+void Layer::SetUpAxis(std::string axis) {
+  std::string_view v = trim_sv(axis);
+  if (v.empty()) {
+    up_axis_.reset();
+    return;
+  }
+  up_axis_ = std::string{v};
+}
+
+void Layer::SetPrimOrder(std::vector<Path> paths) {
+  prim_order_.clear();
+  for (Path& p : paths) {
+    if (p.IsPrimPath() && !p.IsEmpty()) {
+      prim_order_.push_back(std::move(p));
+    }
+  }
 }
 
 void Layer::SetSubLayers(std::vector<std::string> paths) {
@@ -796,6 +822,10 @@ Layer::PrimSpecifierKind Layer::GetPrimSpecifier(const Path& primPath) const noe
     return PrimSpecifierKind::Default;
   }
   return it->second;
+}
+
+bool Layer::HasPrimSpecifierOpinion(const Path& primPath) const noexcept {
+  return prim_specifiers_.find(primPath) != prim_specifiers_.end();
 }
 
 void Layer::SetPrimKind(const Path& primPath, const freeusd::tf::Token& kind) {

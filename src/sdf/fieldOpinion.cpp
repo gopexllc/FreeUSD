@@ -11,6 +11,11 @@ bool FieldOpinion::EvaluateAt(double time, freeusd::vt::Value* out) const {
   if (!time_samples.empty()) {
     auto it = time_samples.upper_bound(time);
     if (it == time_samples.begin()) {
+      // Every sample is strictly after `time`.
+      if (default_value) {
+        *out = *default_value;
+        return true;
+      }
       *out = time_samples.begin()->second;
       return true;
     }

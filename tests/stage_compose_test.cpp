@@ -4,6 +4,7 @@
 #include "freeusd/pcp/layerStack.hpp"
 #include "freeusd/sdf/layer.hpp"
 #include "freeusd/sdf/path.hpp"
+#include "freeusd/sdf/primReference.hpp"
 #include "freeusd/tf/token.hpp"
 #include "freeusd/usd/stage.hpp"
 #include "freeusd/vt/value.hpp"
@@ -56,12 +57,49 @@ int main() {
   assert(ties[0] == Path::FromString("/OnStrong"));
   assert(ties[1] == Path::FromString("/OnWeak"));
 
+  {
+    freeusd::sdf::PrimReference ra;
+    ra.asset_path = "./a.usda";
+    strong->AddPrimReference(px, ra);
+    freeusd::sdf::PrimReference rb;
+    rb.asset_path = "./b.usda";
+    weaker->AddPrimReference(px, rb);
+    const auto refs = composed->ReadPrimReferences(px);
+    assert(refs.size() == 2u);
+    assert(refs[0].asset_path == "./a.usda");
+    assert(refs[1].asset_path == "./b.usda");
+    assert(px_prim.GetReferences().size() == 2u);
+
+    strong->AddPrimInherit(px, Path::FromString("/BaseA"));
+    weaker->AddPrimInherit(px, Path::FromString("/BaseB"));
+    const auto inh = composed->ReadPrimInherits(px);
+    assert(inh.size() == 2u);
+    assert(inh[0] == Path::FromString("/BaseA"));
+    assert(px_prim.GetInherits().size() == 2u);
+
+    freeusd::sdf::PrimReference pl;
+    pl.asset_path = "./p.usdc";
+    strong->AddPrimPayload(px, pl);
+    const auto pays = composed->ReadPrimPayloads(px);
+    assert(pays.size() == 1u);
+    assert(pays[0].asset_path == "./p.usdc");
+    assert(px_prim.GetPayloads().size() == 1u);
+  }
+
   const Path pk = Path::FromString("/Typed");
   weaker->SetPrimKind(pk, Token("Mesh"));
   strong->SetPrimKind(pk, Token("Xform"));
   const auto tk = composed->GetPrimAtPath(pk);
   assert(tk.HasPrimKind());
   assert(tk.GetPrimKind().GetText() == "Xform");
+
+  weaker->SetPrimSpecifier(px, Layer::PrimSpecifierKind::Over);
+  assert(composed->ResolvePrimSpecifierKind(px) == Layer::PrimSpecifierKind::Over);
+  assert(!px_prim.IsAbstract());
+  weaker->SetPrimSpecifier(pk, Layer::PrimSpecifierKind::Class);
+  assert(composed->ResolvePrimSpecifierKind(pk) == Layer::PrimSpecifierKind::Class);
+  assert(tk.IsAbstract());
+  assert(tk.GetSpecifierKind() == Layer::PrimSpecifierKind::Class);
 
   strong->SetPrimActive(px, false);
   assert(px_prim.HasPrimActiveOpinion());
@@ -156,6 +194,41 @@ int main() {
   assert(composed->PrefixSubstitutionKeyInAnyLayer("/Models"));
   const auto all_p = composed->ListComposedPrefixSubstitutions();
   assert(all_p.size() == 2u);
+
+  strong->SetStartTimeCode(1.0);
+  strong->SetEndTimeCode(100.0);
+  strong->SetTimeCodesPerSecond(24.0);
+  strong->SetFramesPerSecond(24.0);
+  strong->SetFramePrecision(3);
+  strong->SetMetersPerUnit(0.01);
+  strong->SetUpAxis("Y");
+  strong->SetPrimOrder({Path::FromString("/Root/X"), Path::FromString("/Typed")});
+  weaker->SetMetersPerUnit(1.0);
+  weaker->SetUpAxis("Z");
+  assert(composed->GetStartTimeCode().has_value() && *composed->GetStartTimeCode() == 1.0);
+  assert(composed->GetEndTimeCode().has_value() && *composed->GetEndTimeCode() == 100.0);
+  assert(composed->GetTimeCodesPerSecond().has_value() && *composed->GetTimeCodesPerSecond() == 24.0);
+  assert(composed->GetFramesPerSecond().has_value() && *composed->GetFramesPerSecond() == 24.0);
+  assert(composed->GetFramePrecision().has_value() && *composed->GetFramePrecision() == 3);
+  assert(composed->GetMetersPerUnit().has_value() && *composed->GetMetersPerUnit() == 0.01);
+  assert(composed->GetUpAxis().has_value() && *composed->GetUpAxis() == "Y");
+  const auto po = composed->GetPrimOrder();
+  assert(po.size() == 2u);
+  assert(po[0] == Path::FromString("/Root/X"));
+  assert(po[1] == Path::FromString("/Typed"));
+
+  weaker->SetStartTimeCode(5.0);
+  strong->ClearStartTimeCode();
+  assert(composed->GetStartTimeCode().has_value() && *composed->GetStartTimeCode() == 5.0);
+  strong->ClearMetersPerUnit();
+  assert(composed->GetMetersPerUnit().has_value() && *composed->GetMetersPerUnit() == 1.0);
+  strong->ClearUpAxis();
+  assert(composed->GetUpAxis().has_value() && *composed->GetUpAxis() == "Z");
+  strong->ClearPrimOrder();
+  weaker->SetPrimOrder({Path::FromString("/OnlyWeakRelo")});
+  const auto po_f = composed->GetPrimOrder();
+  assert(po_f.size() == 1u);
+  assert(po_f[0] == Path::FromString("/OnlyWeakRelo"));
 
   return 0;
 }

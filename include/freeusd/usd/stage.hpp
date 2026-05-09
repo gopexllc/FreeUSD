@@ -1,6 +1,8 @@
 #pragma once
 
+#include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -55,8 +57,19 @@ class FREEUSD_API Stage : public std::enable_shared_from_this<Stage> {
   /// True if any composed layer authors \p rel_name on \p prim_path.
   bool HasRelationship(const freeusd::sdf::Path& prim_path, const freeusd::tf::Token& rel_name) const;
 
+  /// Concatenate \c references / \c inherits / \c payloads from each composed layer (stronger layers first).
+  std::vector<freeusd::sdf::PrimReference> ReadPrimReferences(const freeusd::sdf::Path& prim_path) const;
+  bool HasPrimReferences(const freeusd::sdf::Path& prim_path) const;
+  std::vector<freeusd::sdf::Path> ReadPrimInherits(const freeusd::sdf::Path& prim_path) const;
+  bool HasPrimInherits(const freeusd::sdf::Path& prim_path) const;
+  std::vector<freeusd::sdf::PrimReference> ReadPrimPayloads(const freeusd::sdf::Path& prim_path) const;
+  bool HasPrimPayloads(const freeusd::sdf::Path& prim_path) const;
+
   freeusd::tf::Token ResolvePrimKind(const freeusd::sdf::Path& prim_path) const;
   bool ResolveHasPrimKind(const freeusd::sdf::Path& prim_path) const;
+
+  /// Composed USDA \c class / \c over specifier: strongest layer with an authored non-\c def marker wins.
+  freeusd::sdf::Layer::PrimSpecifierKind ResolvePrimSpecifierKind(const freeusd::sdf::Path& prim_path) const;
 
   bool ResolvePrimActive(const freeusd::sdf::Path& prim_path) const;
   bool ResolveHasPrimActiveOpinion(const freeusd::sdf::Path& prim_path) const;
@@ -119,11 +132,26 @@ class FREEUSD_API Stage : public std::enable_shared_from_this<Stage> {
   /// \c defaultPrim on the root (strongest) layer.
   bool HasDefaultPrim() const;
   std::string GetDefaultPrimName() const;
+  /// Prim at \c /{defaultPrim} when authored; invalid if none.
+  Prim GetDefaultPrim() const;
+
+  /// Pseudoroot hints composed strongest-first: use the first layer that authors a value (fallback when the root omits).
+  std::optional<double> GetStartTimeCode() const;
+  std::optional<double> GetEndTimeCode() const;
+  std::optional<double> GetTimeCodesPerSecond() const;
+  std::optional<double> GetFramesPerSecond() const;
+  std::optional<int> GetFramePrecision() const;
+  std::optional<double> GetMetersPerUnit() const;
+  std::optional<std::string> GetUpAxis() const;
+  std::vector<freeusd::sdf::Path> GetPrimOrder() const;
 
   freeusd::sdf::Path GetPseudoRootPath() const;
 
   Prim GetPrimAtPath(const freeusd::sdf::Path& path) const;
   std::vector<Prim> GetChildren(const freeusd::sdf::Path& primPath) const;
+
+  /// Depth-first pre-order over composed prims under \c /. Visitor returns \c false to skip descending into that prim's subtree.
+  void TraversePreorder(const std::function<bool(const Prim& prim)>& visitor) const;
 
   void SetResolver(std::unique_ptr<freeusd::ar::Resolver> resolver);
 

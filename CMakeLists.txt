@@ -26,6 +26,12 @@ if(FREEUSD_BUILD_TESTS)
   add_executable(freeusd_usd_smoke_test tests/usd_smoke_test.cpp)
   target_link_libraries(freeusd_usd_smoke_test PRIVATE freeusd::usd freeusd::plug)
 
+  add_executable(freeusd_usd_cross_language_test tests/usd_cross_language_test.cpp)
+  target_link_libraries(freeusd_usd_cross_language_test PRIVATE freeusd::io freeusd::usd)
+  target_compile_definitions(
+    freeusd_usd_cross_language_test
+    PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+
   add_executable(freeusd_usda_roundtrip_test tests/usda_roundtrip_test.cpp)
   target_link_libraries(freeusd_usda_roundtrip_test PRIVATE freeusd::io freeusd::usd)
 
@@ -71,6 +77,7 @@ if(FREEUSD_BUILD_TESTS)
   add_test(NAME freeusd_selftest COMMAND freeusd_selftest)
   add_test(NAME freeusd_sdf_path_test COMMAND freeusd_sdf_path_test)
   add_test(NAME freeusd_usd_smoke_test COMMAND freeusd_usd_smoke_test)
+  add_test(NAME freeusd_usd_cross_language_test COMMAND freeusd_usd_cross_language_test)
   add_test(NAME freeusd_usda_roundtrip_test COMMAND freeusd_usda_roundtrip_test)
   add_test(NAME freeusd_pcp_compose_test COMMAND freeusd_pcp_compose_test)
   add_test(NAME freeusd_stage_compose_test COMMAND freeusd_stage_compose_test)
@@ -92,6 +99,14 @@ if(FREEUSD_BUILD_TESTS)
     target_link_libraries(freeusd_c_smoke_test PRIVATE freeusd::c)
     set_target_properties(freeusd_c_smoke_test PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX)
     add_test(NAME freeusd_c_smoke_test COMMAND freeusd_c_smoke_test)
+
+    add_executable(freeusd_c_usd_cross_language tests/c_usd_cross_language.c)
+    target_include_directories(freeusd_c_usd_cross_language PRIVATE "${PROJECT_SOURCE_DIR}/include")
+    target_link_libraries(freeusd_c_usd_cross_language PRIVATE freeusd::c)
+    target_compile_definitions(
+      freeusd_c_usd_cross_language PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+    set_target_properties(freeusd_c_usd_cross_language PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX)
+    add_test(NAME freeusd_c_usd_cross_language COMMAND freeusd_c_usd_cross_language)
   endif()
 endif()
 
@@ -110,31 +125,54 @@ if(FREEUSD_BUILD_PYTHON)
   pybind11_add_module(_native MODULE python/bindings.cpp)
   target_link_libraries(_native PRIVATE freeusd::runtime)
   set_target_properties(_native PROPERTIES OUTPUT_NAME _native)
-  # Dev/test: Python resolves `freeusd._native` from the `freeusd/` package directory.
+  # Dev/test: sync built extension next to the in-repo package (gitignored *.so).
   add_custom_command(
     TARGET _native
     POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:_native>
             ${CMAKE_SOURCE_DIR}/freeusd/$<TARGET_FILE_NAME:_native>
     COMMENT "Sync _native extension beside Python package (gitignored *.so)")
+  # Editable installs resolve `freeusd._native` from site-packages; sync when that tree exists (see cmake/sync script).
+  add_custom_command(
+    TARGET _native
+    POST_BUILD
+    COMMAND ${Python_EXECUTABLE} ${CMAKE_SOURCE_DIR}/cmake/sync_native_post_build.py $<TARGET_FILE:_native>
+    COMMENT "Sync _native into site-packages/freeusd when present (editable / venv)")
 
   install(TARGETS _native LIBRARY DESTINATION freeusd)
   install(DIRECTORY "${CMAKE_SOURCE_DIR}/freeusd/" DESTINATION freeusd FILES_MATCHING PATTERN "*.py")
 endif()
 
 if(FREEUSD_BUILD_PYTHON AND FREEUSD_BUILD_TESTS)
+  # Prefer CMake's Python; fall back to repo .venv when the system interpreter has no pytest (common dev setup).
+  set(_FREEUSD_PYTEST_PYTHON "${Python_EXECUTABLE}")
   execute_process(
     COMMAND "${Python_EXECUTABLE}" -c "import pytest"
     RESULT_VARIABLE _freeusd_have_pytest
     OUTPUT_QUIET
     ERROR_QUIET)
+  if(NOT _freeusd_have_pytest EQUAL 0)
+    set(_FREEUSD_VENV_PY "${CMAKE_SOURCE_DIR}/.venv/bin/python")
+    if(EXISTS "${_FREEUSD_VENV_PY}")
+      execute_process(
+        COMMAND "${_FREEUSD_VENV_PY}" -c "import pytest"
+        RESULT_VARIABLE _freeusd_have_pytest
+        OUTPUT_QUIET
+        ERROR_QUIET)
+      if(_freeusd_have_pytest EQUAL 0)
+        set(_FREEUSD_PYTEST_PYTHON "${_FREEUSD_VENV_PY}")
+      endif()
+    endif()
+  endif()
   if(_freeusd_have_pytest EQUAL 0)
     add_test(
       NAME freeusd_pytest
-      COMMAND "${Python_EXECUTABLE}" -m pytest "${CMAKE_SOURCE_DIR}/tests/python" -q
+      COMMAND "${_FREEUSD_PYTEST_PYTHON}" -m pytest "${CMAKE_SOURCE_DIR}/tests/python" -q
       WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
     set_tests_properties(freeusd_pytest PROPERTIES ENVIRONMENT "PYTHONPATH=${CMAKE_SOURCE_DIR}" LABELS "python")
   endif()
+  unset(_FREEUSD_VENV_PY)
+  unset(_FREEUSD_PYTEST_PYTHON)
 endif()
 
 install(DIRECTORY include/freeusd TYPE INCLUDE)

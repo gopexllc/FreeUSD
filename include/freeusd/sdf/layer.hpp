@@ -101,6 +101,40 @@ class FREEUSD_API Layer : public std::enable_shared_from_this<Layer> {
     return std::string_view{*default_prim_};
   }
 
+  /// Layer pseudoroot time / linear-unit hints (stored only; composition does not remap time).
+  std::optional<double> GetStartTimeCode() const noexcept { return start_time_code_; }
+  void SetStartTimeCode(double v) { start_time_code_ = v; }
+  void ClearStartTimeCode() noexcept { start_time_code_.reset(); }
+
+  std::optional<double> GetEndTimeCode() const noexcept { return end_time_code_; }
+  void SetEndTimeCode(double v) { end_time_code_ = v; }
+  void ClearEndTimeCode() noexcept { end_time_code_.reset(); }
+
+  std::optional<double> GetTimeCodesPerSecond() const noexcept { return time_codes_per_second_; }
+  void SetTimeCodesPerSecond(double v) { time_codes_per_second_ = v; }
+  void ClearTimeCodesPerSecond() noexcept { time_codes_per_second_.reset(); }
+
+  std::optional<double> GetFramesPerSecond() const noexcept { return frames_per_second_; }
+  void SetFramesPerSecond(double v) { frames_per_second_ = v; }
+  void ClearFramesPerSecond() noexcept { frames_per_second_.reset(); }
+
+  std::optional<int> GetFramePrecision() const noexcept { return frame_precision_; }
+  void SetFramePrecision(int v) { frame_precision_ = v; }
+  void ClearFramePrecision() noexcept { frame_precision_.reset(); }
+
+  std::optional<double> GetMetersPerUnit() const noexcept { return meters_per_unit_; }
+  void SetMetersPerUnit(double v) { meters_per_unit_ = v; }
+  void ClearMetersPerUnit() noexcept { meters_per_unit_.reset(); }
+
+  std::optional<std::string> GetUpAxis() const noexcept { return up_axis_; }
+  void SetUpAxis(std::string axis);
+  void ClearUpAxis() noexcept { up_axis_.reset(); }
+
+  /// Root \c primOrder hint (absolute prim paths; order preserved).
+  void SetPrimOrder(std::vector<Path> paths);
+  void ClearPrimOrder() noexcept { prim_order_.clear(); }
+  const std::vector<Path>& GetPrimOrder() const noexcept { return prim_order_; }
+
   void SetSubLayers(std::vector<std::string> paths);
   void ClearSubLayers() noexcept { sublayer_paths_.clear(); }
   const std::vector<std::string>& GetSubLayers() const noexcept { return sublayer_paths_; }
@@ -200,6 +234,8 @@ class FREEUSD_API Layer : public std::enable_shared_from_this<Layer> {
 
   void SetPrimSpecifier(const Path& primPath, PrimSpecifierKind k);
   PrimSpecifierKind GetPrimSpecifier(const Path& primPath) const noexcept;
+  /// True if this layer has an authored non-\c def specifier (\c class / \c over) for \p primPath.
+  bool HasPrimSpecifierOpinion(const Path& primPath) const noexcept;
 
  private:
   explicit Layer(std::string identifier);
@@ -216,6 +252,14 @@ class FREEUSD_API Layer : public std::enable_shared_from_this<Layer> {
   std::string documentation_;
   std::string comment_;
   std::optional<std::string> default_prim_;
+  std::optional<double> start_time_code_;
+  std::optional<double> end_time_code_;
+  std::optional<double> time_codes_per_second_;
+  std::optional<double> frames_per_second_;
+  std::optional<int> frame_precision_;
+  std::optional<double> meters_per_unit_;
+  std::optional<std::string> up_axis_;
+  std::vector<Path> prim_order_;
   std::vector<std::string> sublayer_paths_;
   std::unordered_map<std::string, LayerOffset, freeusd::tf::HashString, std::equal_to<>> sublayer_offsets_;
   std::unordered_map<Path, Path, Path::Hash> relocates_;
