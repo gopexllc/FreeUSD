@@ -170,6 +170,9 @@ void Layer::Clear() noexcept {
   default_prim_.reset();
   sublayer_paths_.clear();
   references_.clear();
+  prim_inherits_.clear();
+  prim_specializes_.clear();
+  prim_payloads_.clear();
   relationships_.clear();
   prim_active_.clear();
   prim_specifiers_.clear();
@@ -249,6 +252,130 @@ std::vector<std::string> Layer::ListReferences(const Path& primPath) const {
 }
 
 void Layer::ClearReferences(const Path& primPath) { references_.erase(primPath); }
+
+void Layer::ClearPrimInherits(const Path& primPath) { prim_inherits_.erase(primPath); }
+
+void Layer::AddPrimInherit(const Path& primPath, Path targetPrimPath) {
+  if (!primPath.IsPrimPath() || !targetPrimPath.IsPrimPath() || targetPrimPath.IsEmpty()) {
+    return;
+  }
+  touch_hierarchy(primPath);
+  prim_inherits_[primPath].push_back(std::move(targetPrimPath));
+}
+
+void Layer::PrependPrimInherits(const Path& primPath, std::vector<Path> front) {
+  if (!primPath.IsPrimPath() || front.empty()) {
+    return;
+  }
+  touch_hierarchy(primPath);
+  auto& v = prim_inherits_[primPath];
+  v.insert(v.begin(), front.begin(), front.end());
+}
+
+void Layer::AppendPrimInherits(const Path& primPath, std::vector<Path> back) {
+  if (!primPath.IsPrimPath() || back.empty()) {
+    return;
+  }
+  touch_hierarchy(primPath);
+  auto& v = prim_inherits_[primPath];
+  v.insert(v.end(), back.begin(), back.end());
+}
+
+void Layer::SetPrimInherits(const Path& primPath, std::vector<Path> targets) {
+  ClearPrimInherits(primPath);
+  for (Path& t : targets) {
+    AddPrimInherit(primPath, std::move(t));
+  }
+}
+
+std::vector<Path> Layer::ListPrimInherits(const Path& primPath) const {
+  const auto it = prim_inherits_.find(primPath);
+  if (it == prim_inherits_.end()) {
+    return {};
+  }
+  return it->second;
+}
+
+void Layer::ClearPrimSpecializes(const Path& primPath) { prim_specializes_.erase(primPath); }
+
+void Layer::AddPrimSpecializes(const Path& primPath, Path targetPrimPath) {
+  if (!primPath.IsPrimPath() || !targetPrimPath.IsPrimPath() || targetPrimPath.IsEmpty()) {
+    return;
+  }
+  touch_hierarchy(primPath);
+  prim_specializes_[primPath].push_back(std::move(targetPrimPath));
+}
+
+void Layer::PrependPrimSpecializes(const Path& primPath, std::vector<Path> front) {
+  if (!primPath.IsPrimPath() || front.empty()) {
+    return;
+  }
+  touch_hierarchy(primPath);
+  auto& v = prim_specializes_[primPath];
+  v.insert(v.begin(), front.begin(), front.end());
+}
+
+void Layer::AppendPrimSpecializes(const Path& primPath, std::vector<Path> back) {
+  if (!primPath.IsPrimPath() || back.empty()) {
+    return;
+  }
+  touch_hierarchy(primPath);
+  auto& v = prim_specializes_[primPath];
+  v.insert(v.end(), back.begin(), back.end());
+}
+
+void Layer::SetPrimSpecializes(const Path& primPath, std::vector<Path> targets) {
+  ClearPrimSpecializes(primPath);
+  for (Path& t : targets) {
+    AddPrimSpecializes(primPath, std::move(t));
+  }
+}
+
+std::vector<Path> Layer::ListPrimSpecializes(const Path& primPath) const {
+  const auto it = prim_specializes_.find(primPath);
+  if (it == prim_specializes_.end()) {
+    return {};
+  }
+  return it->second;
+}
+
+void Layer::ClearPrimPayloads(const Path& primPath) { prim_payloads_.erase(primPath); }
+
+void Layer::AddPrimPayload(const Path& primPath, PrimReference ref) {
+  if (!primPath.IsPrimPath() || ref.IsEmpty()) {
+    return;
+  }
+  touch_hierarchy(primPath);
+  prim_payloads_[primPath].push_back(std::move(ref));
+}
+
+void Layer::SetPrimPayloads(const Path& primPath, std::vector<PrimReference> refs) {
+  prim_payloads_.erase(primPath);
+  for (auto& r : refs) {
+    AddPrimPayload(primPath, std::move(r));
+  }
+}
+
+std::vector<PrimReference> Layer::ListPrimPayloads(const Path& primPath) const {
+  const auto it = prim_payloads_.find(primPath);
+  if (it == prim_payloads_.end()) {
+    return {};
+  }
+  return it->second;
+}
+
+std::vector<std::string> Layer::ListPayloads(const Path& primPath) const {
+  const auto it = prim_payloads_.find(primPath);
+  if (it == prim_payloads_.end()) {
+    return {};
+  }
+  std::vector<std::string> out;
+  out.reserve(it->second.size());
+  for (const PrimReference& r : it->second) {
+    out.push_back(r.FormatAuthoredForUsda());
+  }
+  return out;
+}
 
 void Layer::SetRelationshipTargets(const Path& primPath, const freeusd::tf::Token& relName,
                                   std::vector<Path> targets) {

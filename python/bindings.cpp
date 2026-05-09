@@ -275,6 +275,54 @@ PYBIND11_MODULE(_native, m) {
             [](const freeusd::sdf::Layer& layer, const freeusd::sdf::Path& p) {
               return layer.ListPrimReferences(p);
             })
+        .def("clear_prim_inherits", &freeusd::sdf::Layer::ClearPrimInherits)
+        .def("add_prim_inherit", &freeusd::sdf::Layer::AddPrimInherit)
+        .def(
+            "prepend_prim_inherits",
+            [](freeusd::sdf::Layer& layer, const freeusd::sdf::Path& p, std::vector<freeusd::sdf::Path> paths) {
+              layer.PrependPrimInherits(p, std::move(paths));
+            })
+        .def(
+            "append_prim_inherits",
+            [](freeusd::sdf::Layer& layer, const freeusd::sdf::Path& p, std::vector<freeusd::sdf::Path> paths) {
+              layer.AppendPrimInherits(p, std::move(paths));
+            })
+        .def(
+            "set_prim_inherits",
+            [](freeusd::sdf::Layer& layer, const freeusd::sdf::Path& p, std::vector<freeusd::sdf::Path> paths) {
+              layer.SetPrimInherits(p, std::move(paths));
+            })
+        .def("list_prim_inherits", &freeusd::sdf::Layer::ListPrimInherits)
+        .def("clear_prim_specializes", &freeusd::sdf::Layer::ClearPrimSpecializes)
+        .def("add_prim_specializes", &freeusd::sdf::Layer::AddPrimSpecializes)
+        .def(
+            "prepend_prim_specializes",
+            [](freeusd::sdf::Layer& layer, const freeusd::sdf::Path& p, std::vector<freeusd::sdf::Path> paths) {
+              layer.PrependPrimSpecializes(p, std::move(paths));
+            })
+        .def(
+            "append_prim_specializes",
+            [](freeusd::sdf::Layer& layer, const freeusd::sdf::Path& p, std::vector<freeusd::sdf::Path> paths) {
+              layer.AppendPrimSpecializes(p, std::move(paths));
+            })
+        .def(
+            "set_prim_specializes",
+            [](freeusd::sdf::Layer& layer, const freeusd::sdf::Path& p, std::vector<freeusd::sdf::Path> paths) {
+              layer.SetPrimSpecializes(p, std::move(paths));
+            })
+        .def("list_prim_specializes", &freeusd::sdf::Layer::ListPrimSpecializes)
+        .def("clear_prim_payloads", &freeusd::sdf::Layer::ClearPrimPayloads)
+        .def("add_prim_payload", &freeusd::sdf::Layer::AddPrimPayload)
+        .def(
+            "set_prim_payloads",
+            [](freeusd::sdf::Layer& layer, const freeusd::sdf::Path& p,
+               std::vector<freeusd::sdf::PrimReference> refs) {
+              layer.SetPrimPayloads(p, std::move(refs));
+            })
+        .def("list_prim_payloads", &freeusd::sdf::Layer::ListPrimPayloads)
+        .def("list_payloads", [](const freeusd::sdf::Layer& layer, const freeusd::sdf::Path& p) {
+          return layer.ListPayloads(p);
+        })
         .def(
             "is_prim_active",
             [](const freeusd::sdf::Layer& layer, const freeusd::sdf::Path& p) {

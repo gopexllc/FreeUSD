@@ -255,6 +255,46 @@ def "R"
     assert layer2.get_prim_custom_data_entry(p, "variant").as_double() == 3.0
 
 
+def test_prim_inherits_specializes_payload_usda_roundtrip() -> None:
+    src = """#usda 1.0
+(
+    doc = "arcs"
+)
+
+class "BasePrim"
+{
+}
+
+def "WithArcs"
+(
+    inherits = [</BasePrim>]
+    prepend specializes = </BasePrim>
+    append specializes = </BasePrim>
+    payload = @./geom.usda@</Model>
+    prepend payload = @./overlay.usda@
+)
+{
+}
+"""
+    layer = Layer.new_anonymous("arcs")
+    assert io.load_from_string(src, layer).ok
+    p = Path.from_string("/WithArcs")
+    inh = layer.list_prim_inherits(p)
+    assert len(inh) == 1 and inh[0].text() == "/BasePrim"
+    spe = layer.list_prim_specializes(p)
+    assert len(spe) == 2
+    assert spe[0].text() == "/BasePrim" and spe[1].text() == "/BasePrim"
+    pays = layer.list_payloads(p)
+    assert len(pays) == 2
+    assert "@./overlay.usda@" in pays[0]
+    assert "geom.usda" in pays[1]
+
+    out = io.save_to_string(layer)
+    layer2 = Layer.new_anonymous("arcs2")
+    assert io.load_from_string(out, layer2).ok
+    assert [x.text() for x in layer2.list_prim_inherits(p)] == ["/BasePrim"]
+
+
 def test_attribute_connection_resolves_on_stage() -> None:
     import freeusd.usd as usd
 

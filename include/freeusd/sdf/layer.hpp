@@ -94,6 +94,29 @@ class FREEUSD_API Layer : public std::enable_shared_from_this<Layer> {
   std::vector<std::string> ListReferences(const Path& primPath) const;
   void ClearReferences(const Path& primPath);
 
+  /// \c inherits arcs: absolute prim paths (USD \c inherits / \c prepend inherits / \c append inherits).
+  void ClearPrimInherits(const Path& primPath);
+  void AddPrimInherit(const Path& primPath, Path targetPrimPath);
+  void PrependPrimInherits(const Path& primPath, std::vector<Path> front);
+  void AppendPrimInherits(const Path& primPath, std::vector<Path> back);
+  void SetPrimInherits(const Path& primPath, std::vector<Path> targets);
+  std::vector<Path> ListPrimInherits(const Path& primPath) const;
+
+  /// \c specializes arcs (absolute prim paths).
+  void ClearPrimSpecializes(const Path& primPath);
+  void AddPrimSpecializes(const Path& primPath, Path targetPrimPath);
+  void PrependPrimSpecializes(const Path& primPath, std::vector<Path> front);
+  void AppendPrimSpecializes(const Path& primPath, std::vector<Path> back);
+  void SetPrimSpecializes(const Path& primPath, std::vector<Path> targets);
+  std::vector<Path> ListPrimSpecializes(const Path& primPath) const;
+
+  /// \c payload arcs (\c PrimReference list; same authored shape as references).
+  void ClearPrimPayloads(const Path& primPath);
+  void AddPrimPayload(const Path& primPath, PrimReference ref);
+  void SetPrimPayloads(const Path& primPath, std::vector<PrimReference> refs);
+  std::vector<PrimReference> ListPrimPayloads(const Path& primPath) const;
+  std::vector<std::string> ListPayloads(const Path& primPath) const;
+
   /// Relationship authored targets (UsdRelationship / SdfPathVector-shaped; strongest-first list order preserved).
   void SetRelationshipTargets(const Path& primPath, const freeusd::tf::Token& relName, std::vector<Path> targets);
   void PrependRelationshipTargets(const Path& primPath, const freeusd::tf::Token& relName, std::vector<Path> extraFront);
@@ -142,6 +165,9 @@ class FREEUSD_API Layer : public std::enable_shared_from_this<Layer> {
   std::unordered_set<Path, Path::Hash> hierarchy_;
   std::unordered_map<Path, freeusd::tf::Token, Path::Hash> prim_kinds_;
   std::unordered_map<Path, std::vector<PrimReference>, Path::Hash> references_;
+  std::unordered_map<Path, std::vector<Path>, Path::Hash> prim_inherits_;
+  std::unordered_map<Path, std::vector<Path>, Path::Hash> prim_specializes_;
+  std::unordered_map<Path, std::vector<PrimReference>, Path::Hash> prim_payloads_;
   std::unordered_map<Path, RelMap, Path::Hash> relationships_;
   std::unordered_map<Path, bool, Path::Hash> prim_active_;
   std::unordered_map<Path, PrimSpecifierKind, Path::Hash> prim_specifiers_;

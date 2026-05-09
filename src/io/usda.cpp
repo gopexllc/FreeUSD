@@ -1036,6 +1036,21 @@ bool gather_prim_reference_list(std::string_view val_c, std::vector<freeusd::sdf
   return true;
 }
 
+bool gather_abs_prim_path_list(std::string_view val_c, std::vector<freeusd::sdf::Path>* out, ParseResult* err,
+                               std::size_t line_no) {
+  if (!parse_relationship_targets_value(val_c, out, err, line_no)) {
+    return false;
+  }
+  for (const freeusd::sdf::Path& p : *out) {
+    if (!p.IsPrimPath()) {
+      set_err(err, line_no, "inherits/specializes require absolute prim paths like </World/ClassPrim>");
+      out->clear();
+      return false;
+    }
+  }
+  return true;
+}
+
 void apply_layer_metadata_blob(const std::string& blob, freeusd::sdf::Layer* layer, ParseResult* err, std::size_t anchor_line) {
   const std::string flat = flatten_newlines_inside_square_brackets(blob);
   std::istringstream iss(flat);
@@ -1128,6 +1143,46 @@ void apply_prim_metadata_blob(const std::string& blob,
       }
       for (auto& rf : refs) {
         layer->AddPrimReference(prim, std::move(rf));
+      }
+    } else if (key_full == "prepend inherits" || key_full == "append inherits" || key_full == "inherits") {
+      std::vector<freeusd::sdf::Path> paths;
+      if (!gather_abs_prim_path_list(rhs, &paths, err, anchor_line)) {
+        break;
+      }
+      if (key_full == "inherits") {
+        layer->SetPrimInherits(prim, std::move(paths));
+      } else if (key_full == "prepend inherits") {
+        layer->PrependPrimInherits(prim, std::move(paths));
+      } else {
+        layer->AppendPrimInherits(prim, std::move(paths));
+      }
+    } else if (key_full == "prepend specializes" || key_full == "append specializes" || key_full == "specializes") {
+      std::vector<freeusd::sdf::Path> paths;
+      if (!gather_abs_prim_path_list(rhs, &paths, err, anchor_line)) {
+        break;
+      }
+      if (key_full == "specializes") {
+        layer->SetPrimSpecializes(prim, std::move(paths));
+      } else if (key_full == "prepend specializes") {
+        layer->PrependPrimSpecializes(prim, std::move(paths));
+      } else {
+        layer->AppendPrimSpecializes(prim, std::move(paths));
+      }
+    } else if (key_full == "prepend payload" || key_full == "append payload" || key_full == "payload") {
+      std::vector<freeusd::sdf::PrimReference> pays;
+      if (!gather_prim_reference_list(rhs, &pays, err, anchor_line)) {
+        break;
+      }
+      if (key_full == "payload") {
+        layer->SetPrimPayloads(prim, std::move(pays));
+      } else if (key_full == "prepend payload") {
+        std::vector<freeusd::sdf::PrimReference> cur = layer->ListPrimPayloads(prim);
+        pays.insert(pays.end(), cur.begin(), cur.end());
+        layer->SetPrimPayloads(prim, std::move(pays));
+      } else {
+        for (auto& pr : pays) {
+          layer->AddPrimPayload(prim, std::move(pr));
+        }
       }
     } else if (key_full == "active") {
       freeusd::vt::Value bv = parse_value(rhs, err, anchor_line);
@@ -1671,6 +1726,9 @@ std::string SaveToString(const freeusd::sdf::Layer& layer) {
     head << "\"" << name << "\"";
 
     const bool meta_active_off = layer.HasPrimActiveOpinion(p) && !layer.IsPrimActive(p);
+    const auto inh = layer.ListPrimInherits(p);
+    const auto spe = layer.ListPrimSpecializes(p);
+    const auto pays = layer.ListPayloads(p);
     const auto refs = layer.ListReferences(p);
     freeusd::vt::Value pv_doc;
     const bool meta_doc =
@@ -1683,13 +1741,22 @@ std::string SaveToString(const freeusd::sdf::Layer& layer) {
     const std::vector<std::string> custom_keys = layer.ListPrimCustomDataKeys(p);
     const bool meta_custom = !custom_keys.empty();
 
-    const bool emit_meta_paren =
-        meta_active_off || !refs.empty() || meta_doc || meta_kind || meta_inst || meta_custom;
+    const bool emit_meta_paren = meta_active_off || !inh.empty() || !spe.empty() || !pays.empty() || !refs.empty() ||
+                                 meta_doc || meta_kind || meta_inst || meta_custom;
     os << pad << head.str();
     if (emit_meta_paren) {
       os << "\n" << pad << "(\n";
       if (meta_active_off) {
         os << pad << "    active = false\n";
+      }
+      for (const freeusd::sdf::Path& ip : inh) {
+        os << pad << "    prepend inherits = " << path_to_usda_angle(ip) << "\n";
+      }
+      for (const freeusd::sdf::Path& sp : spe) {
+        os << pad << "    prepend specializes = " << path_to_usda_angle(sp) << "\n";
+      }
+      for (const std::string& pay : pays) {
+        os << pad << "    prepend payload = " << pay << "\n";
       }
       for (const std::string& authored : layer.ListReferences(p)) {
         os << pad << "    prepend references = " << authored << "\n";
