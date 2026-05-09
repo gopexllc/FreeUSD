@@ -93,3 +93,10 @@ target_link_libraries(
     freeusd_trace
     freeusd_work
 )
+
+if(FREEUSD_BUILD_C_ABI)
+  add_library(freeusd_c STATIC c/api.cpp)
+  add_library(freeusd::c ALIAS freeusd_c)
+  target_include_directories(freeusd_c PUBLIC "$<BUILD_INTERFACE:${FREEUSD_INC}>")
+  target_link_libraries(freeusd_c PUBLIC freeusd::runtime)
+endif()

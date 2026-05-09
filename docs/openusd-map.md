@@ -15,6 +15,7 @@ FreeUSD mirrors the **library boundaries** and common **public concepts** of Ope
 | `plug` | `freeusd::plug` | `Registry` no-op loader |
 | `trace` | `freeusd::trace` | No-op `Collector` + `FREEUSD_TRACE_FUNCTION` |
 | `work` | `freeusd::work` | Serial `Dispatcher` stub |
+| **C ABI** | `libfreeusd_c` + `include/freeusd/c/freeusd.h` | Stable C entry points: layer + **layer stack** + stage attach, USDA I/O, field reads, child paths, composed **active/kind/customData** |
 | Crate (binary) | `freeusd::usd::crate` | Header placeholder |
 | USDA (ASCII) | `freeusd::io::usda` | Minimal load/save (`def`, typed attrs, nested blocks, prim **`customData = { … }`**, typed **`name.connect = </Prim.attr>`** attribute connections, relationship list ops **`prepend` / `append` / `delete rel`**) |
 

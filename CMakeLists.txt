@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(freeusd VERSION 0.1.0 LANGUAGES CXX)
+project(freeusd VERSION 0.1.0 LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -8,6 +8,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 option(FREEUSD_BUILD_PYTHON "Build pybind11 Python extension" ON)
 option(FREEUSD_BUILD_TESTS "Build and register C++ self-tests" ON)
+option(FREEUSD_BUILD_C_ABI "Build libfreeusd_c C API wrapper" ON)
 
 include(GNUInstallDirs)
 
@@ -40,6 +41,14 @@ if(FREEUSD_BUILD_TESTS)
   add_test(NAME freeusd_usda_roundtrip_test COMMAND freeusd_usda_roundtrip_test)
   add_test(NAME freeusd_pcp_compose_test COMMAND freeusd_pcp_compose_test)
   add_test(NAME freeusd_stage_compose_test COMMAND freeusd_stage_compose_test)
+
+  if(FREEUSD_BUILD_C_ABI)
+    add_executable(freeusd_c_smoke_test tests/c_abi_smoke.c)
+    target_include_directories(freeusd_c_smoke_test PRIVATE "${PROJECT_SOURCE_DIR}/include")
+    target_link_libraries(freeusd_c_smoke_test PRIVATE freeusd::c)
+    set_target_properties(freeusd_c_smoke_test PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX)
+    add_test(NAME freeusd_c_smoke_test COMMAND freeusd_c_smoke_test)
+  endif()
 endif()
 
 if(FREEUSD_BUILD_PYTHON)
@@ -63,8 +72,13 @@ endif()
 
 install(DIRECTORY include/freeusd TYPE INCLUDE)
 
+set(_freeusd_install_targets freeusd_base freeusd_tf freeusd_vt freeusd_ar freeusd_sdf freeusd_io freeusd_pcp
+                             freeusd_usd freeusd_plug)
+if(FREEUSD_BUILD_C_ABI)
+  list(APPEND _freeusd_install_targets freeusd_c)
+endif()
 install(
-  TARGETS freeusd_base freeusd_tf freeusd_vt freeusd_ar freeusd_sdf freeusd_io freeusd_pcp freeusd_usd freeusd_plug
+  TARGETS ${_freeusd_install_targets}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
