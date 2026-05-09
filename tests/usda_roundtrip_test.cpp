@@ -20,6 +20,9 @@ int main() {
 #usda 1.0
 (
     doc = "test"
+    relocates = {
+        </World/Pipe>: </World/Sink>,
+    }
 )
 
 def Xform "World"
@@ -34,6 +37,31 @@ def Xform "World"
     def "Sink"
     {
         double ported.connect = </World/Pipe.sourceValue>
+    }
+
+    def "VPrim"
+    (
+        variantSelection = {
+            string shapeVariant = "Sphere",
+            token lodVariant = Hi,
+        }
+    )
+    {
+    }
+
+    def "VariantHost"
+    (
+        variantSets = {
+            shapeVariant = {
+                "Sphere" = {},
+                Cube = {},
+            }
+        }
+        variantSelection = {
+            string shapeVariant = "Sphere",
+        }
+    )
+    {
     }
 
     def "Cube"
@@ -69,6 +97,30 @@ def Xform "World"
   auto r = LoadFromString(doc, layer);
   assert(r.ok);
 
+  const Path pipe = Path::FromString("/World/Pipe");
+  const Path sink = Path::FromString("/World/Sink");
+  freeusd::sdf::Path rel_to;
+  assert(layer->HasRelocate(pipe));
+  assert(layer->GetRelocateTarget(pipe, &rel_to));
+  assert(rel_to == sink);
+
+  const Path vprim = Path::FromString("/World/VPrim");
+  assert(layer->HasPrimVariantSelectionKey(vprim, "shapeVariant"));
+  std::string vsel;
+  assert(layer->GetPrimVariantSelectionEntry(vprim, "shapeVariant", &vsel));
+  assert(vsel == "Sphere");
+  assert(layer->GetPrimVariantSelectionEntry(vprim, "lodVariant", &vsel));
+  assert(vsel == "Hi");
+
+  const Path vhost = Path::FromString("/World/VariantHost");
+  assert(layer->HasPrimVariantSet(vhost, "shapeVariant"));
+  const auto vnames = layer->ListPrimVariantNames(vhost, "shapeVariant");
+  assert(vnames.size() == 2u);
+  assert(vnames[0] == "Sphere");
+  assert(vnames[1] == "Cube");
+  assert(layer->GetPrimVariantSelectionEntry(vhost, "shapeVariant", &vsel));
+  assert(vsel == "Sphere");
+
   const Path cube = Path::FromString("/World/Cube");
   assert(layer->HasPrimCustomDataKey(cube, "pipeline"));
   Value ctmp;
@@ -81,7 +133,6 @@ def Xform "World"
   assert(ctmp.GetDouble(&bd));
   assert(bd == 9.0);
 
-  const Path sink = Path::FromString("/World/Sink");
   assert(layer->HasAttributeConnection(sink, Token("ported")));
   freeusd::sdf::Path conn_target;
   assert(layer->GetAttributeConnectionTarget(sink, Token("ported"), &conn_target));
@@ -91,12 +142,13 @@ def Xform "World"
   const auto sink_prim = st0->GetPrimAtPath(sink);
   assert(sink_prim.IsValid());
   Value fed = sink_prim.GetAttribute(Token("ported"));
+  double d = 0;
   assert(fed.GetDouble(&d));
   assert(d > 2.718 && d < 2.719);
 
   Value v;
   assert(layer->GetField(cube, Token("size"), &v));
-  double d = 0;
+  d = 0;
   assert(v.GetDouble(&d));
   assert(d == 2.5);
 
@@ -149,6 +201,20 @@ def Xform "World"
   assert(layer2->GetPrimCustomDataEntry(cube, "build", &ctmp));
   assert(ctmp.GetDouble(&bd));
   assert(bd == 9.0);
+
+  assert(layer2->HasPrimVariantSelectionKey(vprim, "shapeVariant"));
+  assert(layer2->GetPrimVariantSelectionEntry(vprim, "lodVariant", &vsel));
+  assert(vsel == "Hi");
+
+  assert(layer2->HasPrimVariantSet(vhost, "shapeVariant"));
+  const auto vnames2 = layer2->ListPrimVariantNames(vhost, "shapeVariant");
+  assert(vnames2.size() == 2u);
+  assert(vnames2[0] == "Sphere");
+  assert(vnames2[1] == "Cube");
+
+  assert(layer2->HasRelocate(pipe));
+  assert(layer2->GetRelocateTarget(pipe, &rel_to));
+  assert(rel_to == sink);
 
   assert(layer2->HasAttributeConnection(Path::FromString("/World/Sink"), Token("ported")));
   auto st1 = Stage::AttachRootLayer(layer2);

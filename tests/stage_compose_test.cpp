@@ -87,5 +87,36 @@ int main() {
   assert(px_prim.HasCustomDataKey("onlyWeak"));
   assert(px_prim.ListCustomDataKeys().size() >= 2u);
 
+  weaker->SetPrimVariantSelectionEntry(px, "shape", "Lo");
+  strong->SetPrimVariantSelectionEntry(px, "shape", "Hi");
+  strong->SetPrimVariantSelectionEntry(px, "lod", "Full");
+  std::string vs;
+  assert(composed->GetComposedPrimVariantSelection(px, "shape", &vs));
+  assert(vs == "Hi");
+  assert(composed->GetComposedPrimVariantSelection(px, "lod", &vs));
+  assert(vs == "Full");
+  assert(composed->PrimVariantSelectionSetInAnyLayer(px, "shape"));
+  const auto vsets = composed->ListComposedPrimVariantSelectionSets(px);
+  assert(vsets.size() == 2u);
+  assert(px_prim.HasVariantSelectionKey("shape"));
+  assert(px_prim.GetVariantSelection("shape") == "Hi");
+  assert(px_prim.GetVariantSelection("lod") == "Full");
+  assert(px_prim.ListVariantSelectionSets().size() == 2u);
+
+  weaker->SetPrimVariantSetVariants(px, "geo", {"Lo"});
+  strong->SetPrimVariantSetVariants(px, "geo", {"Hi", "Med"});
+  weaker->SetPrimVariantSetVariants(px, "solo_set", {"Only"});
+  const auto set_names = composed->ListComposedPrimVariantSetNames(px);
+  assert(set_names.size() == 2u);
+  assert(composed->GetComposedPrimVariantNames(px, "geo").size() == 2u);
+  assert(composed->GetComposedPrimVariantNames(px, "geo")[0] == "Hi");
+  assert(composed->GetComposedPrimVariantNames(px, "geo")[1] == "Med");
+  assert(composed->GetComposedPrimVariantNames(px, "solo_set").size() == 1u);
+  assert(composed->GetComposedPrimVariantNames(px, "solo_set")[0] == "Only");
+  assert(composed->PrimVariantSetDeclaredInAnyLayer(px, "geo"));
+  assert(px_prim.HasVariantSet("geo"));
+  assert(px_prim.ListVariantSetNames().size() == 2u);
+  assert(px_prim.ListVariantNames("geo").size() == 2u);
+
   return 0;
 }

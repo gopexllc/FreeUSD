@@ -4,6 +4,7 @@
 #include "freeusd/sdf/path.hpp"
 #include "freeusd/tf/token.hpp"
 #include "freeusd/usd/stage.hpp"
+#include "freeusd/usdShade/tokens.hpp"
 #include "freeusd/vt/value.hpp"
 
 int main() {
@@ -29,6 +30,8 @@ int main() {
   double d = 0;
   assert(prim.GetAttribute(Token("size")).GetDouble(&d));
   assert(d == 2.5);
+
+  assert(freeusd::usdShade::tokens::Material().GetText() == "Material");
 
   return 0;
 }

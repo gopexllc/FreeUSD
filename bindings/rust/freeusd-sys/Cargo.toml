@@ -1,0 +1,15 @@
+[package]
+name = "freeusd-sys"
+version = "0.1.0"
+edition = "2021"
+links = "freeusd_c"
+publish = false
+description = "Low-level FFI to the FreeUSD C ABI (libfreeusd_c + static archives)."
+
+[lib]
+name = "freeusd_sys"
+path = "src/lib.rs"
+
+[dependencies]
+
+[dev-dependencies]

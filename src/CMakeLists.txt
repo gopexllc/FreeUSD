@@ -1,4 +1,4 @@
-# Modular layout inspired by OpenUSD (pxr): tf, gf, vt, ar, sdf, pcp, usd, usdGeom, plus plug/trace/work stubs.
+# Modular layout inspired by OpenUSD (pxr): tf, gf, vt, ar, sdf, pcp, usd, usdGeom, usdUtils, plus plug/trace/work stubs.
 # All code here is clean-room; it does not incorporate Pixar or AOUSD source.
 
 set(FREEUSD_INC "${PROJECT_SOURCE_DIR}/include")
@@ -57,9 +57,52 @@ add_library(freeusd::usd ALIAS freeusd_usd)
 target_include_directories(freeusd_usd PUBLIC "$<BUILD_INTERFACE:${FREEUSD_INC}>")
 target_link_libraries(freeusd_usd PUBLIC freeusd_sdf freeusd_vt freeusd_pcp freeusd_ar freeusd_build_settings)
 
+add_library(freeusd_usdUtils INTERFACE)
+add_library(freeusd::usdUtils ALIAS freeusd_usdUtils)
+target_include_directories(freeusd_usdUtils INTERFACE "$<BUILD_INTERFACE:${FREEUSD_INC}>")
+target_link_libraries(freeusd_usdUtils INTERFACE freeusd_usd)
+
 add_library(freeusd_usdGeom INTERFACE)
 add_library(freeusd::usdGeom ALIAS freeusd_usdGeom)
 target_link_libraries(freeusd_usdGeom INTERFACE freeusd_usd)
+
+# Header-only schema stubs (OpenUSD-shaped package names; clean-room tokens only).
+foreach(
+  _pkg
+  IN
+  ITEMS
+  usdShade
+  usdLux
+  usdPhysics
+  usdVol
+  usdSkel
+  usdMedia
+  usdRender
+  usdRi)
+  add_library(freeusd_${_pkg} INTERFACE)
+  add_library(freeusd::${_pkg} ALIAS freeusd_${_pkg})
+  target_include_directories(freeusd_${_pkg} INTERFACE "$<BUILD_INTERFACE:${FREEUSD_INC}>")
+  target_link_libraries(freeusd_${_pkg} INTERFACE freeusd_usd freeusd_tf)
+endforeach()
+target_link_libraries(freeusd_usdLux INTERFACE freeusd_usdGeom)
+target_link_libraries(freeusd_usdPhysics INTERFACE freeusd_usdGeom)
+target_link_libraries(freeusd_usdVol INTERFACE freeusd_usdGeom)
+target_link_libraries(freeusd_usdSkel INTERFACE freeusd_usdGeom)
+
+add_library(freeusd_usd_schemas INTERFACE)
+add_library(freeusd::usd_schemas ALIAS freeusd_usd_schemas)
+target_link_libraries(
+  freeusd_usd_schemas
+  INTERFACE
+  freeusd_usdGeom
+  freeusd_usdShade
+  freeusd_usdLux
+  freeusd_usdPhysics
+  freeusd_usdVol
+  freeusd_usdSkel
+  freeusd_usdMedia
+  freeusd_usdRender
+  freeusd_usdRi)
 
 add_library(freeusd_plug STATIC plug/registry.cpp)
 add_library(freeusd::plug ALIAS freeusd_plug)

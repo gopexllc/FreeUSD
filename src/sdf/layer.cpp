@@ -169,6 +169,7 @@ void Layer::Clear() noexcept {
   documentation_.clear();
   default_prim_.reset();
   sublayer_paths_.clear();
+  relocates_.clear();
   references_.clear();
   prim_inherits_.clear();
   prim_specializes_.clear();
@@ -177,6 +178,8 @@ void Layer::Clear() noexcept {
   prim_active_.clear();
   prim_specifiers_.clear();
   prim_custom_data_.clear();
+  prim_variant_selection_.clear();
+  prim_variant_sets_.clear();
   attribute_connections_.clear();
 }
 
@@ -198,6 +201,53 @@ void Layer::SetSubLayers(std::vector<std::string> paths) {
       sublayer_paths_.emplace_back(v);
     }
   }
+}
+
+void Layer::ClearRelocates() noexcept {
+  relocates_.clear();
+}
+
+void Layer::SetRelocate(Path fromPrimPath, Path toPrimPath) {
+  if (!fromPrimPath.IsPrimPath() || !toPrimPath.IsPrimPath()) {
+    return;
+  }
+  if (fromPrimPath.IsEmpty() || toPrimPath.IsEmpty()) {
+    return;
+  }
+  relocates_[std::move(fromPrimPath)] = std::move(toPrimPath);
+}
+
+void Layer::EraseRelocate(const Path& fromPrimPath) {
+  relocates_.erase(fromPrimPath);
+}
+
+bool Layer::HasRelocate(const Path& fromPrimPath) const {
+  return relocates_.find(fromPrimPath) != relocates_.end();
+}
+
+bool Layer::GetRelocateTarget(const Path& fromPrimPath, Path* outToPrimPath) const {
+  if (!outToPrimPath) {
+    return false;
+  }
+  const auto it = relocates_.find(fromPrimPath);
+  if (it == relocates_.end()) {
+    return false;
+  }
+  *outToPrimPath = it->second;
+  return true;
+}
+
+std::vector<std::pair<Path, Path>> Layer::ListRelocates() const {
+  std::vector<std::pair<Path, Path>> out;
+  out.reserve(relocates_.size());
+  for (const auto& e : relocates_) {
+    out.emplace_back(e.first, e.second);
+  }
+  std::sort(out.begin(), out.end(),
+            [](const std::pair<Path, Path>& a, const std::pair<Path, Path>& b) {
+              return a.first.GetString() < b.first.GetString();
+            });
+  return out;
 }
 
 void Layer::AddPrimReference(const Path& primPath, PrimReference ref) {
@@ -701,6 +751,141 @@ std::vector<std::string> Layer::ListPrimCustomDataKeys(const Path& primPath) con
   }
   std::sort(out.begin(), out.end());
   return out;
+}
+
+void Layer::ClearPrimVariantSelection(const Path& primPath) {
+  prim_variant_selection_.erase(primPath);
+}
+
+void Layer::SetPrimVariantSelectionEntry(const Path& primPath, std::string variantSet, std::string variantName) {
+  if (!primPath.IsPrimPath() || variantSet.empty() || variantName.empty()) {
+    return;
+  }
+  touch_hierarchy(primPath);
+  prim_variant_selection_[primPath][std::move(variantSet)] = std::move(variantName);
+}
+
+void Layer::ErasePrimVariantSelectionEntry(const Path& primPath, const std::string& variantSet) {
+  if (!primPath.IsPrimPath() || variantSet.empty()) {
+    return;
+  }
+  auto it = prim_variant_selection_.find(primPath);
+  if (it == prim_variant_selection_.end()) {
+    return;
+  }
+  it->second.erase(variantSet);
+  if (it->second.empty()) {
+    prim_variant_selection_.erase(it);
+  }
+}
+
+bool Layer::HasPrimVariantSelectionKey(const Path& primPath, const std::string& variantSet) const {
+  if (!primPath.IsPrimPath() || variantSet.empty()) {
+    return false;
+  }
+  const auto it = prim_variant_selection_.find(primPath);
+  if (it == prim_variant_selection_.end()) {
+    return false;
+  }
+  return it->second.find(variantSet) != it->second.end();
+}
+
+bool Layer::GetPrimVariantSelectionEntry(const Path& primPath, const std::string& variantSet,
+                                         std::string* outName) const {
+  if (!outName || !primPath.IsPrimPath() || variantSet.empty()) {
+    return false;
+  }
+  const auto it = prim_variant_selection_.find(primPath);
+  if (it == prim_variant_selection_.end()) {
+    return false;
+  }
+  const auto jt = it->second.find(variantSet);
+  if (jt == it->second.end()) {
+    return false;
+  }
+  *outName = jt->second;
+  return true;
+}
+
+std::vector<std::string> Layer::ListPrimVariantSelectionSets(const Path& primPath) const {
+  std::vector<std::string> out;
+  if (!primPath.IsPrimPath()) {
+    return out;
+  }
+  const auto it = prim_variant_selection_.find(primPath);
+  if (it == prim_variant_selection_.end()) {
+    return out;
+  }
+  out.reserve(it->second.size());
+  for (const auto& e : it->second) {
+    out.push_back(e.first);
+  }
+  std::sort(out.begin(), out.end());
+  return out;
+}
+
+void Layer::ClearPrimVariantSets(const Path& primPath) {
+  prim_variant_sets_.erase(primPath);
+}
+
+void Layer::SetPrimVariantSetVariants(const Path& primPath, std::string variantSetName,
+                                      std::vector<std::string> variantNames) {
+  if (!primPath.IsPrimPath() || variantSetName.empty()) {
+    return;
+  }
+  touch_hierarchy(primPath);
+  auto& by_set = prim_variant_sets_[primPath];
+  if (variantNames.empty()) {
+    by_set.erase(variantSetName);
+    if (by_set.empty()) {
+      prim_variant_sets_.erase(primPath);
+    }
+    return;
+  }
+  by_set[std::move(variantSetName)] = std::move(variantNames);
+}
+
+bool Layer::HasPrimVariantSet(const Path& primPath, const std::string& variantSetName) const {
+  if (!primPath.IsPrimPath() || variantSetName.empty()) {
+    return false;
+  }
+  const auto it = prim_variant_sets_.find(primPath);
+  if (it == prim_variant_sets_.end()) {
+    return false;
+  }
+  return it->second.find(variantSetName) != it->second.end();
+}
+
+std::vector<std::string> Layer::ListPrimVariantSetNames(const Path& primPath) const {
+  std::vector<std::string> out;
+  if (!primPath.IsPrimPath()) {
+    return out;
+  }
+  const auto it = prim_variant_sets_.find(primPath);
+  if (it == prim_variant_sets_.end()) {
+    return out;
+  }
+  out.reserve(it->second.size());
+  for (const auto& e : it->second) {
+    out.push_back(e.first);
+  }
+  std::sort(out.begin(), out.end());
+  return out;
+}
+
+std::vector<std::string> Layer::ListPrimVariantNames(const Path& primPath, const std::string& variantSetName) const {
+  if (!primPath.IsPrimPath() || variantSetName.empty()) {
+    return {};
+  }
+  const auto it = prim_variant_sets_.find(primPath);
+  if (it == prim_variant_sets_.end()) {
+    return {};
+  }
+  const auto jt = it->second.find(variantSetName);
+  if (jt == it->second.end()) {
+    return {};
+  }
+  return jt->second;
 }
 
 }  // namespace freeusd::sdf

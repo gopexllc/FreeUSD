@@ -1,5 +1,6 @@
 .venv/
 /build/
+bindings/rust/target/
 /dist/
 *.egg-info/
 .eggs/

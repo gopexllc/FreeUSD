@@ -6,18 +6,42 @@
 #include <sstream>
 
 #include "freeusd/ar/defaultResolver.hpp"
+#include "freeusd/ar/resolvedPath.hpp"
+#include "freeusd/gf/bbox3d.hpp"
+#include "freeusd/gf/matrix4d.hpp"
+#include "freeusd/gf/quatd.hpp"
+#include "freeusd/gf/range1d.hpp"
+#include "freeusd/gf/vec3d.hpp"
 #include "freeusd/io/usda.hpp"
 #include "freeusd/pcp/compose.hpp"
 #include "freeusd/pcp/layerStack.hpp"
 #include "freeusd/plug/registry.hpp"
+#include "freeusd/sdf/assetPath.hpp"
 #include "freeusd/sdf/layer.hpp"
+#include "freeusd/sdf/layerOffset.hpp"
 #include "freeusd/sdf/path.hpp"
 #include "freeusd/sdf/primReference.hpp"
+#include "freeusd/sdf/tokens.hpp"
 #include "freeusd/tf/token.hpp"
+#include "freeusd/trace/collector.hpp"
+#include "freeusd/usd/editTarget.hpp"
+#include "freeusd/usd/kindTokens.hpp"
+#include "freeusd/usd/tokens.hpp"
 #include "freeusd/usd/stage.hpp"
+#include "freeusd/usd/timeCode.hpp"
+#include "freeusd/usdUtils/pipeline.hpp"
 #include "freeusd/usdGeom/tokens.hpp"
+#include "freeusd/usdLux/tokens.hpp"
+#include "freeusd/usdMedia/tokens.hpp"
+#include "freeusd/usdPhysics/tokens.hpp"
+#include "freeusd/usdRender/tokens.hpp"
+#include "freeusd/usdRi/tokens.hpp"
+#include "freeusd/usdShade/tokens.hpp"
+#include "freeusd/usdSkel/tokens.hpp"
+#include "freeusd/usdVol/tokens.hpp"
 #include "freeusd/version.hpp"
 #include "freeusd/vt/value.hpp"
+#include "freeusd/work/dispatcher.hpp"
 
 namespace py = pybind11;
 
@@ -42,15 +66,136 @@ PYBIND11_MODULE(_native, m) {
   }
 
   {
+    auto gf = m.def_submodule("gf");
+    py::class_<freeusd::gf::BBox3d>(gf, "BBox3d")
+        .def(py::init<>())
+        .def_readwrite("min", &freeusd::gf::BBox3d::min)
+        .def_readwrite("max", &freeusd::gf::BBox3d::max)
+        .def("is_empty", &freeusd::gf::BBox3d::IsEmpty)
+        .def_static("empty", &freeusd::gf::BBox3d::Empty)
+        .def_static(
+            "from_min_max",
+            [](const freeusd::gf::Vec3d& a, const freeusd::gf::Vec3d& b) {
+              return freeusd::gf::BBox3d::FromMinMax(a, b);
+            },
+            py::arg("a"),
+            py::arg("b"))
+        .def("__eq__", [](const freeusd::gf::BBox3d& u, const freeusd::gf::BBox3d& v) { return u == v; })
+        .def("__repr__", [](const freeusd::gf::BBox3d&) { return "<freeusd.gf.BBox3d>"; });
+
+    py::class_<freeusd::gf::Vec3d>(gf, "Vec3d")
+        .def(py::init<>())
+        .def(py::init<double, double, double>(), py::arg("x") = 0.0, py::arg("y") = 0.0, py::arg("z") = 0.0)
+        .def_static("Zero", &freeusd::gf::Vec3d::Zero)
+        .def("x", &freeusd::gf::Vec3d::x)
+        .def("y", &freeusd::gf::Vec3d::y)
+        .def("z", &freeusd::gf::Vec3d::z)
+        .def("set", [](freeusd::gf::Vec3d& v, double x, double y, double z) { v.set(x, y, z); })
+        .def("as_array", &freeusd::gf::Vec3d::as_array)
+        .def("__eq__", [](const freeusd::gf::Vec3d& a, const freeusd::gf::Vec3d& b) { return a == b; })
+        .def("__repr__", [](const freeusd::gf::Vec3d& v) {
+          return "<freeusd.gf.Vec3d " + std::to_string(v.x()) + ", " + std::to_string(v.y()) + ", " +
+                 std::to_string(v.z()) + ">";
+        });
+
+    py::class_<freeusd::gf::Matrix4d>(gf, "Matrix4d")
+        .def(py::init<>())
+        .def_static("Identity", &freeusd::gf::Matrix4d::Identity)
+        .def(
+            "as_list",
+            [](const freeusd::gf::Matrix4d& m) {
+              return std::vector<double>(m.m.begin(), m.m.end());
+            },
+            "Row-major 16 doubles (host-defined layout; matches C++ `m` storage).")
+        .def("__eq__", [](const freeusd::gf::Matrix4d& a, const freeusd::gf::Matrix4d& b) { return a == b; })
+        .def("__repr__", [](const freeusd::gf::Matrix4d&) { return "<freeusd.gf.Matrix4d>"; });
+
+    py::class_<freeusd::gf::Quatd>(gf, "Quatd")
+        .def(py::init<>())
+        .def(py::init<double, double, double, double>(), py::arg("real"), py::arg("i"), py::arg("j"), py::arg("k"))
+        .def_readwrite("real", &freeusd::gf::Quatd::real)
+        .def_readwrite("i", &freeusd::gf::Quatd::i)
+        .def_readwrite("j", &freeusd::gf::Quatd::j)
+        .def_readwrite("k", &freeusd::gf::Quatd::k)
+        .def_static("Identity", &freeusd::gf::Quatd::Identity)
+        .def("__eq__", [](const freeusd::gf::Quatd& a, const freeusd::gf::Quatd& b) { return a == b; })
+        .def("__repr__", [](const freeusd::gf::Quatd& q) {
+          return std::string{"<freeusd.gf.Quatd real="} + std::to_string(q.real) + " i=" + std::to_string(q.i) +
+                 " j=" + std::to_string(q.j) + " k=" + std::to_string(q.k) + ">";
+        });
+
+    py::class_<freeusd::gf::Range1d>(gf, "Range1d")
+        .def(py::init<>())
+        .def(py::init<double, double>(), py::arg("min"), py::arg("max"))
+        .def_readwrite("min", &freeusd::gf::Range1d::min)
+        .def_readwrite("max", &freeusd::gf::Range1d::max)
+        .def("is_empty", &freeusd::gf::Range1d::IsEmpty)
+        .def_static("unit_interval", &freeusd::gf::Range1d::UnitInterval)
+        .def("__eq__", [](const freeusd::gf::Range1d& a, const freeusd::gf::Range1d& b) { return a == b; })
+        .def("__repr__", [](const freeusd::gf::Range1d& r) {
+          return std::string{"<freeusd.gf.Range1d min="} + std::to_string(r.min) + " max=" + std::to_string(r.max) + ">";
+        });
+  }
+
+  {
     auto vt = m.def_submodule("vt");
     py::class_<freeusd::vt::Value>(vt, "Value")
         .def(py::init<>())
         .def_static("make_bool", &freeusd::vt::Value::MakeBool)
         .def_static("make_int32", &freeusd::vt::Value::MakeInt32)
+        .def_static("make_int64", &freeusd::vt::Value::MakeInt64)
+        .def_static("make_float", &freeusd::vt::Value::MakeFloat)
         .def_static("make_double", &freeusd::vt::Value::MakeDouble)
         .def_static("make_string", &freeusd::vt::Value::MakeString)
         .def_static("make_token", &freeusd::vt::Value::MakeToken)
+        .def_static(
+            "make_vec3d",
+            [](double x, double y, double z) {
+              freeusd::gf::Vec3d v;
+              v.set(x, y, z);
+              return freeusd::vt::Value::MakeVec3d(v);
+            },
+            py::arg("x"),
+            py::arg("y"),
+            py::arg("z"))
+        .def_static("make_vec3d_vec", [](const freeusd::gf::Vec3d& v) { return freeusd::vt::Value::MakeVec3d(v); }, py::arg("v"))
         .def("is_empty", &freeusd::vt::Value::IsEmpty)
+        .def("holds_bool", &freeusd::vt::Value::HoldsBool)
+        .def("holds_int32", &freeusd::vt::Value::HoldsInt32)
+        .def("holds_int64", &freeusd::vt::Value::HoldsInt64)
+        .def("holds_float", &freeusd::vt::Value::HoldsFloat)
+        .def("holds_double", &freeusd::vt::Value::HoldsDouble)
+        .def("holds_string", &freeusd::vt::Value::HoldsString)
+        .def("holds_token", &freeusd::vt::Value::HoldsToken)
+        .def("holds_vec3d", &freeusd::vt::Value::HoldsVec3d)
+        .def("as_bool", [](const freeusd::vt::Value& v) -> py::object {
+          bool b{};
+          if (v.GetBool(&b)) {
+            return py::cast(b);
+          }
+          return py::none();
+        })
+        .def("as_int32", [](const freeusd::vt::Value& v) -> py::object {
+          std::int32_t i{};
+          if (v.GetInt32(&i)) {
+            return py::cast(i);
+          }
+          return py::none();
+        })
+        .def("as_int64", [](const freeusd::vt::Value& v) -> py::object {
+          std::int64_t i{};
+          if (v.GetInt64(&i)) {
+            return py::cast(i);
+          }
+          return py::none();
+        })
+        .def("as_float", [](const freeusd::vt::Value& v) -> py::object {
+          float f{};
+          if (v.GetFloat(&f)) {
+            return py::cast(f);
+          }
+          return py::none();
+        })
         .def("as_double", [](const freeusd::vt::Value& v) -> py::object {
           double d{};
           if (v.GetDouble(&d)) {
@@ -62,6 +207,20 @@ PYBIND11_MODULE(_native, m) {
           std::string s;
           if (v.GetString(&s)) {
             return py::cast(s);
+          }
+          return py::none();
+        })
+        .def("as_token", [](const freeusd::vt::Value& v) -> py::object {
+          freeusd::tf::Token t;
+          if (v.GetToken(&t)) {
+            return py::cast(t);
+          }
+          return py::none();
+        })
+        .def("as_vec3d", [](const freeusd::vt::Value& v) -> py::object {
+          freeusd::gf::Vec3d out;
+          if (v.GetVec3d(&out)) {
+            return py::cast(out);
           }
           return py::none();
         })
@@ -89,6 +248,13 @@ PYBIND11_MODULE(_native, m) {
         .def("prim_path", &freeusd::sdf::Path::GetPrimPath)
         .def("element_count", &freeusd::sdf::Path::GetPathElementCount)
         .def("has_prefix", &freeusd::sdf::Path::HasPrefix)
+        .def("variant_selections", [](const freeusd::sdf::Path& p) {
+          py::list out;
+          for (const auto& sel : p.GetVariantSelections()) {
+            out.append(py::make_tuple(sel.variant_set, sel.variant_name));
+          }
+          return out;
+        })
         .def("append_child", [](const freeusd::sdf::Path& p, const freeusd::tf::Token& n) { return p.AppendChild(n); })
         .def("__eq__", [](const freeusd::sdf::Path& a, const freeusd::sdf::Path& b) { return a == b; })
         .def("__repr__", [](const freeusd::sdf::Path& p) { return "<freeusd.sdf.Path '" + p.GetText() + "'>"; });
@@ -108,6 +274,26 @@ PYBIND11_MODULE(_native, m) {
           }
           return py::cast(r);
         });
+
+    py::class_<freeusd::sdf::AssetPath>(sdf, "AssetPath")
+        .def(py::init<>())
+        .def(py::init<std::string>(), py::arg("path"))
+        .def("is_empty", &freeusd::sdf::AssetPath::IsEmpty)
+        .def("path", &freeusd::sdf::AssetPath::GetPath)
+        .def(
+            "set_path",
+            [](freeusd::sdf::AssetPath& a, std::string p) { a.SetPath(std::move(p)); },
+            py::arg("path"))
+        .def("__eq__", [](const freeusd::sdf::AssetPath& a, const freeusd::sdf::AssetPath& b) { return a == b; })
+        .def("__repr__", [](const freeusd::sdf::AssetPath& a) {
+          return std::string{"<freeusd.sdf.AssetPath '"} + a.GetPath() + "'>";
+        });
+
+    py::class_<freeusd::sdf::LayerOffset>(sdf, "LayerOffset")
+        .def(py::init<>())
+        .def_readwrite("offset", &freeusd::sdf::LayerOffset::offset)
+        .def_readwrite("scale", &freeusd::sdf::LayerOffset::scale)
+        .def("is_identity", &freeusd::sdf::LayerOffset::IsIdentity);
 
     py::enum_<freeusd::sdf::Layer::PrimSpecifierKind>(sdf, "PrimSpecifierKind")
         .value("default_", freeusd::sdf::Layer::PrimSpecifierKind::Default)
@@ -144,6 +330,26 @@ PYBIND11_MODULE(_native, m) {
         .def(
             "sub_layers",
             [](const freeusd::sdf::Layer& layer) { return layer.GetSubLayers(); })
+        .def("clear_relocates", &freeusd::sdf::Layer::ClearRelocates)
+        .def("set_relocate", &freeusd::sdf::Layer::SetRelocate)
+        .def("erase_relocate", &freeusd::sdf::Layer::EraseRelocate)
+        .def(
+            "has_relocate",
+            [](const freeusd::sdf::Layer& layer, const freeusd::sdf::Path& from) {
+              return layer.HasRelocate(from);
+            })
+        .def(
+            "get_relocate_target",
+            [](const freeusd::sdf::Layer& layer, const freeusd::sdf::Path& from) -> py::object {
+              freeusd::sdf::Path to;
+              if (layer.GetRelocateTarget(from, &to)) {
+                return py::cast(to);
+              }
+              return py::none();
+            })
+        .def(
+            "list_relocates",
+            [](const freeusd::sdf::Layer& layer) { return layer.ListRelocates(); })
         .def("identifier", &freeusd::sdf::Layer::GetIdentifier, py::return_value_policy::copy)
         .def("set_field", &freeusd::sdf::Layer::SetField)
         .def("has_field", &freeusd::sdf::Layer::HasField)
@@ -217,6 +423,60 @@ PYBIND11_MODULE(_native, m) {
             "list_prim_custom_data_keys",
             [](const freeusd::sdf::Layer& layer, const freeusd::sdf::Path& prim_path) {
               return layer.ListPrimCustomDataKeys(prim_path);
+            })
+        .def("clear_prim_variant_selection", &freeusd::sdf::Layer::ClearPrimVariantSelection)
+        .def(
+            "set_prim_variant_selection_entry",
+            [](freeusd::sdf::Layer& layer, const freeusd::sdf::Path& prim_path, std::string variant_set,
+               std::string variant_name) {
+              layer.SetPrimVariantSelectionEntry(prim_path, std::move(variant_set), std::move(variant_name));
+            })
+        .def(
+            "erase_prim_variant_selection_entry",
+            [](freeusd::sdf::Layer& layer, const freeusd::sdf::Path& prim_path, const std::string& variant_set) {
+              layer.ErasePrimVariantSelectionEntry(prim_path, variant_set);
+            })
+        .def(
+            "has_prim_variant_selection_key",
+            [](const freeusd::sdf::Layer& layer, const freeusd::sdf::Path& prim_path, const std::string& variant_set) {
+              return layer.HasPrimVariantSelectionKey(prim_path, variant_set);
+            })
+        .def(
+            "get_prim_variant_selection_entry",
+            [](const freeusd::sdf::Layer& layer, const freeusd::sdf::Path& prim_path,
+               const std::string& variant_set) -> py::object {
+              std::string name;
+              if (layer.GetPrimVariantSelectionEntry(prim_path, variant_set, &name)) {
+                return py::str(name);
+              }
+              return py::none();
+            })
+        .def(
+            "list_prim_variant_selection_sets",
+            [](const freeusd::sdf::Layer& layer, const freeusd::sdf::Path& prim_path) {
+              return layer.ListPrimVariantSelectionSets(prim_path);
+            })
+        .def("clear_prim_variant_sets", &freeusd::sdf::Layer::ClearPrimVariantSets)
+        .def(
+            "set_prim_variant_set_variants",
+            [](freeusd::sdf::Layer& layer, const freeusd::sdf::Path& prim_path, std::string set_name,
+               std::vector<std::string> names) {
+              layer.SetPrimVariantSetVariants(prim_path, std::move(set_name), std::move(names));
+            })
+        .def(
+            "has_prim_variant_set",
+            [](const freeusd::sdf::Layer& layer, const freeusd::sdf::Path& prim_path, const std::string& set_name) {
+              return layer.HasPrimVariantSet(prim_path, set_name);
+            })
+        .def(
+            "list_prim_variant_set_names",
+            [](const freeusd::sdf::Layer& layer, const freeusd::sdf::Path& prim_path) {
+              return layer.ListPrimVariantSetNames(prim_path);
+            })
+        .def(
+            "list_prim_variant_names",
+            [](const freeusd::sdf::Layer& layer, const freeusd::sdf::Path& prim_path, const std::string& set_name) {
+              return layer.ListPrimVariantNames(prim_path, set_name);
             })
         .def(
             "set_attribute_connection",
@@ -366,6 +626,25 @@ PYBIND11_MODULE(_native, m) {
               return py::none();
             })
         .def("clear_time_samples", &freeusd::sdf::Layer::ClearTimeSamples);
+
+    {
+      auto bt = sdf.def_submodule("builtin_tokens");
+      bt.def("SubLayers", [] { return freeusd::sdf::tokens::SubLayers(); });
+      bt.def("DefaultPrim", [] { return freeusd::sdf::tokens::DefaultPrim(); });
+      bt.def("Documentation", [] { return freeusd::sdf::tokens::Documentation(); });
+      bt.def("PrimOrder", [] { return freeusd::sdf::tokens::PrimOrder(); });
+      bt.def("MetersPerUnit", [] { return freeusd::sdf::tokens::MetersPerUnit(); });
+      bt.def("UpAxis", [] { return freeusd::sdf::tokens::UpAxis(); });
+      bt.def("StartTimeCode", [] { return freeusd::sdf::tokens::StartTimeCode(); });
+      bt.def("EndTimeCode", [] { return freeusd::sdf::tokens::EndTimeCode(); });
+      bt.def("TimeCodesPerSecond", [] { return freeusd::sdf::tokens::TimeCodesPerSecond(); });
+      bt.def("FramesPerSecond", [] { return freeusd::sdf::tokens::FramesPerSecond(); });
+      bt.def("FramePrecision", [] { return freeusd::sdf::tokens::FramePrecision(); });
+      bt.def("Kind", [] { return freeusd::sdf::tokens::Kind(); });
+      bt.def("Active", [] { return freeusd::sdf::tokens::Active(); });
+      bt.def("CustomData", [] { return freeusd::sdf::tokens::CustomData(); });
+      bt.def("VariantSetNames", [] { return freeusd::sdf::tokens::VariantSetNames(); });
+    }
   }
 
   {
@@ -389,9 +668,29 @@ PYBIND11_MODULE(_native, m) {
 
   {
     auto ar = m.def_submodule("ar");
+    py::class_<freeusd::ar::ResolvedPath>(ar, "ResolvedPath")
+        .def(py::init<>())
+        .def(py::init<std::string>(), py::arg("path"))
+        .def("is_empty", &freeusd::ar::ResolvedPath::IsEmpty)
+        .def("path", &freeusd::ar::ResolvedPath::GetPath)
+        .def(
+            "set_path",
+            [](freeusd::ar::ResolvedPath& rp, std::string p) { rp.SetPath(std::move(p)); },
+            py::arg("path"))
+        .def("__eq__", [](const freeusd::ar::ResolvedPath& a, const freeusd::ar::ResolvedPath& b) { return a == b; })
+        .def("__repr__", [](const freeusd::ar::ResolvedPath& r) {
+          return std::string{"<freeusd.ar.ResolvedPath '"} + r.GetPath() + "'>";
+        });
+
     py::class_<freeusd::ar::DefaultResolver>(ar, "DefaultResolver")
         .def(py::init<std::string>(), py::arg("anchor_directory") = std::string{})
-        .def("resolve", [](freeusd::ar::DefaultResolver& r, const std::string& p) { return r.Resolve(p); });
+        .def("resolve", [](freeusd::ar::DefaultResolver& r, const std::string& p) { return r.Resolve(p); })
+        .def(
+            "resolve_path",
+            [](freeusd::ar::DefaultResolver& r, const std::string& p) {
+              return freeusd::ar::ResolvedPath{r.Resolve(p)};
+            },
+            py::arg("asset_path"));
   }
 
   {
@@ -431,6 +730,47 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
 
   {
     auto usd = m.def_submodule("usd");
+    {
+      auto kind_tokens = usd.def_submodule("kind_tokens");
+      kind_tokens.def("Component", [] { return freeusd::usd::kindTokens::Component(); });
+      kind_tokens.def("Group", [] { return freeusd::usd::kindTokens::Group(); });
+      kind_tokens.def("Assembly", [] { return freeusd::usd::kindTokens::Assembly(); });
+      kind_tokens.def("Subcomponent", [] { return freeusd::usd::kindTokens::Subcomponent(); });
+    }
+
+    {
+      auto ut = usd.def_submodule("builtin_tokens");
+      ut.def("References", [] { return freeusd::usd::tokens::References(); });
+      ut.def("Payload", [] { return freeusd::usd::tokens::Payload(); });
+      ut.def("Inherits", [] { return freeusd::usd::tokens::Inherits(); });
+      ut.def("Specializes", [] { return freeusd::usd::tokens::Specializes(); });
+      ut.def("VariantSets", [] { return freeusd::usd::tokens::VariantSets(); });
+      ut.def("VariantSelection", [] { return freeusd::usd::tokens::VariantSelection(); });
+      ut.def("PrefixSubstitutions", [] { return freeusd::usd::tokens::PrefixSubstitutions(); });
+      ut.def("Relocates", [] { return freeusd::usd::tokens::Relocates(); });
+    }
+
+    py::class_<freeusd::usd::TimeCode>(usd, "TimeCode")
+        .def_static("Default", &freeusd::usd::TimeCode::Default)
+        .def_static("EarliestTime", &freeusd::usd::TimeCode::EarliestTime)
+        .def_static("FromDouble", &freeusd::usd::TimeCode::FromDouble, py::arg("t"))
+        .def("is_default", &freeusd::usd::TimeCode::IsDefault)
+        .def("is_earliest_time", &freeusd::usd::TimeCode::IsEarliestTime)
+        .def("is_numeric", &freeusd::usd::TimeCode::IsNumeric)
+        .def("value", &freeusd::usd::TimeCode::GetValue)
+        .def("__eq__", [](const freeusd::usd::TimeCode& a, const freeusd::usd::TimeCode& b) { return a == b; })
+        .def("__repr__", [](const freeusd::usd::TimeCode& t) {
+          std::ostringstream oss;
+          oss << t;
+          return oss.str();
+        });
+
+    py::class_<freeusd::usd::EditTarget>(usd, "EditTarget")
+        .def(py::init<>())
+        .def(py::init<std::shared_ptr<freeusd::sdf::Layer>>(), py::arg("layer"))
+        .def_readwrite("layer", &freeusd::usd::EditTarget::layer)
+        .def("is_valid", &freeusd::usd::EditTarget::IsValid);
+
     py::class_<freeusd::usd::Stage, std::shared_ptr<freeusd::usd::Stage>>(usd, "Stage")
         .def_static("attach_root_layer", &freeusd::usd::Stage::AttachRootLayer)
         .def_static("attach_layer_stack", &freeusd::usd::Stage::AttachLayerStack)
@@ -450,6 +790,16 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
             },
             py::arg("path"), py::arg("name"), py::arg("time") = 1.0)
         .def("has_field_opinion", &freeusd::usd::Stage::HasFieldOpinion)
+        .def("has_attribute_connection", &freeusd::usd::Stage::HasAttributeConnection)
+        .def(
+            "get_composed_attribute_connection_target",
+            [](const freeusd::usd::Stage& st, const freeusd::sdf::Path& p, const freeusd::tf::Token& attr) -> py::object {
+              freeusd::sdf::Path tgt;
+              if (st.GetComposedAttributeConnectionTarget(p, attr, &tgt)) {
+                return py::cast(tgt);
+              }
+              return py::none();
+            })
         .def(
             "read_relationship",
             [](const freeusd::usd::Stage& st, const freeusd::sdf::Path& p, const freeusd::tf::Token& rel) {
@@ -481,6 +831,53 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
             [](const freeusd::usd::Stage& stage, const freeusd::sdf::Path& path) {
               return stage.ListComposedPrimCustomDataKeys(path);
             })
+        .def(
+            "get_composed_prim_variant_selection",
+            [](const freeusd::usd::Stage& stage, const freeusd::sdf::Path& path, const std::string& variant_set) -> py::object {
+              std::string name;
+              if (stage.GetComposedPrimVariantSelection(path, variant_set, &name)) {
+                return py::str(name);
+              }
+              return py::none();
+            })
+        .def(
+            "prim_variant_selection_set_in_any_layer",
+            [](const freeusd::usd::Stage& stage, const freeusd::sdf::Path& path, const std::string& variant_set) {
+              return stage.PrimVariantSelectionSetInAnyLayer(path, variant_set);
+            })
+        .def(
+            "list_composed_prim_variant_selection_sets",
+            [](const freeusd::usd::Stage& stage, const freeusd::sdf::Path& path) {
+              return stage.ListComposedPrimVariantSelectionSets(path);
+            })
+        .def(
+            "list_composed_prim_variant_set_names",
+            [](const freeusd::usd::Stage& stage, const freeusd::sdf::Path& path) {
+              return stage.ListComposedPrimVariantSetNames(path);
+            })
+        .def(
+            "prim_variant_set_declared_in_any_layer",
+            [](const freeusd::usd::Stage& stage, const freeusd::sdf::Path& path, const std::string& set_name) {
+              return stage.PrimVariantSetDeclaredInAnyLayer(path, set_name);
+            })
+        .def(
+            "get_composed_prim_variant_names",
+            [](const freeusd::usd::Stage& stage, const freeusd::sdf::Path& path, const std::string& set_name) {
+              return stage.GetComposedPrimVariantNames(path, set_name);
+            })
+        .def("list_composed_field_names", &freeusd::usd::Stage::ListComposedFieldNames)
+        .def("list_composed_field_sample_times", &freeusd::usd::Stage::ListComposedFieldSampleTimes)
+        .def("list_composed_relationship_names", &freeusd::usd::Stage::ListComposedRelationshipNames)
+        .def("list_composed_prim_paths", &freeusd::usd::Stage::ListComposedPrimPaths)
+        .def("has_default_prim", &freeusd::usd::Stage::HasDefaultPrim)
+        .def(
+            "default_prim_name",
+            [](const freeusd::usd::Stage& s) -> py::object {
+              if (!s.HasDefaultPrim()) {
+                return py::none();
+              }
+              return py::cast(s.GetDefaultPrimName());
+            })
         .def("children", &freeusd::usd::Stage::GetChildren)
         .def("prim_at", &freeusd::usd::Stage::GetPrimAtPath);
 
@@ -506,14 +903,112 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
               }
               return py::cast(v);
             })
-        .def("list_custom_data_keys", &freeusd::usd::Prim::ListCustomDataKeys);
+        .def("list_custom_data_keys", &freeusd::usd::Prim::ListCustomDataKeys)
+        .def("has_variant_selection_key", &freeusd::usd::Prim::HasVariantSelectionKey)
+        .def("get_variant_selection", &freeusd::usd::Prim::GetVariantSelection)
+        .def("list_variant_selection_sets", &freeusd::usd::Prim::ListVariantSelectionSets)
+        .def("has_variant_set", &freeusd::usd::Prim::HasVariantSet)
+        .def("list_variant_set_names", &freeusd::usd::Prim::ListVariantSetNames)
+        .def("list_variant_names", &freeusd::usd::Prim::ListVariantNames);
   }
 
   {
     auto geom = m.def_submodule("usdGeom");
-    geom.def("token_mesh", [] { return freeusd::usdGeom::tokens::Mesh(); });
-    geom.def("token_xform", [] { return freeusd::usdGeom::tokens::Xform(); });
-    geom.def("token_scope", [] { return freeusd::usdGeom::tokens::Scope(); });
+    auto geom_tokens = geom.def_submodule("tokens");
+    geom_tokens.def("Mesh", [] { return freeusd::usdGeom::tokens::Mesh(); });
+    geom_tokens.def("Xform", [] { return freeusd::usdGeom::tokens::Xform(); });
+    geom_tokens.def("Scope", [] { return freeusd::usdGeom::tokens::Scope(); });
+  }
+
+  {
+    auto usdShade = m.def_submodule("usdShade");
+    auto t = usdShade.def_submodule("tokens");
+    t.def("Material", [] { return freeusd::usdShade::tokens::Material(); });
+    t.def("Shader", [] { return freeusd::usdShade::tokens::Shader(); });
+    t.def("NodeGraph", [] { return freeusd::usdShade::tokens::NodeGraph(); });
+  }
+
+  {
+    auto usdLux = m.def_submodule("usdLux");
+    auto t = usdLux.def_submodule("tokens");
+    t.def("DomeLight", [] { return freeusd::usdLux::tokens::DomeLight(); });
+    t.def("SphereLight", [] { return freeusd::usdLux::tokens::SphereLight(); });
+    t.def("DistantLight", [] { return freeusd::usdLux::tokens::DistantLight(); });
+  }
+
+  {
+    auto usdPhysics = m.def_submodule("usdPhysics");
+    auto t = usdPhysics.def_submodule("tokens");
+    t.def("Scene", [] { return freeusd::usdPhysics::tokens::Scene(); });
+    t.def("RigidBodyAPI", [] { return freeusd::usdPhysics::tokens::RigidBodyAPI(); });
+    t.def("CollisionAPI", [] { return freeusd::usdPhysics::tokens::CollisionAPI(); });
+  }
+
+  {
+    auto usdVol = m.def_submodule("usdVol");
+    auto t = usdVol.def_submodule("tokens");
+    t.def("OpenVDBAsset", [] { return freeusd::usdVol::tokens::OpenVDBAsset(); });
+    t.def("Field3DAsset", [] { return freeusd::usdVol::tokens::Field3DAsset(); });
+  }
+
+  {
+    auto usdSkel = m.def_submodule("usdSkel");
+    auto t = usdSkel.def_submodule("tokens");
+    t.def("Skeleton", [] { return freeusd::usdSkel::tokens::Skeleton(); });
+    t.def("SkelRoot", [] { return freeusd::usdSkel::tokens::SkelRoot(); });
+    t.def("SkelAnimation", [] { return freeusd::usdSkel::tokens::SkelAnimation(); });
+  }
+
+  {
+    auto usdMedia = m.def_submodule("usdMedia");
+    auto t = usdMedia.def_submodule("tokens");
+    t.def("SpatialAudio", [] { return freeusd::usdMedia::tokens::SpatialAudio(); });
+  }
+
+  {
+    auto usdRender = m.def_submodule("usdRender");
+    auto t = usdRender.def_submodule("tokens");
+    t.def("Settings", [] { return freeusd::usdRender::tokens::Settings(); });
+    t.def("RenderProduct", [] { return freeusd::usdRender::tokens::RenderProduct(); });
+  }
+
+  {
+    auto usdRi = m.def_submodule("usdRi");
+    auto t = usdRi.def_submodule("tokens");
+    t.def("RisObject", [] { return freeusd::usdRi::tokens::RisObject(); });
+  }
+
+  {
+    auto usdUtils = m.def_submodule("usdUtils");
+    usdUtils.doc() = "UsdUtils-shaped utilities (clean-room; extend with flatten/cache helpers as they land).";
+    py::class_<freeusd::usdUtils::FlattenOptions>(usdUtils, "FlattenOptions").def(py::init<>());
+  }
+
+  {
+    auto work = m.def_submodule("work");
+    work.doc() = "WorkDispatcher-shaped serial dispatcher (clean-room).";
+    work.def(
+        "run",
+        [](py::function f) {
+          freeusd::work::Dispatcher::Get().Run([f]() {
+            if (f) {
+              f();
+            }
+          });
+        },
+        py::arg("job"));
+  }
+
+  {
+    auto trace = m.def_submodule("trace");
+    trace.doc() = "TraceCollector-shaped no-op (clean-room).";
+    trace.def(
+        "push",
+        [](const std::string& tag) {
+          freeusd::trace::Collector::Get().Push(tag.empty() ? nullptr : tag.c_str());
+        },
+        py::arg("tag") = std::string{});
+    trace.def("pop", []() { freeusd::trace::Collector::Get().Pop(); });
   }
 
   {

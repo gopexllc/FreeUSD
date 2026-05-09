@@ -38,12 +38,18 @@ class FREEUSD_API Value {
 
   bool IsEmpty() const noexcept;
   bool HoldsBool() const noexcept;
+  bool HoldsInt32() const noexcept;
+  bool HoldsInt64() const noexcept;
+  bool HoldsFloat() const noexcept;
   bool HoldsDouble() const noexcept;
   bool HoldsString() const noexcept;
   bool HoldsToken() const noexcept;
   bool HoldsVec3d() const noexcept;
 
   bool GetBool(bool* out) const noexcept;
+  bool GetInt32(std::int32_t* out) const noexcept;
+  bool GetInt64(std::int64_t* out) const noexcept;
+  bool GetFloat(float* out) const noexcept;
   bool GetDouble(double* out) const noexcept;
   bool GetString(std::string* out) const;
   bool GetToken(freeusd::tf::Token* out) const;

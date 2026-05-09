@@ -16,6 +16,9 @@ Value Value::MakeVec3d(freeusd::gf::Vec3d v) { return Value{ValuePayload{v}}; }
 bool Value::IsEmpty() const noexcept { return std::holds_alternative<std::monostate>(payload_); }
 
 bool Value::HoldsBool() const noexcept { return std::holds_alternative<bool>(payload_); }
+bool Value::HoldsInt32() const noexcept { return std::holds_alternative<std::int32_t>(payload_); }
+bool Value::HoldsInt64() const noexcept { return std::holds_alternative<std::int64_t>(payload_); }
+bool Value::HoldsFloat() const noexcept { return std::holds_alternative<float>(payload_); }
 bool Value::HoldsDouble() const noexcept { return std::holds_alternative<double>(payload_); }
 bool Value::HoldsString() const noexcept { return std::holds_alternative<std::string>(payload_); }
 bool Value::HoldsToken() const noexcept { return std::holds_alternative<freeusd::tf::Token>(payload_); }
@@ -26,6 +29,30 @@ bool Value::GetBool(bool* out) const noexcept {
     return false;
   }
   *out = std::get<bool>(payload_);
+  return true;
+}
+
+bool Value::GetInt32(std::int32_t* out) const noexcept {
+  if (!out || !HoldsInt32()) {
+    return false;
+  }
+  *out = std::get<std::int32_t>(payload_);
+  return true;
+}
+
+bool Value::GetInt64(std::int64_t* out) const noexcept {
+  if (!out || !HoldsInt64()) {
+    return false;
+  }
+  *out = std::get<std::int64_t>(payload_);
+  return true;
+}
+
+bool Value::GetFloat(float* out) const noexcept {
+  if (!out || !HoldsFloat()) {
+    return false;
+  }
+  *out = std::get<float>(payload_);
   return true;
 }
 

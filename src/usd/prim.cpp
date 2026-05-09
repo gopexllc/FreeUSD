@@ -116,4 +116,56 @@ std::vector<std::string> Prim::ListCustomDataKeys() const {
   return st->ListComposedPrimCustomDataKeys(path_);
 }
 
+bool Prim::HasVariantSelectionKey(const std::string& variantSet) const {
+  const auto st = lock_stage();
+  if (!st || variantSet.empty()) {
+    return false;
+  }
+  return st->PrimVariantSelectionSetInAnyLayer(path_, variantSet);
+}
+
+std::string Prim::GetVariantSelection(const std::string& variantSet) const {
+  const auto st = lock_stage();
+  if (!st || variantSet.empty()) {
+    return {};
+  }
+  std::string name;
+  if (st->GetComposedPrimVariantSelection(path_, variantSet, &name)) {
+    return name;
+  }
+  return {};
+}
+
+std::vector<std::string> Prim::ListVariantSelectionSets() const {
+  const auto st = lock_stage();
+  if (!st) {
+    return {};
+  }
+  return st->ListComposedPrimVariantSelectionSets(path_);
+}
+
+bool Prim::HasVariantSet(const std::string& variantSetName) const {
+  const auto st = lock_stage();
+  if (!st || variantSetName.empty()) {
+    return false;
+  }
+  return st->PrimVariantSetDeclaredInAnyLayer(path_, variantSetName);
+}
+
+std::vector<std::string> Prim::ListVariantSetNames() const {
+  const auto st = lock_stage();
+  if (!st) {
+    return {};
+  }
+  return st->ListComposedPrimVariantSetNames(path_);
+}
+
+std::vector<std::string> Prim::ListVariantNames(const std::string& variantSetName) const {
+  const auto st = lock_stage();
+  if (!st) {
+    return {};
+  }
+  return st->GetComposedPrimVariantNames(path_, variantSetName);
+}
+
 }  // namespace freeusd::usd

@@ -42,6 +42,18 @@ class FREEUSD_API Prim {
   freeusd::vt::Value GetCustomData(const std::string& key) const;
   std::vector<std::string> ListCustomDataKeys() const;
 
+  /// Composed `variantSelection`: \c HasVariantSelectionKey mirrors any-layer presence (like \c HasCustomDataKey).
+  bool HasVariantSelectionKey(const std::string& variantSet) const;
+  /// Strongest composed selected variant name for \p variantSet; empty if none.
+  std::string GetVariantSelection(const std::string& variantSet) const;
+  std::vector<std::string> ListVariantSelectionSets() const;
+
+  /// Composed \c variantSets: \c HasVariantSet is true if any layer declares the set.
+  bool HasVariantSet(const std::string& variantSetName) const;
+  std::vector<std::string> ListVariantSetNames() const;
+  /// Strongest layer's variant name list for \p variantSetName (empty if the set is not declared).
+  std::vector<std::string> ListVariantNames(const std::string& variantSetName) const;
+
  private:
   std::shared_ptr<const Stage> lock_stage() const;
   std::weak_ptr<const Stage> stage_;

@@ -2,21 +2,23 @@
 
 from __future__ import annotations
 
-import importlib
+from importlib import import_module
 
-_geom = importlib.import_module("freeusd._native").usdGeom
+from . import tokens
+
+_geom = import_module("freeusd._native").usdGeom
 
 
 def token_mesh():
-    return _geom.token_mesh()
+    return tokens.Mesh()
 
 
 def token_xform():
-    return _geom.token_xform()
+    return tokens.Xform()
 
 
 def token_scope():
-    return _geom.token_scope()
+    return tokens.Scope()
 
 
-__all__ = ["token_mesh", "token_xform", "token_scope"]
+__all__ = ["tokens", "token_mesh", "token_xform", "token_scope"]

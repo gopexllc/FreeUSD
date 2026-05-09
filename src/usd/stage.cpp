@@ -102,6 +102,27 @@ bool Stage::HasFieldOpinion(const freeusd::sdf::Path& prim_path, const freeusd::
   return false;
 }
 
+bool Stage::HasAttributeConnection(const freeusd::sdf::Path& prim_path, const freeusd::tf::Token& attr_name) const {
+  if (attr_name.IsEmpty()) {
+    return false;
+  }
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (L && L->HasAttributeConnection(prim_path, attr_name)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool Stage::GetComposedAttributeConnectionTarget(const freeusd::sdf::Path& prim_path,
+                                                 const freeusd::tf::Token& attr_name,
+                                                 freeusd::sdf::Path* out_target) const {
+  if (!out_target || attr_name.IsEmpty()) {
+    return false;
+  }
+  return ResolveAttributeConnectionStrongestFirst(compose_, prim_path, attr_name, out_target);
+}
+
 bool Stage::PrimPathInUse(const freeusd::sdf::Path& path) const {
   if (!path.IsPrimPath()) {
     return false;
@@ -221,6 +242,161 @@ std::vector<std::string> Stage::ListComposedPrimCustomDataKeys(const freeusd::sd
     }
   }
   return std::vector<std::string>(keys.begin(), keys.end());
+}
+
+bool Stage::GetComposedPrimVariantSelection(const freeusd::sdf::Path& prim_path, const std::string& variantSet,
+                                            std::string* outName) const {
+  if (!outName || variantSet.empty()) {
+    return false;
+  }
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (L && L->HasPrimVariantSelectionKey(prim_path, variantSet)) {
+      return L->GetPrimVariantSelectionEntry(prim_path, variantSet, outName);
+    }
+  }
+  return false;
+}
+
+bool Stage::PrimVariantSelectionSetInAnyLayer(const freeusd::sdf::Path& prim_path,
+                                              const std::string& variantSet) const {
+  if (variantSet.empty()) {
+    return false;
+  }
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (L && L->HasPrimVariantSelectionKey(prim_path, variantSet)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+std::vector<std::string> Stage::ListComposedPrimVariantSelectionSets(const freeusd::sdf::Path& prim_path) const {
+  std::set<std::string> keys;
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (!L) {
+      continue;
+    }
+    for (const std::string& k : L->ListPrimVariantSelectionSets(prim_path)) {
+      keys.insert(k);
+    }
+  }
+  return std::vector<std::string>(keys.begin(), keys.end());
+}
+
+std::vector<std::string> Stage::ListComposedPrimVariantSetNames(const freeusd::sdf::Path& prim_path) const {
+  std::set<std::string> names;
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (!L) {
+      continue;
+    }
+    for (const std::string& n : L->ListPrimVariantSetNames(prim_path)) {
+      names.insert(n);
+    }
+  }
+  return std::vector<std::string>(names.begin(), names.end());
+}
+
+bool Stage::PrimVariantSetDeclaredInAnyLayer(const freeusd::sdf::Path& prim_path,
+                                             const std::string& variantSetName) const {
+  if (variantSetName.empty()) {
+    return false;
+  }
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (L && L->HasPrimVariantSet(prim_path, variantSetName)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+std::vector<std::string> Stage::GetComposedPrimVariantNames(const freeusd::sdf::Path& prim_path,
+                                                            const std::string& variantSetName) const {
+  if (variantSetName.empty()) {
+    return {};
+  }
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (L && L->HasPrimVariantSet(prim_path, variantSetName)) {
+      return L->ListPrimVariantNames(prim_path, variantSetName);
+    }
+  }
+  return {};
+}
+
+std::vector<std::string> Stage::ListComposedFieldNames(const freeusd::sdf::Path& prim_path) const {
+  std::set<std::string> keys;
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (!L) {
+      continue;
+    }
+    for (const std::string& k : L->ListFieldNames(prim_path)) {
+      keys.insert(k);
+    }
+  }
+  return std::vector<std::string>(keys.begin(), keys.end());
+}
+
+std::vector<double> Stage::ListComposedFieldSampleTimes(const freeusd::sdf::Path& prim_path,
+                                                         const freeusd::tf::Token& name) const {
+  std::set<double> times;
+  if (!name.IsEmpty()) {
+    for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+      if (!L) {
+        continue;
+      }
+      for (const double t : L->ListSampleTimes(prim_path, name)) {
+        times.insert(t);
+      }
+    }
+  }
+  return std::vector<double>(times.begin(), times.end());
+}
+
+std::vector<std::string> Stage::ListComposedRelationshipNames(const freeusd::sdf::Path& prim_path) const {
+  std::set<std::string> keys;
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (!L) {
+      continue;
+    }
+    for (const std::string& k : L->ListRelationshipNames(prim_path)) {
+      keys.insert(k);
+    }
+  }
+  return std::vector<std::string>(keys.begin(), keys.end());
+}
+
+std::vector<freeusd::sdf::Path> Stage::ListComposedPrimPaths() const {
+  std::set<std::string> sorted;
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (!L) {
+      continue;
+    }
+    for (const freeusd::sdf::Path& p : L->ListPrimPaths()) {
+      sorted.insert(p.GetString());
+    }
+  }
+  std::vector<freeusd::sdf::Path> out;
+  out.reserve(sorted.size());
+  for (const std::string& s : sorted) {
+    out.push_back(freeusd::sdf::Path::FromString(s));
+  }
+  return out;
+}
+
+bool Stage::HasDefaultPrim() const {
+  const std::shared_ptr<freeusd::sdf::Layer> r = GetRootLayerPtr();
+  return static_cast<bool>(r && r->HasDefaultPrim());
+}
+
+std::string Stage::GetDefaultPrimName() const {
+  const std::shared_ptr<freeusd::sdf::Layer> r = GetRootLayerPtr();
+  if (!r || !r->HasDefaultPrim()) {
+    return {};
+  }
+  const std::optional<std::string_view> dp = r->GetDefaultPrim();
+  if (!dp.has_value()) {
+    return {};
+  }
+  return std::string{*dp};
 }
 
 freeusd::sdf::Path Stage::GetPseudoRootPath() const { return freeusd::sdf::Path::AbsoluteRootPath(); }

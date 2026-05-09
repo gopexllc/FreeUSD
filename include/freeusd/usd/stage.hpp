@@ -37,6 +37,13 @@ class FREEUSD_API Stage : public std::enable_shared_from_this<Stage> {
 
   bool HasFieldOpinion(const freeusd::sdf::Path& prim_path, const freeusd::tf::Token& name) const;
 
+  /// True if any composed layer authors a @c .connect entry for @p attr_name on @p prim_path.
+  bool HasAttributeConnection(const freeusd::sdf::Path& prim_path, const freeusd::tf::Token& attr_name) const;
+
+  /// Strongest composed @c .connect target for @p attr_name (full property path). False if none.
+  bool GetComposedAttributeConnectionTarget(const freeusd::sdf::Path& prim_path, const freeusd::tf::Token& attr_name,
+                                            freeusd::sdf::Path* out_target) const;
+
   /// True if any composed layer lists this prim path (authored presence).
   bool PrimPathInUse(const freeusd::sdf::Path& path) const;
 
@@ -60,6 +67,39 @@ class FREEUSD_API Stage : public std::enable_shared_from_this<Stage> {
   bool PrimCustomDataKeyInAnyLayer(const freeusd::sdf::Path& prim_path, const std::string& key) const;
   /// Stable union of all `customData` keys authored on \p prim_path across the layer stack.
   std::vector<std::string> ListComposedPrimCustomDataKeys(const freeusd::sdf::Path& prim_path) const;
+
+  /// Composed `variantSelection` for \p variantSet: strongest layer with an opinion wins.
+  bool GetComposedPrimVariantSelection(const freeusd::sdf::Path& prim_path, const std::string& variantSet,
+                                       std::string* outName) const;
+  /// True iff any composed layer authors \p variantSet in `variantSelection` for \p prim_path.
+  bool PrimVariantSelectionSetInAnyLayer(const freeusd::sdf::Path& prim_path, const std::string& variantSet) const;
+  /// Stable union of variant set names authored in `variantSelection` on \p prim_path across the layer stack.
+  std::vector<std::string> ListComposedPrimVariantSelectionSets(const freeusd::sdf::Path& prim_path) const;
+
+  /// Union of \c variantSets keys authored on \p prim_path across composed layers.
+  std::vector<std::string> ListComposedPrimVariantSetNames(const freeusd::sdf::Path& prim_path) const;
+  /// True iff any composed layer declares \p variantSetName in \c variantSets for \p prim_path.
+  bool PrimVariantSetDeclaredInAnyLayer(const freeusd::sdf::Path& prim_path, const std::string& variantSetName) const;
+  /// Variant names for \p variantSetName from the strongest layer that declares that set (empty if none).
+  std::vector<std::string> GetComposedPrimVariantNames(const freeusd::sdf::Path& prim_path,
+                                                      const std::string& variantSetName) const;
+
+  /// Stable-sorted union of authored attribute field names on \p prim_path across composed layers.
+  std::vector<std::string> ListComposedFieldNames(const freeusd::sdf::Path& prim_path) const;
+
+  /// Sorted union of time-sample keys for \p name on \p prim_path across composed layers.
+  std::vector<double> ListComposedFieldSampleTimes(const freeusd::sdf::Path& prim_path,
+                                                    const freeusd::tf::Token& name) const;
+
+  /// Stable-sorted union of relationship names on \p prim_path across composed layers.
+  std::vector<std::string> ListComposedRelationshipNames(const freeusd::sdf::Path& prim_path) const;
+
+  /// Stable-sorted union of prim paths authored in any composed layer.
+  std::vector<freeusd::sdf::Path> ListComposedPrimPaths() const;
+
+  /// \c defaultPrim on the root (strongest) layer.
+  bool HasDefaultPrim() const;
+  std::string GetDefaultPrimName() const;
 
   freeusd::sdf::Path GetPseudoRootPath() const;
 

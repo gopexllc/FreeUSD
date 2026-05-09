@@ -838,6 +838,66 @@ std::optional<std::size_t> outer_closing_brace_index(std::string_view s, std::si
   return std::nullopt;
 }
 
+bool parse_relocate_entry(std::string_view piece, freeusd::sdf::Path* from, freeusd::sdf::Path* to, ParseResult* err,
+                          std::size_t line) {
+  piece = trim(piece);
+  if (piece.empty()) {
+    return false;
+  }
+  const std::size_t gt = piece.find('>');
+  if (gt == std::string_view::npos || gt + 1 >= piece.size()) {
+    set_err(err, line, "bad relocates entry (expected </From>: </To> or </From> = </To>)");
+    return false;
+  }
+  const std::string_view lhs = trim(piece.substr(0, gt + 1));
+  std::string_view rest = trim(piece.substr(gt + 1));
+  if (rest.empty()) {
+    set_err(err, line, "bad relocates entry (missing separator after source path)");
+    return false;
+  }
+  if (rest.front() == ':') {
+    rest = trim(rest.substr(1));
+  } else if (rest.front() == '=') {
+    rest = trim(rest.substr(1));
+  } else {
+    set_err(err, line, "bad relocates entry (expected ':' or '=' after source path)");
+    return false;
+  }
+  *from = parse_relationship_path_token(lhs, err, line);
+  if (!err->ok || from->IsEmpty()) {
+    return false;
+  }
+  *to = parse_relationship_path_token(rest, err, line);
+  if (!err->ok || to->IsEmpty()) {
+    return false;
+  }
+  return true;
+}
+
+bool apply_layer_relocates_from_dictionary(freeusd::sdf::Layer* layer, std::string_view dict_inner, ParseResult* err,
+                                           std::size_t line_no) {
+  layer->ClearRelocates();
+  dict_inner = trim(dict_inner);
+  if (dict_inner.empty()) {
+    return true;
+  }
+  std::vector<std::string_view> chunks;
+  split_custom_data_dictionary_entries(dict_inner, &chunks);
+  for (std::string_view piece : chunks) {
+    piece = trim(piece);
+    if (piece.empty()) {
+      continue;
+    }
+    freeusd::sdf::Path from;
+    freeusd::sdf::Path to;
+    if (!parse_relocate_entry(piece, &from, &to, err, line_no)) {
+      return false;
+    }
+    layer->SetRelocate(std::move(from), std::move(to));
+  }
+  return true;
+}
+
 bool bare_custom_dict_key_emit(std::string_view k) noexcept {
   if (k.empty()) {
     return false;
@@ -921,6 +981,132 @@ bool apply_prim_custom_data_from_dictionary(const std::shared_ptr<freeusd::sdf::
       return false;
     }
     layer->SetPrimCustomDataEntry(prim, key, val);
+  }
+  return true;
+}
+
+bool variant_selection_string_from_value(const freeusd::vt::Value& v, std::string* out) {
+  if (v.GetString(out)) {
+    return true;
+  }
+  freeusd::tf::Token tok;
+  if (v.GetToken(&tok)) {
+    *out = tok.GetText();
+    return true;
+  }
+  return false;
+}
+
+bool apply_prim_variant_selection_from_dictionary(const std::shared_ptr<freeusd::sdf::Layer>& layer,
+                                                  const freeusd::sdf::Path& prim, std::string_view dict_inner,
+                                                  ParseResult* err, std::size_t line_no) {
+  layer->ClearPrimVariantSelection(prim);
+  dict_inner = trim(dict_inner);
+  if (dict_inner.empty()) {
+    return true;
+  }
+  std::vector<std::string_view> chunks;
+  split_custom_data_dictionary_entries(dict_inner, &chunks);
+  for (std::string_view piece : chunks) {
+    piece = trim(piece);
+    if (piece.empty()) {
+      continue;
+    }
+    std::string_view lk;
+    std::string_view rv;
+    if (!split_assignment(piece, &lk, &rv)) {
+      set_err(err, line_no, "bad variantSelection entry (expected key = value)");
+      return false;
+    }
+    const std::string vset = normalize_custom_data_key(lk);
+    if (vset.empty()) {
+      set_err(err, line_no, "empty variantSelection key");
+      return false;
+    }
+    freeusd::vt::Value val = parse_value(trim(rv), err, line_no);
+    if (err && !err->ok) {
+      return false;
+    }
+    std::string vname;
+    if (!variant_selection_string_from_value(val, &vname) || vname.empty()) {
+      set_err(err, line_no, "variantSelection value must be string or token");
+      return false;
+    }
+    layer->SetPrimVariantSelectionEntry(prim, vset, std::move(vname));
+  }
+  return true;
+}
+
+bool apply_prim_variant_sets_from_dictionary(const std::shared_ptr<freeusd::sdf::Layer>& layer,
+                                             const freeusd::sdf::Path& prim, std::string_view dict_inner,
+                                             ParseResult* err, std::size_t line_no) {
+  layer->ClearPrimVariantSets(prim);
+  dict_inner = trim(dict_inner);
+  if (dict_inner.empty()) {
+    return true;
+  }
+  std::vector<std::string_view> set_chunks;
+  split_custom_data_dictionary_entries(dict_inner, &set_chunks);
+  for (std::string_view piece : set_chunks) {
+    piece = trim(piece);
+    if (piece.empty()) {
+      continue;
+    }
+    std::string_view lk;
+    std::string_view rv;
+    if (!split_assignment(piece, &lk, &rv)) {
+      set_err(err, line_no, "bad variantSets entry (expected setName = {...})");
+      return false;
+    }
+    const std::string set_name = normalize_custom_data_key(lk);
+    if (set_name.empty()) {
+      set_err(err, line_no, "empty variantSets key");
+      return false;
+    }
+    rv = trim(rv);
+    if (rv.empty() || rv.front() != '{') {
+      set_err(err, line_no, "variantSets value must be a {...} block");
+      return false;
+    }
+    const std::optional<std::size_t> close = outer_closing_brace_index(rv, 0);
+    if (!close.has_value()) {
+      set_err(err, line_no, "unclosed '{' in variantSets block");
+      return false;
+    }
+    const std::string_view inner = trim(rv.substr(1, *close - 1));
+    std::vector<std::string> variant_names;
+    if (!inner.empty()) {
+      std::vector<std::string_view> v_chunks;
+      split_custom_data_dictionary_entries(inner, &v_chunks);
+      for (std::string_view vp : v_chunks) {
+        vp = trim(vp);
+        if (vp.empty()) {
+          continue;
+        }
+        std::string_view vlk;
+        std::string_view vrv;
+        if (!split_assignment(vp, &vlk, &vrv)) {
+          set_err(err, line_no, "bad variantSets variant entry (expected name = {...})");
+          return false;
+        }
+        const std::string vnm = normalize_custom_data_key(vlk);
+        if (vnm.empty()) {
+          set_err(err, line_no, "empty variant name in variantSets");
+          return false;
+        }
+        vrv = trim(vrv);
+        if (vrv.empty() || vrv.front() != '{') {
+          set_err(err, line_no, "variant payload must be a {...} block");
+          return false;
+        }
+        if (!outer_closing_brace_index(vrv, 0).has_value()) {
+          set_err(err, line_no, "unclosed '{' in variant payload");
+          return false;
+        }
+        variant_names.push_back(vnm);
+      }
+    }
+    layer->SetPrimVariantSetVariants(prim, set_name, std::move(variant_names));
   }
   return true;
 }
@@ -1052,7 +1238,8 @@ bool gather_abs_prim_path_list(std::string_view val_c, std::vector<freeusd::sdf:
 }
 
 void apply_layer_metadata_blob(const std::string& blob, freeusd::sdf::Layer* layer, ParseResult* err, std::size_t anchor_line) {
-  const std::string flat = flatten_newlines_inside_square_brackets(blob);
+  const std::string flat_sq = flatten_newlines_inside_square_brackets(blob);
+  const std::string flat = flatten_newlines_inside_curly_braces(flat_sq);
   std::istringstream iss(flat);
   std::string line;
   while (std::getline(iss, line)) {
@@ -1101,6 +1288,22 @@ void apply_layer_metadata_blob(const std::string& blob, freeusd::sdf::Layer* lay
         return;
       }
       layer->SetSubLayers(std::move(subs));
+    } else if (key == "relocates") {
+      std::string_view rv = trim(rhs);
+      const std::size_t open_brace = rv.find('{');
+      if (open_brace == std::string_view::npos) {
+        set_err(err, anchor_line, "relocates requires a {...} dictionary");
+        return;
+      }
+      const std::optional<std::size_t> close = outer_closing_brace_index(rv, open_brace);
+      if (!close.has_value()) {
+        set_err(err, anchor_line, "unclosed '{' in relocates dictionary");
+        return;
+      }
+      const std::string_view inner_dict = trim(rv.substr(open_brace + 1, *close - open_brace - 1));
+      if (!apply_layer_relocates_from_dictionary(layer, inner_dict, err, anchor_line)) {
+        return;
+      }
     }
     // Ignore unknown metadata keys so slightly richer USDA still loads.
   }
@@ -1221,6 +1424,38 @@ void apply_prim_metadata_blob(const std::string& blob,
       }
       const std::string_view inner_dict = trim(rv.substr(open_brace + 1, *close - open_brace - 1));
       if (!apply_prim_custom_data_from_dictionary(layer, prim, inner_dict, err, anchor_line)) {
+        return;
+      }
+    } else if (key_full == "variantselection") {
+      std::string_view rv = trim(rhs);
+      const std::size_t open_brace = rv.find('{');
+      if (open_brace == std::string_view::npos) {
+        set_err(err, anchor_line, "variantSelection requires a {...} dictionary");
+        return;
+      }
+      const std::optional<std::size_t> close = outer_closing_brace_index(rv, open_brace);
+      if (!close.has_value()) {
+        set_err(err, anchor_line, "unclosed '{' in variantSelection dictionary");
+        return;
+      }
+      const std::string_view inner_dict = trim(rv.substr(open_brace + 1, *close - open_brace - 1));
+      if (!apply_prim_variant_selection_from_dictionary(layer, prim, inner_dict, err, anchor_line)) {
+        return;
+      }
+    } else if (key_full == "variantsets") {
+      std::string_view rv = trim(rhs);
+      const std::size_t open_brace = rv.find('{');
+      if (open_brace == std::string_view::npos) {
+        set_err(err, anchor_line, "variantSets requires a {...} dictionary");
+        return;
+      }
+      const std::optional<std::size_t> close = outer_closing_brace_index(rv, open_brace);
+      if (!close.has_value()) {
+        set_err(err, anchor_line, "unclosed '{' in variantSets dictionary");
+        return;
+      }
+      const std::string_view inner_dict = trim(rv.substr(open_brace + 1, *close - open_brace - 1));
+      if (!apply_prim_variant_sets_from_dictionary(layer, prim, inner_dict, err, anchor_line)) {
         return;
       }
     }
@@ -1676,7 +1911,15 @@ std::string SaveToString(const freeusd::sdf::Layer& layer) {
     }
     os << "]\n";
   }
-  if (!layer.HasDefaultPrim() && layer.GetDocumentation().empty() && subs.empty()) {
+  const auto relocs = layer.ListRelocates();
+  if (!relocs.empty()) {
+    os << "    relocates = {\n";
+    for (const auto& pr : relocs) {
+      os << "        " << path_to_usda_angle(pr.first) << ": " << path_to_usda_angle(pr.second) << ",\n";
+    }
+    os << "    }\n";
+  }
+  if (!layer.HasDefaultPrim() && layer.GetDocumentation().empty() && subs.empty() && relocs.empty()) {
     os << "    doc = \"FreeUSD minimal USDA export\"\n";
   }
   os << ")\n\n";
@@ -1738,11 +1981,16 @@ std::string SaveToString(const freeusd::sdf::Layer& layer) {
     const bool meta_kind = layer.GetField(p, freeusd::tf::Token{"kind"}, &pv_kind);
     freeusd::vt::Value pv_inst;
     const bool meta_inst = layer.GetField(p, freeusd::tf::Token{"instanceable"}, &pv_inst);
+    const std::vector<std::string> variant_set_names = layer.ListPrimVariantSetNames(p);
+    const bool meta_variant_sets = !variant_set_names.empty();
+    const std::vector<std::string> variant_sel_sets = layer.ListPrimVariantSelectionSets(p);
+    const bool meta_variant_sel = !variant_sel_sets.empty();
     const std::vector<std::string> custom_keys = layer.ListPrimCustomDataKeys(p);
     const bool meta_custom = !custom_keys.empty();
 
     const bool emit_meta_paren = meta_active_off || !inh.empty() || !spe.empty() || !pays.empty() || !refs.empty() ||
-                                 meta_doc || meta_kind || meta_inst || meta_custom;
+                                 meta_doc || meta_kind || meta_inst || meta_variant_sets || meta_variant_sel ||
+                                 meta_custom;
     os << pad << head.str();
     if (emit_meta_paren) {
       os << "\n" << pad << "(\n";
@@ -1769,6 +2017,46 @@ std::string SaveToString(const freeusd::sdf::Layer& layer) {
       }
       if (meta_inst) {
         os << pad << "    instanceable = " << value_to_usda(pv_inst) << "\n";
+      }
+      if (meta_variant_sets) {
+        os << pad << "    variantSets = {\n";
+        for (const std::string& set_nm : variant_set_names) {
+          os << pad << "        ";
+          if (bare_custom_dict_key_emit(set_nm)) {
+            os << set_nm;
+          } else {
+            os << escape_string(set_nm);
+          }
+          os << " = {\n";
+          for (const std::string& vnm : layer.ListPrimVariantNames(p, set_nm)) {
+            os << pad << "            ";
+            if (bare_custom_dict_key_emit(vnm)) {
+              os << vnm;
+            } else {
+              os << escape_string(vnm);
+            }
+            os << " = {},\n";
+          }
+          os << pad << "        },\n";
+        }
+        os << pad << "    }\n";
+      }
+      if (meta_variant_sel) {
+        os << pad << "    variantSelection = {\n";
+        for (const std::string& vs : variant_sel_sets) {
+          std::string vname;
+          if (!layer.GetPrimVariantSelectionEntry(p, vs, &vname)) {
+            continue;
+          }
+          os << pad << "        ";
+          if (bare_custom_dict_key_emit(vs)) {
+            os << vs;
+          } else {
+            os << escape_string(vs);
+          }
+          os << " = " << value_to_usda(freeusd::vt::Value::MakeString(vname)) << ",\n";
+        }
+        os << pad << "    }\n";
       }
       if (meta_custom) {
         os << pad << "    customData = {\n";

@@ -32,6 +32,26 @@ int main() {
   const Path bad2 = Path::FromString("relative/path");
   assert(bad2.IsEmpty());
 
+  const Path v = Path::FromString("/World/Cube{shape=HiPoly}");
+  assert(v.IsPrimPath());
+  assert(v.GetName() == "Cube");
+  assert(v.GetVariantSelections().size() == 1);
+  assert(v.GetVariantSelections()[0].variant_set == "shape");
+  assert(v.GetVariantSelections()[0].variant_name == "HiPoly");
+  assert(v.GetParentPath().GetText() == "/World");
+
+  const Path v2 = Path::FromString("/A{a=1}/B{b=2}");
+  assert(v2.GetVariantSelections().size() == 2);
+  assert(v2.GetName() == "B");
+
+  const Path propv = Path::FromString("/World/Cube{shape=Lo}.size");
+  assert(propv.IsPropertyPath());
+  assert(propv.GetPrimPath().GetText() == "/World/Cube{shape=Lo}");
+  assert(propv.GetName() == "size");
+
+  assert(Path::FromString("/Bad{only}").IsEmpty());
+  assert(Path::FromString("/Bad{x=y=z}").IsEmpty());
+
   const auto prefs = PathGetPrefixes(prop);
   assert(!prefs.empty());
   assert(prefs.front() == root);

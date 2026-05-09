@@ -66,6 +66,21 @@ class FREEUSD_API Layer : public std::enable_shared_from_this<Layer> {
   bool GetPrimCustomDataEntry(const Path& primPath, const std::string& key, freeusd::vt::Value* out) const;
   std::vector<std::string> ListPrimCustomDataKeys(const Path& primPath) const;
 
+  /// Prim-scope `variantSelection` map (variant set name → selected variant name). Does not expand variants in composition.
+  void ClearPrimVariantSelection(const Path& primPath);
+  void SetPrimVariantSelectionEntry(const Path& primPath, std::string variantSet, std::string variantName);
+  void ErasePrimVariantSelectionEntry(const Path& primPath, const std::string& variantSet);
+  bool HasPrimVariantSelectionKey(const Path& primPath, const std::string& variantSet) const;
+  bool GetPrimVariantSelectionEntry(const Path& primPath, const std::string& variantSet, std::string* outName) const;
+  std::vector<std::string> ListPrimVariantSelectionSets(const Path& primPath) const;
+
+  /// Declared \c variantSets: variant set name → ordered variant child names (no variant payload prims).
+  void ClearPrimVariantSets(const Path& primPath);
+  void SetPrimVariantSetVariants(const Path& primPath, std::string variantSetName, std::vector<std::string> variantNames);
+  bool HasPrimVariantSet(const Path& primPath, const std::string& variantSetName) const;
+  std::vector<std::string> ListPrimVariantSetNames(const Path& primPath) const;
+  std::vector<std::string> ListPrimVariantNames(const Path& primPath, const std::string& variantSetName) const;
+
   /// Layer header: human-readable summary (USD `documentation` mapping).
   const std::string& GetDocumentation() const noexcept { return documentation_; }
   void SetDocumentation(std::string doc) { documentation_ = std::move(doc); }
@@ -83,6 +98,15 @@ class FREEUSD_API Layer : public std::enable_shared_from_this<Layer> {
   void SetSubLayers(std::vector<std::string> paths);
   void ClearSubLayers() noexcept { sublayer_paths_.clear(); }
   const std::vector<std::string>& GetSubLayers() const noexcept { return sublayer_paths_; }
+
+  /// Layer-scope \c relocates map (source absolute prim path → target absolute prim path). Stored only; no graph rewrite.
+  void ClearRelocates() noexcept;
+  void SetRelocate(Path fromPrimPath, Path toPrimPath);
+  void EraseRelocate(const Path& fromPrimPath);
+  bool HasRelocate(const Path& fromPrimPath) const;
+  bool GetRelocateTarget(const Path& fromPrimPath, Path* outToPrimPath) const;
+  /// Sorted by source path string for stable USDA output.
+  std::vector<std::pair<Path, Path>> ListRelocates() const;
 
   /// Reference arcs on prim (@asset@ with optional </Prim> tail), ordering preserved—minimal Pcp precursor.
   void AddPrimReference(const Path& primPath, PrimReference ref);
@@ -160,6 +184,7 @@ class FREEUSD_API Layer : public std::enable_shared_from_this<Layer> {
   std::string documentation_;
   std::optional<std::string> default_prim_;
   std::vector<std::string> sublayer_paths_;
+  std::unordered_map<Path, Path, Path::Hash> relocates_;
 
   std::unordered_map<Path, FieldMap, Path::Hash> fields_;
   std::unordered_set<Path, Path::Hash> hierarchy_;
@@ -173,6 +198,11 @@ class FREEUSD_API Layer : public std::enable_shared_from_this<Layer> {
   std::unordered_map<Path, PrimSpecifierKind, Path::Hash> prim_specifiers_;
   std::unordered_map<Path, std::unordered_map<std::string, freeusd::vt::Value, freeusd::tf::HashString, std::equal_to<>>, Path::Hash>
       prim_custom_data_;
+  std::unordered_map<Path, std::unordered_map<std::string, std::string, freeusd::tf::HashString, std::equal_to<>>, Path::Hash>
+      prim_variant_selection_;
+  std::unordered_map<Path, std::unordered_map<std::string, std::vector<std::string>, freeusd::tf::HashString, std::equal_to<>>,
+                     Path::Hash>
+      prim_variant_sets_;
   std::unordered_map<Path, std::unordered_map<std::string, Path, freeusd::tf::HashString, std::equal_to<>>, Path::Hash>
       attribute_connections_;
 };

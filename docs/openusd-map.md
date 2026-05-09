@@ -2,21 +2,37 @@
 
 FreeUSD mirrors the **library boundaries** and common **public concepts** of OpenUSD (pxr) for interoperability and learning. Implementations are **clean-room** and intentionally smaller until features land.
 
+For **repository layout**, CMake target naming, and which upstream trees are out of scope, see [openusd-repo-alignment.md](openusd-repo-alignment.md).
+
 | OpenUSD (pxr) area | FreeUSD | Notes |
 | --- | --- | --- |
 | `tf` (tokens, hashing) | `freeusd::tf` | `Token` interning; `HashString` for maps |
-| `gf` (linear algebra) | `freeusd::gf` | `Vec3d`, `Matrix4d` containers |
-| `vt` (typed values) | `freeusd::vt` | `Value` variant for layer payloads |
-| `ar` (asset resolution) | `freeusd::ar` | `Resolver` + `DefaultResolver` (filesystem) |
-| `sdf` (scene description) | `freeusd::sdf` | `Path`, `Layer`, `FieldOpinion`, prim **`customData`**, **attribute connections** (`*.connect`), prim **references**, **`inherits` / `specializes` / `payload`** arc lists (authored order; USDA `prepend`/`append`/`=` list ops in prim metadata), prim **relationships** (`Set`/`Prepend`/`Append`/`DeleteRelationshipTargets`) |
+| `gf` (linear algebra) | `freeusd::gf` | `Vec3d`, `Matrix4d`, **`BBox3d`**, **`Quatd`**, **`Range1d`**; Python **`freeusd.gf`** (`Vec3d`, `Matrix4d`, **`BBox3d`**, **`Quatd`**, **`Range1d`**) |
+| `vt` (typed values) | `freeusd::vt` | `Value` variant for layer payloads; C++ **`Holds*`** / **`GetInt32`**, **`GetInt64`**, **`GetFloat`**; Python **`make_int64`**, **`make_float`**, **`holds_*`**, **`as_bool`**, **`as_int32`**, **`as_int64`**, **`as_float`**, **`as_double`**, **`as_string`**, **`as_token`**, **`as_vec3d`** |
+| `ar` (asset resolution) | `freeusd::ar` | `Resolver` + `DefaultResolver` (filesystem); **`freeusd/ar/resolvedPath.hpp`** + Python **`ar.ResolvedPath`**; **`DefaultResolver.resolve_path`** → **`ResolvedPath`** (alongside string **`resolve`**) |
+| `sdf` (scene description) | `freeusd::sdf` | `Path`, `Layer`, `FieldOpinion`, prim **`customData`**, **attribute connections** (`*.connect`), prim **references**, **`inherits` / `specializes` / `payload`** arc lists (authored order; USDA `prepend`/`append`/`=` list ops in prim metadata), prim **relationships** (`Set`/`Prepend`/`Append`/`DeleteRelationshipTargets`); **`freeusd/sdf/layerOffset.hpp`** + **`sdf.LayerOffset`**; **`freeusd/sdf/assetPath.hpp`** + **`sdf.AssetPath`**; header **`freeusd/sdf/tokens.hpp`** + Python **`freeusd.sdf.builtin_tokens`** / **`_native.sdf.builtin_tokens`** (common field-name tokens) |
 | `pcp` (composition) | `freeusd::pcp` | `LayerStack`, **`ComposeSublayers`** / **`ComposeSublayersDepthFirst`**, **`ResolveFieldAtTimeStrongestWins`** (layer-stack falloff) |
-| `usd` (stage graph) | `freeusd::usd` | **`Stage::AttachLayerStack`**: ordered layers (strong→weak), attributes with **strongest opinion**; **attribute `.connect`**: follows **first authored connection** from strong→weak per hop, then reads the target property (cycle-limited); **relationship targets concatenate** when each layer contributes a list; **prim kind / active** / **`customData`** as above |
-| `usdGeom` | `freeusd::usdGeom` | Schema tokens + `Xformable` stub |
-| `plug` | `freeusd::plug` | `Registry` no-op loader |
-| `trace` | `freeusd::trace` | No-op `Collector` + `FREEUSD_TRACE_FUNCTION` |
-| `work` | `freeusd::work` | Serial `Dispatcher` stub |
-| **C ABI** | `libfreeusd_c` + `include/freeusd/c/freeusd.h` | Stable C entry points: layer + **layer stack** + stage attach, USDA I/O, field reads (**double/bool/int64**/string), **field-opinion** query, child paths + **concatenated relationship targets**, composed **active/kind/customData** |
+| `usd` (stage graph) | `freeusd::usd` | **`Stage::AttachLayerStack`**: ordered layers (strong→weak), attributes with **strongest opinion** (defaults + **time samples**); **composed time-sample union** per field; **attribute `.connect`**: follows **first authored connection** from strong→weak per hop, then reads the target property (cycle-limited); **relationship targets concatenate** when each layer contributes a list; **composed field-name / relationship-name unions** across layers; **composed prim-path union**; root-layer **defaultPrim** name; **prim kind / active** / **`customData`** as above; header **`freeusd/usd/kindTokens.hpp`** + Python **`freeusd.usd.kind_tokens`** for usual **model `kind`** strings (`component`, `assembly`, …); **`freeusd/usd/tokens.hpp`** + **`freeusd.usd.builtin_tokens`** (composition list / variant / relocate field names); **`freeusd::usd::TimeCode`** (`timeCode.hpp`) + Python **`freeusd.usd.TimeCode`** (UsdTimeCode-shaped sentinels); **`freeusd::usd::EditTarget`** (`editTarget.hpp`) + Python **`freeusd.usd.EditTarget`** (UsdEditTarget-shaped layer handle) |
+| `usdUtils` | `freeusd::usdUtils` | Header **`freeusd/usdUtils/pipeline.hpp`** (`FlattenOptions` placeholder); Python **`freeusd.usdUtils`** / `_native.usdUtils` — no flatten/cache yet |
+| `usdGeom` | `freeusd::usdGeom` | Schema tokens + `Xformable` stub; Python **`freeusd.usdGeom.tokens`** / `_native.usdGeom.tokens` |
+| `usdShade` | `freeusd::usdShade` | Header-only **tokens** (`Material`, `Shader`, `NodeGraph`) — no shading networks; Python **`freeusd.usdShade.tokens`** |
+| `usdLux` | `freeusd::usdLux` | Header-only **tokens** (`DomeLight`, …) — no light schema logic |
+| `usdPhysics` | `freeusd::usdPhysics` | Header-only **tokens** (`PhysicsScene`, APIs) — no simulation |
+| `usdVol` | `freeusd::usdVol` | Header-only **tokens** (`OpenVDBAsset`, …) — no volume engine |
+| `usdSkel` | `freeusd::usdSkel` | Header-only **tokens** (`Skeleton`, …) — no skinning |
+| `usdMedia` | `freeusd::usdMedia` | Header-only **tokens** (`SpatialAudio`, …) |
+| `usdRender` | `freeusd::usdRender` | Header-only **tokens** (`RenderSettings`, …) |
+| `usdRi` | `freeusd::usdRi` | Header-only **tokens** (`RisObject`) |
+| **Usd schema umbrella (opt-in link)** | `freeusd::usd_schemas` | INTERFACE aggregate of `usdGeom` + stub schema targets; optional C++ bundle include **`freeusd/usd/schemaTokens.hpp`** |
+| `plug` | `freeusd::plug` | `Registry` no-op loader; Python **`freeusd.plug`** (`load_all`) |
+| `trace` | `freeusd::trace` | No-op `Collector` + `FREEUSD_TRACE_FUNCTION`; Python **`freeusd.trace`** (`push` / `pop`) |
+| `work` | `freeusd::work` | Serial `Dispatcher` stub; Python **`freeusd.work.run`** |
+| **FFI (Go / Rust)** | `bindings/go`, `bindings/rust/freeusd-sys` | Thin wrappers over **`libfreeusd_c`** + static archives (see [`bindings/README.md`](../bindings/README.md)) |
+| **C ABI** | `libfreeusd_c` + `include/freeusd/c/freeusd.h` | Stable C entry points: layer **identifier / documentation / defaultPrim / subLayers / prim paths** + **layer stack** + stage attach, USDA I/O, field reads (**double/bool/int64**/string/**vec3d**) + **composed sample-time** lists, **field-opinion** + **`.connect` target** query, **composed prim path** union + child paths + **concatenated relationship targets** + **composed field / rel name lists**, composed **active / active-opinion** / **kind** / **customData** + **key list / key-in-layer**, root **defaultPrim**, **pseudo-root** path |
 | Crate (binary) | `freeusd::usd::crate` | Header placeholder |
 | USDA (ASCII) | `freeusd::io::usda` | Minimal load/save (`def`, typed attrs, nested blocks, prim **`customData = { … }`**, typed **`name.connect = </Prim.attr>`** attribute connections, relationship list ops **`prepend` / `append` / `delete rel`**) |
+| **UsdImaging / Hydra / Hd*** (imaging stack) | — | **Not present**; reserved for future clean-room work |
+| **Ndr / Sdr** (shader discovery) | — | **Not present** |
+| **UsdHydra** (schemas bridging Hydra) | — | **Not present** |
 
 This is **not** API-compatible with Pixar’s OpenUSD at the ABI or exhaustive method level; it tracks **roles** and a **usable subset** so the codebase can grow toward spec compliance without importing upstream sources.

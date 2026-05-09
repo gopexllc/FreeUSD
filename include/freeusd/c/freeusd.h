@@ -67,6 +67,33 @@ FREEUSD_C_API int freeusd_layer_load_usda_from_string(FreeusdLayer* layer, const
  */
 FREEUSD_C_API char* freeusd_layer_save_usda_to_string(const FreeusdLayer* layer);
 
+/** Layer identifier (may be empty). Returns malloc'd UTF-8; free with @ref freeusd_string_free. */
+FREEUSD_C_API char* freeusd_layer_get_identifier_utf8(const FreeusdLayer* layer);
+
+/**
+ * All prim paths with authored data in this layer (stable sort).
+ * On @ref FREEUSD_OK, @p *out_paths / @p *out_count use @ref freeusd_path_list_free.
+ */
+FREEUSD_C_API int freeusd_layer_list_prim_paths(const FreeusdLayer* layer, char*** out_paths, size_t* out_count);
+
+/** Layer `documentation` string (may be empty). Returns malloc'd UTF-8; free with @ref freeusd_string_free. */
+FREEUSD_C_API char* freeusd_layer_get_documentation_utf8(const FreeusdLayer* layer);
+
+/** 1 if the layer has @c defaultPrim, 0 if not, negative @ref FreeusdResult on error. */
+FREEUSD_C_API int freeusd_layer_has_default_prim(const FreeusdLayer* layer);
+
+/**
+ * Root @c defaultPrim name. On @ref FREEUSD_OK, @p *out_prim_name is malloc'd UTF-8; free with @ref freeusd_string_free.
+ * @ref FREEUSD_ERR_NOT_FOUND if unset.
+ */
+FREEUSD_C_API int freeusd_layer_get_default_prim_utf8(const FreeusdLayer* layer, char** out_prim_name);
+
+/**
+ * Layer @c subLayers asset paths (order preserved; may be empty).
+ * On @ref FREEUSD_OK, @p *out_paths / @p *out_count use @ref freeusd_path_list_free.
+ */
+FREEUSD_C_API int freeusd_layer_list_sub_layers(const FreeusdLayer* layer, char*** out_paths, size_t* out_count);
+
 /**
  * Build a stage from a root layer (shares ownership of the layer; keep @p layer
  * alive for the stage lifetime, or attach and retain as needed).
@@ -93,6 +120,28 @@ FREEUSD_C_API FreeusdStage* freeusd_stage_attach_layer_stack(const FreeusdLayerS
 FREEUSD_C_API void freeusd_stage_free(FreeusdStage* stage);
 
 /**
+ * Stage pseudo-root path (typically @c \"/\"). Returns malloc'd UTF-8; free with @ref freeusd_string_free.
+ * Returns NULL on error.
+ */
+FREEUSD_C_API char* freeusd_stage_get_pseudo_root_path_utf8(const FreeusdStage* stage);
+
+/**
+ * Sorted union of prim paths across all composed layers.
+ * On @ref FREEUSD_OK, @p *out_paths / @p *out_count use @ref freeusd_path_list_free.
+ */
+FREEUSD_C_API int freeusd_stage_list_composed_prim_paths(const FreeusdStage* stage, char*** out_paths,
+                                                         size_t* out_count);
+
+/** 1 if the root (strongest) layer has @c defaultPrim, 0 if not, negative @ref FreeusdResult on error. */
+FREEUSD_C_API int freeusd_stage_has_default_prim(const FreeusdStage* stage);
+
+/**
+ * Root layer @c defaultPrim name. On @ref FREEUSD_OK, @p *out_prim_name is malloc'd; free with @ref freeusd_string_free.
+ * @ref FREEUSD_ERR_NOT_FOUND if unset.
+ */
+FREEUSD_C_API int freeusd_stage_get_default_prim_utf8(const FreeusdStage* stage, char** out_prim_name);
+
+/**
  * List direct child prim paths under @p parent_prim_utf8 (union across composed layers; stable sort).
  * On @ref FREEUSD_OK, sets @p *out_paths to a malloc'd array of @p *out_count malloc'd UTF-8 strings.
  * Free with @ref freeusd_path_list_free.
@@ -101,6 +150,9 @@ FREEUSD_C_API int freeusd_stage_list_child_paths(const FreeusdStage* stage, cons
                                                   char*** out_paths, size_t* out_count);
 
 FREEUSD_C_API void freeusd_path_list_free(char** paths, size_t count);
+
+/** Free @p values from @ref freeusd_stage_list_field_sample_times (single malloc block). */
+FREEUSD_C_API void freeusd_double_array_free(double* values);
 
 /**
  * Concatenated relationship targets (strongest layer first, then next layer’s targets, etc.).
@@ -114,6 +166,21 @@ FREEUSD_C_API int freeusd_stage_list_relationship_targets(const FreeusdStage* st
 FREEUSD_C_API int freeusd_stage_has_relationship(const FreeusdStage* stage, const char* prim_path_utf8,
                                                  const char* rel_name_utf8);
 
+/**
+ * Sorted union of authored attribute field names on @p prim_path_utf8 across composed layers.
+ * On @ref FREEUSD_OK, @p *out_names / @p *out_count use @ref freeusd_path_list_free.
+ */
+FREEUSD_C_API int freeusd_stage_list_composed_field_names(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                          char*** out_names, size_t* out_count);
+
+/**
+ * Sorted union of relationship names on @p prim_path_utf8 across composed layers.
+ * On @ref FREEUSD_OK, @p *out_names / @p *out_count use @ref freeusd_path_list_free.
+ */
+FREEUSD_C_API int freeusd_stage_list_composed_relationship_names(const FreeusdStage* stage,
+                                                                 const char* prim_path_utf8, char*** out_names,
+                                                                 size_t* out_count);
+
 /** 1 if prim path exists on the composed stage, 0 if not, negative @ref FreeusdResult on error. */
 FREEUSD_C_API int freeusd_stage_prim_is_valid(const FreeusdStage* stage, const char* prim_path_utf8);
 
@@ -125,9 +192,29 @@ FREEUSD_C_API int freeusd_stage_prim_is_valid(const FreeusdStage* stage, const c
 FREEUSD_C_API int freeusd_stage_read_field_double(const FreeusdStage* stage, const char* prim_path_utf8,
                                                   const char* attr_name_utf8, double time, double* out_value);
 
+/**
+ * Sorted union of authored time-sample times for @p attr_name_utf8 on @p prim_path_utf8 across composed layers.
+ * On @ref FREEUSD_OK, @p *out_times points to @p *out_count doubles (single malloc block); free with @ref freeusd_double_array_free.
+ */
+FREEUSD_C_API int freeusd_stage_list_field_sample_times(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                        const char* attr_name_utf8, double** out_times,
+                                                        size_t* out_count);
+
 /** 1 if any composed layer authors @p attr_name_utf8 on @p prim_path_utf8, 0 if not, negative @ref FreeusdResult on error. */
 FREEUSD_C_API int freeusd_stage_has_field_opinion(const FreeusdStage* stage, const char* prim_path_utf8,
                                                   const char* attr_name_utf8);
+
+/** 1 if any composed layer authors @c attr.connect for @p attr_name_utf8, 0 if not, negative @ref FreeusdResult on error. */
+FREEUSD_C_API int freeusd_stage_has_attribute_connection(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                         const char* attr_name_utf8);
+
+/**
+ * Strongest composed @c .connect target for @p attr_name_utf8 (full property path as UTF-8).
+ * On @ref FREEUSD_OK, @p *out_target_utf8 is malloc'd; free with @ref freeusd_string_free.
+ */
+FREEUSD_C_API int freeusd_stage_get_attribute_connection_target(const FreeusdStage* stage,
+                                                                const char* prim_path_utf8,
+                                                                const char* attr_name_utf8, char** out_target_utf8);
 
 /**
  * Read evaluated attribute as bool at @p time (payload must be bool).
@@ -150,11 +237,22 @@ FREEUSD_C_API int freeusd_stage_read_field_string(const FreeusdStage* stage, con
                                                   const char* attr_name_utf8, double time, char** out_string);
 
 /**
+ * Read evaluated attribute as @c double3 / Vec3d at @p time. All @p out_* pointers must be non-NULL.
+ */
+FREEUSD_C_API int freeusd_stage_read_field_vec3d(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                 const char* attr_name_utf8, double time, double* out_x,
+                                                 double* out_y, double* out_z);
+
+/**
  * Composed prim active flag (strongest opinion; default true if no opinion).
  * @p out_active receives 0 or 1.
  */
 FREEUSD_C_API int freeusd_stage_resolve_prim_active(const FreeusdStage* stage, const char* prim_path_utf8,
                                                     int* out_active);
+
+/** 1 if any composed layer authors @c active on the prim, 0 if not, negative @ref FreeusdResult on error. */
+FREEUSD_C_API int freeusd_stage_resolve_has_prim_active_opinion(const FreeusdStage* stage,
+                                                                const char* prim_path_utf8);
 
 /**
  * Composed prim schema kind (e.g. "Xform"). Returns malloc'd UTF-8 or NULL if none / error.
@@ -171,6 +269,19 @@ FREEUSD_C_API int freeusd_stage_resolve_has_prim_kind(const FreeusdStage* stage,
  */
 FREEUSD_C_API int freeusd_stage_get_composed_prim_custom_data(const FreeusdStage* stage, const char* prim_path_utf8,
                                                                 const char* key_utf8, char** out_value);
+
+/** 1 if any composed layer authors @p key_utf8 in prim @c customData, 0 if not, negative @ref FreeusdResult on error. */
+FREEUSD_C_API int freeusd_stage_prim_custom_data_key_in_any_layer(const FreeusdStage* stage,
+                                                                   const char* prim_path_utf8,
+                                                                   const char* key_utf8);
+
+/**
+ * Sorted union of @c customData keys for @p prim_path_utf8 across composed layers.
+ * On @ref FREEUSD_OK, @p *out_keys / @p *out_count follow @ref freeusd_stage_list_child_paths ownership.
+ */
+FREEUSD_C_API int freeusd_stage_list_composed_prim_custom_data_keys(const FreeusdStage* stage,
+                                                                    const char* prim_path_utf8, char*** out_keys,
+                                                                    size_t* out_count);
 
 #ifdef __cplusplus
 }

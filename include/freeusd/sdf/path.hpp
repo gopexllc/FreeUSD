@@ -10,6 +10,12 @@
 
 namespace freeusd::sdf {
 
+/// One `{variantSet=variantName}` selection authored on a single path component.
+struct PrimVariantSelection {
+  std::string variant_set;
+  std::string variant_name;
+};
+
 /// Absolute scene path with OpenUSD-like prim/property split (clean-room).
 class FREEUSD_API Path {
  public:
@@ -37,7 +43,11 @@ class FREEUSD_API Path {
   Path GetPrimPath() const;
 
   /// Final path element: prim name or full property name (e.g. `xformOp:translate`).
+  /// Leaf prim identifier without `{variantSet=name}` suffixes, or property name for property paths.
   std::string GetName() const;
+
+  /// `{set=name}` selections on prim components, root-to-leaf order (empty when none).
+  std::vector<PrimVariantSelection> GetVariantSelections() const;
 
   bool HasPrefix(const Path& prefix) const;
 
