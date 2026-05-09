@@ -161,3 +161,121 @@ def Xform \"W\"
     assert io.load_from_string(out, layer2).ok
     t2 = layer2.get_relationship_targets(Path.from_string("/W/C"), Token("scene:shot"))
     assert len(t2) == 2
+
+
+def test_usda_append_and_prepend_rel_order() -> None:
+    src = """#usda 1.0
+(
+    doc = "rel_ops"
+)
+
+def "P"
+{
+    rel ordered = </A>
+    append rel ordered = </B>
+    prepend rel ordered = </Front>
+}
+"""
+    layer = Layer.new_anonymous("ops")
+    assert io.load_from_string(src, layer).ok
+    p = Path.from_string("/P")
+    tg = layer.get_relationship_targets(p, Token("ordered"))
+    assert [t.text() for t in tg] == ["/Front", "/A", "/B"]
+
+    out = io.save_to_string(layer)
+    layer2 = Layer.new_anonymous("ops2")
+    assert io.load_from_string(out, layer2).ok
+    tg2 = layer2.get_relationship_targets(p, Token("ordered"))
+    assert [t.text() for t in tg2] == ["/Front", "/A", "/B"]
+
+
+def test_layer_append_relationship_targets_api() -> None:
+    layer = Layer.new_anonymous("api")
+    p = Path.from_string("/Q")
+    layer.set_relationship_targets(p, Token("r"), [Path.from_string("/1")])
+    layer.append_relationship_targets(p, Token("r"), [Path.from_string("/2"), Path.from_string("/3")])
+    assert [x.text() for x in layer.get_relationship_targets(p, Token("r"))] == ["/1", "/2", "/3"]
+
+
+def test_usda_delete_rel_removes_targets() -> None:
+    src = """#usda 1.0
+(
+    doc = "del_rel"
+)
+
+def "Prim"
+{
+    rel mates = [</M1>, </M2>, </M3>]
+    delete rel mates = </M2>
+}
+"""
+    layer = Layer.new_anonymous("del")
+    assert io.load_from_string(src, layer).ok
+    p = Path.from_string("/Prim")
+    tg = layer.get_relationship_targets(p, Token("mates"))
+    assert [t.text() for t in tg] == ["/M1", "/M3"]
+
+
+def test_layer_delete_relationship_targets_api() -> None:
+    layer = Layer.new_anonymous("del_api")
+    p = Path.from_string("/P")
+    layer.set_relationship_targets(
+        p, Token("k"), [Path.from_string("/a"), Path.from_string("/x"), Path.from_string("/a")]
+    )
+    layer.delete_relationship_targets(p, Token("k"), [Path.from_string("/a")])
+    assert [x.text() for x in layer.get_relationship_targets(p, Token("k"))] == ["/x"]
+
+
+def test_prim_custom_data_usda_roundtrip() -> None:
+    src = """#usda 1.0
+(
+    doc = "cd"
+)
+
+def "R"
+(
+    customData = {
+        string unit = "meter",
+        variant = 3,
+    }
+)
+{
+}
+"""
+    layer = Layer.new_anonymous("cd")
+    assert io.load_from_string(src, layer).ok
+    p = Path.from_string("/R")
+    assert layer.has_prim_custom_data_key(p, "unit")
+    assert layer.get_prim_custom_data_entry(p, "unit").as_string() == "meter"
+    assert layer.get_prim_custom_data_entry(p, "variant").as_double() == 3.0
+
+    out = io.save_to_string(layer)
+    layer2 = Layer.new_anonymous("cd2")
+    assert io.load_from_string(out, layer2).ok
+    assert layer2.get_prim_custom_data_entry(p, "variant").as_double() == 3.0
+
+
+def test_attribute_connection_resolves_on_stage() -> None:
+    import freeusd.usd as usd
+
+    src = """#usda 1.0
+
+def "T"
+{
+    double a = 1.25
+
+    def "Inner"
+    {
+        double mirror.connect = </T.a>
+    }
+}
+"""
+    layer = Layer.new_anonymous("conn")
+    assert io.load_from_string(src, layer).ok
+    st = usd.Stage.attach_root_layer(layer)
+    inner = Path.from_string("/T/Inner")
+    prim = st.prim_at(inner)
+    assert prim.has_attribute(Token("mirror"))
+    v = prim.get_attribute(Token("mirror"))
+    assert v is not None
+    assert abs(v.as_double() - 1.25) < 1e-12

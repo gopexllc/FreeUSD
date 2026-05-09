@@ -173,6 +173,8 @@ void Layer::Clear() noexcept {
   relationships_.clear();
   prim_active_.clear();
   prim_specifiers_.clear();
+  prim_custom_data_.clear();
+  attribute_connections_.clear();
 }
 
 void Layer::SetDefaultPrim(std::string_view rootPrimName) {
@@ -275,6 +277,42 @@ void Layer::PrependRelationshipTargets(const Path& primPath, const freeusd::tf::
   vec.insert(vec.begin(), extraFront.begin(), extraFront.end());
 }
 
+void Layer::AppendRelationshipTargets(const Path& primPath, const freeusd::tf::Token& relName,
+                                        std::vector<Path> extraBack) {
+  if (!primPath.IsPrimPath() || relName.IsEmpty() || extraBack.empty()) {
+    return;
+  }
+  touch_hierarchy(primPath);
+  auto& vec = relationships_[primPath][relName.GetText()];
+  vec.insert(vec.end(), extraBack.begin(), extraBack.end());
+}
+
+void Layer::DeleteRelationshipTargets(const Path& primPath, const freeusd::tf::Token& relName,
+                                       std::vector<Path> toRemove) {
+  if (!primPath.IsPrimPath() || relName.IsEmpty() || toRemove.empty()) {
+    return;
+  }
+  touch_hierarchy(primPath);
+  auto it = relationships_.find(primPath);
+  if (it == relationships_.end()) {
+    return;
+  }
+  auto jt = it->second.find(relName.GetText());
+  if (jt == it->second.end()) {
+    return;
+  }
+  std::vector<Path>& vec = jt->second;
+  for (const Path& kill : toRemove) {
+    vec.erase(std::remove(vec.begin(), vec.end(), kill), vec.end());
+  }
+  if (vec.empty()) {
+    it->second.erase(relName.GetText());
+    if (it->second.empty()) {
+      relationships_.erase(it);
+    }
+  }
+}
+
 void Layer::ClearRelationship(const Path& primPath, const freeusd::tf::Token& relName) {
   if (!primPath.IsPrimPath() || relName.IsEmpty()) {
     return;
@@ -326,6 +364,76 @@ std::vector<std::string> Layer::ListRelationshipNames(const Path& primPath) cons
     out.push_back(e.first);
   }
   std::sort(out.begin(), out.end());
+  return out;
+}
+
+void Layer::SetAttributeConnection(const Path& primPath, const freeusd::tf::Token& name, Path targetProp) {
+  if (!primPath.IsPrimPath() || name.IsEmpty() || !targetProp.IsPropertyPath()) {
+    return;
+  }
+  touch_hierarchy(primPath);
+  attribute_connections_[primPath][name.GetText()] = std::move(targetProp);
+}
+
+void Layer::ClearAttributeConnection(const Path& primPath, const freeusd::tf::Token& name) {
+  if (!primPath.IsPrimPath() || name.IsEmpty()) {
+    return;
+  }
+  auto it = attribute_connections_.find(primPath);
+  if (it == attribute_connections_.end()) {
+    return;
+  }
+  it->second.erase(name.GetText());
+  if (it->second.empty()) {
+    attribute_connections_.erase(it);
+  }
+}
+
+bool Layer::HasAttributeConnection(const Path& primPath, const freeusd::tf::Token& name) const {
+  if (!primPath.IsPrimPath() || name.IsEmpty()) {
+    return false;
+  }
+  const auto it = attribute_connections_.find(primPath);
+  if (it == attribute_connections_.end()) {
+    return false;
+  }
+  return it->second.find(name.GetText()) != it->second.end();
+}
+
+bool Layer::GetAttributeConnectionTarget(const Path& primPath, const freeusd::tf::Token& name,
+                                         Path* targetProp) const {
+  if (!targetProp || !primPath.IsPrimPath() || name.IsEmpty()) {
+    return false;
+  }
+  const auto it = attribute_connections_.find(primPath);
+  if (it == attribute_connections_.end()) {
+    return false;
+  }
+  const auto jt = it->second.find(name.GetText());
+  if (jt == it->second.end()) {
+    return false;
+  }
+  *targetProp = jt->second;
+  return true;
+}
+
+std::vector<std::pair<std::string, Path>> Layer::ListAttributeConnections(const Path& primPath) const {
+  std::vector<std::pair<std::string, Path>> out;
+  if (!primPath.IsPrimPath()) {
+    return out;
+  }
+  const auto it = attribute_connections_.find(primPath);
+  if (it == attribute_connections_.end()) {
+    return out;
+  }
+  out.reserve(it->second.size());
+  for (const auto& e : it->second) {
+    out.emplace_back(e.first, e.second);
+  }
+  std::sort(out.begin(), out.end(),
+            [](const std::pair<std::string, Path>& a, const std::pair<std::string, Path>& b) {
+              return a.first < b.first;
+            });
   return out;
 }
 
@@ -395,6 +503,77 @@ freeusd::tf::Token Layer::GetPrimKind(const Path& primPath) const {
     return freeusd::tf::Token{};
   }
   return it->second;
+}
+
+void Layer::ClearPrimCustomData(const Path& primPath) {
+  prim_custom_data_.erase(primPath);
+}
+
+void Layer::SetPrimCustomDataEntry(const Path& primPath, std::string key, const freeusd::vt::Value& value) {
+  if (!primPath.IsPrimPath() || key.empty() || value.IsEmpty()) {
+    return;
+  }
+  touch_hierarchy(primPath);
+  prim_custom_data_[primPath][std::move(key)] = value;
+}
+
+void Layer::ErasePrimCustomDataEntry(const Path& primPath, const std::string& key) {
+  if (!primPath.IsPrimPath() || key.empty()) {
+    return;
+  }
+  auto it = prim_custom_data_.find(primPath);
+  if (it == prim_custom_data_.end()) {
+    return;
+  }
+  it->second.erase(key);
+  if (it->second.empty()) {
+    prim_custom_data_.erase(it);
+  }
+}
+
+bool Layer::HasPrimCustomDataKey(const Path& primPath, const std::string& key) const {
+  if (!primPath.IsPrimPath() || key.empty()) {
+    return false;
+  }
+  const auto it = prim_custom_data_.find(primPath);
+  if (it == prim_custom_data_.end()) {
+    return false;
+  }
+  return it->second.find(key) != it->second.end();
+}
+
+bool Layer::GetPrimCustomDataEntry(const Path& primPath, const std::string& key,
+                                   freeusd::vt::Value* out) const {
+  if (!out || !primPath.IsPrimPath() || key.empty()) {
+    return false;
+  }
+  const auto it = prim_custom_data_.find(primPath);
+  if (it == prim_custom_data_.end()) {
+    return false;
+  }
+  const auto jt = it->second.find(key);
+  if (jt == it->second.end()) {
+    return false;
+  }
+  *out = jt->second;
+  return true;
+}
+
+std::vector<std::string> Layer::ListPrimCustomDataKeys(const Path& primPath) const {
+  std::vector<std::string> out;
+  if (!primPath.IsPrimPath()) {
+    return out;
+  }
+  const auto it = prim_custom_data_.find(primPath);
+  if (it == prim_custom_data_.end()) {
+    return out;
+  }
+  out.reserve(it->second.size());
+  for (const auto& e : it->second) {
+    out.push_back(e.first);
+  }
+  std::sort(out.begin(), out.end());
+  return out;
 }
 
 }  // namespace freeusd::sdf

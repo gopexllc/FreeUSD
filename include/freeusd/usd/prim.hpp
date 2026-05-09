@@ -1,6 +1,8 @@
 #pragma once
 
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "freeusd/export.hpp"
 #include "freeusd/sdf/path.hpp"
@@ -25,6 +27,20 @@ class FREEUSD_API Prim {
 
   bool HasRelationship(const freeusd::tf::Token& relName) const;
   std::vector<freeusd::sdf::Path> GetRelationshipTargets(const freeusd::tf::Token& relName) const;
+
+  /// Composed USD schema type token (first authored kind on the layer stack wins).
+  freeusd::tf::Token GetPrimKind() const;
+  bool HasPrimKind() const;
+
+  /// Effective authored **active**: strongest explicit opinion; default active if none.
+  bool IsActive() const;
+  bool HasPrimActiveOpinion() const;
+
+  /// `customData`: true if any composed layer authors \p key for this prim's path.
+  bool HasCustomDataKey(const std::string& key) const;
+  /// Composed `customData` value for \p key (strongest opinion); empty if absent.
+  freeusd::vt::Value GetCustomData(const std::string& key) const;
+  std::vector<std::string> ListCustomDataKeys() const;
 
  private:
   std::shared_ptr<const Stage> lock_stage() const;

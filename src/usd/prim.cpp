@@ -1,7 +1,5 @@
 #include "freeusd/usd/prim.hpp"
 
-#include <algorithm>
-
 #include "freeusd/usd/stage.hpp"
 
 namespace freeusd::usd {
@@ -15,8 +13,7 @@ bool Prim::IsValid() const noexcept {
   if (!st || !path_.IsPrimPath()) {
     return false;
   }
-  const auto paths = st->GetRootLayer().ListPrimPaths();
-  return std::find(paths.begin(), paths.end(), path_) != paths.end();
+  return st->PrimPathInUse(path_);
 }
 
 bool Prim::HasAttribute(const freeusd::tf::Token& name) const {
@@ -24,7 +21,7 @@ bool Prim::HasAttribute(const freeusd::tf::Token& name) const {
   if (!st || name.IsEmpty()) {
     return false;
   }
-  return st->GetRootLayer().HasField(path_, name);
+  return st->HasFieldOpinion(path_, name);
 }
 
 freeusd::vt::Value Prim::GetAttribute(const freeusd::tf::Token& name) const {
@@ -33,10 +30,8 @@ freeusd::vt::Value Prim::GetAttribute(const freeusd::tf::Token& name) const {
   if (!st || name.IsEmpty()) {
     return v;
   }
-  // Default stage time 1.0 (UsdTimeCode-like); hold + default resolution.
-  if (!st->GetRootLayer().GetFieldAtTime(path_, name, 1.0, &v)) {
-    st->GetRootLayer().GetField(path_, name, &v);
-  }
+  constexpr double kDefaultStageTime = 1.0;
+  st->ReadFieldAtEvaluatedTime(path_, name, kDefaultStageTime, &v);
   return v;
 }
 
@@ -45,15 +40,80 @@ bool Prim::HasRelationship(const freeusd::tf::Token& relName) const {
   if (!st || relName.IsEmpty()) {
     return false;
   }
-  return st->GetRootLayer().HasRelationship(path_, relName);
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : st->GetComposeLayers()) {
+    if (L && L->HasRelationship(path_, relName)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 std::vector<freeusd::sdf::Path> Prim::GetRelationshipTargets(const freeusd::tf::Token& relName) const {
   const auto st = lock_stage();
+  std::vector<freeusd::sdf::Path> out;
   if (!st || relName.IsEmpty()) {
+    return out;
+  }
+  st->ReadRelationship(path_, relName, &out);
+  return out;
+}
+
+freeusd::tf::Token Prim::GetPrimKind() const {
+  const auto st = lock_stage();
+  if (!st) {
     return {};
   }
-  return st->GetRootLayer().GetRelationshipTargets(path_, relName);
+  return st->ResolvePrimKind(path_);
+}
+
+bool Prim::HasPrimKind() const {
+  const auto st = lock_stage();
+  if (!st) {
+    return false;
+  }
+  return st->ResolveHasPrimKind(path_);
+}
+
+bool Prim::IsActive() const {
+  const auto st = lock_stage();
+  if (!st) {
+    return true;
+  }
+  return st->ResolvePrimActive(path_);
+}
+
+bool Prim::HasPrimActiveOpinion() const {
+  const auto st = lock_stage();
+  if (!st) {
+    return false;
+  }
+  return st->ResolveHasPrimActiveOpinion(path_);
+}
+
+bool Prim::HasCustomDataKey(const std::string& key) const {
+  const auto st = lock_stage();
+  if (!st || key.empty()) {
+    return false;
+  }
+  return st->PrimCustomDataKeyInAnyLayer(path_, key);
+}
+
+freeusd::vt::Value Prim::GetCustomData(const std::string& key) const {
+  const auto st = lock_stage();
+  freeusd::vt::Value v;
+  if (!st || key.empty()) {
+    return v;
+  }
+  st->GetComposedPrimCustomData(path_, key, &v);
+  return v;
+}
+
+std::vector<std::string> Prim::ListCustomDataKeys() const {
+  const auto st = lock_stage();
+  if (!st) {
+    return {};
+  }
+  return st->ListComposedPrimCustomDataKeys(path_);
 }
 
 }  // namespace freeusd::usd

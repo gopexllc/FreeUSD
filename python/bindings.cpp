@@ -168,6 +168,18 @@ PYBIND11_MODULE(_native, m) {
                std::vector<freeusd::sdf::Path> extra) {
               layer.PrependRelationshipTargets(p, rel, std::move(extra));
             })
+        .def(
+            "append_relationship_targets",
+            [](freeusd::sdf::Layer& layer, const freeusd::sdf::Path& p, const freeusd::tf::Token& rel,
+               std::vector<freeusd::sdf::Path> extra) {
+              layer.AppendRelationshipTargets(p, rel, std::move(extra));
+            })
+        .def(
+            "delete_relationship_targets",
+            [](freeusd::sdf::Layer& layer, const freeusd::sdf::Path& p, const freeusd::tf::Token& rel,
+               std::vector<freeusd::sdf::Path> remove_targets) {
+              layer.DeleteRelationshipTargets(p, rel, std::move(remove_targets));
+            })
         .def("clear_relationship", &freeusd::sdf::Layer::ClearRelationship)
         .def("has_relationship", &freeusd::sdf::Layer::HasRelationship)
         .def("get_relationship_targets", &freeusd::sdf::Layer::GetRelationshipTargets)
@@ -176,6 +188,67 @@ PYBIND11_MODULE(_native, m) {
         .def("set_prim_kind", &freeusd::sdf::Layer::SetPrimKind)
         .def("has_prim_kind", &freeusd::sdf::Layer::HasPrimKind)
         .def("get_prim_kind", &freeusd::sdf::Layer::GetPrimKind)
+        .def("clear_prim_custom_data", &freeusd::sdf::Layer::ClearPrimCustomData)
+        .def(
+            "set_prim_custom_data_entry",
+            [](freeusd::sdf::Layer& layer, const freeusd::sdf::Path& prim_path, std::string key,
+               const freeusd::vt::Value& value) { layer.SetPrimCustomDataEntry(prim_path, std::move(key), value); })
+        .def(
+            "erase_prim_custom_data_entry",
+            [](freeusd::sdf::Layer& layer, const freeusd::sdf::Path& prim_path, const std::string& key) {
+              layer.ErasePrimCustomDataEntry(prim_path, key);
+            })
+        .def(
+            "has_prim_custom_data_key",
+            [](const freeusd::sdf::Layer& layer, const freeusd::sdf::Path& prim_path, const std::string& key) {
+              return layer.HasPrimCustomDataKey(prim_path, key);
+            })
+        .def(
+            "get_prim_custom_data_entry",
+            [](const freeusd::sdf::Layer& layer, const freeusd::sdf::Path& prim_path,
+               const std::string& key) -> py::object {
+              freeusd::vt::Value v;
+              if (layer.GetPrimCustomDataEntry(prim_path, key, &v)) {
+                return py::cast(v);
+              }
+              return py::none();
+            })
+        .def(
+            "list_prim_custom_data_keys",
+            [](const freeusd::sdf::Layer& layer, const freeusd::sdf::Path& prim_path) {
+              return layer.ListPrimCustomDataKeys(prim_path);
+            })
+        .def(
+            "set_attribute_connection",
+            [](freeusd::sdf::Layer& layer, const freeusd::sdf::Path& prim_path, const freeusd::tf::Token& name,
+               const freeusd::sdf::Path& target_prop) {
+              layer.SetAttributeConnection(prim_path, name, target_prop);
+            })
+        .def(
+            "clear_attribute_connection",
+            [](freeusd::sdf::Layer& layer, const freeusd::sdf::Path& prim_path, const freeusd::tf::Token& name) {
+              layer.ClearAttributeConnection(prim_path, name);
+            })
+        .def(
+            "has_attribute_connection",
+            [](const freeusd::sdf::Layer& layer, const freeusd::sdf::Path& prim_path, const freeusd::tf::Token& name) {
+              return layer.HasAttributeConnection(prim_path, name);
+            })
+        .def(
+            "get_attribute_connection_target",
+            [](const freeusd::sdf::Layer& layer, const freeusd::sdf::Path& prim_path,
+               const freeusd::tf::Token& name) -> py::object {
+              freeusd::sdf::Path t;
+              if (layer.GetAttributeConnectionTarget(prim_path, name, &t)) {
+                return py::cast(t);
+              }
+              return py::none();
+            })
+        .def(
+            "list_attribute_connections",
+            [](const freeusd::sdf::Layer& layer, const freeusd::sdf::Path& prim_path) {
+              return layer.ListAttributeConnections(prim_path);
+            })
         .def(
             "add_reference",
             [](freeusd::sdf::Layer& layer, const freeusd::sdf::Path& p, std::string a) {
@@ -312,7 +385,45 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
     auto usd = m.def_submodule("usd");
     py::class_<freeusd::usd::Stage, std::shared_ptr<freeusd::usd::Stage>>(usd, "Stage")
         .def_static("attach_root_layer", &freeusd::usd::Stage::AttachRootLayer)
+        .def_static("attach_layer_stack", &freeusd::usd::Stage::AttachLayerStack)
         .def("pseudo_root_path", &freeusd::usd::Stage::GetPseudoRootPath)
+        .def(
+            "compose_layers",
+            [](const freeusd::usd::Stage& st) { return st.GetComposeLayers(); })
+        .def(
+            "read_field_at_time",
+            [](const freeusd::usd::Stage& st, const freeusd::sdf::Path& p, const freeusd::tf::Token& t,
+               double time) -> py::object {
+              freeusd::vt::Value v;
+              if (st.ReadFieldAtEvaluatedTime(p, t, time, &v)) {
+                return py::cast(v);
+              }
+              return py::none();
+            },
+            py::arg("path"), py::arg("name"), py::arg("time") = 1.0)
+        .def("resolve_prim_kind", &freeusd::usd::Stage::ResolvePrimKind)
+        .def("resolve_has_prim_kind", &freeusd::usd::Stage::ResolveHasPrimKind)
+        .def("resolve_prim_active", &freeusd::usd::Stage::ResolvePrimActive)
+        .def("resolve_has_prim_active_opinion", &freeusd::usd::Stage::ResolveHasPrimActiveOpinion)
+        .def(
+            "get_composed_prim_custom_data",
+            [](const freeusd::usd::Stage& stage, const freeusd::sdf::Path& path, std::string key) -> py::object {
+              freeusd::vt::Value v;
+              if (stage.GetComposedPrimCustomData(path, key, &v)) {
+                return py::cast(v);
+              }
+              return py::none();
+            })
+        .def(
+            "prim_custom_data_key_in_any_layer",
+            [](const freeusd::usd::Stage& stage, const freeusd::sdf::Path& path, const std::string& key) {
+              return stage.PrimCustomDataKeyInAnyLayer(path, key);
+            })
+        .def(
+            "list_composed_prim_custom_data_keys",
+            [](const freeusd::usd::Stage& stage, const freeusd::sdf::Path& path) {
+              return stage.ListComposedPrimCustomDataKeys(path);
+            })
         .def("children", &freeusd::usd::Stage::GetChildren)
         .def("prim_at", &freeusd::usd::Stage::GetPrimAtPath);
 
@@ -323,7 +434,22 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def("has_attribute", &freeusd::usd::Prim::HasAttribute)
         .def("get_attribute", &freeusd::usd::Prim::GetAttribute)
         .def("has_relationship", &freeusd::usd::Prim::HasRelationship)
-        .def("get_relationship_targets", &freeusd::usd::Prim::GetRelationshipTargets);
+        .def("get_relationship_targets", &freeusd::usd::Prim::GetRelationshipTargets)
+        .def("get_prim_kind", &freeusd::usd::Prim::GetPrimKind)
+        .def("has_prim_kind", &freeusd::usd::Prim::HasPrimKind)
+        .def("is_active", &freeusd::usd::Prim::IsActive)
+        .def("has_prim_active_opinion", &freeusd::usd::Prim::HasPrimActiveOpinion)
+        .def("has_custom_data_key", &freeusd::usd::Prim::HasCustomDataKey)
+        .def(
+            "get_custom_data",
+            [](const freeusd::usd::Prim& prim, const std::string& key) -> py::object {
+              freeusd::vt::Value v = prim.GetCustomData(key);
+              if (v.IsEmpty()) {
+                return py::none();
+              }
+              return py::cast(v);
+            })
+        .def("list_custom_data_keys", &freeusd::usd::Prim::ListCustomDataKeys);
   }
 
   {

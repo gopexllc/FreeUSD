@@ -4,6 +4,7 @@
 #include "freeusd/sdf/layer.hpp"
 #include "freeusd/sdf/path.hpp"
 #include "freeusd/tf/token.hpp"
+#include "freeusd/usd/stage.hpp"
 #include "freeusd/vt/value.hpp"
 
 int main() {
@@ -12,6 +13,7 @@ int main() {
   using freeusd::sdf::Layer;
   using freeusd::sdf::Path;
   using freeusd::tf::Token;
+  using freeusd::usd::Stage;
   using freeusd::vt::Value;
 
   const char* doc = R"USDA(
@@ -25,7 +27,22 @@ def Xform "World"
     prepend references = @./payload.usda@</Geometry/Mesh>
 )
 {
+    def "Pipe"
+    {
+        double sourceValue = 2.718281828
+    }
+    def "Sink"
+    {
+        double ported.connect = </World/Pipe.sourceValue>
+    }
+
     def "Cube"
+    (
+        customData = {
+            string pipeline = "cache",
+            int build = 9,
+        }
+    )
     {
         double size = 2.5
         double height.timeSamples = {
@@ -37,6 +54,13 @@ def Xform "World"
         rel material:binding = </Materials/M>
         rel proxyPrim = </Materials/M>
         prepend rel proxyPrim = </Proxy/Draw>
+        rel chains = </C1>
+        append rel chains = </C2>
+        prepend rel chains = </C0>
+        rel dropme = [</X>, </Y>, </Z>]
+        delete rel dropme = </Y>
+        rel dup = [</A>, </A>, </B>]
+        delete rel dup = </A>
     }
 }
 )USDA";
@@ -46,6 +70,30 @@ def Xform "World"
   assert(r.ok);
 
   const Path cube = Path::FromString("/World/Cube");
+  assert(layer->HasPrimCustomDataKey(cube, "pipeline"));
+  Value ctmp;
+  std::string pv;
+  assert(layer->GetPrimCustomDataEntry(cube, "pipeline", &ctmp));
+  assert(ctmp.GetString(&pv));
+  assert(pv == "cache");
+  assert(layer->GetPrimCustomDataEntry(cube, "build", &ctmp));
+  double bd = 0;
+  assert(ctmp.GetDouble(&bd));
+  assert(bd == 9.0);
+
+  const Path sink = Path::FromString("/World/Sink");
+  assert(layer->HasAttributeConnection(sink, Token("ported")));
+  freeusd::sdf::Path conn_target;
+  assert(layer->GetAttributeConnectionTarget(sink, Token("ported"), &conn_target));
+  assert(conn_target == Path::FromString("/World/Pipe.sourceValue"));
+  auto st0 = Stage::AttachRootLayer(layer);
+  assert(st0);
+  const auto sink_prim = st0->GetPrimAtPath(sink);
+  assert(sink_prim.IsValid());
+  Value fed = sink_prim.GetAttribute(Token("ported"));
+  assert(fed.GetDouble(&d));
+  assert(d > 2.718 && d < 2.719);
+
   Value v;
   assert(layer->GetField(cube, Token("size"), &v));
   double d = 0;
@@ -81,6 +129,31 @@ def Xform "World"
   assert(pp.size() == 2);
   assert(pp[0] == Path::FromString("/Proxy/Draw"));
   assert(pp[1] == Path::FromString("/Materials/M"));
+
+  const auto ch = layer2->GetRelationshipTargets(cube, Token("chains"));
+  assert(ch.size() == 3);
+  assert(ch[0] == Path::FromString("/C0"));
+  assert(ch[1] == Path::FromString("/C1"));
+  assert(ch[2] == Path::FromString("/C2"));
+
+  const auto dm = layer2->GetRelationshipTargets(cube, Token("dropme"));
+  assert(dm.size() == 2);
+  assert(dm[0] == Path::FromString("/X"));
+  assert(dm[1] == Path::FromString("/Z"));
+
+  const auto dup = layer2->GetRelationshipTargets(cube, Token("dup"));
+  assert(dup.size() == 1);
+  assert(dup[0] == Path::FromString("/B"));
+
+  assert(layer2->HasPrimCustomDataKey(cube, "pipeline"));
+  assert(layer2->GetPrimCustomDataEntry(cube, "build", &ctmp));
+  assert(ctmp.GetDouble(&bd));
+  assert(bd == 9.0);
+
+  assert(layer2->HasAttributeConnection(Path::FromString("/World/Sink"), Token("ported")));
+  auto st1 = Stage::AttachRootLayer(layer2);
+  assert(st1->GetPrimAtPath(sink).GetAttribute(Token("ported")).GetDouble(&d));
+  assert(d > 2.718 && d < 2.719);
 
   const Path world = Path::FromString("/World");
   const auto wl = layer2->ListPrimReferences(world);

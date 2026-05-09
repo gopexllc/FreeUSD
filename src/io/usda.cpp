@@ -260,6 +260,7 @@ freeusd::vt::Value parse_value(std::string_view t, ParseResult* err, std::size_t
 }
 
 constexpr std::string_view kTimeSamplesSuffix = ".timeSamples";
+constexpr std::string_view kAttrConnectionSuffix = ".connect";
 
 bool ends_with(std::string_view s, std::string_view suf) noexcept {
   return s.size() >= suf.size() && s.compare(s.size() - suf.size(), suf.size(), suf) == 0;
@@ -507,16 +508,25 @@ void strip_uniform_custom_qualifiers(std::string* line) {
   }
 }
 
-void strip_leading_prepend(std::string* line, bool* out_prepend) {
-  *out_prepend = false;
-  for (;;) {
-    std::string_view s = trim(std::string_view(*line));
-    if (!kw_line(s, "prepend")) {
-      break;
-    }
-    *out_prepend = true;
+enum class RelListOpKind { Replace, Prepend, Append, Delete };
+
+void strip_leading_rel_list_op(std::string* line, RelListOpKind* out_kind) {
+  *out_kind = RelListOpKind::Replace;
+  std::string_view s = trim(std::string_view(*line));
+  if (kw_line(s, "delete")) {
+    *out_kind = RelListOpKind::Delete;
+    *line = std::string(trim(s.substr(6)));
+    return;
+  }
+  if (kw_line(s, "prepend")) {
+    *out_kind = RelListOpKind::Prepend;
     *line = std::string(trim(s.substr(7)));
-    break;
+    return;
+  }
+  if (kw_line(s, "append")) {
+    *out_kind = RelListOpKind::Append;
+    *line = std::string(trim(s.substr(6)));
+    return;
   }
 }
 
@@ -677,6 +687,174 @@ std::string flatten_newlines_inside_square_brackets(std::string_view in) {
   return out;
 }
 
+/// Turn newlines inside `{`…`}` into spaces so multi-line \c customData blocks can use comma separators.
+std::string flatten_newlines_inside_curly_braces(std::string_view in) {
+  std::string out;
+  out.reserve(in.size());
+  int brace_depth = 0;
+  bool in_double = false;
+  bool in_single = false;
+  for (std::size_t i = 0; i < in.size(); ++i) {
+    const char c = in[i];
+    if (!in_single && c == '"' && (i == 0 || in[i - 1] != '\\')) {
+      in_double = !in_double;
+      out.push_back(c);
+      continue;
+    }
+    if (!in_double && c == '\'' && (i == 0 || in[i - 1] != '\\')) {
+      in_single = !in_single;
+      out.push_back(c);
+      continue;
+    }
+    if (!in_double && !in_single) {
+      if (c == '{') {
+        ++brace_depth;
+        out.push_back(c);
+        continue;
+      }
+      if (c == '}' && brace_depth > 0) {
+        --brace_depth;
+        out.push_back(c);
+        continue;
+      }
+      if (c == '\n' && brace_depth > 0) {
+        out.push_back(' ');
+        continue;
+      }
+    }
+    out.push_back(c);
+  }
+  return out;
+}
+
+bool ci_type_prefix_followed_by_space(std::string_view s, std::string_view prefix_lower) {
+  if (s.size() <= prefix_lower.size()) {
+    return false;
+  }
+  for (std::size_t j = 0; j < prefix_lower.size(); ++j) {
+    if (std::tolower(static_cast<unsigned char>(s[j])) != prefix_lower[j]) {
+      return false;
+    }
+  }
+  return std::isspace(static_cast<unsigned char>(s[prefix_lower.size()]));
+}
+
+std::string normalize_custom_data_key(std::string_view lhs_full) {
+  std::string_view lhs = trim(lhs_full);
+  static constexpr std::string_view prefixes[] = {
+      "double", "string", "int64", "float", "bool", "int", "token",
+  };
+  for (std::string_view pref : prefixes) {
+    if (ci_type_prefix_followed_by_space(lhs, pref)) {
+      lhs = trim(lhs.substr(pref.size()));
+      break;
+    }
+  }
+  lhs = trim(lhs);
+  if (lhs.size() >= 2 && lhs.front() == '"' && lhs.back() == '"') {
+    return std::string(lhs.substr(1, lhs.size() - 2));
+  }
+  if (lhs.size() >= 2 && lhs.front() == '\'' && lhs.back() == '\'') {
+    return std::string(lhs.substr(1, lhs.size() - 2));
+  }
+  return std::string(lhs);
+}
+
+void split_custom_data_dictionary_entries(std::string_view inner, std::vector<std::string_view>* parts) {
+  parts->clear();
+  int depth_paren = 0;
+  int depth_bracket = 0;
+  int depth_brace = 0;
+  bool dq = false;
+  bool sq = false;
+  std::size_t start = 0;
+  for (std::size_t i = 0; i <= inner.size(); ++i) {
+    char c{};
+    bool at_end = (i >= inner.size());
+    if (!at_end) {
+      c = inner[i];
+    }
+    if (!at_end) {
+      if (!sq && c == '"' && (i == 0 || inner[i - 1] != '\\')) {
+        dq = !dq;
+      } else if (!dq && c == '\'' && (i == 0 || inner[i - 1] != '\\')) {
+        sq = !sq;
+      } else if (!dq && !sq) {
+        if (c == '(') {
+          ++depth_paren;
+        } else if (c == ')' && depth_paren > 0) {
+          --depth_paren;
+        } else if (c == '[') {
+          ++depth_bracket;
+        } else if (c == ']' && depth_bracket > 0) {
+          --depth_bracket;
+        } else if (c == '{') {
+          ++depth_brace;
+        } else if (c == '}' && depth_brace > 0) {
+          --depth_brace;
+        }
+      }
+    }
+    const bool sep =
+        !at_end && !dq && !sq && depth_paren == 0 && depth_bracket == 0 && depth_brace == 0 && (c == ',' || c == ';');
+    if (sep || at_end) {
+      const std::string_view piece = trim(inner.substr(start, i - start));
+      if (!piece.empty()) {
+        parts->push_back(piece);
+      }
+      start = i + 1;
+    }
+  }
+}
+
+std::optional<std::size_t> outer_closing_brace_index(std::string_view s, std::size_t open_brace) {
+  if (open_brace >= s.size() || s[open_brace] != '{') {
+    return std::nullopt;
+  }
+  int brace_depth = 0;
+  bool dq = false;
+  bool sq = false;
+  for (std::size_t i = open_brace; i < s.size(); ++i) {
+    const char c = s[i];
+    if (!sq && c == '"' && (i == 0 || s[i - 1] != '\\')) {
+      dq = !dq;
+      continue;
+    }
+    if (!dq && c == '\'' && (i == 0 || s[i - 1] != '\\')) {
+      sq = !sq;
+      continue;
+    }
+    if (!dq && !sq) {
+      if (c == '{') {
+        ++brace_depth;
+      } else if (c == '}') {
+        --brace_depth;
+        if (brace_depth == 0) {
+          return i;
+        }
+      }
+    }
+  }
+  return std::nullopt;
+}
+
+bool bare_custom_dict_key_emit(std::string_view k) noexcept {
+  if (k.empty()) {
+    return false;
+  }
+  unsigned char lead = static_cast<unsigned char>(k[0]);
+  if (!std::isalpha(lead) && lead != '_' && lead != '$') {
+    return false;
+  }
+  for (std::size_t i = 1; i < k.size(); ++i) {
+    const unsigned char c = static_cast<unsigned char>(k[i]);
+    if (!std::isalnum(c) && c != '_' && c != ':') {
+      return false;
+    }
+  }
+  return true;
+}
+
 bool split_assignment(std::string_view line, std::string_view* lhs, std::string_view* rhs) {
   bool in_double = false;
   bool in_single = false;
@@ -706,6 +884,45 @@ bool split_assignment(std::string_view line, std::string_view* lhs, std::string_
     }
   }
   return false;
+}
+
+bool apply_prim_custom_data_from_dictionary(const std::shared_ptr<freeusd::sdf::Layer>& layer,
+                                            const freeusd::sdf::Path& prim, std::string_view dict_inner,
+                                            ParseResult* err, std::size_t line_no) {
+  layer->ClearPrimCustomData(prim);
+  dict_inner = trim(dict_inner);
+  if (dict_inner.empty()) {
+    return true;
+  }
+  std::vector<std::string_view> chunks;
+  split_custom_data_dictionary_entries(dict_inner, &chunks);
+  for (std::string_view piece : chunks) {
+    piece = trim(piece);
+    if (piece.empty()) {
+      continue;
+    }
+    std::string_view lk;
+    std::string_view rv;
+    if (!split_assignment(piece, &lk, &rv)) {
+      set_err(err, line_no, "bad customData entry (expected key = value)");
+      return false;
+    }
+    const std::string key = normalize_custom_data_key(lk);
+    if (key.empty()) {
+      set_err(err, line_no, "empty customData key");
+      return false;
+    }
+    freeusd::vt::Value val = parse_value(trim(rv), err, line_no);
+    if (err && !err->ok) {
+      return false;
+    }
+    if (val.IsEmpty()) {
+      set_err(err, line_no, "empty customData value");
+      return false;
+    }
+    layer->SetPrimCustomDataEntry(prim, key, val);
+  }
+  return true;
 }
 
 bool gather_asset_refs(std::string_view val_c, std::vector<std::string>* out_paths, ParseResult* err, std::size_t line_no) {
@@ -879,7 +1096,8 @@ void apply_prim_metadata_blob(const std::string& blob,
                               const freeusd::sdf::Path& prim,
                               ParseResult* err,
                               std::size_t anchor_line) {
-  const std::string flat = flatten_newlines_inside_square_brackets(blob);
+  const std::string flat_sq = flatten_newlines_inside_square_brackets(blob);
+  const std::string flat = flatten_newlines_inside_curly_braces(flat_sq);
   std::istringstream iss(flat);
   std::string line;
   while (std::getline(iss, line)) {
@@ -934,6 +1152,22 @@ void apply_prim_metadata_blob(const std::string& blob,
     } else if (key_full == "instanceable") {
       freeusd::vt::Value bv = parse_value(rhs, err, anchor_line);
       layer->SetField(prim, freeusd::tf::Token{"instanceable"}, bv);
+    } else if (key_full == "customdata") {
+      std::string_view rv = trim(rhs);
+      const std::size_t open_brace = rv.find('{');
+      if (open_brace == std::string_view::npos) {
+        set_err(err, anchor_line, "customData requires a {...} dictionary");
+        return;
+      }
+      const std::optional<std::size_t> close = outer_closing_brace_index(rv, open_brace);
+      if (!close.has_value()) {
+        set_err(err, anchor_line, "unclosed '{' in customData dictionary");
+        return;
+      }
+      const std::string_view inner_dict = trim(rv.substr(open_brace + 1, *close - open_brace - 1));
+      if (!apply_prim_custom_data_from_dictionary(layer, prim, inner_dict, err, anchor_line)) {
+        return;
+      }
     }
   }
 }
@@ -1235,8 +1469,8 @@ ParseResult LoadFromString(std::string_view text, const std::shared_ptr<freeusd:
     std::string typ;
     std::string fname;
     std::string fval;
-    bool stmt_prepend = false;
-    strip_leading_prepend(&raw, &stmt_prepend);
+    RelListOpKind rel_list_op = RelListOpKind::Replace;
+    strip_leading_rel_list_op(&raw, &rel_list_op);
     strip_uniform_custom_qualifiers(&raw);
     s = trim(std::string_view(raw));
     if (!parse_type_name_value(s, &typ, &fname, &fval)) {
@@ -1245,8 +1479,8 @@ ParseResult LoadFromString(std::string_view text, const std::shared_ptr<freeusd:
       r.message = "bad attribute line";
       return r;
     }
-    if (stmt_prepend && ascii_lower(typ) != "rel") {
-      set_err(&r, line_no, R"(unsupported "prepend" for non-rel USDA statements)");
+    if (rel_list_op != RelListOpKind::Replace && ascii_lower(typ) != "rel") {
+      set_err(&r, line_no, R"(unsupported relationship list op keyword for non-rel USDA statements)");
       return r;
     }
     const std::string_view fname_sv = fname;
@@ -1256,8 +1490,12 @@ ParseResult LoadFromString(std::string_view text, const std::shared_ptr<freeusd:
       if (!parse_relationship_targets_value(rhs, &tgts, &r, line_no)) {
         return r;
       }
-      if (stmt_prepend) {
+      if (rel_list_op == RelListOpKind::Prepend) {
         layer->PrependRelationshipTargets(stack.back(), freeusd::tf::Token{fname}, std::move(tgts));
+      } else if (rel_list_op == RelListOpKind::Append) {
+        layer->AppendRelationshipTargets(stack.back(), freeusd::tf::Token{fname}, std::move(tgts));
+      } else if (rel_list_op == RelListOpKind::Delete) {
+        layer->DeleteRelationshipTargets(stack.back(), freeusd::tf::Token{fname}, std::move(tgts));
       } else {
         layer->SetRelationshipTargets(stack.back(), freeusd::tf::Token{fname}, std::move(tgts));
       }
@@ -1311,6 +1549,30 @@ ParseResult LoadFromString(std::string_view text, const std::shared_ptr<freeusd:
       r.line = line_no;
       r.message = "bad timeSamples initializer";
       return r;
+    }
+
+    if (ends_with(fname_sv, kAttrConnectionSuffix)) {
+      std::string base_name =
+          std::string{fname_sv.substr(0, fname_sv.size() - kAttrConnectionSuffix.size())};
+      if (base_name.empty()) {
+        r.ok = false;
+        r.line = line_no;
+        r.message = "empty attribute name before .connect";
+        return r;
+      }
+      const freeusd::sdf::Path prop =
+          parse_relationship_path_token(trim(std::string_view{fval}), &r, line_no);
+      if (!r.ok) {
+        return r;
+      }
+      if (!prop.IsPropertyPath()) {
+        r.ok = false;
+        r.line = line_no;
+        r.message = "attribute .connect requires a property path target like </Prim.attr>";
+        return r;
+      }
+      layer->SetAttributeConnection(stack.back(), freeusd::tf::Token{std::move(base_name)}, prop);
+      continue;
     }
 
     freeusd::vt::Value v = parse_value(fval, &r, line_no);
@@ -1418,8 +1680,11 @@ std::string SaveToString(const freeusd::sdf::Layer& layer) {
     const bool meta_kind = layer.GetField(p, freeusd::tf::Token{"kind"}, &pv_kind);
     freeusd::vt::Value pv_inst;
     const bool meta_inst = layer.GetField(p, freeusd::tf::Token{"instanceable"}, &pv_inst);
+    const std::vector<std::string> custom_keys = layer.ListPrimCustomDataKeys(p);
+    const bool meta_custom = !custom_keys.empty();
 
-    const bool emit_meta_paren = meta_active_off || !refs.empty() || meta_doc || meta_kind || meta_inst;
+    const bool emit_meta_paren =
+        meta_active_off || !refs.empty() || meta_doc || meta_kind || meta_inst || meta_custom;
     os << pad << head.str();
     if (emit_meta_paren) {
       os << "\n" << pad << "(\n";
@@ -1437,6 +1702,23 @@ std::string SaveToString(const freeusd::sdf::Layer& layer) {
       }
       if (meta_inst) {
         os << pad << "    instanceable = " << value_to_usda(pv_inst) << "\n";
+      }
+      if (meta_custom) {
+        os << pad << "    customData = {\n";
+        for (const std::string& ck : custom_keys) {
+          freeusd::vt::Value cv;
+          if (!layer.GetPrimCustomDataEntry(p, ck, &cv)) {
+            continue;
+          }
+          os << pad << "        ";
+          if (bare_custom_dict_key_emit(ck)) {
+            os << ck;
+          } else {
+            os << escape_string(ck);
+          }
+          os << " = " << value_to_usda(cv) << ",\n";
+        }
+        os << pad << "    }\n";
       }
       os << pad << ")\n";
     } else {
@@ -1480,6 +1762,10 @@ std::string SaveToString(const freeusd::sdf::Layer& layer) {
       const freeusd::tf::Token rt{rn};
       const std::vector<freeusd::sdf::Path> rtg = layer.GetRelationshipTargets(p, rt);
       os << pad << "    rel " << rn << " = " << relationship_targets_to_usda(rtg) << "\n";
+    }
+
+    for (const auto& ce : layer.ListAttributeConnections(p)) {
+      os << pad << "    token " << ce.first << ".connect = " << path_to_usda_angle(ce.second) << "\n";
     }
 
     const auto it = children.find(p.GetString());

@@ -47,7 +47,7 @@ add_library(freeusd::io ALIAS freeusd_io)
 target_include_directories(freeusd_io PUBLIC "$<BUILD_INTERFACE:${FREEUSD_INC}>")
 target_link_libraries(freeusd_io PUBLIC freeusd_sdf freeusd_build_settings)
 
-add_library(freeusd_pcp STATIC pcp/layerStack.cpp pcp/compose.cpp)
+add_library(freeusd_pcp STATIC pcp/layerStack.cpp pcp/compose.cpp pcp/resolve.cpp)
 add_library(freeusd::pcp ALIAS freeusd_pcp)
 target_include_directories(freeusd_pcp PUBLIC "$<BUILD_INTERFACE:${FREEUSD_INC}>")
 target_link_libraries(freeusd_pcp PUBLIC freeusd_sdf freeusd_build_settings)

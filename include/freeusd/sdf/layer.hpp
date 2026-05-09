@@ -3,6 +3,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
@@ -57,6 +58,14 @@ class FREEUSD_API Layer : public std::enable_shared_from_this<Layer> {
   bool HasPrimKind(const Path& primPath) const;
   freeusd::tf::Token GetPrimKind(const Path& primPath) const;
 
+  /// Prim-scope `customData` dictionary (Usd-style metadata; string keys → \c Value payloads).
+  void ClearPrimCustomData(const Path& primPath);
+  void SetPrimCustomDataEntry(const Path& primPath, std::string key, const freeusd::vt::Value& value);
+  void ErasePrimCustomDataEntry(const Path& primPath, const std::string& key);
+  bool HasPrimCustomDataKey(const Path& primPath, const std::string& key) const;
+  bool GetPrimCustomDataEntry(const Path& primPath, const std::string& key, freeusd::vt::Value* out) const;
+  std::vector<std::string> ListPrimCustomDataKeys(const Path& primPath) const;
+
   /// Layer header: human-readable summary (USD `documentation` mapping).
   const std::string& GetDocumentation() const noexcept { return documentation_; }
   void SetDocumentation(std::string doc) { documentation_ = std::move(doc); }
@@ -88,10 +97,20 @@ class FREEUSD_API Layer : public std::enable_shared_from_this<Layer> {
   /// Relationship authored targets (UsdRelationship / SdfPathVector-shaped; strongest-first list order preserved).
   void SetRelationshipTargets(const Path& primPath, const freeusd::tf::Token& relName, std::vector<Path> targets);
   void PrependRelationshipTargets(const Path& primPath, const freeusd::tf::Token& relName, std::vector<Path> extraFront);
+  void AppendRelationshipTargets(const Path& primPath, const freeusd::tf::Token& relName, std::vector<Path> extraBack);
+  /// Remove every occurrence of each path in \p toRemove from the authored target list (no-op if the rel is missing).
+  void DeleteRelationshipTargets(const Path& primPath, const freeusd::tf::Token& relName, std::vector<Path> toRemove);
   void ClearRelationship(const Path& primPath, const freeusd::tf::Token& relName);
   bool HasRelationship(const Path& primPath, const freeusd::tf::Token& relName) const;
   std::vector<Path> GetRelationshipTargets(const Path& primPath, const freeusd::tf::Token& relName) const;
   std::vector<std::string> ListRelationshipNames(const Path& primPath) const;
+
+  /// Attribute connection (`name.connect`): \p targetProp must be a full property path (e.g. \c /Mesh.radius).
+  void SetAttributeConnection(const Path& primPath, const freeusd::tf::Token& name, Path targetProp);
+  void ClearAttributeConnection(const Path& primPath, const freeusd::tf::Token& name);
+  bool HasAttributeConnection(const Path& primPath, const freeusd::tf::Token& name) const;
+  bool GetAttributeConnectionTarget(const Path& primPath, const freeusd::tf::Token& name, Path* targetProp) const;
+  std::vector<std::pair<std::string, Path>> ListAttributeConnections(const Path& primPath) const;
 
   bool IsPrimActive(const Path& primPath) const noexcept;
   void SetPrimActive(const Path& primPath, bool active);
@@ -126,6 +145,10 @@ class FREEUSD_API Layer : public std::enable_shared_from_this<Layer> {
   std::unordered_map<Path, RelMap, Path::Hash> relationships_;
   std::unordered_map<Path, bool, Path::Hash> prim_active_;
   std::unordered_map<Path, PrimSpecifierKind, Path::Hash> prim_specifiers_;
+  std::unordered_map<Path, std::unordered_map<std::string, freeusd::vt::Value, freeusd::tf::HashString, std::equal_to<>>, Path::Hash>
+      prim_custom_data_;
+  std::unordered_map<Path, std::unordered_map<std::string, Path, freeusd::tf::HashString, std::equal_to<>>, Path::Hash>
+      attribute_connections_;
 };
 
 }  // namespace freeusd::sdf
