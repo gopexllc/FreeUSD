@@ -153,6 +153,14 @@ if(FREEUSD_BUILD_TESTS)
     target_link_libraries(freeusd_c_stage_variant PRIVATE freeusd::c)
     set_target_properties(freeusd_c_stage_variant PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX)
     add_test(NAME freeusd_c_stage_variant COMMAND freeusd_c_stage_variant)
+
+    add_executable(freeusd_c_stage_prim_specifier tests/c_stage_prim_specifier.c)
+    target_include_directories(freeusd_c_stage_prim_specifier PRIVATE "${PROJECT_SOURCE_DIR}/include")
+    target_link_libraries(freeusd_c_stage_prim_specifier PRIVATE freeusd::c)
+    set_target_properties(
+      freeusd_c_stage_prim_specifier
+      PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX)
+    add_test(NAME freeusd_c_stage_prim_specifier COMMAND freeusd_c_stage_prim_specifier)
   endif()
 endif()
 

@@ -1,5 +1,7 @@
 /**
  * @file freeusd.h
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
  * @brief Stable C ABI for FreeUSD (implemented in C++; no OpenUSD/Pixar code).
  *
  * Threading: unless documented otherwise, do not use the same @c FreeusdLayer /
@@ -345,6 +347,20 @@ FREEUSD_C_API int freeusd_stage_resolve_prim_active(const FreeusdStage* stage, c
 /** 1 if any composed layer authors @c active on the prim, 0 if not, negative @ref FreeusdResult on error. */
 FREEUSD_C_API int freeusd_stage_resolve_has_prim_active_opinion(const FreeusdStage* stage,
                                                                 const char* prim_path_utf8);
+
+/** Composed USDA prim @c def / @c class / @c over marker (strongest authored non-@c def opinion wins). */
+enum FreeusdPrimSpecifierKind {
+  FREEUSD_PRIM_SPECIFIER_DEFAULT = 0,
+  FREEUSD_PRIM_SPECIFIER_DEF = 1,
+  FREEUSD_PRIM_SPECIFIER_CLASS = 2,
+  FREEUSD_PRIM_SPECIFIER_OVER = 3,
+};
+
+/**
+ * Composed prim specifier kind for @p prim_path_utf8 (see @ref FreeusdPrimSpecifierKind).
+ * On success returns @c 0–@c 3. On error returns the negation of a @ref FreeusdResult code (e.g. @c -1 invalid argument).
+ */
+FREEUSD_C_API int freeusd_stage_resolve_prim_specifier_kind(const FreeusdStage* stage, const char* prim_path_utf8);
 
 /**
  * Composed prim schema kind (e.g. "Xform"). Returns malloc'd UTF-8 or NULL if none / error.

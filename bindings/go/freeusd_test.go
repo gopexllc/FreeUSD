@@ -273,3 +273,50 @@ def Xform "Root"
 		t.Fatalf("expected NOT_FOUND 3 for names got %d", rc)
 	}
 }
+
+func TestResolvePrimSpecifierKind(t *testing.T) {
+	const usda = `#usda 1.0
+(
+)
+class Xform "P"
+(
+)
+{
+}
+over Xform "O"
+(
+)
+{
+}
+def Xform "Q"
+(
+)
+{
+}
+`
+	l := NewAnonymousLayer("go_spec")
+	if l == nil {
+		t.Fatal("layer:", LastErrorMessage())
+	}
+	defer l.Free()
+	if rc := l.LoadUSDA(usda); rc != 0 {
+		t.Fatalf("LoadUSDA %d %s", rc, LastErrorMessage())
+	}
+	st := AttachRootLayer(l)
+	if st == nil {
+		t.Fatal("stage:", LastErrorMessage())
+	}
+	defer st.Free()
+	if st.ResolvePrimSpecifierKind("/P") != PrimSpecifierClass {
+		t.Fatal("/P")
+	}
+	if st.ResolvePrimSpecifierKind("/O") != PrimSpecifierOver {
+		t.Fatal("/O")
+	}
+	if st.ResolvePrimSpecifierKind("/Q") != PrimSpecifierDefault {
+		t.Fatal("/Q")
+	}
+	if st.ResolvePrimSpecifierKind("not_a_path") >= 0 {
+		t.Fatal("expected error for bad path")
+	}
+}

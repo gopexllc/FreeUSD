@@ -1,4 +1,5 @@
 #pragma once
+/* SPDX-License-Identifier: GPL-3.0-or-later */
 
 #if defined(_WIN32) || defined(__CYGWIN__)
 #  if defined(FREEUSD_SHARED)

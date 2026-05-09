@@ -1652,6 +1652,29 @@ int freeusd_stage_resolve_has_prim_active_opinion(const FreeusdStage* stage, con
   }
 }
 
+int freeusd_stage_resolve_prim_specifier_kind(const FreeusdStage* stage, const char* prim_path_utf8) {
+  if (!stage || !stage->inner || !prim_path_utf8) {
+    set_error("freeusd_stage_resolve_prim_specifier_kind: null argument");
+    return -FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty() || !p.IsPrimPath()) {
+      set_error("invalid prim path");
+      return -FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const int k = static_cast<int>(stage->inner->ResolvePrimSpecifierKind(p));
+    clear_error();
+    return k;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return -FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return -FREEUSD_ERR_INTERNAL;
+  }
+}
+
 char* freeusd_stage_resolve_prim_kind(const FreeusdStage* stage, const char* prim_path_utf8) {
   if (!stage || !stage->inner || !prim_path_utf8) {
     set_error("freeusd_stage_resolve_prim_kind: null argument");

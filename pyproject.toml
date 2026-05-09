@@ -5,7 +5,7 @@ build-backend = "scikit_build_core.build"
 [project]
 name = "freeusd"
 version = "0.1.0"
-description = "Independent OpenUSD-related formats and core data model"
+description = "GPL-3.0-or-later independent OpenUSD-related formats and core data model (clean-room)"
 readme = "README.md"
 requires-python = ">=3.9"
 license = "GPL-3.0-or-later"

@@ -31,6 +31,7 @@ extern "C" {
     fn freeusd_stage_open_from_root_file_utf8(path: *const c_char, sublayer_policy: c_int) -> *mut FreeusdStage;
     fn freeusd_stage_free(stage: *mut FreeusdStage);
     fn freeusd_stage_prim_is_valid(stage: *const FreeusdStage, prim_path: *const c_char) -> c_int;
+    fn freeusd_stage_resolve_prim_specifier_kind(stage: *const FreeusdStage, prim_path: *const c_char) -> c_int;
     fn freeusd_stage_relocate_source_in_any_layer(stage: *const FreeusdStage, from_prim: *const c_char) -> c_int;
     fn freeusd_stage_get_composed_relocate_target_utf8(
         stage: *const FreeusdStage,
@@ -113,6 +114,16 @@ extern "C" {
 
 /// C API `FREEUSD_ERR_NOT_FOUND` (e.g. unmapped relocate / prefix substitution / customLayerData string read).
 pub const ERR_NOT_FOUND: i32 = 3;
+
+/// Matches C `FreeusdPrimSpecifierKind` / `freeusd::sdf::Layer::PrimSpecifierKind` order.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PrimSpecifierKind {
+    Default = 0,
+    Def = 1,
+    Class = 2,
+    Over = 3,
+}
 
 /// Project version string (borrowed from C static storage).
 pub fn version_string() -> &'static str {
@@ -206,6 +217,24 @@ impl Stage {
             None
         } else {
             Some(Self { ptr: p })
+        }
+    }
+
+    /// Composed USDA `def` / `class` / `over` specifier for `prim_path`.
+    pub fn resolve_prim_specifier_kind(&self, prim_path: &str) -> Result<PrimSpecifierKind, i32> {
+        let pp = std::ffi::CString::new(prim_path).map_err(|_| 1)?;
+        let rc = unsafe {
+            freeusd_stage_resolve_prim_specifier_kind(self.ptr as *const FreeusdStage, pp.as_ptr())
+        };
+        if rc < 0 {
+            return Err(-rc);
+        }
+        match rc {
+            0 => Ok(PrimSpecifierKind::Default),
+            1 => Ok(PrimSpecifierKind::Def),
+            2 => Ok(PrimSpecifierKind::Class),
+            3 => Ok(PrimSpecifierKind::Over),
+            _ => Err(rc as i32),
         }
     }
 
@@ -773,5 +802,44 @@ def Xform "Root"
             stage.list_composed_prim_variant_names("/Root", "missing"),
             Err(ERR_NOT_FOUND)
         );
+    }
+
+    #[test]
+    fn resolve_prim_specifier_kind_smoke() {
+        const USDA: &str = r#"#usda 1.0
+(
+)
+class Xform "P"
+(
+)
+{
+}
+over Xform "O"
+(
+)
+{
+}
+def Xform "Q"
+(
+)
+{
+}
+"#;
+        let mut layer = Layer::new_anonymous(Some("rust_spec")).expect("layer");
+        assert_eq!(layer.load_usda(USDA), 0, "{}", last_error_message());
+        let stage = Stage::attach_root_layer(&layer).expect("stage");
+        assert_eq!(
+            stage.resolve_prim_specifier_kind("/P").unwrap(),
+            PrimSpecifierKind::Class
+        );
+        assert_eq!(
+            stage.resolve_prim_specifier_kind("/O").unwrap(),
+            PrimSpecifierKind::Over
+        );
+        assert_eq!(
+            stage.resolve_prim_specifier_kind("/Q").unwrap(),
+            PrimSpecifierKind::Default
+        );
+        assert!(stage.resolve_prim_specifier_kind("not_a_path").is_err());
     }
 }

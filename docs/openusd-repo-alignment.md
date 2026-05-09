@@ -1,6 +1,6 @@
 # Aligning FreeUSD with the OpenUSD repository (clean-room)
 
-This project tracks the **shape** of the [OpenUSD](https://github.com/PixarAnimationStudios/OpenUSD) monorepo—library boundaries, public concepts, and where extensions live—so contributors and integrators can navigate FreeUSD with familiar mental models. **No Pixar / AOUSD source is copied**; behavior is reimplemented or stubbed under the `freeusd::` namespace and `include/freeusd/` tree.
+This project tracks the **shape** of the [OpenUSD](https://github.com/PixarAnimationStudios/OpenUSD) monorepo—library boundaries, public concepts, and where extensions live—so contributors and integrators can navigate FreeUSD with familiar mental models. **No Pixar / AOUSD source is copied**; behavior is reimplemented or stubbed under the `freeusd::` namespace and `include/freeusd/` tree. The FreeUSD codebase is distributed under the **GNU GPL v3.0 or later** (see the repository `LICENSE`); that choice is independent of upstream OpenUSD’s license.
 
 ## Namespaces and headers
 

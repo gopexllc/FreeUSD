@@ -115,6 +115,24 @@ func (s *Stage) Free() {
 	s.ptr = nil
 }
 
+// PrimSpecifier* match C FreeusdPrimSpecifierKind (composed def/class/over).
+const (
+	PrimSpecifierDefault = 0
+	PrimSpecifierDef     = 1
+	PrimSpecifierClass   = 2
+	PrimSpecifierOver    = 3
+)
+
+// ResolvePrimSpecifierKind returns composed specifier kind, or negative C error code.
+func (s *Stage) ResolvePrimSpecifierKind(primPath string) int {
+	if s == nil || s.ptr == nil {
+		return -1
+	}
+	pp := C.CString(primPath)
+	defer C.free(unsafe.Pointer(pp))
+	return int(C.freeusd_stage_resolve_prim_specifier_kind(s.ptr, pp))
+}
+
 // PrimPathInUse reports whether a prim path exists in the composed stage (1=yes via C ABI).
 func (s *Stage) PrimPathInUse(primPath string) bool {
 	if s == nil || s.ptr == nil {
