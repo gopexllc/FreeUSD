@@ -29,7 +29,10 @@ int main(void) {
       "    )\n"
       "    {\n"
       "        double x = 3.0\n"
+      "        bool flag = true\n"
+      "        int n = 42\n"
       "        string label = \"hi\"\n"
+      "        rel link = </W>\n"
       "    }\n"
       "}\n";
 
@@ -99,6 +102,51 @@ int main(void) {
     freeusd_layer_free(layer);
     return 8;
   }
+
+  if (freeusd_stage_has_field_opinion(stage, "/W/C", "x") != 1 ||
+      freeusd_stage_has_field_opinion(stage, "/W/C", "nosuchattr") != 0) {
+    fprintf(stderr, "has_field_opinion mismatch\n");
+    freeusd_stage_free(stage);
+    freeusd_layer_free(layer);
+    return 58;
+  }
+
+  int bflag = 0;
+  if (freeusd_stage_read_field_bool(stage, "/W/C", "flag", 1.0, &bflag) != FREEUSD_OK || bflag != 1) {
+    fprintf(stderr, "read_field_bool: %s\n", freeusd_last_error_message());
+    freeusd_stage_free(stage);
+    freeusd_layer_free(layer);
+    return 59;
+  }
+
+  int64_t ni = 0;
+  if (freeusd_stage_read_field_int64(stage, "/W/C", "n", 1.0, &ni) != FREEUSD_OK || ni != 42) {
+    fprintf(stderr, "read_field_int64: %s\n", freeusd_last_error_message());
+    freeusd_stage_free(stage);
+    freeusd_layer_free(layer);
+    return 60;
+  }
+
+  if (freeusd_stage_has_relationship(stage, "/W/C", "link") != 1) {
+    fprintf(stderr, "has_relationship expected 1\n");
+    freeusd_stage_free(stage);
+    freeusd_layer_free(layer);
+    return 61;
+  }
+
+  char** rels = NULL;
+  size_t nrel = 0;
+  if (freeusd_stage_list_relationship_targets(stage, "/W/C", "link", &rels, &nrel) != FREEUSD_OK || nrel != 1 ||
+      strcmp(rels[0], "/W") != 0) {
+    fprintf(stderr, "list_relationship_targets\n");
+    if (rels) {
+      freeusd_path_list_free(rels, nrel);
+    }
+    freeusd_stage_free(stage);
+    freeusd_layer_free(layer);
+    return 62;
+  }
+  freeusd_path_list_free(rels, nrel);
 
   char* lab = NULL;
   if (freeusd_stage_read_field_string(stage, "/W/C", "label", 1.0, &lab) != FREEUSD_OK) {
@@ -184,8 +232,10 @@ int main(void) {
       "    def \"X\"\n"
       "    {\n"
       "        double v = 1.0\n"
+      "        rel r = </S1>\n"
       "    }\n"
-      "}\n";
+      "}\n"
+      "def \"S1\" {}\n";
   const char usda_w[] =
       "#usda 1.0\n"
       "(\n)\n"
@@ -194,8 +244,10 @@ int main(void) {
       "    def \"X\"\n"
       "    {\n"
       "        double v = 99.0\n"
+      "        rel r = </S2>\n"
       "    }\n"
-      "}\n";
+      "}\n"
+      "def \"S2\" {}\n";
   if (freeusd_layer_load_usda_from_string(strong, usda_s) != FREEUSD_OK ||
       freeusd_layer_load_usda_from_string(weak, usda_w) != FREEUSD_OK) {
     fprintf(stderr, "stack layer load: %s\n", freeusd_last_error_message());
@@ -245,6 +297,22 @@ int main(void) {
     freeusd_layer_free(layer);
     return 17;
   }
+
+  char** r2 = NULL;
+  size_t nr2 = 0;
+  if (freeusd_stage_list_relationship_targets(st2, "/R/X", "r", &r2, &nr2) != FREEUSD_OK || nr2 != 2 ||
+      strcmp(r2[0], "/S1") != 0 || strcmp(r2[1], "/S2") != 0) {
+    fprintf(stderr, "stack rel targets expected /S1 /S2\n");
+    if (r2) {
+      freeusd_path_list_free(r2, nr2);
+    }
+    freeusd_stage_free(st2);
+    freeusd_layer_free(strong);
+    freeusd_layer_free(weak);
+    freeusd_layer_free(layer);
+    return 18;
+  }
+  freeusd_path_list_free(r2, nr2);
 
   freeusd_stage_free(st2);
   freeusd_layer_free(strong);

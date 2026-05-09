@@ -449,6 +449,15 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
               return py::none();
             },
             py::arg("path"), py::arg("name"), py::arg("time") = 1.0)
+        .def("has_field_opinion", &freeusd::usd::Stage::HasFieldOpinion)
+        .def(
+            "read_relationship",
+            [](const freeusd::usd::Stage& st, const freeusd::sdf::Path& p, const freeusd::tf::Token& rel) {
+              std::vector<freeusd::sdf::Path> out;
+              (void)st.ReadRelationship(p, rel, &out);
+              return out;
+            })
+        .def("has_relationship", &freeusd::usd::Stage::HasRelationship)
         .def("resolve_prim_kind", &freeusd::usd::Stage::ResolvePrimKind)
         .def("resolve_has_prim_kind", &freeusd::usd::Stage::ResolveHasPrimKind)
         .def("resolve_prim_active", &freeusd::usd::Stage::ResolvePrimActive)

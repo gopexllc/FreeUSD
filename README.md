@@ -19,7 +19,7 @@ cmake --build build -j
 ctest --test-dir build --output-on-failure
 ```
 
-**C ABI** (optional; `-DFREEUSD_BUILD_C_ABI=ON` by default): link `freeusd_c` and include [`include/freeusd/c/freeusd.h`](include/freeusd/c/freeusd.h). Opaque `FreeusdLayer`, `FreeusdLayerStack`, `FreeusdStage`; USDA load/save; `freeusd_stage_attach_root_layer` / `freeusd_stage_attach_layer_stack`; compose layer count; child path listing; `freeusd_stage_read_field_double` / `_string`; composed `active`, `kind`, `customData` (string/token as UTF-8). Returned `char*` strings use `freeusd_string_free`; path arrays from `freeusd_stage_list_child_paths` use `freeusd_path_list_free`. Last error text is thread-local.
+**C ABI** (optional; `-DFREEUSD_BUILD_C_ABI=ON` by default): link `freeusd_c` and include [`include/freeusd/c/freeusd.h`](include/freeusd/c/freeusd.h). Opaque `FreeusdLayer`, `FreeusdLayerStack`, `FreeusdStage`; USDA load/save; `freeusd_stage_attach_root_layer` / `freeusd_stage_attach_layer_stack`; compose layer count; child path listing; relationship target listing (`freeusd_stage_list_relationship_targets` + `freeusd_stage_has_relationship`); `freeusd_stage_has_field_opinion`; `freeusd_stage_read_field_double` / `_bool` / `_int64` / `_string`; composed `active`, `kind`, `customData` (string/token as UTF-8). Returned `char*` strings use `freeusd_string_free`; path arrays from `freeusd_stage_list_child_paths` (and relationship listing) use `freeusd_path_list_free`. Last error text is thread-local.
 
 The native Python module is built as `_native*.so` under `build/`; use an editable install to import it as `freeusd`.
 

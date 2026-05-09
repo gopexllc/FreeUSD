@@ -44,6 +44,9 @@ class FREEUSD_API Stage : public std::enable_shared_from_this<Stage> {
   bool ReadRelationship(const freeusd::sdf::Path& prim_path, const freeusd::tf::Token& rel_name,
                         std::vector<freeusd::sdf::Path>* out_targets) const;
 
+  /// True if any composed layer authors \p rel_name on \p prim_path.
+  bool HasRelationship(const freeusd::sdf::Path& prim_path, const freeusd::tf::Token& rel_name) const;
+
   freeusd::tf::Token ResolvePrimKind(const freeusd::sdf::Path& prim_path) const;
   bool ResolveHasPrimKind(const freeusd::sdf::Path& prim_path) const;
 

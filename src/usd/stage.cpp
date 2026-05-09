@@ -137,6 +137,18 @@ bool Stage::ReadRelationship(const freeusd::sdf::Path& prim_path, const freeusd:
   return any;
 }
 
+bool Stage::HasRelationship(const freeusd::sdf::Path& prim_path, const freeusd::tf::Token& rel_name) const {
+  if (rel_name.IsEmpty()) {
+    return false;
+  }
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (L && L->HasRelationship(prim_path, rel_name)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 freeusd::tf::Token Stage::ResolvePrimKind(const freeusd::sdf::Path& prim_path) const {
   for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
     if (L && L->HasPrimKind(prim_path)) {

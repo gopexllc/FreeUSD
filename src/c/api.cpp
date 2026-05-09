@@ -1,11 +1,13 @@
 #include "freeusd/c/freeusd.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <exception>
 #include <memory>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "freeusd/io/usda.hpp"
@@ -33,6 +35,34 @@ char* dup_cstr(const std::string& s) {
   }
   std::memcpy(p, s.c_str(), s.size() + 1);
   return p;
+}
+
+bool value_to_int64(const freeusd::vt::Value& v, std::int64_t* out) {
+  if (!out) {
+    return false;
+  }
+  const auto& p = v.GetPayload();
+  if (const bool* b = std::get_if<bool>(&p)) {
+    *out = *b ? 1 : 0;
+    return true;
+  }
+  if (const std::int32_t* i32 = std::get_if<std::int32_t>(&p)) {
+    *out = *i32;
+    return true;
+  }
+  if (const std::int64_t* i64 = std::get_if<std::int64_t>(&p)) {
+    *out = *i64;
+    return true;
+  }
+  if (const float* f = std::get_if<float>(&p)) {
+    *out = static_cast<std::int64_t>(*f);
+    return true;
+  }
+  if (const double* d = std::get_if<double>(&p)) {
+    *out = static_cast<std::int64_t>(*d);
+    return true;
+  }
+  return false;
 }
 
 }  // namespace
@@ -298,6 +328,79 @@ void freeusd_path_list_free(char** paths, size_t count) {
   std::free(paths);
 }
 
+int freeusd_stage_list_relationship_targets(const FreeusdStage* stage, const char* prim_path_utf8,
+                                            const char* rel_name_utf8, char*** out_paths, size_t* out_count) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !rel_name_utf8 || !out_paths || !out_count) {
+    set_error("freeusd_stage_list_relationship_targets: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_paths = nullptr;
+  *out_count = 0;
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    std::vector<freeusd::sdf::Path> tgts;
+    (void)stage->inner->ReadRelationship(p, freeusd::tf::Token{rel_name_utf8}, &tgts);
+    if (tgts.empty()) {
+      clear_error();
+      return FREEUSD_OK;
+    }
+    char** arr = static_cast<char**>(std::malloc(tgts.size() * sizeof(char*)));
+    if (!arr) {
+      set_error("out of memory");
+      return FREEUSD_ERR_INTERNAL;
+    }
+    for (std::size_t i = 0; i < tgts.size(); ++i) {
+      arr[i] = dup_cstr(tgts[i].GetString());
+      if (!arr[i]) {
+        for (std::size_t j = 0; j < i; ++j) {
+          std::free(arr[j]);
+        }
+        std::free(arr);
+        set_error("out of memory");
+        return FREEUSD_ERR_INTERNAL;
+      }
+    }
+    *out_paths = arr;
+    *out_count = tgts.size();
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_has_relationship(const FreeusdStage* stage, const char* prim_path_utf8,
+                                   const char* rel_name_utf8) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !rel_name_utf8) {
+    set_error("freeusd_stage_has_relationship: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const int out = stage->inner->HasRelationship(p, freeusd::tf::Token{rel_name_utf8}) ? 1 : 0;
+    clear_error();
+    return out;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
 int freeusd_stage_prim_is_valid(const FreeusdStage* stage, const char* prim_path_utf8) {
   if (!stage || !stage->inner || !prim_path_utf8) {
     set_error("freeusd_stage_prim_is_valid: null argument");
@@ -344,6 +447,98 @@ int freeusd_stage_read_field_double(const FreeusdStage* stage, const char* prim_
       return FREEUSD_ERR_NOT_FOUND;
     }
     *out_value = d;
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_has_field_opinion(const FreeusdStage* stage, const char* prim_path_utf8,
+                                    const char* attr_name_utf8) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !attr_name_utf8) {
+    set_error("freeusd_stage_has_field_opinion: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const int out = stage->inner->HasFieldOpinion(p, freeusd::tf::Token{attr_name_utf8}) ? 1 : 0;
+    clear_error();
+    return out;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_read_field_bool(const FreeusdStage* stage, const char* prim_path_utf8,
+                                  const char* attr_name_utf8, double time, int* out_value) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !attr_name_utf8 || !out_value) {
+    set_error("freeusd_stage_read_field_bool: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    freeusd::vt::Value v;
+    if (!stage->inner->ReadFieldAtEvaluatedTime(p, freeusd::tf::Token{attr_name_utf8}, time, &v)) {
+      set_error("no value or could not evaluate attribute");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    bool b = false;
+    if (!v.GetBool(&b)) {
+      set_error("attribute is not bool");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    *out_value = b ? 1 : 0;
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_read_field_int64(const FreeusdStage* stage, const char* prim_path_utf8,
+                                   const char* attr_name_utf8, double time, int64_t* out_value) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !attr_name_utf8 || !out_value) {
+    set_error("freeusd_stage_read_field_int64: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    freeusd::vt::Value v;
+    if (!stage->inner->ReadFieldAtEvaluatedTime(p, freeusd::tf::Token{attr_name_utf8}, time, &v)) {
+      set_error("no value or could not evaluate attribute");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    std::int64_t n = 0;
+    if (!value_to_int64(v, &n)) {
+      set_error("attribute is not coercible to int64");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    *out_value = n;
     clear_error();
     return FREEUSD_OK;
   } catch (const std::exception& e) {

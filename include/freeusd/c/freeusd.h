@@ -14,6 +14,7 @@
 #define FREEUSD_C_FREEUSD_H
 
 #include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -101,6 +102,18 @@ FREEUSD_C_API int freeusd_stage_list_child_paths(const FreeusdStage* stage, cons
 
 FREEUSD_C_API void freeusd_path_list_free(char** paths, size_t count);
 
+/**
+ * Concatenated relationship targets (strongest layer first, then next layer’s targets, etc.).
+ * On @ref FREEUSD_OK, @p *out_paths / @p *out_count follow @ref freeusd_stage_list_child_paths ownership.
+ */
+FREEUSD_C_API int freeusd_stage_list_relationship_targets(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                          const char* rel_name_utf8, char*** out_paths,
+                                                          size_t* out_count);
+
+/** 1 if any composed layer authors @p rel_name_utf8 on @p prim_path_utf8, 0 if not, negative @ref FreeusdResult on error. */
+FREEUSD_C_API int freeusd_stage_has_relationship(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                 const char* rel_name_utf8);
+
 /** 1 if prim path exists on the composed stage, 0 if not, negative @ref FreeusdResult on error. */
 FREEUSD_C_API int freeusd_stage_prim_is_valid(const FreeusdStage* stage, const char* prim_path_utf8);
 
@@ -111,6 +124,23 @@ FREEUSD_C_API int freeusd_stage_prim_is_valid(const FreeusdStage* stage, const c
  */
 FREEUSD_C_API int freeusd_stage_read_field_double(const FreeusdStage* stage, const char* prim_path_utf8,
                                                   const char* attr_name_utf8, double time, double* out_value);
+
+/** 1 if any composed layer authors @p attr_name_utf8 on @p prim_path_utf8, 0 if not, negative @ref FreeusdResult on error. */
+FREEUSD_C_API int freeusd_stage_has_field_opinion(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                  const char* attr_name_utf8);
+
+/**
+ * Read evaluated attribute as bool at @p time (payload must be bool).
+ * @p out_value receives 0 or 1.
+ */
+FREEUSD_C_API int freeusd_stage_read_field_bool(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                const char* attr_name_utf8, double time, int* out_value);
+
+/**
+ * Read evaluated attribute as integer at @p time (bool coerces to 0/1; int32/int64/float/double truncated toward zero).
+ */
+FREEUSD_C_API int freeusd_stage_read_field_int64(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                 const char* attr_name_utf8, double time, int64_t* out_value);
 
 /**
  * Read evaluated attribute default/string at @p time (string payload only; fails if not a string).
