@@ -1,0 +1,294 @@
+#include "freeusd/sdf/layer.hpp"
+
+#include <algorithm>
+#include <cctype>
+#include <utility>
+
+namespace {
+std::string_view trim_sv(std::string_view sv) {
+  while (!sv.empty() && std::isspace(static_cast<unsigned char>(sv.front()))) {
+    sv.remove_prefix(1);
+  }
+  while (!sv.empty() && std::isspace(static_cast<unsigned char>(sv.back()))) {
+    sv.remove_suffix(1);
+  }
+  return sv;
+}
+}  // namespace
+
+namespace freeusd::sdf {
+
+Layer::Layer(std::string identifier) : identifier_(std::move(identifier)) {}
+
+std::shared_ptr<Layer> Layer::NewAnonymous(std::string identifier) {
+  return std::shared_ptr<Layer>(new Layer(std::move(identifier)));
+}
+
+void Layer::touch_hierarchy(const Path& primPath) {
+  for (Path p = primPath; !p.IsEmpty() && p.IsAbsolutePath(); p = p.GetParentPath()) {
+    hierarchy_.insert(p);
+    if (p.IsAbsoluteRootPath()) {
+      break;
+    }
+  }
+}
+
+FieldOpinion* Layer::find_opinion(const Path& primPath, const std::string& name) {
+  auto it = fields_.find(primPath);
+  if (it == fields_.end()) {
+    return nullptr;
+  }
+  auto jt = it->second.find(name);
+  if (jt == it->second.end()) {
+    return nullptr;
+  }
+  return &jt->second;
+}
+
+const FieldOpinion* Layer::find_opinion(const Path& primPath, const std::string& name) const {
+  auto it = fields_.find(primPath);
+  if (it == fields_.end()) {
+    return nullptr;
+  }
+  auto jt = it->second.find(name);
+  if (jt == it->second.end()) {
+    return nullptr;
+  }
+  return &jt->second;
+}
+
+void Layer::SetField(const Path& primPath, const freeusd::tf::Token& name, const freeusd::vt::Value& value) {
+  if (!primPath.IsPrimPath()) {
+    return;
+  }
+  if (name.IsEmpty()) {
+    return;
+  }
+  touch_hierarchy(primPath);
+  fields_[primPath][name.GetText()].SetDefault(value);
+}
+
+bool Layer::HasField(const Path& primPath, const freeusd::tf::Token& name) const {
+  if (name.IsEmpty()) {
+    return false;
+  }
+  const auto* op = find_opinion(primPath, name.GetText());
+  return op && op->HasAny();
+}
+
+std::vector<std::string> Layer::ListFieldNames(const Path& primPath) const {
+  std::vector<std::string> out;
+  const auto it = fields_.find(primPath);
+  if (it == fields_.end()) {
+    return out;
+  }
+  for (const auto& e : it->second) {
+    if (e.second.HasAny()) {
+      out.push_back(e.first);
+    }
+  }
+  std::sort(out.begin(), out.end());
+  return out;
+}
+
+bool Layer::GetField(const Path& primPath, const freeusd::tf::Token& name, freeusd::vt::Value* out) const {
+  if (!out || name.IsEmpty()) {
+    return false;
+  }
+  const auto* op = find_opinion(primPath, name.GetText());
+  if (!op || !op->default_value) {
+    return false;
+  }
+  *out = *op->default_value;
+  return true;
+}
+
+bool Layer::GetFieldAtTime(const Path& primPath, const freeusd::tf::Token& name, double time, freeusd::vt::Value* out) const {
+  if (!out || name.IsEmpty()) {
+    return false;
+  }
+  const auto* op = find_opinion(primPath, name.GetText());
+  if (!op) {
+    return false;
+  }
+  return op->EvaluateAt(time, out);
+}
+
+void Layer::SetTimeSample(const Path& primPath, const freeusd::tf::Token& name, double time, const freeusd::vt::Value& value) {
+  if (!primPath.IsPrimPath() || name.IsEmpty()) {
+    return;
+  }
+  touch_hierarchy(primPath);
+  fields_[primPath][name.GetText()].SetSample(time, value);
+}
+
+std::vector<double> Layer::ListSampleTimes(const Path& primPath, const freeusd::tf::Token& name) const {
+  const auto* op = find_opinion(primPath, name.GetText());
+  if (!op) {
+    return {};
+  }
+  return op->ListTimes();
+}
+
+bool Layer::GetTimeSample(const Path& primPath, const freeusd::tf::Token& name, double time, freeusd::vt::Value* out) const {
+  const auto* op = find_opinion(primPath, name.GetText());
+  if (!op) {
+    return false;
+  }
+  return op->GetExactSample(time, out);
+}
+
+void Layer::ClearTimeSamples(const Path& primPath, const freeusd::tf::Token& name) {
+  auto* op = find_opinion(primPath, name.GetText());
+  if (!op) {
+    return;
+  }
+  op->ClearSamples();
+  if (!op->HasAny()) {
+    auto it = fields_.find(primPath);
+    if (it != fields_.end()) {
+      it->second.erase(name.GetText());
+    }
+  }
+}
+
+std::vector<Path> Layer::ListPrimPaths() const {
+  std::vector<Path> out;
+  out.reserve(hierarchy_.size());
+  for (const auto& p : hierarchy_) {
+    out.push_back(p);
+  }
+  std::sort(out.begin(), out.end(), [](const Path& a, const Path& b) { return a.GetString() < b.GetString(); });
+  return out;
+}
+
+void Layer::Clear() noexcept {
+  fields_.clear();
+  hierarchy_.clear();
+  prim_kinds_.clear();
+  documentation_.clear();
+  default_prim_.reset();
+  sublayer_paths_.clear();
+  references_.clear();
+  prim_active_.clear();
+  prim_specifiers_.clear();
+}
+
+void Layer::SetDefaultPrim(std::string_view rootPrimName) {
+  const std::string_view t = trim_sv(rootPrimName);
+  if (t.empty()) {
+    default_prim_.reset();
+    return;
+  }
+  default_prim_ = std::string{t};
+}
+
+void Layer::SetSubLayers(std::vector<std::string> paths) {
+  sublayer_paths_.clear();
+  sublayer_paths_.reserve(paths.size());
+  for (auto& p : paths) {
+    std::string_view v = trim_sv(p);
+    if (!v.empty()) {
+      sublayer_paths_.emplace_back(v);
+    }
+  }
+}
+
+void Layer::AddReference(const Path& primPath, std::string assetPath) {
+  if (!primPath.IsPrimPath()) {
+    return;
+  }
+  touch_hierarchy(primPath);
+  const std::string_view v = trim_sv(assetPath);
+  if (v.empty()) {
+    return;
+  }
+  references_[primPath].emplace_back(v);
+}
+
+void Layer::SetReferences(const Path& primPath, std::vector<std::string> paths) {
+  references_.erase(primPath);
+  for (auto& p : paths) {
+    AddReference(primPath, std::move(p));
+  }
+}
+
+std::vector<std::string> Layer::ListReferences(const Path& primPath) const {
+  const auto it = references_.find(primPath);
+  if (it == references_.end()) {
+    return {};
+  }
+  return it->second;
+}
+
+void Layer::ClearReferences(const Path& primPath) { references_.erase(primPath); }
+
+bool Layer::IsPrimActive(const Path& primPath) const noexcept {
+  const auto it = prim_active_.find(primPath);
+  if (it == prim_active_.end()) {
+    return true;
+  }
+  return it->second;
+}
+
+void Layer::SetPrimActive(const Path& primPath, bool active) {
+  if (!primPath.IsPrimPath()) {
+    return;
+  }
+  touch_hierarchy(primPath);
+  if (active) {
+    prim_active_.erase(primPath);
+  } else {
+    prim_active_[primPath] = false;
+  }
+}
+
+bool Layer::HasPrimActiveOpinion(const Path& primPath) const noexcept {
+  return prim_active_.find(primPath) != prim_active_.end();
+}
+
+void Layer::SetPrimSpecifier(const Path& primPath, PrimSpecifierKind k) {
+  if (!primPath.IsPrimPath()) {
+    return;
+  }
+  touch_hierarchy(primPath);
+  if (k == PrimSpecifierKind::Default || k == PrimSpecifierKind::Def) {
+    prim_specifiers_.erase(primPath);
+    return;
+  }
+  prim_specifiers_[primPath] = k;
+}
+
+Layer::PrimSpecifierKind Layer::GetPrimSpecifier(const Path& primPath) const noexcept {
+  const auto it = prim_specifiers_.find(primPath);
+  if (it == prim_specifiers_.end()) {
+    return PrimSpecifierKind::Default;
+  }
+  return it->second;
+}
+
+void Layer::SetPrimKind(const Path& primPath, const freeusd::tf::Token& kind) {
+  if (!primPath.IsPrimPath()) {
+    return;
+  }
+  touch_hierarchy(primPath);
+  if (kind.IsEmpty()) {
+    prim_kinds_.erase(primPath);
+    return;
+  }
+  prim_kinds_[primPath] = kind;
+}
+
+bool Layer::HasPrimKind(const Path& primPath) const {
+  return prim_kinds_.find(primPath) != prim_kinds_.end();
+}
+
+freeusd::tf::Token Layer::GetPrimKind(const Path& primPath) const {
+  const auto it = prim_kinds_.find(primPath);
+  if (it == prim_kinds_.end()) {
+    return freeusd::tf::Token{};
+  }
+  return it->second;
+}
+
+}  // namespace freeusd::sdf

@@ -1,0 +1,17 @@
+.venv/
+/build/
+/dist/
+*.egg-info/
+.eggs/
+__pycache__/
+*.py[cod]
+*.so
+*.dylib
+*.dll
+*.pyd
+.cache/
+.pytest_cache/
+.coverage
+htmlcov/
+CMakeUserPresets.json
+compile_commands.json

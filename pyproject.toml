@@ -1,0 +1,26 @@
+[build-system]
+requires = ["scikit-build-core>=0.10.0", "pybind11"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "freeusd"
+version = "0.1.0"
+description = "Independent OpenUSD-related formats and core data model"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[tool.scikit-build]
+minimum-version = "0.10"
+build-dir = "build/{wheel_tag}"
+
+[tool.scikit-build.cmake]
+version = ">=3.20"
+args = ["-DFREEUSD_BUILD_PYTHON=ON", "-DFREEUSD_BUILD_TESTS=OFF"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/python"]
