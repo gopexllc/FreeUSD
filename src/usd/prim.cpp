@@ -158,6 +158,22 @@ bool Prim::HasInherits() const {
   return st->HasPrimInherits(path_);
 }
 
+std::vector<freeusd::sdf::Path> Prim::GetSpecializes() const {
+  const auto st = lock_stage();
+  if (!st) {
+    return {};
+  }
+  return st->ReadPrimSpecializes(path_);
+}
+
+bool Prim::HasSpecializes() const {
+  const auto st = lock_stage();
+  if (!st) {
+    return false;
+  }
+  return st->HasPrimSpecializes(path_);
+}
+
 std::vector<freeusd::sdf::PrimReference> Prim::GetPayloads() const {
   const auto st = lock_stage();
   if (!st) {

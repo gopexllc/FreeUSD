@@ -57,6 +57,8 @@ class FREEUSD_API Prim {
   bool HasReferences() const;
   std::vector<freeusd::sdf::Path> GetInherits() const;
   bool HasInherits() const;
+  std::vector<freeusd::sdf::Path> GetSpecializes() const;
+  bool HasSpecializes() const;
   std::vector<freeusd::sdf::PrimReference> GetPayloads() const;
   bool HasPayloads() const;
 

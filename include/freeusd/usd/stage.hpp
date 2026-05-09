@@ -57,11 +57,13 @@ class FREEUSD_API Stage : public std::enable_shared_from_this<Stage> {
   /// True if any composed layer authors \p rel_name on \p prim_path.
   bool HasRelationship(const freeusd::sdf::Path& prim_path, const freeusd::tf::Token& rel_name) const;
 
-  /// Concatenate \c references / \c inherits / \c payloads from each composed layer (stronger layers first).
+  /// Concatenate \c references / \c inherits / \c specializes / \c payloads from each composed layer (stronger first).
   std::vector<freeusd::sdf::PrimReference> ReadPrimReferences(const freeusd::sdf::Path& prim_path) const;
   bool HasPrimReferences(const freeusd::sdf::Path& prim_path) const;
   std::vector<freeusd::sdf::Path> ReadPrimInherits(const freeusd::sdf::Path& prim_path) const;
   bool HasPrimInherits(const freeusd::sdf::Path& prim_path) const;
+  std::vector<freeusd::sdf::Path> ReadPrimSpecializes(const freeusd::sdf::Path& prim_path) const;
+  bool HasPrimSpecializes(const freeusd::sdf::Path& prim_path) const;
   std::vector<freeusd::sdf::PrimReference> ReadPrimPayloads(const freeusd::sdf::Path& prim_path) const;
   bool HasPrimPayloads(const freeusd::sdf::Path& prim_path) const;
 

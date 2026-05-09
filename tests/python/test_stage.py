@@ -58,6 +58,8 @@ def test_prim_references_inherits_payloads_compose() -> None:
     weak.add_prim_reference(px, PrimReference("./b.usda"))
     strong.add_prim_inherit(px, Path.from_string("/BaseA"))
     weak.add_prim_inherit(px, Path.from_string("/BaseB"))
+    strong.add_prim_specializes(px, Path.from_string("/SpecA"))
+    weak.add_prim_specializes(px, Path.from_string("/SpecB"))
     strong.add_prim_payload(px, PrimReference("./p.usdc"))
 
     stack = LayerStack()
@@ -71,6 +73,9 @@ def test_prim_references_inherits_payloads_compose() -> None:
     assert prim.has_references() and len(prim.get_references()) == 2
     assert len(st.read_prim_inherits(px)) == 2
     assert prim.has_inherits()
+    assert len(st.read_prim_specializes(px)) == 2
+    assert st.read_prim_specializes(px)[0] == Path.from_string("/SpecA")
+    assert prim.has_specializes() and len(prim.get_specializes()) == 2
     assert len(st.read_prim_payloads(px)) == 1
     assert st.read_prim_payloads(px)[0].asset_path == "./p.usdc"
     assert prim.has_payloads()

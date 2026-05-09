@@ -203,6 +203,22 @@ bool Stage::HasPrimInherits(const freeusd::sdf::Path& prim_path) const {
   return !ReadPrimInherits(prim_path).empty();
 }
 
+std::vector<freeusd::sdf::Path> Stage::ReadPrimSpecializes(const freeusd::sdf::Path& prim_path) const {
+  std::vector<freeusd::sdf::Path> out;
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (!L) {
+      continue;
+    }
+    const std::vector<freeusd::sdf::Path> part = L->ListPrimSpecializes(prim_path);
+    out.insert(out.end(), part.begin(), part.end());
+  }
+  return out;
+}
+
+bool Stage::HasPrimSpecializes(const freeusd::sdf::Path& prim_path) const {
+  return !ReadPrimSpecializes(prim_path).empty();
+}
+
 std::vector<freeusd::sdf::PrimReference> Stage::ReadPrimPayloads(const freeusd::sdf::Path& prim_path) const {
   std::vector<freeusd::sdf::PrimReference> out;
   for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {

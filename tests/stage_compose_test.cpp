@@ -77,6 +77,15 @@ int main() {
     assert(inh[0] == Path::FromString("/BaseA"));
     assert(px_prim.GetInherits().size() == 2u);
 
+    strong->AddPrimSpecializes(px, Path::FromString("/SpecA"));
+    weaker->AddPrimSpecializes(px, Path::FromString("/SpecB"));
+    const auto sp = composed->ReadPrimSpecializes(px);
+    assert(sp.size() == 2u);
+    assert(sp[0] == Path::FromString("/SpecA"));
+    assert(px_prim.GetSpecializes().size() == 2u);
+    assert(composed->HasPrimSpecializes(px));
+    assert(px_prim.HasSpecializes());
+
     freeusd::sdf::PrimReference pl;
     pl.asset_path = "./p.usdc";
     strong->AddPrimPayload(px, pl);

@@ -167,6 +167,47 @@ FREEUSD_C_API int freeusd_stage_has_relationship(const FreeusdStage* stage, cons
                                                  const char* rel_name_utf8);
 
 /**
+ * Concatenated prim @c references (strongest layer first). Each string is canonical authored form
+ * (@c \@asset\@ optional @c \<\/PrimPath\> tail), matching @c PrimReference::FormatAuthoredForUsda.
+ * On @ref FREEUSD_OK, @p *out_strings / @p *out_count use @ref freeusd_path_list_free.
+ */
+FREEUSD_C_API int freeusd_stage_list_prim_references(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                     char*** out_strings, size_t* out_count);
+
+/** 1 if @ref freeusd_stage_list_prim_references would return a non-empty list, 0 if empty, negative @ref FreeusdResult on error. */
+FREEUSD_C_API int freeusd_stage_has_prim_references(const FreeusdStage* stage, const char* prim_path_utf8);
+
+/**
+ * Concatenated @c inherits targets (absolute prim paths as UTF-8, strongest layer first).
+ * On @ref FREEUSD_OK, @p *out_paths / @p *out_count use @ref freeusd_path_list_free.
+ */
+FREEUSD_C_API int freeusd_stage_list_prim_inherits(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                   char*** out_paths, size_t* out_count);
+
+/** 1 if @ref freeusd_stage_list_prim_inherits would return a non-empty list, 0 if empty, negative @ref FreeusdResult on error. */
+FREEUSD_C_API int freeusd_stage_has_prim_inherits(const FreeusdStage* stage, const char* prim_path_utf8);
+
+/**
+ * Concatenated @c specializes targets (absolute prim paths as UTF-8, strongest layer first).
+ * On @ref FREEUSD_OK, @p *out_paths / @p *out_count use @ref freeusd_path_list_free.
+ */
+FREEUSD_C_API int freeusd_stage_list_prim_specializes(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                      char*** out_paths, size_t* out_count);
+
+/** 1 if @ref freeusd_stage_list_prim_specializes would return a non-empty list, 0 if empty, negative @ref FreeusdResult on error. */
+FREEUSD_C_API int freeusd_stage_has_prim_specializes(const FreeusdStage* stage, const char* prim_path_utf8);
+
+/**
+ * Concatenated @c payload entries (strongest layer first; same string encoding as @ref freeusd_stage_list_prim_references).
+ * On @ref FREEUSD_OK, @p *out_strings / @p *out_count use @ref freeusd_path_list_free.
+ */
+FREEUSD_C_API int freeusd_stage_list_prim_payloads(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                   char*** out_strings, size_t* out_count);
+
+/** 1 if @ref freeusd_stage_list_prim_payloads would return a non-empty list, 0 if empty, negative @ref FreeusdResult on error. */
+FREEUSD_C_API int freeusd_stage_has_prim_payloads(const FreeusdStage* stage, const char* prim_path_utf8);
+
+/**
  * Sorted union of authored attribute field names on @p prim_path_utf8 across composed layers.
  * On @ref FREEUSD_OK, @p *out_names / @p *out_count use @ref freeusd_path_list_free.
  */

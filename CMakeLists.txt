@@ -107,6 +107,12 @@ if(FREEUSD_BUILD_TESTS)
       freeusd_c_usd_cross_language PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
     set_target_properties(freeusd_c_usd_cross_language PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX)
     add_test(NAME freeusd_c_usd_cross_language COMMAND freeusd_c_usd_cross_language)
+
+    add_executable(freeusd_c_stage_composition_arcs tests/c_stage_composition_arcs.c)
+    target_include_directories(freeusd_c_stage_composition_arcs PRIVATE "${PROJECT_SOURCE_DIR}/include")
+    target_link_libraries(freeusd_c_stage_composition_arcs PRIVATE freeusd::c)
+    set_target_properties(freeusd_c_stage_composition_arcs PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX)
+    add_test(NAME freeusd_c_stage_composition_arcs COMMAND freeusd_c_stage_composition_arcs)
   endif()
 endif()
 

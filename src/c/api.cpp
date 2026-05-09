@@ -15,6 +15,7 @@
 #include "freeusd/pcp/layerStack.hpp"
 #include "freeusd/sdf/layer.hpp"
 #include "freeusd/sdf/path.hpp"
+#include "freeusd/sdf/primReference.hpp"
 #include "freeusd/tf/token.hpp"
 #include "freeusd/usd/prim.hpp"
 #include "freeusd/usd/stage.hpp"
@@ -36,6 +37,35 @@ char* dup_cstr(const std::string& s) {
   }
   std::memcpy(p, s.c_str(), s.size() + 1);
   return p;
+}
+
+/** On @ref FREEUSD_OK, @p *out_arr / @p *out_count follow @ref freeusd_path_list_free ownership. */
+int malloc_string_list(const std::vector<std::string>& items, char*** out_arr, size_t* out_count) {
+  if (!out_arr || !out_count) {
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_arr = nullptr;
+  *out_count = 0;
+  if (items.empty()) {
+    return FREEUSD_OK;
+  }
+  char** arr = static_cast<char**>(std::malloc(items.size() * sizeof(char*)));
+  if (!arr) {
+    return FREEUSD_ERR_INTERNAL;
+  }
+  for (std::size_t i = 0; i < items.size(); ++i) {
+    arr[i] = dup_cstr(items[i]);
+    if (!arr[i]) {
+      for (std::size_t j = 0; j < i; ++j) {
+        std::free(arr[j]);
+      }
+      std::free(arr);
+      return FREEUSD_ERR_INTERNAL;
+    }
+  }
+  *out_arr = arr;
+  *out_count = items.size();
+  return FREEUSD_OK;
 }
 
 bool value_to_int64(const freeusd::vt::Value& v, std::int64_t* out) {
@@ -695,6 +725,234 @@ int freeusd_stage_has_relationship(const FreeusdStage* stage, const char* prim_p
       return FREEUSD_ERR_INVALID_ARGUMENT;
     }
     const int out = stage->inner->HasRelationship(p, freeusd::tf::Token{rel_name_utf8}) ? 1 : 0;
+    clear_error();
+    return out;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_list_prim_references(const FreeusdStage* stage, const char* prim_path_utf8, char*** out_strings,
+                                       size_t* out_count) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !out_strings || !out_count) {
+    set_error("freeusd_stage_list_prim_references: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_strings = nullptr;
+  *out_count = 0;
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    std::vector<std::string> items;
+    for (const freeusd::sdf::PrimReference& r : stage->inner->ReadPrimReferences(p)) {
+      items.push_back(r.FormatAuthoredForUsda());
+    }
+    const int rc = malloc_string_list(items, out_strings, out_count);
+    if (rc != FREEUSD_OK) {
+      set_error(rc == FREEUSD_ERR_INTERNAL ? "out of memory" : "invalid argument");
+      return rc;
+    }
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_has_prim_references(const FreeusdStage* stage, const char* prim_path_utf8) {
+  if (!stage || !stage->inner || !prim_path_utf8) {
+    set_error("freeusd_stage_has_prim_references: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const int out = stage->inner->HasPrimReferences(p) ? 1 : 0;
+    clear_error();
+    return out;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_list_prim_inherits(const FreeusdStage* stage, const char* prim_path_utf8, char*** out_paths,
+                                     size_t* out_count) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !out_paths || !out_count) {
+    set_error("freeusd_stage_list_prim_inherits: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_paths = nullptr;
+  *out_count = 0;
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    std::vector<std::string> items;
+    for (const freeusd::sdf::Path& ip : stage->inner->ReadPrimInherits(p)) {
+      items.push_back(ip.GetString());
+    }
+    const int rc = malloc_string_list(items, out_paths, out_count);
+    if (rc != FREEUSD_OK) {
+      set_error(rc == FREEUSD_ERR_INTERNAL ? "out of memory" : "invalid argument");
+      return rc;
+    }
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_has_prim_inherits(const FreeusdStage* stage, const char* prim_path_utf8) {
+  if (!stage || !stage->inner || !prim_path_utf8) {
+    set_error("freeusd_stage_has_prim_inherits: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const int out = stage->inner->HasPrimInherits(p) ? 1 : 0;
+    clear_error();
+    return out;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_list_prim_specializes(const FreeusdStage* stage, const char* prim_path_utf8, char*** out_paths,
+                                        size_t* out_count) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !out_paths || !out_count) {
+    set_error("freeusd_stage_list_prim_specializes: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_paths = nullptr;
+  *out_count = 0;
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    std::vector<std::string> items;
+    for (const freeusd::sdf::Path& sp : stage->inner->ReadPrimSpecializes(p)) {
+      items.push_back(sp.GetString());
+    }
+    const int rc = malloc_string_list(items, out_paths, out_count);
+    if (rc != FREEUSD_OK) {
+      set_error(rc == FREEUSD_ERR_INTERNAL ? "out of memory" : "invalid argument");
+      return rc;
+    }
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_has_prim_specializes(const FreeusdStage* stage, const char* prim_path_utf8) {
+  if (!stage || !stage->inner || !prim_path_utf8) {
+    set_error("freeusd_stage_has_prim_specializes: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const int out = stage->inner->HasPrimSpecializes(p) ? 1 : 0;
+    clear_error();
+    return out;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_list_prim_payloads(const FreeusdStage* stage, const char* prim_path_utf8, char*** out_strings,
+                                     size_t* out_count) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !out_strings || !out_count) {
+    set_error("freeusd_stage_list_prim_payloads: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_strings = nullptr;
+  *out_count = 0;
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    std::vector<std::string> items;
+    for (const freeusd::sdf::PrimReference& r : stage->inner->ReadPrimPayloads(p)) {
+      items.push_back(r.FormatAuthoredForUsda());
+    }
+    const int rc = malloc_string_list(items, out_strings, out_count);
+    if (rc != FREEUSD_OK) {
+      set_error(rc == FREEUSD_ERR_INTERNAL ? "out of memory" : "invalid argument");
+      return rc;
+    }
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_has_prim_payloads(const FreeusdStage* stage, const char* prim_path_utf8) {
+  if (!stage || !stage->inner || !prim_path_utf8) {
+    set_error("freeusd_stage_has_prim_payloads: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const int out = stage->inner->HasPrimPayloads(p) ? 1 : 0;
     clear_error();
     return out;
   } catch (const std::exception& e) {
