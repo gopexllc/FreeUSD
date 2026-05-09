@@ -139,6 +139,41 @@ FREEUSD_C_API void freeusd_stage_free(FreeusdStage* stage);
 FREEUSD_C_API char* freeusd_stage_get_pseudo_root_path_utf8(const FreeusdStage* stage);
 
 /**
+ * Composed strongest-first @c startTimeCode (first layer that authors it).
+ * On @ref FREEUSD_OK, @p *out_has is 1 and @p *out_value is set, or @p *out_has is 0 if unset.
+ */
+FREEUSD_C_API int freeusd_stage_get_start_time_code(const FreeusdStage* stage, double* out_value, int* out_has);
+
+/** Composed @c endTimeCode (see @ref freeusd_stage_get_start_time_code). */
+FREEUSD_C_API int freeusd_stage_get_end_time_code(const FreeusdStage* stage, double* out_value, int* out_has);
+
+/** Composed @c timeCodesPerSecond (see @ref freeusd_stage_get_start_time_code). */
+FREEUSD_C_API int freeusd_stage_get_time_codes_per_second(const FreeusdStage* stage, double* out_value, int* out_has);
+
+/** Composed @c framesPerSecond (see @ref freeusd_stage_get_start_time_code). */
+FREEUSD_C_API int freeusd_stage_get_frames_per_second(const FreeusdStage* stage, double* out_value, int* out_has);
+
+/** Composed @c framePrecision (see @ref freeusd_stage_get_start_time_code; @p out_value is int64 for C ABI width). */
+FREEUSD_C_API int freeusd_stage_get_frame_precision(const FreeusdStage* stage, int64_t* out_value, int* out_has);
+
+/** Composed @c metersPerUnit (see @ref freeusd_stage_get_start_time_code). */
+FREEUSD_C_API int freeusd_stage_get_meters_per_unit(const FreeusdStage* stage, double* out_value, int* out_has);
+
+/**
+ * Composed @c upAxis string (strongest layer that authors it).
+ * On @ref FREEUSD_OK, @p *out_axis_utf8 is malloc'd UTF-8; free with @ref freeusd_string_free.
+ * @ref FREEUSD_ERR_NOT_FOUND if unset.
+ */
+FREEUSD_C_API int freeusd_stage_get_up_axis_utf8(const FreeusdStage* stage, char** out_axis_utf8);
+
+/**
+ * Composed @c primOrder from the strongest layer that authors a non-empty list.
+ * On @ref FREEUSD_OK, @p *out_paths / @p *out_count use @ref freeusd_path_list_free (possibly empty).
+ */
+FREEUSD_C_API int freeusd_stage_list_prim_order_paths_utf8(const FreeusdStage* stage, char*** out_paths,
+                                                          size_t* out_count);
+
+/**
  * Sorted union of prim paths across all composed layers.
  * On @ref FREEUSD_OK, @p *out_paths / @p *out_count use @ref freeusd_path_list_free.
  */

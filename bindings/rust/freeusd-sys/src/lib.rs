@@ -101,6 +101,25 @@ extern "C" {
         out_strings: *mut *mut *mut c_char,
         out_count: *mut usize,
     ) -> c_int;
+    fn freeusd_stage_get_start_time_code(stage: *const FreeusdStage, out_value: *mut c_double, out_has: *mut c_int)
+        -> c_int;
+    fn freeusd_stage_get_end_time_code(stage: *const FreeusdStage, out_value: *mut c_double, out_has: *mut c_int) -> c_int;
+    fn freeusd_stage_get_time_codes_per_second(
+        stage: *const FreeusdStage,
+        out_value: *mut c_double,
+        out_has: *mut c_int,
+    ) -> c_int;
+    fn freeusd_stage_get_frames_per_second(stage: *const FreeusdStage, out_value: *mut c_double, out_has: *mut c_int)
+        -> c_int;
+    fn freeusd_stage_get_frame_precision(stage: *const FreeusdStage, out_value: *mut i64, out_has: *mut c_int) -> c_int;
+    fn freeusd_stage_get_meters_per_unit(stage: *const FreeusdStage, out_value: *mut c_double, out_has: *mut c_int)
+        -> c_int;
+    fn freeusd_stage_get_up_axis_utf8(stage: *const FreeusdStage, out_axis: *mut *mut c_char) -> c_int;
+    fn freeusd_stage_list_prim_order_paths_utf8(
+        stage: *const FreeusdStage,
+        out_paths: *mut *mut *mut c_char,
+        out_count: *mut usize,
+    ) -> c_int;
     fn freeusd_string_free(s: *mut c_char);
     fn freeusd_path_list_free(paths: *mut *mut c_char, count: usize);
     fn freeusd_stage_read_field_double(
@@ -218,6 +237,93 @@ impl Stage {
         } else {
             Some(Self { ptr: p })
         }
+    }
+
+    fn optional_layer_double(
+        &self,
+        f: unsafe extern "C" fn(*const FreeusdStage, *mut c_double, *mut c_int) -> c_int,
+    ) -> Result<Option<f64>, i32> {
+        let mut v: c_double = 0.0;
+        let mut has: c_int = 0;
+        let rc = unsafe { f(self.ptr as *const FreeusdStage, &mut v, &mut has) };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        Ok(if has != 0 { Some(v as f64) } else { None })
+    }
+
+    pub fn start_time_code(&self) -> Result<Option<f64>, i32> {
+        self.optional_layer_double(freeusd_stage_get_start_time_code)
+    }
+
+    pub fn end_time_code(&self) -> Result<Option<f64>, i32> {
+        self.optional_layer_double(freeusd_stage_get_end_time_code)
+    }
+
+    pub fn time_codes_per_second(&self) -> Result<Option<f64>, i32> {
+        self.optional_layer_double(freeusd_stage_get_time_codes_per_second)
+    }
+
+    pub fn frames_per_second(&self) -> Result<Option<f64>, i32> {
+        self.optional_layer_double(freeusd_stage_get_frames_per_second)
+    }
+
+    pub fn meters_per_unit(&self) -> Result<Option<f64>, i32> {
+        self.optional_layer_double(freeusd_stage_get_meters_per_unit)
+    }
+
+    pub fn frame_precision(&self) -> Result<Option<i64>, i32> {
+        let mut v: i64 = 0;
+        let mut has: c_int = 0;
+        let rc = unsafe {
+            freeusd_stage_get_frame_precision(self.ptr as *const FreeusdStage, &mut v, &mut has)
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        Ok(if has != 0 { Some(v) } else { None })
+    }
+
+    pub fn up_axis(&self) -> Result<Option<String>, i32> {
+        let mut out: *mut c_char = ptr::null_mut();
+        let rc = unsafe { freeusd_stage_get_up_axis_utf8(self.ptr as *const FreeusdStage, &mut out) };
+        if rc as i32 == ERR_NOT_FOUND {
+            return Ok(None);
+        }
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        if out.is_null() {
+            return Ok(None);
+        }
+        let s = unsafe { CStr::from_ptr(out).to_string_lossy().into_owned() };
+        unsafe { freeusd_string_free(out) };
+        Ok(Some(s))
+    }
+
+    pub fn prim_order_paths(&self) -> Result<Vec<String>, i32> {
+        let mut rows: *mut *mut c_char = ptr::null_mut();
+        let mut count: usize = 0;
+        let rc = unsafe {
+            freeusd_stage_list_prim_order_paths_utf8(self.ptr as *const FreeusdStage, &mut rows, &mut count)
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        if count == 0 || rows.is_null() {
+            return Ok(Vec::new());
+        }
+        let mut v = Vec::with_capacity(count);
+        for i in 0..count {
+            let p = unsafe { *rows.add(i) };
+            if p.is_null() {
+                continue;
+            }
+            let s = unsafe { CStr::from_ptr(p).to_string_lossy().into_owned() };
+            v.push(s);
+        }
+        unsafe { freeusd_path_list_free(rows, count) };
+        Ok(v)
     }
 
     /// Composed USDA `def` / `class` / `over` specifier for `prim_path`.
@@ -841,5 +947,41 @@ def Xform "Q"
             PrimSpecifierKind::Default
         );
         assert!(stage.resolve_prim_specifier_kind("not_a_path").is_err());
+    }
+
+    #[test]
+    fn layer_hints_smoke() {
+        const USDA: &str = r#"#usda 1.0
+(
+    startTimeCode = 0
+    endTimeCode = 100
+    timeCodesPerSecond = 30
+    framesPerSecond = 30
+    framePrecision = 2
+    metersPerUnit = 0.01
+    upAxis = "Z"
+    primOrder = [</Root/A>, </Root>]
+)
+def Xform "Root"
+{
+    def "A"
+    {
+    }
+}
+"#;
+        let mut layer = Layer::new_anonymous(Some("rust_hints")).expect("layer");
+        assert_eq!(layer.load_usda(USDA), 0, "{}", last_error_message());
+        let stage = Stage::attach_root_layer(&layer).expect("stage");
+        assert_eq!(stage.start_time_code().unwrap(), Some(0.0));
+        assert_eq!(stage.end_time_code().unwrap(), Some(100.0));
+        assert_eq!(stage.time_codes_per_second().unwrap(), Some(30.0));
+        assert_eq!(stage.frames_per_second().unwrap(), Some(30.0));
+        assert_eq!(stage.frame_precision().unwrap(), Some(2));
+        assert_eq!(stage.meters_per_unit().unwrap(), Some(0.01));
+        assert_eq!(stage.up_axis().unwrap(), Some("Z".to_string()));
+        assert_eq!(
+            stage.prim_order_paths().unwrap(),
+            vec!["/Root/A".to_string(), "/Root".to_string()]
+        );
     }
 }

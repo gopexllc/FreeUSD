@@ -6,6 +6,7 @@
 #include <cstring>
 #include <exception>
 #include <memory>
+#include <optional>
 #include <string>
 #include <variant>
 #include <vector>
@@ -531,6 +532,201 @@ char* freeusd_stage_get_pseudo_root_path_utf8(const FreeusdStage* stage) {
   } catch (...) {
     set_error("unknown exception");
     return nullptr;
+  }
+}
+
+int freeusd_stage_get_start_time_code(const FreeusdStage* stage, double* out_value, int* out_has) {
+  if (!stage || !stage->inner || !out_value || !out_has) {
+    set_error("freeusd_stage_get_start_time_code: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const std::optional<double> v = stage->inner->GetStartTimeCode();
+    *out_has = v.has_value() ? 1 : 0;
+    if (v.has_value()) {
+      *out_value = *v;
+    }
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_get_end_time_code(const FreeusdStage* stage, double* out_value, int* out_has) {
+  if (!stage || !stage->inner || !out_value || !out_has) {
+    set_error("freeusd_stage_get_end_time_code: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const std::optional<double> v = stage->inner->GetEndTimeCode();
+    *out_has = v.has_value() ? 1 : 0;
+    if (v.has_value()) {
+      *out_value = *v;
+    }
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_get_time_codes_per_second(const FreeusdStage* stage, double* out_value, int* out_has) {
+  if (!stage || !stage->inner || !out_value || !out_has) {
+    set_error("freeusd_stage_get_time_codes_per_second: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const std::optional<double> v = stage->inner->GetTimeCodesPerSecond();
+    *out_has = v.has_value() ? 1 : 0;
+    if (v.has_value()) {
+      *out_value = *v;
+    }
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_get_frames_per_second(const FreeusdStage* stage, double* out_value, int* out_has) {
+  if (!stage || !stage->inner || !out_value || !out_has) {
+    set_error("freeusd_stage_get_frames_per_second: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const std::optional<double> v = stage->inner->GetFramesPerSecond();
+    *out_has = v.has_value() ? 1 : 0;
+    if (v.has_value()) {
+      *out_value = *v;
+    }
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_get_frame_precision(const FreeusdStage* stage, std::int64_t* out_value, int* out_has) {
+  if (!stage || !stage->inner || !out_value || !out_has) {
+    set_error("freeusd_stage_get_frame_precision: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const std::optional<int> v = stage->inner->GetFramePrecision();
+    *out_has = v.has_value() ? 1 : 0;
+    if (v.has_value()) {
+      *out_value = static_cast<std::int64_t>(*v);
+    }
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_get_meters_per_unit(const FreeusdStage* stage, double* out_value, int* out_has) {
+  if (!stage || !stage->inner || !out_value || !out_has) {
+    set_error("freeusd_stage_get_meters_per_unit: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const std::optional<double> v = stage->inner->GetMetersPerUnit();
+    *out_has = v.has_value() ? 1 : 0;
+    if (v.has_value()) {
+      *out_value = *v;
+    }
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_get_up_axis_utf8(const FreeusdStage* stage, char** out_axis_utf8) {
+  if (!stage || !stage->inner || !out_axis_utf8) {
+    set_error("freeusd_stage_get_up_axis_utf8: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_axis_utf8 = nullptr;
+  try {
+    const std::optional<std::string> v = stage->inner->GetUpAxis();
+    if (!v.has_value()) {
+      set_error("no composed upAxis");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    char* dup = dup_cstr(*v);
+    if (!dup) {
+      set_error("out of memory");
+      return FREEUSD_ERR_INTERNAL;
+    }
+    *out_axis_utf8 = dup;
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_list_prim_order_paths_utf8(const FreeusdStage* stage, char*** out_paths, size_t* out_count) {
+  if (!stage || !stage->inner || !out_paths || !out_count) {
+    set_error("freeusd_stage_list_prim_order_paths_utf8: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_paths = nullptr;
+  *out_count = 0;
+  try {
+    const std::vector<freeusd::sdf::Path> paths = stage->inner->GetPrimOrder();
+    if (paths.empty()) {
+      clear_error();
+      return FREEUSD_OK;
+    }
+    std::vector<std::string> items;
+    items.reserve(paths.size());
+    for (const auto& p : paths) {
+      items.push_back(p.GetString());
+    }
+    const int rc = malloc_string_list(items, out_paths, out_count);
+    if (rc != FREEUSD_OK) {
+      set_error(rc == FREEUSD_ERR_INTERNAL ? "out of memory" : "invalid argument");
+      return rc;
+    }
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
   }
 }
 

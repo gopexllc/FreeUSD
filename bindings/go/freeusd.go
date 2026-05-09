@@ -133,6 +133,96 @@ func (s *Stage) ResolvePrimSpecifierKind(primPath string) int {
 	return int(C.freeusd_stage_resolve_prim_specifier_kind(s.ptr, pp))
 }
 
+func (s *Stage) layerDouble(get func(*C.FreeusdStage, *C.double, *C.int) C.int) (value float64, has bool, rc int) {
+	if s == nil || s.ptr == nil {
+		return 0, false, -1
+	}
+	var v C.double
+	var h C.int
+	rc = int(get(s.ptr, &v, &h))
+	if rc != 0 {
+		return 0, false, rc
+	}
+	return float64(v), h != 0, rc
+}
+
+// StartTimeCode returns (value, has, rc) from composed layer metadata (rc 0 on success).
+func (s *Stage) StartTimeCode() (float64, bool, int) {
+	return s.layerDouble(C.freeusd_stage_get_start_time_code)
+}
+
+// EndTimeCode returns (value, has, rc).
+func (s *Stage) EndTimeCode() (float64, bool, int) {
+	return s.layerDouble(C.freeusd_stage_get_end_time_code)
+}
+
+// TimeCodesPerSecond returns (value, has, rc).
+func (s *Stage) TimeCodesPerSecond() (float64, bool, int) {
+	return s.layerDouble(C.freeusd_stage_get_time_codes_per_second)
+}
+
+// FramesPerSecond returns (value, has, rc).
+func (s *Stage) FramesPerSecond() (float64, bool, int) {
+	return s.layerDouble(C.freeusd_stage_get_frames_per_second)
+}
+
+// MetersPerUnit returns (value, has, rc).
+func (s *Stage) MetersPerUnit() (float64, bool, int) {
+	return s.layerDouble(C.freeusd_stage_get_meters_per_unit)
+}
+
+// FramePrecision returns (value, has, rc); value is only valid when has is true.
+func (s *Stage) FramePrecision() (int64, bool, int) {
+	if s == nil || s.ptr == nil {
+		return 0, false, -1
+	}
+	var v C.int64_t
+	var h C.int
+	rc := int(C.freeusd_stage_get_frame_precision(s.ptr, &v, &h))
+	if rc != 0 {
+		return 0, false, rc
+	}
+	return int64(v), h != 0, rc
+}
+
+// UpAxis returns composed upAxis string and rc (0 ok; 3 = C NOT_FOUND if unset).
+func (s *Stage) UpAxis() (axis string, rc int) {
+	if s == nil || s.ptr == nil {
+		return "", -1
+	}
+	var out *C.char
+	rc = int(C.freeusd_stage_get_up_axis_utf8(s.ptr, &out))
+	if rc == 0 && out != nil {
+		axis = C.GoString(out)
+		C.freeusd_string_free(out)
+	}
+	return axis, rc
+}
+
+// PrimOrderPaths returns ordered prim paths from composed primOrder (rc 0 ok; empty slice if none).
+func (s *Stage) PrimOrderPaths() (paths []string, rc int) {
+	if s == nil || s.ptr == nil {
+		return nil, -1
+	}
+	var arr **C.char
+	var n C.size_t
+	rc = int(C.freeusd_stage_list_prim_order_paths_utf8(s.ptr, &arr, &n))
+	if rc != 0 {
+		return nil, rc
+	}
+	if n == 0 || arr == nil {
+		return []string{}, rc
+	}
+	defer C.freeusd_path_list_free(arr, n)
+	slice := unsafe.Slice(arr, int(n))
+	for _, p := range slice {
+		if p != nil {
+			paths = append(paths, C.GoString(p))
+		}
+	}
+	return paths, rc
+}
+
 // PrimPathInUse reports whether a prim path exists in the composed stage (1=yes via C ABI).
 func (s *Stage) PrimPathInUse(primPath string) bool {
 	if s == nil || s.ptr == nil {

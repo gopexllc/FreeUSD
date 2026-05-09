@@ -320,3 +320,69 @@ def Xform "Q"
 		t.Fatal("expected error for bad path")
 	}
 }
+
+func TestLayerHints(t *testing.T) {
+	const usda = `#usda 1.0
+(
+    startTimeCode = 0
+    endTimeCode = 100
+    timeCodesPerSecond = 30
+    framesPerSecond = 30
+    framePrecision = 2
+    metersPerUnit = 0.01
+    upAxis = "Z"
+    primOrder = [</Root/A>, </Root>]
+)
+def Xform "Root"
+{
+    def "A"
+    {
+    }
+}
+`
+	l := NewAnonymousLayer("go_hints")
+	if l == nil {
+		t.Fatal("layer:", LastErrorMessage())
+	}
+	defer l.Free()
+	if rc := l.LoadUSDA(usda); rc != 0 {
+		t.Fatalf("LoadUSDA %d %s", rc, LastErrorMessage())
+	}
+	st := AttachRootLayer(l)
+	if st == nil {
+		t.Fatal("stage:", LastErrorMessage())
+	}
+	defer st.Free()
+	v, has, rc := st.StartTimeCode()
+	if rc != 0 || !has || v != 0 {
+		t.Fatalf("start %v %v rc=%d", v, has, rc)
+	}
+	v, has, rc = st.EndTimeCode()
+	if rc != 0 || !has || v != 100 {
+		t.Fatalf("end %v", v)
+	}
+	v, has, rc = st.TimeCodesPerSecond()
+	if rc != 0 || !has || v != 30 {
+		t.Fatalf("tcps %v", v)
+	}
+	v, has, rc = st.FramesPerSecond()
+	if rc != 0 || !has || v != 30 {
+		t.Fatalf("fps %v", v)
+	}
+	iv, ihas, rc := st.FramePrecision()
+	if rc != 0 || !ihas || iv != 2 {
+		t.Fatalf("framePrecision %v", iv)
+	}
+	v, has, rc = st.MetersPerUnit()
+	if rc != 0 || !has || v != 0.01 {
+		t.Fatalf("mpu %v", v)
+	}
+	axis, rc := st.UpAxis()
+	if rc != 0 || axis != "Z" {
+		t.Fatalf("upAxis %q rc=%d", axis, rc)
+	}
+	paths, rc := st.PrimOrderPaths()
+	if rc != 0 || len(paths) != 2 || paths[0] != "/Root/A" || paths[1] != "/Root" {
+		t.Fatalf("primOrder %v rc=%d", paths, rc)
+	}
+}
