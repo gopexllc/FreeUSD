@@ -31,7 +31,7 @@ The embedded `#cgo` lines in `freeusd.go` cover **linux** (`-lstdc++`) and **dar
 
 ## Rust (`bindings/rust`)
 
-The `freeusd-sys` crate links the same static libraries as the C smoke test. From the repo root:
+The `freeusd-sys` crate links the same static libraries as the C smoke test. It exposes **`Stage::open_from_root_file`**, **`Stage::prim_path_in_use`**, **composed `relocates`**, **composed `prefixSubstitutions`**, **composed stage `customLayerData`** (string/token), and **composed prim `variantSelection` / `variantSets`** queries, plus layer attach / `read_field_double` smoke tests. From the repo root:
 
 ```bash
 cargo test --manifest-path bindings/rust/Cargo.toml
@@ -46,4 +46,4 @@ cargo test --manifest-path bindings/rust/Cargo.toml
 
 ## Adding more bindings
 
-New wrappers should target the **C ABI** only (no C++ ABI stability guarantees). Keep surface area small and mirror existing tests (version string + one USDA round-trip or attribute read) before exposing larger APIs.
+New wrappers should target the **C ABI** only (no C++ ABI stability guarantees). Keep surface area small and mirror existing tests (version string + one USDA round-trip or attribute read) before exposing larger APIs. The Go package also includes **`OpenStageFromRootFile`** / **`PrimPathInUse`**, relocate, **prefixSubstitution**, **`customLayerData`**, and **prim variant** helpers, plus the **`RelocatePairSep`** constant (U+001F pair encoding for both map kinds).

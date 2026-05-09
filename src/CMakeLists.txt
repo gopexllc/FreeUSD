@@ -55,7 +55,7 @@ target_link_libraries(freeusd_pcp PUBLIC freeusd_sdf freeusd_build_settings)
 add_library(freeusd_usd STATIC usd/stage.cpp usd/prim.cpp usd/crateFile.cpp)
 add_library(freeusd::usd ALIAS freeusd_usd)
 target_include_directories(freeusd_usd PUBLIC "$<BUILD_INTERFACE:${FREEUSD_INC}>")
-target_link_libraries(freeusd_usd PUBLIC freeusd_sdf freeusd_vt freeusd_pcp freeusd_ar freeusd_build_settings)
+target_link_libraries(freeusd_usd PUBLIC freeusd_sdf freeusd_vt freeusd_pcp freeusd_ar freeusd_io freeusd_build_settings)
 
 add_library(freeusd_usdUtils INTERFACE)
 add_library(freeusd::usdUtils ALIAS freeusd_usdUtils)

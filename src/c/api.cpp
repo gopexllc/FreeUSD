@@ -470,6 +470,42 @@ FreeusdStage* freeusd_stage_attach_root_layer(const FreeusdLayer* layer) {
   }
 }
 
+FreeusdStage* freeusd_stage_open_from_root_file_utf8(const char* layer_path_utf8, int sublayer_policy) {
+  clear_error();
+  if (!layer_path_utf8) {
+    set_error("freeusd_stage_open_from_root_file_utf8: null path");
+    return nullptr;
+  }
+  freeusd::usd::RootLayerSublayersPolicy pol = freeusd::usd::RootLayerSublayersPolicy::DepthFirst;
+  if (sublayer_policy == 0) {
+    pol = freeusd::usd::RootLayerSublayersPolicy::None;
+  } else if (sublayer_policy == 1) {
+    pol = freeusd::usd::RootLayerSublayersPolicy::Shallow;
+  } else if (sublayer_policy == 2) {
+    pol = freeusd::usd::RootLayerSublayersPolicy::DepthFirst;
+  } else {
+    set_error("invalid sublayer_policy (use 0=none, 1=shallow, 2=depth_first)");
+    return nullptr;
+  }
+  try {
+    std::string err;
+    std::shared_ptr<freeusd::usd::Stage> st =
+        freeusd::usd::Stage::OpenFromRootFile(std::string{layer_path_utf8}, pol, &err);
+    if (!st) {
+      set_error(err.empty() ? "OpenFromRootFile failed" : err);
+      return nullptr;
+    }
+    clear_error();
+    return new FreeusdStage{std::move(st)};
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return nullptr;
+  } catch (...) {
+    set_error("unknown exception");
+    return nullptr;
+  }
+}
+
 void freeusd_stage_free(FreeusdStage* stage) {
   clear_error();
   delete stage;
@@ -727,6 +763,180 @@ int freeusd_stage_has_relationship(const FreeusdStage* stage, const char* prim_p
     const int out = stage->inner->HasRelationship(p, freeusd::tf::Token{rel_name_utf8}) ? 1 : 0;
     clear_error();
     return out;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_relocate_source_in_any_layer(const FreeusdStage* stage, const char* from_prim_utf8) {
+  if (!stage || !stage->inner || !from_prim_utf8) {
+    set_error("freeusd_stage_relocate_source_in_any_layer: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(from_prim_utf8);
+    if (p.IsEmpty() || !p.IsPrimPath()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const int out = stage->inner->RelocateSourceInAnyLayer(p) ? 1 : 0;
+    clear_error();
+    return out;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_get_composed_relocate_target_utf8(const FreeusdStage* stage, const char* from_prim_utf8,
+                                                    char** out_target_utf8) {
+  if (!stage || !stage->inner || !from_prim_utf8 || !out_target_utf8) {
+    set_error("freeusd_stage_get_composed_relocate_target_utf8: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_target_utf8 = nullptr;
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(from_prim_utf8);
+    if (p.IsEmpty() || !p.IsPrimPath()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    freeusd::sdf::Path to;
+    if (!stage->inner->GetComposedRelocateTarget(p, &to)) {
+      set_error("no composed relocate for source");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    char* dup = dup_cstr(to.GetString());
+    if (!dup) {
+      set_error("out of memory");
+      return FREEUSD_ERR_INTERNAL;
+    }
+    *out_target_utf8 = dup;
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_list_composed_relocate_pairs_utf8(const FreeusdStage* stage, char*** out_strings, size_t* out_count) {
+  if (!stage || !stage->inner || !out_strings || !out_count) {
+    set_error("freeusd_stage_list_composed_relocate_pairs_utf8: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_strings = nullptr;
+  *out_count = 0;
+  try {
+    constexpr char kSep = '\x1f';
+    const std::vector<std::pair<freeusd::sdf::Path, freeusd::sdf::Path>> pairs = stage->inner->ListComposedRelocates();
+    std::vector<std::string> items;
+    items.reserve(pairs.size());
+    for (const auto& pr : pairs) {
+      items.push_back(pr.first.GetString() + kSep + pr.second.GetString());
+    }
+    const int rc = malloc_string_list(items, out_strings, out_count);
+    if (rc != FREEUSD_OK) {
+      set_error(rc == FREEUSD_ERR_INTERNAL ? "out of memory" : "invalid argument");
+      return rc;
+    }
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_prefix_substitution_key_in_any_layer(const FreeusdStage* stage, const char* from_prefix_utf8) {
+  if (!stage || !stage->inner || !from_prefix_utf8) {
+    set_error("freeusd_stage_prefix_substitution_key_in_any_layer: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const int out = stage->inner->PrefixSubstitutionKeyInAnyLayer(std::string{from_prefix_utf8}) ? 1 : 0;
+    clear_error();
+    return out;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_get_composed_prefix_substitution_utf8(const FreeusdStage* stage, const char* from_prefix_utf8,
+                                                        char** out_to_prefix_utf8) {
+  if (!stage || !stage->inner || !from_prefix_utf8 || !out_to_prefix_utf8) {
+    set_error("freeusd_stage_get_composed_prefix_substitution_utf8: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_to_prefix_utf8 = nullptr;
+  try {
+    const std::string from{from_prefix_utf8};
+    if (from.empty()) {
+      set_error("empty from_prefix");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    std::string to;
+    if (!stage->inner->GetComposedPrefixSubstitution(from, &to)) {
+      set_error("no composed prefix substitution for key");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    char* dup = dup_cstr(to);
+    if (!dup) {
+      set_error("out of memory");
+      return FREEUSD_ERR_INTERNAL;
+    }
+    *out_to_prefix_utf8 = dup;
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_list_composed_prefix_substitution_pairs_utf8(const FreeusdStage* stage, char*** out_strings,
+                                                               size_t* out_count) {
+  if (!stage || !stage->inner || !out_strings || !out_count) {
+    set_error("freeusd_stage_list_composed_prefix_substitution_pairs_utf8: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_strings = nullptr;
+  *out_count = 0;
+  try {
+    constexpr char kSep = '\x1f';
+    const std::vector<std::pair<std::string, std::string>> pairs = stage->inner->ListComposedPrefixSubstitutions();
+    std::vector<std::string> items;
+    items.reserve(pairs.size());
+    for (const auto& pr : pairs) {
+      items.push_back(pr.first + kSep + pr.second);
+    }
+    const int rc = malloc_string_list(items, out_strings, out_count);
+    if (rc != FREEUSD_OK) {
+      set_error(rc == FREEUSD_ERR_INTERNAL ? "out of memory" : "invalid argument");
+      return rc;
+    }
+    clear_error();
+    return FREEUSD_OK;
   } catch (const std::exception& e) {
     set_error(e.what());
     return FREEUSD_ERR_INTERNAL;
@@ -1612,6 +1822,289 @@ int freeusd_stage_list_composed_prim_custom_data_keys(const FreeusdStage* stage,
     }
     *out_keys = arr;
     *out_count = keys.size();
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_get_composed_custom_layer_data_utf8(const FreeusdStage* stage, const char* key_utf8, char** out_value) {
+  if (!stage || !stage->inner || !key_utf8 || !out_value) {
+    set_error("freeusd_stage_get_composed_custom_layer_data_utf8: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_value = nullptr;
+  if (key_utf8[0] == '\0') {
+    set_error("empty customLayerData key");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    freeusd::vt::Value v;
+    if (!stage->inner->GetComposedCustomLayerData(std::string{key_utf8}, &v)) {
+      set_error("no customLayerData key on composed stage");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    std::string s;
+    if (v.GetString(&s)) {
+      *out_value = dup_cstr(s);
+      if (!*out_value) {
+        set_error("out of memory");
+        return FREEUSD_ERR_INTERNAL;
+      }
+      clear_error();
+      return FREEUSD_OK;
+    }
+    freeusd::tf::Token tok;
+    if (v.GetToken(&tok)) {
+      s = tok.GetText();
+      *out_value = dup_cstr(s);
+      if (!*out_value) {
+        set_error("out of memory");
+        return FREEUSD_ERR_INTERNAL;
+      }
+      clear_error();
+      return FREEUSD_OK;
+    }
+    set_error("customLayerData value is not string or token (use C++ API for other types)");
+    return FREEUSD_ERR_NOT_FOUND;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_custom_layer_data_key_in_any_layer(const FreeusdStage* stage, const char* key_utf8) {
+  if (!stage || !stage->inner || !key_utf8) {
+    set_error("freeusd_stage_custom_layer_data_key_in_any_layer: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const int out = stage->inner->CustomLayerDataKeyInAnyLayer(std::string{key_utf8}) ? 1 : 0;
+    clear_error();
+    return out;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_list_composed_custom_layer_data_keys(const FreeusdStage* stage, char*** out_keys, size_t* out_count) {
+  if (!stage || !stage->inner || !out_keys || !out_count) {
+    set_error("freeusd_stage_list_composed_custom_layer_data_keys: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_keys = nullptr;
+  *out_count = 0;
+  try {
+    const std::vector<std::string> keys = stage->inner->ListComposedCustomLayerDataKeys();
+    const int rc = malloc_string_list(keys, out_keys, out_count);
+    if (rc != FREEUSD_OK) {
+      set_error(rc == FREEUSD_ERR_INTERNAL ? "out of memory" : "invalid argument");
+      return rc;
+    }
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_get_composed_prim_variant_selection_utf8(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                           const char* variant_set_utf8, char** out_selected_utf8) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !variant_set_utf8 || !out_selected_utf8) {
+    set_error("freeusd_stage_get_composed_prim_variant_selection_utf8: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_selected_utf8 = nullptr;
+  if (variant_set_utf8[0] == '\0') {
+    set_error("empty variant set name");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty() || !p.IsPrimPath()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    std::string name;
+    if (!stage->inner->GetComposedPrimVariantSelection(p, std::string{variant_set_utf8}, &name)) {
+      set_error("no composed variantSelection for set");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    char* dup = dup_cstr(name);
+    if (!dup) {
+      set_error("out of memory");
+      return FREEUSD_ERR_INTERNAL;
+    }
+    *out_selected_utf8 = dup;
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_prim_variant_selection_set_in_any_layer(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                          const char* variant_set_utf8) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !variant_set_utf8) {
+    set_error("freeusd_stage_prim_variant_selection_set_in_any_layer: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty() || !p.IsPrimPath()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const int out =
+        stage->inner->PrimVariantSelectionSetInAnyLayer(p, std::string{variant_set_utf8}) ? 1 : 0;
+    clear_error();
+    return out;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_list_composed_prim_variant_selection_sets_utf8(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                                  char*** out_strings, size_t* out_count) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !out_strings || !out_count) {
+    set_error("freeusd_stage_list_composed_prim_variant_selection_sets_utf8: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_strings = nullptr;
+  *out_count = 0;
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty() || !p.IsPrimPath()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const std::vector<std::string> items = stage->inner->ListComposedPrimVariantSelectionSets(p);
+    const int rc = malloc_string_list(items, out_strings, out_count);
+    if (rc != FREEUSD_OK) {
+      set_error(rc == FREEUSD_ERR_INTERNAL ? "out of memory" : "invalid argument");
+      return rc;
+    }
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_list_composed_prim_variant_set_names_utf8(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                            char*** out_strings, size_t* out_count) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !out_strings || !out_count) {
+    set_error("freeusd_stage_list_composed_prim_variant_set_names_utf8: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_strings = nullptr;
+  *out_count = 0;
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty() || !p.IsPrimPath()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const std::vector<std::string> items = stage->inner->ListComposedPrimVariantSetNames(p);
+    const int rc = malloc_string_list(items, out_strings, out_count);
+    if (rc != FREEUSD_OK) {
+      set_error(rc == FREEUSD_ERR_INTERNAL ? "out of memory" : "invalid argument");
+      return rc;
+    }
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_prim_variant_set_declared_in_any_layer(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                         const char* variant_set_name_utf8) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !variant_set_name_utf8) {
+    set_error("freeusd_stage_prim_variant_set_declared_in_any_layer: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty() || !p.IsPrimPath()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const int out =
+        stage->inner->PrimVariantSetDeclaredInAnyLayer(p, std::string{variant_set_name_utf8}) ? 1 : 0;
+    clear_error();
+    return out;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_list_composed_prim_variant_names_utf8(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                        const char* variant_set_name_utf8, char*** out_strings,
+                                                        size_t* out_count) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !variant_set_name_utf8 || !out_strings || !out_count) {
+    set_error("freeusd_stage_list_composed_prim_variant_names_utf8: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_strings = nullptr;
+  *out_count = 0;
+  if (variant_set_name_utf8[0] == '\0') {
+    set_error("empty variant set name");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty() || !p.IsPrimPath()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const std::vector<std::string> items =
+        stage->inner->GetComposedPrimVariantNames(p, std::string{variant_set_name_utf8});
+    if (items.empty()) {
+      set_error("variant set not declared on composed stage");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    const int rc = malloc_string_list(items, out_strings, out_count);
+    if (rc != FREEUSD_OK) {
+      set_error(rc == FREEUSD_ERR_INTERNAL ? "out of memory" : "invalid argument");
+      return rc;
+    }
     clear_error();
     return FREEUSD_OK;
   } catch (const std::exception& e) {

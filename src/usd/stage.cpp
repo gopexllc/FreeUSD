@@ -1,13 +1,18 @@
 #include "freeusd/usd/stage.hpp"
 
 #include <algorithm>
+#include <filesystem>
 #include <functional>
 #include <set>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 
+#include "freeusd/ar/defaultResolver.hpp"
+#include "freeusd/io/usda.hpp"
+#include "freeusd/pcp/compose.hpp"
 #include "freeusd/pcp/resolve.hpp"
+#include "freeusd/sdf/layer.hpp"
 #include "freeusd/sdf/path.hpp"
 #include "freeusd/tf/token.hpp"
 #include "freeusd/vt/value.hpp"
@@ -60,6 +65,81 @@ std::shared_ptr<Stage> Stage::AttachLayerStack(freeusd::pcp::LayerStack stack) {
     return {};
   }
   return std::shared_ptr<Stage>(new Stage(std::move(lys)));
+}
+
+std::shared_ptr<Stage> Stage::OpenFromRootFile(const std::string& layer_path, RootLayerSublayersPolicy sublayers,
+                                               std::string* err_detail) {
+  if (err_detail) {
+    err_detail->clear();
+  }
+  namespace fs = std::filesystem;
+  std::error_code ec;
+  const fs::path raw{layer_path};
+  if (!fs::exists(raw, ec) || ec) {
+    if (err_detail) {
+      *err_detail = "layer file not found: " + layer_path;
+    }
+    return {};
+  }
+  const fs::path lp = fs::weakly_canonical(raw, ec);
+  if (ec) {
+    if (err_detail) {
+      *err_detail = ec.message();
+    }
+    return {};
+  }
+  std::string anchor;
+  if (lp.has_parent_path()) {
+    anchor = lp.parent_path().string();
+  } else {
+    anchor = fs::current_path().string();
+  }
+
+  auto root = freeusd::sdf::Layer::NewAnonymous(lp.filename().string());
+  root->SetIdentifier(lp.string());
+  const auto pr = freeusd::io::usda::LoadFromFile(lp.string(), root);
+  if (!pr.ok) {
+    if (err_detail) {
+      *err_detail = "USDA parse error: " + pr.message + " (line " + std::to_string(pr.line) + ")";
+    }
+    return {};
+  }
+
+  if (sublayers == RootLayerSublayersPolicy::None) {
+    return AttachRootLayer(std::move(root));
+  }
+
+  freeusd::ar::DefaultResolver resolver(anchor);
+  auto resolve = [resolver](const std::string& authored) mutable -> std::shared_ptr<freeusd::sdf::Layer> {
+    const std::string abs = resolver.Resolve(std::string_view{authored});
+    if (abs.empty()) {
+      return {};
+    }
+    std::error_code e2;
+    const fs::path ap{abs};
+    if (!fs::exists(ap, e2) || e2) {
+      return {};
+    }
+    const fs::path canon = fs::weakly_canonical(ap, e2);
+    if (e2) {
+      return {};
+    }
+    auto L = freeusd::sdf::Layer::NewAnonymous(canon.filename().string());
+    L->SetIdentifier(canon.string());
+    const auto pr2 = freeusd::io::usda::LoadFromFile(canon.string(), L);
+    if (!pr2.ok) {
+      return {};
+    }
+    return L;
+  };
+
+  if (sublayers == RootLayerSublayersPolicy::Shallow) {
+    return AttachLayerStack(freeusd::pcp::ComposeSublayers(root, resolve));
+  }
+  if (sublayers == RootLayerSublayersPolicy::DepthFirst) {
+    return AttachLayerStack(freeusd::pcp::ComposeSublayersDepthFirst(root, resolve));
+  }
+  return AttachRootLayer(std::move(root));
 }
 
 bool Stage::ReadFieldAtEvaluatedTime(const freeusd::sdf::Path& prim_path, const freeusd::tf::Token& name, double time,

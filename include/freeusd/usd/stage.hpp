@@ -20,12 +20,32 @@ class Value;
 
 namespace freeusd::usd {
 
+/// How @c subLayers authored on a root layer file are expanded when opening a stage from disk.
+enum class RootLayerSublayersPolicy {
+  /// Load only the root file; ignore authored @c subLayers for stacking.
+  None,
+  /// Root (strongest) then each immediate @c subLayer entry (non-recursive).
+  Shallow,
+  /// Depth-first expansion of nested @c subLayers (see @ref freeusd::pcp::ComposeSublayersDepthFirst).
+  DepthFirst,
+};
+
 class FREEUSD_API Stage : public std::enable_shared_from_this<Stage> {
  public:
   static std::shared_ptr<Stage> AttachRootLayer(std::shared_ptr<freeusd::sdf::Layer> root);
 
   /// Strongest layer is \c compose_layers()[0]; remainder are weaker (e.g. sublayers).
   static std::shared_ptr<Stage> AttachLayerStack(freeusd::pcp::LayerStack stack);
+
+  /**
+   * Load a USDA root file from disk and build a stage, optionally stacking authored @c subLayers.
+   * Relative sublayer paths resolve against the root file's parent directory (Usd-style anchor).
+   * Missing or unparseable sublayers are skipped (same tolerance as @ref freeusd::pcp::ComposeSublayers).
+   * On failure returns null and optionally fills @p err_detail.
+   */
+  static std::shared_ptr<Stage> OpenFromRootFile(const std::string& layer_path,
+                                                 RootLayerSublayersPolicy sublayers = RootLayerSublayersPolicy::DepthFirst,
+                                                 std::string* err_detail = nullptr);
 
   const freeusd::sdf::Layer& GetRootLayer() const { return *compose_.front(); }
   std::shared_ptr<freeusd::sdf::Layer> GetRootLayerPtr() const {

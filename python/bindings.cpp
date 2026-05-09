@@ -932,9 +932,26 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def_readwrite("layer", &freeusd::usd::EditTarget::layer)
         .def("is_valid", &freeusd::usd::EditTarget::IsValid);
 
+    py::enum_<freeusd::usd::RootLayerSublayersPolicy>(usd, "RootLayerSublayersPolicy")
+        .value("none", freeusd::usd::RootLayerSublayersPolicy::None)
+        .value("shallow", freeusd::usd::RootLayerSublayersPolicy::Shallow)
+        .value("depth_first", freeusd::usd::RootLayerSublayersPolicy::DepthFirst);
+
     py::class_<freeusd::usd::Stage, std::shared_ptr<freeusd::usd::Stage>>(usd, "Stage")
         .def_static("attach_root_layer", &freeusd::usd::Stage::AttachRootLayer)
         .def_static("attach_layer_stack", &freeusd::usd::Stage::AttachLayerStack)
+        .def_static(
+            "open_from_root_file",
+            [](const std::string& path, freeusd::usd::RootLayerSublayersPolicy sublayers) {
+              std::string err;
+              auto st = freeusd::usd::Stage::OpenFromRootFile(path, sublayers, &err);
+              if (!st) {
+                throw py::value_error(err.empty() ? std::string{"open_from_root_file failed"} : err);
+              }
+              return st;
+            },
+            py::arg("path"),
+            py::arg("sublayers") = freeusd::usd::RootLayerSublayersPolicy::DepthFirst)
         .def("pseudo_root_path", &freeusd::usd::Stage::GetPseudoRootPath)
         .def(
             "compose_layers",
@@ -1151,6 +1168,7 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def("prim_order", [](const freeusd::usd::Stage& s) { return s.GetPrimOrder(); })
         .def("children", &freeusd::usd::Stage::GetChildren)
         .def("prim_at", &freeusd::usd::Stage::GetPrimAtPath)
+        .def("prim_path_in_use", &freeusd::usd::Stage::PrimPathInUse, py::arg("path"))
         .def(
             "traverse_preorder",
             [](const freeusd::usd::Stage& st, py::object visitor) {

@@ -117,6 +117,17 @@ FREEUSD_C_API int freeusd_stage_compose_layer_count(const FreeusdStage* stage, s
  */
 FREEUSD_C_API FreeusdStage* freeusd_stage_attach_layer_stack(const FreeusdLayerStack* stack);
 
+/**
+ * Open a USDA root file from disk and build a composed stage (optionally stacking authored @c subLayers).
+ *
+ * @p sublayer_policy: @c 0 = root file only (@c RootLayerSublayersPolicy::None), @c 1 = immediate @c subLayers only
+ * (@c Shallow), @c 2 = depth-first nested @c subLayers (@c DepthFirst, default in C++).
+ *
+ * On success the stage owns all loaded layers internally (not exposed as @c FreeusdLayer). On failure returns NULL;
+ * see @ref freeusd_last_error_message.
+ */
+FREEUSD_C_API FreeusdStage* freeusd_stage_open_from_root_file_utf8(const char* layer_path_utf8, int sublayer_policy);
+
 FREEUSD_C_API void freeusd_stage_free(FreeusdStage* stage);
 
 /**
@@ -165,6 +176,46 @@ FREEUSD_C_API int freeusd_stage_list_relationship_targets(const FreeusdStage* st
 /** 1 if any composed layer authors @p rel_name_utf8 on @p prim_path_utf8, 0 if not, negative @ref FreeusdResult on error. */
 FREEUSD_C_API int freeusd_stage_has_relationship(const FreeusdStage* stage, const char* prim_path_utf8,
                                                  const char* rel_name_utf8);
+
+/** 1 iff any composed layer authors a layer @c relocates entry with source @p from_prim_utf8, 0 if not, negative on error. */
+FREEUSD_C_API int freeusd_stage_relocate_source_in_any_layer(const FreeusdStage* stage, const char* from_prim_utf8);
+
+/**
+ * Composed relocate target for source @p from_prim_utf8 (strongest layer wins).
+ * On @ref FREEUSD_OK, @p *out_target_utf8 is malloc'd absolute prim path; free with @ref freeusd_string_free.
+ * @ref FREEUSD_ERR_NOT_FOUND if no relocate maps that source.
+ */
+FREEUSD_C_API int freeusd_stage_get_composed_relocate_target_utf8(const FreeusdStage* stage, const char* from_prim_utf8,
+                                                                   char** out_target_utf8);
+
+/**
+ * Sorted composed relocate pairs (see @ref freeusd::usd::Stage::ListComposedRelocates).
+ * Each string is @c "FROM" + U+001F + @c "TO" (UTF-8 prim paths). On @ref FREEUSD_OK, @p *out_strings / @p *out_count
+ * use @ref freeusd_path_list_free.
+ */
+FREEUSD_C_API int freeusd_stage_list_composed_relocate_pairs_utf8(const FreeusdStage* stage, char*** out_strings,
+                                                                  size_t* out_count);
+
+/** 1 iff any composed layer authors @c prefixSubstitutions for @p from_prefix_utf8, 0 if not, negative on error. */
+FREEUSD_C_API int freeusd_stage_prefix_substitution_key_in_any_layer(const FreeusdStage* stage,
+                                                                       const char* from_prefix_utf8);
+
+/**
+ * Composed @c prefixSubstitutions target for @p from_prefix_utf8 (strongest layer wins).
+ * On @ref FREEUSD_OK, @p *out_to_prefix_utf8 is malloc'd UTF-8; free with @ref freeusd_string_free.
+ * @ref FREEUSD_ERR_NOT_FOUND if unmapped; @ref FREEUSD_ERR_INVALID_ARGUMENT if @p from_prefix_utf8 is empty.
+ */
+FREEUSD_C_API int freeusd_stage_get_composed_prefix_substitution_utf8(const FreeusdStage* stage,
+                                                                      const char* from_prefix_utf8,
+                                                                      char** out_to_prefix_utf8);
+
+/**
+ * Sorted composed @c prefixSubstitutions pairs (see @ref freeusd::usd::Stage::ListComposedPrefixSubstitutions).
+ * Each string is @c "FROM" + U+001F + @c "TO" (UTF-8 path prefixes). On @ref FREEUSD_OK, @p *out_strings / @p *out_count
+ * use @ref freeusd_path_list_free.
+ */
+FREEUSD_C_API int freeusd_stage_list_composed_prefix_substitution_pairs_utf8(const FreeusdStage* stage,
+                                                                             char*** out_strings, size_t* out_count);
 
 /**
  * Concatenated prim @c references (strongest layer first). Each string is canonical authored form
@@ -323,6 +374,72 @@ FREEUSD_C_API int freeusd_stage_prim_custom_data_key_in_any_layer(const FreeusdS
 FREEUSD_C_API int freeusd_stage_list_composed_prim_custom_data_keys(const FreeusdStage* stage,
                                                                     const char* prim_path_utf8, char*** out_keys,
                                                                     size_t* out_count);
+
+/**
+ * Composed root @c customLayerData entry for @p key_utf8 (strongest layer wins).
+ * On @ref FREEUSD_OK, @p *out_value is malloc'd UTF-8 for string- or token-typed values only; free with @ref freeusd_string_free.
+ * @ref FREEUSD_ERR_NOT_FOUND if unset or value is not string/token (use C++ for other types).
+ * @ref FREEUSD_ERR_INVALID_ARGUMENT if @p key_utf8 is empty.
+ */
+FREEUSD_C_API int freeusd_stage_get_composed_custom_layer_data_utf8(const FreeusdStage* stage, const char* key_utf8,
+                                                                    char** out_value);
+
+/** 1 if any composed layer authors @p key_utf8 in @c customLayerData, 0 if not, negative @ref FreeusdResult on error. */
+FREEUSD_C_API int freeusd_stage_custom_layer_data_key_in_any_layer(const FreeusdStage* stage, const char* key_utf8);
+
+/**
+ * Sorted union of @c customLayerData keys across the composed layer stack.
+ * On @ref FREEUSD_OK, @p *out_keys / @p *out_count follow @ref freeusd_stage_list_child_paths ownership.
+ */
+FREEUSD_C_API int freeusd_stage_list_composed_custom_layer_data_keys(const FreeusdStage* stage, char*** out_keys,
+                                                                     size_t* out_count);
+
+/**
+ * Composed @c variantSelection name for @p variant_set_utf8 on @p prim_path_utf8 (strongest layer wins).
+ * On @ref FREEUSD_OK, @p *out_selected_utf8 is malloc'd UTF-8; free with @ref freeusd_string_free.
+ * @ref FREEUSD_ERR_NOT_FOUND if unset.
+ * @ref FREEUSD_ERR_INVALID_ARGUMENT if @p variant_set_utf8 is empty or @p prim_path_utf8 is not a valid prim path.
+ */
+FREEUSD_C_API int freeusd_stage_get_composed_prim_variant_selection_utf8(const FreeusdStage* stage,
+                                                                         const char* prim_path_utf8,
+                                                                         const char* variant_set_utf8,
+                                                                         char** out_selected_utf8);
+
+/** 1 if any composed layer authors @p variant_set_utf8 in @c variantSelection on @p prim_path_utf8, 0 if not. */
+FREEUSD_C_API int freeusd_stage_prim_variant_selection_set_in_any_layer(const FreeusdStage* stage,
+                                                                          const char* prim_path_utf8,
+                                                                          const char* variant_set_utf8);
+
+/**
+ * Sorted union of @c variantSelection set names on @p prim_path_utf8 across composed layers.
+ * On @ref FREEUSD_OK, @p *out_strings / @p *out_count use @ref freeusd_path_list_free.
+ */
+FREEUSD_C_API int freeusd_stage_list_composed_prim_variant_selection_sets_utf8(const FreeusdStage* stage,
+                                                                                const char* prim_path_utf8,
+                                                                                char*** out_strings, size_t* out_count);
+
+/**
+ * Sorted union of @c variantSets keys declared on @p prim_path_utf8 across composed layers.
+ * On @ref FREEUSD_OK, @p *out_strings / @p *out_count use @ref freeusd_path_list_free.
+ */
+FREEUSD_C_API int freeusd_stage_list_composed_prim_variant_set_names_utf8(const FreeusdStage* stage,
+                                                                            const char* prim_path_utf8,
+                                                                            char*** out_strings, size_t* out_count);
+
+/** 1 if any composed layer declares @p variant_set_name_utf8 in @c variantSets on @p prim_path_utf8, 0 if not. */
+FREEUSD_C_API int freeusd_stage_prim_variant_set_declared_in_any_layer(const FreeusdStage* stage,
+                                                                       const char* prim_path_utf8,
+                                                                       const char* variant_set_name_utf8);
+
+/**
+ * Variant names for @p variant_set_name_utf8 from the strongest composed layer that declares that set (authored order).
+ * On @ref FREEUSD_OK, @p *out_strings / @p *out_count use @ref freeusd_path_list_free.
+ * @ref FREEUSD_ERR_NOT_FOUND if the set is not declared on any composed layer (or @p variant_set_name_utf8 is empty).
+ */
+FREEUSD_C_API int freeusd_stage_list_composed_prim_variant_names_utf8(const FreeusdStage* stage,
+                                                                      const char* prim_path_utf8,
+                                                                      const char* variant_set_name_utf8,
+                                                                      char*** out_strings, size_t* out_count);
 
 #ifdef __cplusplus
 }

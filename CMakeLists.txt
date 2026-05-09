@@ -41,6 +41,9 @@ if(FREEUSD_BUILD_TESTS)
   add_executable(freeusd_stage_compose_test tests/stage_compose_test.cpp)
   target_link_libraries(freeusd_stage_compose_test PRIVATE freeusd::usd)
 
+  add_executable(freeusd_stage_open_file_test tests/stage_open_file_test.cpp)
+  target_link_libraries(freeusd_stage_open_file_test PRIVATE freeusd::usd)
+
   add_executable(freeusd_schema_tokens_bundle_test tests/schema_tokens_bundle_test.cpp)
   target_link_libraries(freeusd_schema_tokens_bundle_test PRIVATE freeusd::usd_schemas)
 
@@ -81,6 +84,7 @@ if(FREEUSD_BUILD_TESTS)
   add_test(NAME freeusd_usda_roundtrip_test COMMAND freeusd_usda_roundtrip_test)
   add_test(NAME freeusd_pcp_compose_test COMMAND freeusd_pcp_compose_test)
   add_test(NAME freeusd_stage_compose_test COMMAND freeusd_stage_compose_test)
+  add_test(NAME freeusd_stage_open_file_test COMMAND freeusd_stage_open_file_test)
   add_test(NAME freeusd_schema_tokens_bundle_test COMMAND freeusd_schema_tokens_bundle_test)
   add_test(NAME freeusd_time_code_test COMMAND freeusd_time_code_test)
   add_test(NAME freeusd_edit_target_test COMMAND freeusd_edit_target_test)
@@ -113,6 +117,42 @@ if(FREEUSD_BUILD_TESTS)
     target_link_libraries(freeusd_c_stage_composition_arcs PRIVATE freeusd::c)
     set_target_properties(freeusd_c_stage_composition_arcs PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX)
     add_test(NAME freeusd_c_stage_composition_arcs COMMAND freeusd_c_stage_composition_arcs)
+
+    add_executable(freeusd_c_stage_open_from_file tests/c_stage_open_from_file.c)
+    target_include_directories(freeusd_c_stage_open_from_file PRIVATE "${PROJECT_SOURCE_DIR}/include")
+    target_link_libraries(freeusd_c_stage_open_from_file PRIVATE freeusd::c)
+    target_compile_definitions(
+      freeusd_c_stage_open_from_file PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+    set_target_properties(freeusd_c_stage_open_from_file PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX)
+    add_test(NAME freeusd_c_stage_open_from_file COMMAND freeusd_c_stage_open_from_file)
+
+    add_executable(freeusd_c_stage_relocate tests/c_stage_relocate.c)
+    target_include_directories(freeusd_c_stage_relocate PRIVATE "${PROJECT_SOURCE_DIR}/include")
+    target_link_libraries(freeusd_c_stage_relocate PRIVATE freeusd::c)
+    set_target_properties(freeusd_c_stage_relocate PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX)
+    add_test(NAME freeusd_c_stage_relocate COMMAND freeusd_c_stage_relocate)
+
+    add_executable(freeusd_c_stage_prefix_substitution tests/c_stage_prefix_substitution.c)
+    target_include_directories(freeusd_c_stage_prefix_substitution PRIVATE "${PROJECT_SOURCE_DIR}/include")
+    target_link_libraries(freeusd_c_stage_prefix_substitution PRIVATE freeusd::c)
+    set_target_properties(
+      freeusd_c_stage_prefix_substitution
+      PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX)
+    add_test(NAME freeusd_c_stage_prefix_substitution COMMAND freeusd_c_stage_prefix_substitution)
+
+    add_executable(freeusd_c_stage_custom_layer_data tests/c_stage_custom_layer_data.c)
+    target_include_directories(freeusd_c_stage_custom_layer_data PRIVATE "${PROJECT_SOURCE_DIR}/include")
+    target_link_libraries(freeusd_c_stage_custom_layer_data PRIVATE freeusd::c)
+    set_target_properties(
+      freeusd_c_stage_custom_layer_data
+      PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX)
+    add_test(NAME freeusd_c_stage_custom_layer_data COMMAND freeusd_c_stage_custom_layer_data)
+
+    add_executable(freeusd_c_stage_variant tests/c_stage_variant.c)
+    target_include_directories(freeusd_c_stage_variant PRIVATE "${PROJECT_SOURCE_DIR}/include")
+    target_link_libraries(freeusd_c_stage_variant PRIVATE freeusd::c)
+    set_target_properties(freeusd_c_stage_variant PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX)
+    add_test(NAME freeusd_c_stage_variant COMMAND freeusd_c_stage_variant)
   endif()
 endif()
 

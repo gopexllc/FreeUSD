@@ -15,11 +15,14 @@ fn main() {
     let _include = repo_root.join("include");
     let lib_dir = repo_root.join("build/src");
 
-    if !lib_dir.join("libfreeusd_c.a").exists() {
+    let lib_c = lib_dir.join("libfreeusd_c.a");
+    if !lib_c.exists() {
         println!(
             "cargo:warning=freeusd static libs not found at {} — build the C++ project first (e.g. cmake -B build && cmake --build build)",
             lib_dir.display()
         );
+    } else {
+        println!("cargo:rerun-if-changed={}", lib_c.display());
     }
 
     println!(

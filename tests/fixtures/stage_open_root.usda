@@ -1,0 +1,9 @@
+#usda 1.0
+(
+    subLayers = [@./stage_open_sub.usda@]
+)
+def Xform "Root"
+(
+)
+{
+}
