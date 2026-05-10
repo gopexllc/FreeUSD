@@ -4,6 +4,8 @@
 #include <fstream>
 #include <vector>
 
+#include "freeusd/gf/matrix4d.hpp"
+#include "freeusd/gf/vec3d.hpp"
 #include "freeusd/plug/registry.hpp"
 #include "freeusd/sdf/layer.hpp"
 #include "freeusd/sdf/path.hpp"
@@ -237,7 +239,32 @@ int main() {
 
   const freeusd::usdGeom::Xformable xf(prim);
   assert(static_cast<bool>(xf));
-  assert(xf.ComputeLocalToWorldTransform() == freeusd::gf::Matrix4d::Identity());
+  assert(xf.ComputeLocalToWorldTransform(1.0) == freeusd::gf::Matrix4d::Identity());
+
+  {
+    freeusd::gf::Vec3d tw{};
+    tw.set(10.0, 0.0, 0.0);
+    freeusd::gf::Vec3d tc{};
+    tc.set(1.0, 2.0, 3.0);
+    layer->SetField(world, Token("xformOp:translate"), Value::MakeVec3d(tw));
+    layer->SetField(cube, Token("xformOp:translate"), Value::MakeVec3d(tc));
+    const freeusd::usdGeom::Xformable xf2(prim);
+    const freeusd::gf::Matrix4d mw = xf2.ComputeLocalToWorldTransform(1.0);
+    const freeusd::gf::Matrix4d expect =
+        freeusd::gf::Matrix4d::Multiply(freeusd::gf::Matrix4d::Translate(10.0, 0.0, 0.0),
+                                       freeusd::gf::Matrix4d::Translate(1.0, 2.0, 3.0));
+    assert(mw == expect);
+    layer->SetField(world, Token("xformOpOrder"), Value::MakeString("xformOp:translate,xformOp:scale"));
+    freeusd::gf::Vec3d sw{};
+    sw.set(2.0, 2.0, 2.0);
+    layer->SetField(world, Token("xformOp:scale"), Value::MakeVec3d(sw));
+    const freeusd::gf::Matrix4d mw2 = xf2.ComputeLocalToWorldTransform(1.0);
+    const freeusd::gf::Matrix4d s = freeusd::gf::Matrix4d::Scale(2.0, 2.0, 2.0);
+    const freeusd::gf::Matrix4d twm = freeusd::gf::Matrix4d::Translate(10.0, 0.0, 0.0);
+    const freeusd::gf::Matrix4d tcm = freeusd::gf::Matrix4d::Translate(1.0, 2.0, 3.0);
+    const freeusd::gf::Matrix4d expect2 = freeusd::gf::Matrix4d::Multiply(freeusd::gf::Matrix4d::Multiply(s, twm), tcm);
+    assert(mw2 == expect2);
+  }
 
   return 0;
 }

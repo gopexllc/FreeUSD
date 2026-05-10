@@ -34,6 +34,7 @@
 #include "freeusd/usd/timeCode.hpp"
 #include "freeusd/usdUtils/pipeline.hpp"
 #include "freeusd/usdGeom/tokens.hpp"
+#include "freeusd/usdGeom/xformable.hpp"
 #include "freeusd/usdHydra/tokens.hpp"
 #include "freeusd/usdLux/tokens.hpp"
 #include "freeusd/usdMedia/tokens.hpp"
@@ -109,6 +110,14 @@ PYBIND11_MODULE(_native, m) {
     py::class_<freeusd::gf::Matrix4d>(gf, "Matrix4d")
         .def(py::init<>())
         .def_static("Identity", &freeusd::gf::Matrix4d::Identity)
+        .def_static(
+            "Translate",
+            static_cast<freeusd::gf::Matrix4d (*)(double, double, double)>(&freeusd::gf::Matrix4d::Translate),
+            py::arg("tx"),
+            py::arg("ty"),
+            py::arg("tz"))
+        .def_static("Scale", &freeusd::gf::Matrix4d::Scale, py::arg("sx"), py::arg("sy"), py::arg("sz"))
+        .def_static("Multiply", &freeusd::gf::Matrix4d::Multiply, py::arg("a"), py::arg("b"))
         .def(
             "as_list",
             [](const freeusd::gf::Matrix4d& m) {
@@ -1310,6 +1319,14 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
     auto geom = m.def_submodule("usdGeom");
     auto geom_tokens = geom.def_submodule("tokens");
 #include "generated/usdGeom_tokens.inc"
+    py::class_<freeusd::usdGeom::Xformable>(geom, "Xformable")
+        .def(py::init<const freeusd::usd::Prim&>(), py::arg("prim"))
+        .def_readonly("prim", &freeusd::usdGeom::Xformable::prim)
+        .def("compute_local_transform", &freeusd::usdGeom::Xformable::ComputeLocalTransform, py::arg("time") = 1.0)
+        .def(
+            "compute_local_to_world_transform",
+            &freeusd::usdGeom::Xformable::ComputeLocalToWorldTransform,
+            py::arg("time") = 1.0);
   }
 
   {

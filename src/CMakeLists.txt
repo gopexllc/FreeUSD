@@ -23,9 +23,10 @@ add_library(freeusd::tf ALIAS freeusd_tf)
 target_include_directories(freeusd_tf PUBLIC "$<BUILD_INTERFACE:${FREEUSD_INC}>" "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
 target_link_libraries(freeusd_tf PUBLIC freeusd_build_settings)
 
-add_library(freeusd_gf INTERFACE)
+add_library(freeusd_gf STATIC gf/matrix4d.cpp)
 add_library(freeusd::gf ALIAS freeusd_gf)
-target_include_directories(freeusd_gf INTERFACE "$<BUILD_INTERFACE:${FREEUSD_INC}>" "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
+target_include_directories(freeusd_gf PUBLIC "$<BUILD_INTERFACE:${FREEUSD_INC}>" "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
+target_link_libraries(freeusd_gf PUBLIC freeusd_build_settings)
 
 add_library(freeusd_vt STATIC vt/value.cpp)
 add_library(freeusd::vt ALIAS freeusd_vt)
@@ -62,9 +63,10 @@ add_library(freeusd::usdUtils ALIAS freeusd_usdUtils)
 target_include_directories(freeusd_usdUtils INTERFACE "$<BUILD_INTERFACE:${FREEUSD_INC}>" "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
 target_link_libraries(freeusd_usdUtils INTERFACE freeusd_usd)
 
-add_library(freeusd_usdGeom INTERFACE)
+add_library(freeusd_usdGeom STATIC usdGeom/xformable.cpp)
 add_library(freeusd::usdGeom ALIAS freeusd_usdGeom)
-target_link_libraries(freeusd_usdGeom INTERFACE freeusd_usd)
+target_include_directories(freeusd_usdGeom PUBLIC "$<BUILD_INTERFACE:${FREEUSD_INC}>" "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
+target_link_libraries(freeusd_usdGeom PUBLIC freeusd_usd freeusd_gf freeusd_build_settings)
 
 # Header-only schema stubs (OpenUSD-shaped package names; clean-room tokens only).
 foreach(

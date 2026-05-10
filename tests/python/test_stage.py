@@ -159,6 +159,24 @@ def test_path_parse() -> None:
     assert p.prim_path().text() == "/World/Cube"
 
 
+def test_usd_geom_xformable_local_to_world() -> None:
+    from freeusd.gf import Matrix4d
+    from freeusd.usdGeom import Xformable
+
+    layer = Layer.new_anonymous("xf")
+    world = Path.from_string("/World")
+    cube = Path.from_string("/World/Cube")
+    layer.set_field(world, Token("xformOp:translate"), Value.make_vec3d(10.0, 0.0, 0.0))
+    layer.set_field(cube, Token("xformOp:translate"), Value.make_vec3d(1.0, 2.0, 3.0))
+    layer.set_default_prim("World")
+    stage = Stage.attach_root_layer(layer)
+    prim = stage.prim_at(cube)
+    xf = Xformable(prim)
+    mw = xf.compute_local_to_world_transform(1.0)
+    expect = Matrix4d.Multiply(Matrix4d.Translate(10.0, 0.0, 0.0), Matrix4d.Translate(1.0, 2.0, 3.0))
+    assert mw.as_list() == expect.as_list()
+
+
 def test_version_export() -> None:
     assert freeusd.version()
     assert freeusd.version_tuple()[0] >= 0

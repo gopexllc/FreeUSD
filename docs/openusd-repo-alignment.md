@@ -24,7 +24,7 @@ These map directly to the usual **base → Sdf → Pcp → Usd** dependency dire
 | `usd/pcp` | `include/freeusd/pcp/` | `freeusd::pcp` |
 | `usd/usd` | `include/freeusd/usd/` (`stage`, `prim`, **`kindTokens`**, **`tokens`** for composition list field names, **`schemaDataTokens.hpp`** generated from **`pxr/usd/usd/generatedSchema.usda`**, **`timeCode`**, **`editTarget`**, **`crateFile`** sniff + **bootstrap** + **TOC list** read — no full binary decode) | `freeusd::usd` |
 | `usd/usdUtils` | `include/freeusd/usdUtils/` (`pipeline` placeholder) | `freeusd::usdUtils` |
-| `usd/usdGeom` | `include/freeusd/usdGeom/` | `freeusd::usdGeom` |
+| `usd/usdGeom` | `include/freeusd/usdGeom/` (**`Xformable`** + generated **`tokens.hpp`**) | `freeusd::usdGeom` |
 | `usd/usd/crateFile` (binary crate) | `include/freeusd/usd/crateFile.hpp` | **`UsdcCrateIdentifier`**, **`DetectUsdFileKindFromPath`**, **`ReadUsdCrateBootstrapFromPath`**, **`ReadUsdCrateTocFromPath`** (TOC section list only; **no** token/path tables) |
 | `usd` I/O (ASCII in upstream split) | `include/freeusd/io/usda.hpp` | `freeusd::io` |
 

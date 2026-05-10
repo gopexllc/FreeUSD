@@ -5,8 +5,12 @@
 
 namespace freeusd::usdGeom {
 
-/// Minimal ``Xformable`` wrapper: holds a @c Prim; transforms are identity until schema attrs are modeled.
-struct Xformable {
+/// ``UsdGeomXformable``-shaped helper: reads a small subset of ``xformOp`` attributes and walks the prim chain.
+///
+/// Supported today: ``xformOp:translate`` and ``xformOp:scale`` as ``double3`` / ``vec3d`` values, applied in
+/// ``xformOpOrder`` when that attribute is a comma-separated list of op names; otherwise translate then scale if
+/// authored. Rotations and other ops are ignored (identity) until extended.
+struct FREEUSD_API Xformable {
   freeusd::usd::Prim prim;
 
   Xformable() = default;
@@ -15,8 +19,11 @@ struct Xformable {
   explicit operator bool() const noexcept { return prim.IsValid(); }
   const freeusd::usd::Prim& GetPrim() const noexcept { return prim; }
 
-  /// Always identity in this build (no ``xformOp`` stack evaluation).
-  freeusd::gf::Matrix4d ComputeLocalToWorldTransform() const { return freeusd::gf::Matrix4d::Identity(); }
+  /// Local transform from authored ``xformOp``\ s at \p time (defaults to ``1.0``).
+  freeusd::gf::Matrix4d ComputeLocalTransform(double time = 1.0) const;
+
+  /// Concatenation of ancestor locals from root toward \p prim (same \p time).
+  freeusd::gf::Matrix4d ComputeLocalToWorldTransform(double time = 1.0) const;
 };
 
 }  // namespace freeusd::usdGeom
