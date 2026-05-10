@@ -18,6 +18,7 @@
 #include "freeusd/sdf/path.hpp"
 #include "freeusd/sdf/primReference.hpp"
 #include "freeusd/tf/token.hpp"
+#include "freeusd/usd/crateFile.hpp"
 #include "freeusd/usd/prim.hpp"
 #include "freeusd/usd/stage.hpp"
 #include "freeusd/version.hpp"
@@ -116,6 +117,40 @@ extern "C" {
 const char* freeusd_version_string(void) {
   static const std::string s = freeusd::version_string();
   return s.c_str();
+}
+
+const char* freeusd_usdc_crate_identifier_utf8(void) {
+  static const std::string s = std::string{freeusd::usd::crate::UsdcCrateIdentifier()};
+  return s.c_str();
+}
+
+int freeusd_detect_usd_file_kind_from_path_utf8(const char* path_utf8, int* out_kind, char** out_detail_utf8) {
+  if (!path_utf8 || !out_kind) {
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  if (out_detail_utf8) {
+    *out_detail_utf8 = nullptr;
+  }
+  try {
+    clear_error();
+    std::string detail;
+    std::string* detail_ptr = out_detail_utf8 ? &detail : nullptr;
+    const auto k = freeusd::usd::crate::DetectUsdFileKindFromPath(std::string{path_utf8}, detail_ptr);
+    *out_kind = static_cast<int>(k);
+    if (out_detail_utf8 && !detail.empty()) {
+      *out_detail_utf8 = dup_cstr(detail);
+      if (!*out_detail_utf8) {
+        return FREEUSD_ERR_INTERNAL;
+      }
+    }
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown error");
+    return FREEUSD_ERR_INTERNAL;
+  }
 }
 
 const char* freeusd_last_error_message(void) { return g_last_error.c_str(); }

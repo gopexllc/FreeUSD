@@ -1,4 +1,4 @@
-"""UsdLux-shaped schema token stubs."""
+"""UsdLux-shaped schema tokens (full set from `_native`)."""
 
 from __future__ import annotations
 
@@ -6,8 +6,6 @@ from importlib import import_module
 
 _m = import_module("freeusd._native").usdLux.tokens
 
-DomeLight = _m.DomeLight
-SphereLight = _m.SphereLight
-DistantLight = _m.DistantLight
-
-__all__ = ["DomeLight", "SphereLight", "DistantLight"]
+__all__ = sorted(n for n in dir(_m) if not n.startswith("_") and callable(getattr(_m, n)))
+for _n in __all__:
+    globals()[_n] = getattr(_m, _n)

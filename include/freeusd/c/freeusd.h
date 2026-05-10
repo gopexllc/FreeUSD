@@ -43,6 +43,29 @@ typedef struct FreeusdStage FreeusdStage;
 /** Project version string (static storage; do not free). */
 FREEUSD_C_API const char* freeusd_version_string(void);
 
+/** USDC crate file magic / identifier prefix (``PXR-USDC``; static storage; do not free). */
+FREEUSD_C_API const char* freeusd_usdc_crate_identifier_utf8(void);
+
+/**
+ * Sniff-only classification of a file on disk (reads a prefix; no full ``.usdc`` decode).
+ * Values match @c freeusd::usd::crate::UsdFileKind.
+ */
+enum FreeusdUsdFileKind {
+  FREEUSD_USD_FILE_IO_OR_EMPTY = 0,
+  FREEUSD_USD_FILE_USDA_ASCII = 1,
+  FREEUSD_USD_FILE_USDC_CRATE = 2,
+  FREEUSD_USD_FILE_UNKNOWN = 3,
+};
+
+/**
+ * Reads the first bytes of @p path_utf8. On @ref FREEUSD_OK, @p *out_kind is set to @ref FreeusdUsdFileKind.
+ * When the kind is @ref FREEUSD_USD_FILE_IO_OR_EMPTY and diagnostics were recorded, @p *out_detail_utf8 may be a
+ * malloc'd UTF-8 string (free with @ref freeusd_string_free); otherwise @p *out_detail_utf8 is NULL.
+ * Pass @c NULL for @p out_detail_utf8 if details are not needed.
+ */
+FREEUSD_C_API int freeusd_detect_usd_file_kind_from_path_utf8(const char* path_utf8, int* out_kind,
+                                                               char** out_detail_utf8);
+
 /**
  * Last error message for the calling thread, valid until the next FreeUSD C API
  * call on this thread. Never null (empty string if no error was recorded).

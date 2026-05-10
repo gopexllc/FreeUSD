@@ -28,18 +28,24 @@
 #include "freeusd/usd/crateFile.hpp"
 #include "freeusd/usd/editTarget.hpp"
 #include "freeusd/usd/kindTokens.hpp"
+#include "freeusd/usd/schemaDataTokens.hpp"
 #include "freeusd/usd/tokens.hpp"
 #include "freeusd/usd/stage.hpp"
 #include "freeusd/usd/timeCode.hpp"
 #include "freeusd/usdUtils/pipeline.hpp"
 #include "freeusd/usdGeom/tokens.hpp"
+#include "freeusd/usdHydra/tokens.hpp"
 #include "freeusd/usdLux/tokens.hpp"
 #include "freeusd/usdMedia/tokens.hpp"
+#include "freeusd/usdMtlx/tokens.hpp"
 #include "freeusd/usdPhysics/tokens.hpp"
+#include "freeusd/usdProc/tokens.hpp"
 #include "freeusd/usdRender/tokens.hpp"
 #include "freeusd/usdRi/tokens.hpp"
+#include "freeusd/usdSemantics/tokens.hpp"
 #include "freeusd/usdShade/tokens.hpp"
 #include "freeusd/usdSkel/tokens.hpp"
+#include "freeusd/usdUI/tokens.hpp"
 #include "freeusd/usdVol/tokens.hpp"
 #include "freeusd/version.hpp"
 #include "freeusd/vt/value.hpp"
@@ -893,6 +899,11 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
       ut.def("Relocates", [] { return freeusd::usd::tokens::Relocates(); });
     }
 
+    {
+      auto usd_schema_data_tokens = usd.def_submodule("schema_data_tokens");
+#include "generated/usd_schema_data_tokens.inc"
+    }
+
     py::class_<freeusd::usd::TimeCode>(usd, "TimeCode")
         .def_static("Default", &freeusd::usd::TimeCode::Default)
         .def_static("EarliestTime", &freeusd::usd::TimeCode::EarliestTime)
@@ -911,6 +922,7 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
     {
       auto crate = usd.def_submodule("crate");
       crate.doc() = "Binary crate / container sniffing (no .usdc decode yet).";
+      crate.def("usdc_crate_identifier", [] { return std::string(freeusd::usd::crate::UsdcCrateIdentifier()); });
       py::enum_<freeusd::usd::crate::UsdFileKind>(crate, "UsdFileKind")
           .value("io_or_empty", freeusd::usd::crate::UsdFileKind::IoOrEmpty)
           .value("usda_ascii", freeusd::usd::crate::UsdFileKind::UsdaAscii)
@@ -1257,67 +1269,85 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
   {
     auto geom = m.def_submodule("usdGeom");
     auto geom_tokens = geom.def_submodule("tokens");
-    geom_tokens.def("Mesh", [] { return freeusd::usdGeom::tokens::Mesh(); });
-    geom_tokens.def("Xform", [] { return freeusd::usdGeom::tokens::Xform(); });
-    geom_tokens.def("Scope", [] { return freeusd::usdGeom::tokens::Scope(); });
+#include "generated/usdGeom_tokens.inc"
   }
 
   {
     auto usdShade = m.def_submodule("usdShade");
-    auto t = usdShade.def_submodule("tokens");
-    t.def("Material", [] { return freeusd::usdShade::tokens::Material(); });
-    t.def("Shader", [] { return freeusd::usdShade::tokens::Shader(); });
-    t.def("NodeGraph", [] { return freeusd::usdShade::tokens::NodeGraph(); });
+    auto shade_tokens = usdShade.def_submodule("tokens");
+#include "generated/usdShade_tokens.inc"
   }
 
   {
     auto usdLux = m.def_submodule("usdLux");
-    auto t = usdLux.def_submodule("tokens");
-    t.def("DomeLight", [] { return freeusd::usdLux::tokens::DomeLight(); });
-    t.def("SphereLight", [] { return freeusd::usdLux::tokens::SphereLight(); });
-    t.def("DistantLight", [] { return freeusd::usdLux::tokens::DistantLight(); });
+    auto lux_tokens = usdLux.def_submodule("tokens");
+#include "generated/usdLux_tokens.inc"
   }
 
   {
     auto usdPhysics = m.def_submodule("usdPhysics");
-    auto t = usdPhysics.def_submodule("tokens");
-    t.def("Scene", [] { return freeusd::usdPhysics::tokens::Scene(); });
-    t.def("RigidBodyAPI", [] { return freeusd::usdPhysics::tokens::RigidBodyAPI(); });
-    t.def("CollisionAPI", [] { return freeusd::usdPhysics::tokens::CollisionAPI(); });
+    auto physics_tokens = usdPhysics.def_submodule("tokens");
+#include "generated/usdPhysics_tokens.inc"
   }
 
   {
     auto usdVol = m.def_submodule("usdVol");
-    auto t = usdVol.def_submodule("tokens");
-    t.def("OpenVDBAsset", [] { return freeusd::usdVol::tokens::OpenVDBAsset(); });
-    t.def("Field3DAsset", [] { return freeusd::usdVol::tokens::Field3DAsset(); });
+    auto vol_tokens = usdVol.def_submodule("tokens");
+#include "generated/usdVol_tokens.inc"
   }
 
   {
     auto usdSkel = m.def_submodule("usdSkel");
-    auto t = usdSkel.def_submodule("tokens");
-    t.def("Skeleton", [] { return freeusd::usdSkel::tokens::Skeleton(); });
-    t.def("SkelRoot", [] { return freeusd::usdSkel::tokens::SkelRoot(); });
-    t.def("SkelAnimation", [] { return freeusd::usdSkel::tokens::SkelAnimation(); });
+    auto skel_tokens = usdSkel.def_submodule("tokens");
+#include "generated/usdSkel_tokens.inc"
   }
 
   {
     auto usdMedia = m.def_submodule("usdMedia");
-    auto t = usdMedia.def_submodule("tokens");
-    t.def("SpatialAudio", [] { return freeusd::usdMedia::tokens::SpatialAudio(); });
+    auto media_tokens = usdMedia.def_submodule("tokens");
+#include "generated/usdMedia_tokens.inc"
   }
 
   {
     auto usdRender = m.def_submodule("usdRender");
-    auto t = usdRender.def_submodule("tokens");
-    t.def("Settings", [] { return freeusd::usdRender::tokens::Settings(); });
-    t.def("RenderProduct", [] { return freeusd::usdRender::tokens::RenderProduct(); });
+    auto render_tokens = usdRender.def_submodule("tokens");
+#include "generated/usdRender_tokens.inc"
   }
 
   {
     auto usdRi = m.def_submodule("usdRi");
-    auto t = usdRi.def_submodule("tokens");
-    t.def("RisObject", [] { return freeusd::usdRi::tokens::RisObject(); });
+    auto ri_tokens = usdRi.def_submodule("tokens");
+#include "generated/usdRi_tokens.inc"
+  }
+
+  {
+    auto usdHydra = m.def_submodule("usdHydra");
+    auto hydra_tokens = usdHydra.def_submodule("tokens");
+#include "generated/usdHydra_tokens.inc"
+  }
+
+  {
+    auto usdMtlx = m.def_submodule("usdMtlx");
+    auto mtlx_tokens = usdMtlx.def_submodule("tokens");
+#include "generated/usdMtlx_tokens.inc"
+  }
+
+  {
+    auto usdProc = m.def_submodule("usdProc");
+    auto proc_tokens = usdProc.def_submodule("tokens");
+#include "generated/usdProc_tokens.inc"
+  }
+
+  {
+    auto usdSemantics = m.def_submodule("usdSemantics");
+    auto semantics_tokens = usdSemantics.def_submodule("tokens");
+#include "generated/usdSemantics_tokens.inc"
+  }
+
+  {
+    auto usdUI = m.def_submodule("usdUI");
+    auto ui_tokens = usdUI.def_submodule("tokens");
+#include "generated/usdUI_tokens.inc"
   }
 
   {

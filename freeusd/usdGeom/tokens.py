@@ -1,4 +1,4 @@
-"""UsdGeom-shaped schema token stubs (mirrors C++ `freeusd::usdGeom::tokens`)."""
+"""UsdGeom-shaped schema tokens (mirrors C++ `freeusd::usdGeom::tokens`; full set from `_native`)."""
 
 from __future__ import annotations
 
@@ -6,8 +6,6 @@ from importlib import import_module
 
 _m = import_module("freeusd._native").usdGeom.tokens
 
-Mesh = _m.Mesh
-Xform = _m.Xform
-Scope = _m.Scope
-
-__all__ = ["Mesh", "Xform", "Scope"]
+__all__ = sorted(n for n in dir(_m) if not n.startswith("_") and callable(getattr(_m, n)))
+for _n in __all__:
+    globals()[_n] = getattr(_m, _n)

@@ -103,6 +103,8 @@ if(FREEUSD_BUILD_TESTS)
     add_executable(freeusd_c_smoke_test tests/c_abi_smoke.c)
     target_include_directories(freeusd_c_smoke_test PRIVATE "${PROJECT_SOURCE_DIR}/include")
     target_link_libraries(freeusd_c_smoke_test PRIVATE freeusd::c)
+    target_compile_definitions(
+      freeusd_c_smoke_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
     set_target_properties(freeusd_c_smoke_test PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX)
     add_test(NAME freeusd_c_smoke_test COMMAND freeusd_c_smoke_test)
 
@@ -196,6 +198,7 @@ if(FREEUSD_BUILD_PYTHON)
   find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
 
   pybind11_add_module(_native MODULE python/bindings.cpp)
+  target_include_directories(_native PRIVATE "${CMAKE_SOURCE_DIR}/python")
   target_link_libraries(_native PRIVATE freeusd::runtime)
   set_target_properties(_native PROPERTIES OUTPUT_NAME _native)
   # Dev/test: sync built extension next to the in-repo package (gitignored *.so).
@@ -275,6 +278,11 @@ set(
   freeusd_usdMedia
   freeusd_usdRender
   freeusd_usdRi
+  freeusd_usdHydra
+  freeusd_usdMtlx
+  freeusd_usdProc
+  freeusd_usdSemantics
+  freeusd_usdUI
   freeusd_usd_schemas
   freeusd_plug
   freeusd_trace
@@ -331,3 +339,17 @@ else()
 endif()
 configure_file("${CMAKE_SOURCE_DIR}/cmake/freeusd.pc.in" "${CMAKE_CURRENT_BINARY_DIR}/freeusd.pc" @ONLY)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/freeusd.pc" DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+
+# Binary archives (run from build dir after configure: cpack [-G TGZ]).
+set(CPACK_PACKAGE_NAME "FreeUSD")
+set(CPACK_PACKAGE_VENDOR "FreeUSD")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "GPL-3.0-or-later USD-shaped scene libraries (clean-room)")
+set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE")
+set(CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/README.md")
+if(WIN32)
+  set(CPACK_GENERATOR "ZIP")
+else()
+  set(CPACK_GENERATOR "TGZ")
+endif()
+include(CPack)

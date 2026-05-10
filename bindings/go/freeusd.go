@@ -24,6 +24,41 @@ func VersionString() string {
 	return C.GoString(C.freeusd_version_string())
 }
 
+// UsdcCrateIdentifier returns the USDC crate magic prefix "PXR-USDC" (static storage in C; do not free).
+func UsdcCrateIdentifier() string {
+	return C.GoString(C.freeusd_usdc_crate_identifier_utf8())
+}
+
+// UsdFileKind is a sniff-only file classification (matches C FreeusdUsdFileKind / C++ UsdFileKind).
+type UsdFileKind int
+
+const (
+	UsdFileKindIoOrEmpty UsdFileKind = 0
+	UsdFileKindUsdaAscii UsdFileKind = 1
+	UsdFileKindUsdcCrate UsdFileKind = 2
+	UsdFileKindUnknown UsdFileKind = 3
+)
+
+// DetectUsdFileKindFromPath reads the first bytes of path (no full USDC decode). On success rc is 0 and kind is set.
+// detail is non-empty only when the C API returned optional diagnostics (typically for IoOrEmpty).
+func DetectUsdFileKindFromPath(path string) (kind UsdFileKind, detail string, rc int) {
+	cs := C.CString(path)
+	defer C.free(unsafe.Pointer(cs))
+	var out C.int
+	var dptr *C.char
+	cret := C.freeusd_detect_usd_file_kind_from_path_utf8(cs, &out, &dptr)
+	rc = int(cret)
+	if rc != 0 {
+		return 0, "", rc
+	}
+	kind = UsdFileKind(out)
+	if dptr != nil {
+		detail = C.GoString(dptr)
+		C.freeusd_string_free(dptr)
+	}
+	return kind, detail, 0
+}
+
 // LastErrorMessage returns the thread-local C API error string (valid until the next C call on this thread).
 func LastErrorMessage() string {
 	return C.GoString(C.freeusd_last_error_message())

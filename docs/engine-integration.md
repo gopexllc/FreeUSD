@@ -21,13 +21,23 @@ target_include_directories(your_target PRIVATE ...) # usually unnecessary; targe
 
 `freeusd::runtime` is an **INTERFACE** aggregate defined in `src/CMakeLists.txt`: it pulls in `freeusd::base`, `tf`, `gf`, `vt`, `ar`, `sdf`, `io`, `pcp`, `usd`, `usdGeom`, `plug`, `trace`, and `work` (stubs where noted in the map). That is the closest thing to “link one CMake target for the C++ core.”
 
-For the optional **header-only schema token bundles** (`usdShade`, `usdLux`, …) as a single dependency, use:
+For the optional **header-only schema token bundles** as a single dependency, use:
 
 ```cmake
 target_link_libraries(your_target PRIVATE freeusd::usd_schemas)
 ```
 
-(`usd_schemas` already depends on `usdGeom` and the other stub packages; you can use it **instead of** or **in addition to** pieces of `runtime` depending on whether you already link `runtime`—linking both is redundant but harmless for INTERFACE libs.)
+`usd_schemas` is an INTERFACE aggregate over **`usdGeom`**, **`usdShade`**, **`usdLux`**, **`usdPhysics`**, **`usdVol`**, **`usdSkel`**, **`usdMedia`**, **`usdRender`**, **`usdRi`**, **`usdHydra`**, **`usdMtlx`**, **`usdProc`**, **`usdSemantics`**, and **`usdUI`** (each ships `include/freeusd/<Lib>/tokens.hpp`). Token lists are regenerated from Pixar’s published **`generatedSchema.usda`** files via **`python3 scripts/gen_schema_tokens.py`** at the repository root.
+
+The optional umbrella include **`freeusd/usd/schemaTokens.hpp`** pulls in those headers **and** **`freeusd/usd/schemaDataTokens.hpp`**, which is generated from **`pxr/usd/usd/generatedSchema.usda`** (core prim/API schema strings such as **`ModelAPI`** / **`CollectionAPI`**). That file lives next to the stage headers under **`include/freeusd/usd/`** and is distinct from the small hand-authored **`freeusd/usd/tokens.hpp`** used for Sdf-style composition field names (**`references`**, **`payload`**, …).
+
+You can use `usd_schemas` **instead of** or **in addition to** pieces of `runtime` depending on whether you already link `runtime`—linking both is redundant but harmless for INTERFACE libs.
+
+### Python (`_native`), schema regeneration, and pytest
+
+- After changing token sources, run **`python3 scripts/gen_schema_tokens.py`** from the repository root, then rebuild the **`_native`** extension (or **`pip install -e .`** so editable layouts pick up regenerated **`python/generated/*.inc`** and headers).
+- **`ctest`** registers **`freeusd_pytest`** with **`PYTHONPATH`** set to the source tree so imports resolve to the in-repo **`freeusd/`** package. If CMake selects a **venv** interpreter that has **`pytest`** but **`pip install -e .`** has not been rerun since Python edits, a skbuild editable hook can still redirect **`freeusd`** to **`site-packages`**; **`tests/python/conftest.py`** removes that hook during **`pytest_configure`** so the working tree wins.
+- GitHub Actions runs a dedicated **`linux-python`** job (see **`.github/workflows/ci.yml`**) that configures with **`FREEUSD_BUILD_PYTHON=ON`** (**Ninja**), restores a **`build/_deps`** cache keyed on **`CMakeLists.txt`** so **FetchContent** (**pybind11**) skips repeated git clones when the hash is unchanged, installs **`python3-pytest`**, and runs the full **`ctest`** suite so **`freeusd_pytest`** stays green on clean Ubuntu runners.
 
 ### Build options relevant to engines
 
@@ -57,6 +67,12 @@ cmake --build build/freeusd -j
 - Static archives for the compiled targets (`libfreeusd_*.a`, including `libfreeusd_c.a` when `FREEUSD_BUILD_C_ABI` is on) into `${CMAKE_INSTALL_LIBDIR}`.
 - **CMake package files** under `${CMAKE_INSTALL_LIBDIR}/cmake/FreeUSD/`: `FreeUSDConfig.cmake`, `FreeUSDConfigVersion.cmake`, and `FreeUsdTargets.cmake` (imported targets use the same names as in-tree, for example `freeusd::runtime`, `freeusd::usd`, `freeusd::c` when the C ABI was built).
 
+### CPack (binary archive)
+
+After a normal **configure** and **build**, run **`cpack`** from the **build directory**. The default generator is **TGZ** on Unix-like systems and **ZIP** on Windows, producing an archive such as **`FreeUSD-0.1.0-Linux.tar.gz`** whose root folder contains **`include/`**, **`lib/`**, **`share/doc/freeusd/LICENSE`**, **`lib/cmake/FreeUSD/`**, and **`lib/pkgconfig/freeusd.pc`**. Use **`cpack -G TGZ`** (or **`-G ZIP`**) to pick a generator explicitly.
+
+The same **`CMAKE_INSTALL_PREFIX`** / **`.pc` prefix** caveats as for **`cmake --install`** apply: configure with the install prefix you want embedded in **`freeusd.pc`** before building and packing.
+
 After install, a consumer project can use:
 
 ```cmake
@@ -83,7 +99,7 @@ The `.pc` file’s **`prefix=`** is taken from **`CMAKE_INSTALL_PREFIX` at confi
 ### C++ vs C ABI
 
 - **C++**: include headers under `freeusd/...` (for example `freeusd/usd/stage.hpp`) and link `freeusd::runtime` or finer-grained `freeusd::usd` etc.
-- **C ABI** (stable FFI boundary): link `freeusd::c`, include [`include/freeusd/c/freeusd.h`](../include/freeusd/c/freeusd.h). Useful for engine subsystems written in C, another language, or a DLL boundary you want to keep narrow.
+- **C ABI** (stable FFI boundary): link `freeusd::c`, include [`include/freeusd/c/freeusd.h`](../include/freeusd/c/freeusd.h). Useful for engine subsystems written in C, another language, or a DLL boundary you want to keep narrow. Container sniffing includes **`freeusd_usdc_crate_identifier_utf8`** and **`freeusd_detect_usd_file_kind_from_path_utf8`** (ASCII vs crate magic by path prefix only).
 
 ## Threading
 
@@ -92,7 +108,7 @@ The C header documents that **`FreeusdLayer` / `FreeusdStage` must not be used f
 ## Formats and runtime expectations
 
 - **USDA (ASCII)**: supported for load/save via `freeusd::io::usda` and stage open-from-file paths; this is the practical interchange format today.
-- **USDC (crate)**: **not implemented** (placeholder only). Pipelines that rely on binary crate files need another reader or an export path to USDA.
+- **USDC (crate)**: **full decode is not implemented**, but **`PXR-USDC`** prefix sniffing and **USDA vs crate** path classification exist (`freeusd::usd::crate::DetectUsdFileKindFromPath`, C ABI **`freeusd_detect_usd_file_kind_from_path_utf8`**, Python **`freeusd.usd.crate`**). Pipelines that need to **read** binary crate payloads still need another reader or an export path to USDA.
 - **Hydra / UsdImaging**: **not present**. There is no built-in path from FreeUSD to GPU scene delegates like upstream USD’s imaging stack.
 
 ## Fit checklist before shipping

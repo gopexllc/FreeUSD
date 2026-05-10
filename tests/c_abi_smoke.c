@@ -5,6 +5,20 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef _WIN32
+#include <process.h>
+#else
+#include <unistd.h>
+#endif
+
+static long c_smoke_pid(void) {
+#ifdef _WIN32
+  return (long)_getpid();
+#else
+  return (long)getpid();
+#endif
+}
+
 static int list_has(const char* needle, char** arr, size_t n) {
   for (size_t i = 0; i < n; ++i) {
     if (strcmp(arr[i], needle) == 0) {
@@ -19,6 +33,70 @@ int main(void) {
   if (!ver || ver[0] == '\0') {
     fprintf(stderr, "missing version string\n");
     return 1;
+  }
+
+  const char* usdc_id = freeusd_usdc_crate_identifier_utf8();
+  if (!usdc_id || strcmp(usdc_id, "PXR-USDC") != 0) {
+    fprintf(stderr, "unexpected usdc crate identifier\n");
+    return 1;
+  }
+
+  {
+    const char* fixture_usda = FREEUSD_TEST_FIXTURES_DIR "/stage_open_root.usda";
+    int kind = -1;
+    char* detail = NULL;
+    if (freeusd_detect_usd_file_kind_from_path_utf8(fixture_usda, &kind, &detail) != FREEUSD_OK) {
+      fprintf(stderr, "detect_usd_file_kind fixture usda failed: %s\n", freeusd_last_error_message());
+      return 1;
+    }
+    if (detail) {
+      freeusd_string_free(detail);
+      detail = NULL;
+    }
+    if (kind != FREEUSD_USD_FILE_USDA_ASCII) {
+      fprintf(stderr, "expected USDA kind for fixture, got %d\n", kind);
+      return 1;
+    }
+  }
+
+  {
+    char crate_path[256];
+    snprintf(crate_path, sizeof crate_path, "fusd_c_smoke_usdc_%ld.bin", c_smoke_pid());
+    FILE* wf = fopen(crate_path, "wb");
+    if (!wf) {
+      fprintf(stderr, "fopen crate temp failed\n");
+      return 1;
+    }
+    if (fwrite(usdc_id, 1, strlen(usdc_id), wf) != strlen(usdc_id) || fputc(0, wf) != 0) {
+      fprintf(stderr, "write crate temp failed\n");
+      fclose(wf);
+      remove(crate_path);
+      return 1;
+    }
+    fclose(wf);
+    int kind = -1;
+    char* detail = NULL;
+    if (freeusd_detect_usd_file_kind_from_path_utf8(crate_path, &kind, &detail) != FREEUSD_OK) {
+      fprintf(stderr, "detect_usd_file_kind crate temp failed: %s\n", freeusd_last_error_message());
+      remove(crate_path);
+      return 1;
+    }
+    if (detail) {
+      freeusd_string_free(detail);
+    }
+    remove(crate_path);
+    if (kind != FREEUSD_USD_FILE_USDC_CRATE) {
+      fprintf(stderr, "expected USDC crate kind, got %d\n", kind);
+      return 1;
+    }
+  }
+
+  {
+    int kind = 0;
+    if (freeusd_detect_usd_file_kind_from_path_utf8(NULL, &kind, NULL) != FREEUSD_ERR_INVALID_ARGUMENT) {
+      fprintf(stderr, "expected INVALID_ARGUMENT for null path\n");
+      return 1;
+    }
   }
 
   FreeusdLayer* layer = freeusd_layer_new_anonymous("c_smoke");

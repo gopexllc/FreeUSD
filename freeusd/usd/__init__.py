@@ -7,6 +7,7 @@ import importlib
 from . import builtin_tokens
 from . import crate
 from . import kind_tokens
+from . import schema_data_tokens
 
 _usd = importlib.import_module("freeusd._native").usd
 
@@ -25,4 +26,5 @@ __all__ = [
     "builtin_tokens",
     "crate",
     "kind_tokens",
+    "schema_data_tokens",
 ]

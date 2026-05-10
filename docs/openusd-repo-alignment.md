@@ -22,7 +22,7 @@ These map directly to the usual **base → Sdf → Pcp → Usd** dependency dire
 | `usd/ar` | `include/freeusd/ar/` (`defaultResolver`, **`resolvedPath`**, …) | `freeusd::ar` |
 | `usd/sdf` | `include/freeusd/sdf/` (`path`, `layer`, **`layerOffset`**, **`assetPath`**, **`tokens`**, …) | `freeusd::sdf` |
 | `usd/pcp` | `include/freeusd/pcp/` | `freeusd::pcp` |
-| `usd/usd` | `include/freeusd/usd/` (`stage`, `prim`, **`kindTokens`**, **`tokens`**, **`timeCode`**, **`editTarget`**, `crateFile` placeholder) | `freeusd::usd` |
+| `usd/usd` | `include/freeusd/usd/` (`stage`, `prim`, **`kindTokens`**, **`tokens`** for composition list field names, **`schemaDataTokens.hpp`** generated from **`pxr/usd/usd/generatedSchema.usda`**, **`timeCode`**, **`editTarget`**, `crateFile` placeholder) | `freeusd::usd` |
 | `usd/usdUtils` | `include/freeusd/usdUtils/` (`pipeline` placeholder) | `freeusd::usdUtils` |
 | `usd/usdGeom` | `include/freeusd/usdGeom/` | `freeusd::usdGeom` |
 | `usd/usd/crateFile` (binary crate) | `include/freeusd/usd/crateFile.hpp` | (placeholder) |
@@ -43,17 +43,23 @@ OpenUSD ships many **Usd* schema** libraries (`usdShade`, `usdLux`, …). FreeUS
 | `usdMedia` | `usdMedia/tokens.hpp` | `freeusd::usdMedia` |
 | `usdRender` | `usdRender/tokens.hpp` | `freeusd::usdRender` |
 | `usdRi` | `usdRi/tokens.hpp` | `freeusd::usdRi` |
+| `usdHydra` | `usdHydra/tokens.hpp` | `freeusd::usdHydra` |
+| `usdMtlx` | `usdMtlx/tokens.hpp` | `freeusd::usdMtlx` |
+| `usdProc` | `usdProc/tokens.hpp` | `freeusd::usdProc` |
+| `usdSemantics` | `usdSemantics/tokens.hpp` | `freeusd::usdSemantics` |
+| `usdUI` | `usdUI/tokens.hpp` | `freeusd::usdUI` |
 
-Aggregate (optional dependency): `freeusd::usd_schemas` → pulls all of the above for tools that want a single link line similar to “all USD schemas”. Optional umbrella include: [`include/freeusd/usd/schemaTokens.hpp`](../include/freeusd/usd/schemaTokens.hpp).
+Aggregate (optional dependency): `freeusd::usd_schemas` → pulls **all** libraries above for a single link line. Regenerate token headers from published OpenUSD **`generatedSchema.usda`** with [`scripts/gen_schema_tokens.py`](../scripts/gen_schema_tokens.py). Optional umbrella include: [`include/freeusd/usd/schemaTokens.hpp`](../include/freeusd/usd/schemaTokens.hpp).
 
 ## Not in scope (upstream layout reference only)
 
 Typical OpenUSD trees that **do not** have FreeUSD counterparts yet (documented so expectations stay clear):
 
-- **Imaging / Hydra / Hgi / Hd*** — render delegate stack.
-- **UsdImaging**, **UsdHydra** — scene adapter / hydra schema bridges.
+- **Imaging / Hydra / Hgi / Hd*** — render delegate stack; **UsdImaging** scene adapters.
+- **Hydra integration** — FreeUSD exposes **UsdHydra-shaped schema token strings** only (`freeusd::usdHydra::tokens`); there is no Hd render index, scene delegate, or imaging bridge.
+- **MaterialX / UI / procedural semantics logic** — **`usdMtlx`**, **`usdUI`**, **`usdProc`**, **`usdSemantics`** supply **token names** from published schema data only; there is no MaterialX graph compiler, UI layout engine, or procedural execution.
 - **Ndr / Sdr** — shader discovery and parsing.
-- **UsdMtlx**, **UsdUI**, **UsdUI**-adjacent packages, **exec** / **trace** full implementations beyond stubs.
+- **exec** and full **trace** implementations beyond the current lightweight stubs.
 
 When work starts in an area, prefer **new files under the matching `include/freeusd/<UsdPackage>/` name** rather than inventing parallel naming.
 
@@ -64,11 +70,12 @@ When work starts in an area, prefer **new files under the matching `include/free
 
 ## Python layout
 
-- Schema stubs follow OpenUSD-style **`freeusd.<UsdPackage>.tokens`** (thin wrappers over **`freeusd._native.<UsdPackage>.tokens`**) for `usdGeom`, `usdShade`, `usdLux`, `usdPhysics`, `usdVol`, `usdSkel`, `usdMedia`, `usdRender`, and `usdRi`.
+- Schema stubs follow OpenUSD-style **`freeusd.<UsdPackage>.tokens`** (thin wrappers over **`freeusd._native.<UsdPackage>.tokens`**) for `usdGeom`, `usdShade`, `usdLux`, `usdPhysics`, `usdVol`, `usdSkel`, `usdMedia`, `usdRender`, `usdRi`, `usdHydra`, `usdMtlx`, `usdProc`, `usdSemantics`, and `usdUI`.
 - **`freeusd.sdf.AssetPath`** matches the **`SdfAssetPath`** role for typed authored asset strings (layer APIs may still use plain strings where they always have).
 - **`freeusd.ar.ResolvedPath`** matches the **`ArResolvedPath`** role for post-resolution paths; **`DefaultResolver.resolve_path`** wraps **`resolve`**.
 - **`freeusd.sdf.builtin_tokens`** exposes common **layer / prim metadata** field names as **`tf.Token`** helpers (SdfTokens-shaped layout; not generated from upstream).
 - **`freeusd.usd.builtin_tokens`** exposes common **composition / variant / relocate** field names as **`tf.Token`** helpers (UsdTokens-shaped layout; clean-room).
+- **`freeusd.usd.schema_data_tokens`** re-exports **`_native.usd.schema_data_tokens`**: strings from **`pxr/usd/usd/generatedSchema.usda`** (ModelAPI, CollectionAPI, collection/colorSpace fields, etc.); regenerate with **`scripts/gen_schema_tokens.py`**.
 - Model **`kind`** metadata: **`freeusd.usd.kind_tokens`** → **`freeusd._native.usd.kind_tokens`** (aligned with **`UsdKindTokens`**-style naming, not prim schema type tokens).
 - **`freeusd.usd.TimeCode`** mirrors **`UsdTimeCode`**-style default / earliest / numeric authoring; **`freeusd.usdUtils`** exposes placeholder types (e.g. **`FlattenOptions`**) until real utils land.
 - **`freeusd.gf`** wraps **`_native.gf`** (`Vec3d`, `Matrix4d`, **`BBox3d`**, **`Quatd`**, **`Range1d`**) for the same **Gf**-shaped role as `pxr.Gf` in OpenUSD stacks.

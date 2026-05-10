@@ -14,13 +14,18 @@ from freeusd import tf as tf
 from freeusd import trace as trace
 from freeusd import usd as usd
 from freeusd import usdGeom as usdGeom
+from freeusd import usdHydra as usdHydra
 from freeusd import usdLux as usdLux
 from freeusd import usdMedia as usdMedia
+from freeusd import usdMtlx as usdMtlx
 from freeusd import usdPhysics as usdPhysics
+from freeusd import usdProc as usdProc
 from freeusd import usdRender as usdRender
 from freeusd import usdRi as usdRi
+from freeusd import usdSemantics as usdSemantics
 from freeusd import usdShade as usdShade
 from freeusd import usdSkel as usdSkel
+from freeusd import usdUI as usdUI
 from freeusd import usdUtils as usdUtils
 from freeusd import usdVol as usdVol
 from freeusd import vt as vt
@@ -39,13 +44,18 @@ __all__ = [
     "trace",
     "usd",
     "usdGeom",
+    "usdHydra",
     "usdLux",
     "usdMedia",
+    "usdMtlx",
     "usdPhysics",
+    "usdProc",
     "usdRender",
     "usdRi",
+    "usdSemantics",
     "usdShade",
     "usdSkel",
+    "usdUI",
     "usdUtils",
     "usdVol",
     "vt",

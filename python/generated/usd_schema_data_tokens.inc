@@ -1,0 +1,22 @@
+// GENERATED — included from bindings.cpp for usd.schema_data_tokens
+usd_schema_data_tokens.def("APISchemaBase", []{ return freeusd::usd::schemaDataTokens::APISchemaBase(); });
+usd_schema_data_tokens.def("ClipsAPI", []{ return freeusd::usd::schemaDataTokens::ClipsAPI(); });
+usd_schema_data_tokens.def("CollectionAPI", []{ return freeusd::usd::schemaDataTokens::CollectionAPI(); });
+usd_schema_data_tokens.def("ColorSpaceAPI", []{ return freeusd::usd::schemaDataTokens::ColorSpaceAPI(); });
+usd_schema_data_tokens.def("ColorSpaceDefinitionAPI", []{ return freeusd::usd::schemaDataTokens::ColorSpaceDefinitionAPI(); });
+usd_schema_data_tokens.def("ModelAPI", []{ return freeusd::usd::schemaDataTokens::ModelAPI(); });
+usd_schema_data_tokens.def("Typed", []{ return freeusd::usd::schemaDataTokens::Typed(); });
+usd_schema_data_tokens.def("collection:__INSTANCE_NAME__", []{ return freeusd::usd::schemaDataTokens::collection___INSTANCE_NAME__(); });
+usd_schema_data_tokens.def("collection:__INSTANCE_NAME__:excludes", []{ return freeusd::usd::schemaDataTokens::collection___INSTANCE_NAME___excludes(); });
+usd_schema_data_tokens.def("collection:__INSTANCE_NAME__:expansionRule", []{ return freeusd::usd::schemaDataTokens::collection___INSTANCE_NAME___expansionRule(); });
+usd_schema_data_tokens.def("collection:__INSTANCE_NAME__:includeRoot", []{ return freeusd::usd::schemaDataTokens::collection___INSTANCE_NAME___includeRoot(); });
+usd_schema_data_tokens.def("collection:__INSTANCE_NAME__:includes", []{ return freeusd::usd::schemaDataTokens::collection___INSTANCE_NAME___includes(); });
+usd_schema_data_tokens.def("collection:__INSTANCE_NAME__:mode", []{ return freeusd::usd::schemaDataTokens::collection___INSTANCE_NAME___mode(); });
+usd_schema_data_tokens.def("colorSpace:name", []{ return freeusd::usd::schemaDataTokens::colorSpace_name(); });
+usd_schema_data_tokens.def("colorSpaceDefinition:__INSTANCE_NAME__:blueChroma", []{ return freeusd::usd::schemaDataTokens::colorSpaceDefinition___INSTANCE_NAME___blueChroma(); });
+usd_schema_data_tokens.def("colorSpaceDefinition:__INSTANCE_NAME__:gamma", []{ return freeusd::usd::schemaDataTokens::colorSpaceDefinition___INSTANCE_NAME___gamma(); });
+usd_schema_data_tokens.def("colorSpaceDefinition:__INSTANCE_NAME__:greenChroma", []{ return freeusd::usd::schemaDataTokens::colorSpaceDefinition___INSTANCE_NAME___greenChroma(); });
+usd_schema_data_tokens.def("colorSpaceDefinition:__INSTANCE_NAME__:linearBias", []{ return freeusd::usd::schemaDataTokens::colorSpaceDefinition___INSTANCE_NAME___linearBias(); });
+usd_schema_data_tokens.def("colorSpaceDefinition:__INSTANCE_NAME__:name", []{ return freeusd::usd::schemaDataTokens::colorSpaceDefinition___INSTANCE_NAME___name(); });
+usd_schema_data_tokens.def("colorSpaceDefinition:__INSTANCE_NAME__:redChroma", []{ return freeusd::usd::schemaDataTokens::colorSpaceDefinition___INSTANCE_NAME___redChroma(); });
+usd_schema_data_tokens.def("colorSpaceDefinition:__INSTANCE_NAME__:whitePoint", []{ return freeusd::usd::schemaDataTokens::colorSpaceDefinition___INSTANCE_NAME___whitePoint(); });

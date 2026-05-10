@@ -8,5 +8,6 @@ _m = import_module("freeusd._native").usd.crate
 
 UsdFileKind = _m.UsdFileKind
 detect_usd_file_kind_from_path = _m.detect_usd_file_kind_from_path
+usdc_crate_identifier = _m.usdc_crate_identifier
 
-__all__ = ["UsdFileKind", "detect_usd_file_kind_from_path"]
+__all__ = ["UsdFileKind", "detect_usd_file_kind_from_path", "usdc_crate_identifier"]

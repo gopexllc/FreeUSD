@@ -21,6 +21,12 @@ pub struct FreeusdStage {
 
 extern "C" {
     fn freeusd_version_string() -> *const c_char;
+    fn freeusd_usdc_crate_identifier_utf8() -> *const c_char;
+    fn freeusd_detect_usd_file_kind_from_path_utf8(
+        path: *const c_char,
+        out_kind: *mut c_int,
+        out_detail: *mut *mut c_char,
+    ) -> c_int;
     fn freeusd_last_error_message() -> *const c_char;
 
     fn freeusd_layer_new_anonymous(identifier: *const c_char) -> *mut FreeusdLayer;
@@ -150,6 +156,53 @@ pub fn version_string() -> &'static str {
         let p = freeusd_version_string();
         CStr::from_ptr(p).to_str().unwrap_or("")
     }
+}
+
+/// USDC crate file magic prefix (`PXR-USDC`; borrowed from C static storage).
+pub fn usdc_crate_identifier() -> &'static str {
+    unsafe {
+        let p = freeusd_usdc_crate_identifier_utf8();
+        CStr::from_ptr(p).to_str().unwrap_or("")
+    }
+}
+
+/// Sniff-only USD container kind (matches C `FreeusdUsdFileKind`).
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UsdFileKind {
+    IoOrEmpty = 0,
+    UsdaAscii = 1,
+    UsdcCrate = 2,
+    Unknown = 3,
+}
+
+/// Reads the first bytes of `path` (no full USDC decode). Returns `(kind, optional_detail)` or a non-zero C API code.
+pub fn detect_usd_file_kind_from_path(path: &str) -> Result<(UsdFileKind, Option<String>), i32> {
+    let c = CString::new(path).map_err(|_| 1i32)?;
+    let mut kind: c_int = 0;
+    let mut detail: *mut c_char = ptr::null_mut();
+    let rc = unsafe {
+        freeusd_detect_usd_file_kind_from_path_utf8(c.as_ptr(), &mut kind, &mut detail)
+    };
+    if rc != 0 {
+        return Err(rc);
+    }
+    let k = match kind {
+        0 => UsdFileKind::IoOrEmpty,
+        1 => UsdFileKind::UsdaAscii,
+        2 => UsdFileKind::UsdcCrate,
+        _ => UsdFileKind::Unknown,
+    };
+    let detail_opt = if detail.is_null() {
+        None
+    } else {
+        let s = unsafe { CStr::from_ptr(detail) }
+            .to_string_lossy()
+            .into_owned();
+        unsafe { freeusd_string_free(detail) };
+        Some(s)
+    };
+    Ok((k, detail_opt))
 }
 
 /// Thread-local last error from the C API.
@@ -720,6 +773,30 @@ mod tests {
     #[test]
     fn version_non_empty() {
         assert!(!version_string().is_empty());
+    }
+
+    #[test]
+    fn usdc_crate_id_is_pxr_magic() {
+        assert_eq!(usdc_crate_identifier(), "PXR-USDC");
+    }
+
+    #[test]
+    fn detect_usd_file_kind_fixture_and_crate_prefix() {
+        let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../tests/fixtures/stage_open_root.usda");
+        let p = fixture.to_string_lossy();
+        let (k, d) = detect_usd_file_kind_from_path(&p).expect("fixture usda");
+        assert_eq!(k, UsdFileKind::UsdaAscii);
+        assert!(d.is_none());
+
+        let dir = std::env::temp_dir();
+        let tmp = dir.join(format!("freeusd_rust_kind_{}.bin", std::process::id()));
+        let mut payload = usdc_crate_identifier().as_bytes().to_vec();
+        payload.push(0);
+        std::fs::write(&tmp, &payload).expect("write temp crate prefix");
+        let (k2, d2) = detect_usd_file_kind_from_path(&tmp.to_string_lossy()).expect("crate sniff");
+        let _ = std::fs::remove_file(&tmp);
+        assert_eq!(k2, UsdFileKind::UsdcCrate);
+        assert!(d2.is_none());
     }
 
     #[test]

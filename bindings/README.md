@@ -27,11 +27,11 @@ export CGO_LDFLAGS="-L/path/to/freeusd/build/src -lfreeusd_c -lfreeusd_base -lfr
 cd bindings/go && go test -v ./...
 ```
 
-The embedded `#cgo` lines in `freeusd.go` cover **linux** (`-lstdc++`) and **darwin** (`-lc++`). Other platforms may need a local `CGO_LDFLAGS` override.
+The embedded `#cgo` lines in `freeusd.go` cover **linux** (`-lstdc++`) and **darwin** (`-lc++`). Other platforms may need a local `CGO_LDFLAGS` override. **`UsdcCrateIdentifier`** mirrors **`freeusd_usdc_crate_identifier_utf8`** (the **`PXR-USDC`** prefix). **`DetectUsdFileKindFromPath`** wraps **`freeusd_detect_usd_file_kind_from_path_utf8`** (USDA vs crate magic sniff by path).
 
 ## Rust (`bindings/rust`)
 
-The `freeusd-sys` crate links the same static libraries as the C smoke test. It exposes **`Stage::open_from_root_file`**, **`Stage::prim_path_in_use`**, **`resolve_prim_specifier_kind`**, composed **layer hints** (time codes, `upAxis`, `primOrder`), **composed `relocates`**, **composed `prefixSubstitutions`**, **composed stage `customLayerData`** (string/token), and **composed prim `variantSelection` / `variantSets`** queries, plus layer attach / `read_field_double` smoke tests. From the repo root:
+The `freeusd-sys` crate links the same static libraries as the C smoke test. It exposes **`usdc_crate_identifier`**, **`detect_usd_file_kind_from_path`**, **`Stage::open_from_root_file`**, **`Stage::prim_path_in_use`**, **`resolve_prim_specifier_kind`**, composed **layer hints** (time codes, `upAxis`, `primOrder`), **composed `relocates`**, **composed `prefixSubstitutions`**, **composed stage `customLayerData`** (string/token), and **composed prim `variantSelection` / `variantSets`** queries, plus layer attach / `read_field_double` smoke tests. From the repo root:
 
 ```bash
 cargo test --manifest-path bindings/rust/Cargo.toml

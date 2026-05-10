@@ -78,7 +78,12 @@ foreach(
   usdSkel
   usdMedia
   usdRender
-  usdRi)
+  usdRi
+  usdHydra
+  usdMtlx
+  usdProc
+  usdSemantics
+  usdUI)
   add_library(freeusd_${_pkg} INTERFACE)
   add_library(freeusd::${_pkg} ALIAS freeusd_${_pkg})
   target_include_directories(freeusd_${_pkg} INTERFACE "$<BUILD_INTERFACE:${FREEUSD_INC}>" "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
@@ -103,7 +108,12 @@ target_link_libraries(
   freeusd_usdSkel
   freeusd_usdMedia
   freeusd_usdRender
-  freeusd_usdRi)
+  freeusd_usdRi
+  freeusd_usdHydra
+  freeusd_usdMtlx
+  freeusd_usdProc
+  freeusd_usdSemantics
+  freeusd_usdUI)
 
 add_library(freeusd_plug STATIC plug/registry.cpp)
 add_library(freeusd::plug ALIAS freeusd_plug)

@@ -1,6 +1,7 @@
 package freeusd
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -10,6 +11,52 @@ func TestVersionString(t *testing.T) {
 	v := VersionString()
 	if v == "" {
 		t.Fatal("expected non-empty version")
+	}
+}
+
+func TestUsdcCrateIdentifier(t *testing.T) {
+	if UsdcCrateIdentifier() != "PXR-USDC" {
+		t.Fatalf("unexpected crate id %q", UsdcCrateIdentifier())
+	}
+}
+
+func TestDetectUsdFileKindFromPath(t *testing.T) {
+	fixture := filepath.Join("..", "..", "tests", "fixtures", "stage_open_root.usda")
+	k, d, rc := DetectUsdFileKindFromPath(fixture)
+	if rc != 0 {
+		t.Fatalf("fixture usda rc=%d %s", rc, LastErrorMessage())
+	}
+	if d != "" {
+		t.Fatalf("unexpected detail %q", d)
+	}
+	if k != UsdFileKindUsdaAscii {
+		t.Fatalf("expected USDA kind, got %v", k)
+	}
+
+	dir := t.TempDir()
+	cratePath := filepath.Join(dir, "smoke.usdc")
+	payload := append([]byte(UsdcCrateIdentifier()), 0)
+	if err := os.WriteFile(cratePath, payload, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	k2, _, rc2 := DetectUsdFileKindFromPath(cratePath)
+	if rc2 != 0 {
+		t.Fatalf("crate rc=%d %s", rc2, LastErrorMessage())
+	}
+	if k2 != UsdFileKindUsdcCrate {
+		t.Fatalf("expected crate kind, got %v", k2)
+	}
+
+	missing := filepath.Join(dir, "no_such_file.usda")
+	k3, d3, rc3 := DetectUsdFileKindFromPath(missing)
+	if rc3 != 0 {
+		t.Fatalf("missing file rc=%d %s", rc3, LastErrorMessage())
+	}
+	if k3 != UsdFileKindIoOrEmpty {
+		t.Fatalf("expected IoOrEmpty for missing path, got %v", k3)
+	}
+	if d3 == "" {
+		t.Fatal("expected non-empty detail for missing file")
 	}
 }
 

@@ -7,6 +7,8 @@ from pathlib import Path
 def test_usd_crate_detect_ascii_and_magic() -> None:
     from freeusd.usd import crate
 
+    assert crate.usdc_crate_identifier() == "PXR-USDC"
+
     with tempfile.TemporaryDirectory() as td:
         p = Path(td) / "a.usda"
         p.write_text('#usda 1.0\n(\n)\ndef X "x" {}\n', encoding="utf-8")

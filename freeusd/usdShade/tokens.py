@@ -1,4 +1,4 @@
-"""UsdShade-shaped schema token stubs."""
+"""UsdShade-shaped schema tokens (full set from `_native`)."""
 
 from __future__ import annotations
 
@@ -6,8 +6,6 @@ from importlib import import_module
 
 _m = import_module("freeusd._native").usdShade.tokens
 
-Material = _m.Material
-Shader = _m.Shader
-NodeGraph = _m.NodeGraph
-
-__all__ = ["Material", "Shader", "NodeGraph"]
+__all__ = sorted(n for n in dir(_m) if not n.startswith("_") and callable(getattr(_m, n)))
+for _n in __all__:
+    globals()[_n] = getattr(_m, _n)
