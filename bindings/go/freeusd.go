@@ -84,6 +84,55 @@ func ReadUsdcBootstrapFromPath(path string) (boot UsdcBootstrap, rc int) {
 	}, 0
 }
 
+// UsdcTocSection is one USDC TOC entry (matches C FreeusdUsdcTocSection).
+type UsdcTocSection struct {
+	Name             string
+	StartByteOffset int64
+	SizeBytes       int64
+}
+
+// ReadUsdcTocFromPath reads the crate TOC (section names and byte ranges). maxSections caps the allowed section count.
+// On success rc is 0; total matches len(sections). Frees the C allocation before returning.
+func ReadUsdcTocFromPath(path string, maxSections uint64) (sections []UsdcTocSection, total uint64, rc int) {
+	cs := C.CString(path)
+	defer C.free(unsafe.Pointer(cs))
+	var totalC C.uint64_t
+	var ret C.uint64_t
+	var raw *C.FreeusdUsdcTocSection
+	rc = int(C.freeusd_read_usdc_toc_from_path_utf8(cs, C.uint64_t(maxSections), &totalC, &raw, &ret))
+	if rc != 0 {
+		return nil, 0, rc
+	}
+	total = uint64(totalC)
+	if total == 0 {
+		return []UsdcTocSection{}, 0, 0
+	}
+	if raw == nil || ret == 0 || uint64(ret) != total {
+		if raw != nil {
+			C.freeusd_usdc_toc_sections_free(raw)
+		}
+		return nil, 0, 4
+	}
+	out := make([]UsdcTocSection, int(ret))
+	p := unsafe.Pointer(raw)
+	step := int(unsafe.Sizeof(C.FreeusdUsdcTocSection{}))
+	for i := range out {
+		sec := (*C.FreeusdUsdcTocSection)(unsafe.Add(p, step*i))
+		name := C.GoBytes(unsafe.Pointer(&sec.name[0]), 16)
+		z := 0
+		for z < len(name) && name[z] != 0 {
+			z++
+		}
+		out[i] = UsdcTocSection{
+			Name:             string(name[:z]),
+			StartByteOffset: int64(sec.start_byte_offset),
+			SizeBytes:       int64(sec.size_bytes),
+		}
+	}
+	C.freeusd_usdc_toc_sections_free(raw)
+	return out, total, 0
+}
+
 // LastErrorMessage returns the thread-local C API error string (valid until the next C call on this thread).
 func LastErrorMessage() string {
 	return C.GoString(C.freeusd_last_error_message())

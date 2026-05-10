@@ -180,6 +180,61 @@ int freeusd_read_usdc_bootstrap_from_path_utf8(const char* path_utf8, FreeusdUsd
   }
 }
 
+int freeusd_read_usdc_toc_from_path_utf8(const char* path_utf8, uint64_t max_sections, uint64_t* out_total_section_count,
+                                         FreeusdUsdcTocSection** out_sections, uint64_t* out_sections_returned) {
+  if (!path_utf8 || !out_total_section_count || !out_sections || !out_sections_returned) {
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_total_section_count = 0;
+  *out_sections = nullptr;
+  *out_sections_returned = 0;
+  if (max_sections == 0) {
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    clear_error();
+    freeusd::usd::crate::UsdcCrateToc toc;
+    std::string err;
+    if (!freeusd::usd::crate::ReadUsdCrateTocFromPath(std::string{path_utf8}, toc,
+                                                       static_cast<std::size_t>(max_sections), &err)) {
+      set_error(err.empty() ? "read usdc toc failed" : err);
+      return FREEUSD_ERR_PARSE;
+    }
+    *out_total_section_count = toc.section_count;
+    *out_sections_returned = toc.section_count;
+    if (toc.section_count == 0) {
+      *out_sections = nullptr;
+      return FREEUSD_OK;
+    }
+    auto* arr = static_cast<FreeusdUsdcTocSection*>(
+        std::malloc(static_cast<std::size_t>(toc.section_count) * sizeof(FreeusdUsdcTocSection)));
+    if (!arr) {
+      set_error("out of memory");
+      return FREEUSD_ERR_INTERNAL;
+    }
+    for (std::uint64_t i = 0; i < toc.section_count; ++i) {
+      std::memset(&arr[i], 0, sizeof(arr[i]));
+      const auto& s = toc.sections[static_cast<std::size_t>(i)];
+      const std::size_t n = std::min(s.name.size(), sizeof(arr[i].name) - 1u);
+      if (n > 0) {
+        std::memcpy(arr[i].name, s.name.data(), n);
+      }
+      arr[i].start_byte_offset = s.start_byte_offset;
+      arr[i].size_bytes = s.size_bytes;
+    }
+    *out_sections = arr;
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown error");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+void freeusd_usdc_toc_sections_free(FreeusdUsdcTocSection* sections) { std::free(sections); }
+
 const char* freeusd_last_error_message(void) { return g_last_error.c_str(); }
 
 void freeusd_string_free(char* s) { std::free(s); }

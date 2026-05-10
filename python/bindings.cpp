@@ -921,7 +921,8 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
 
     {
       auto crate = usd.def_submodule("crate");
-      crate.doc() = "Binary crate: path sniffing plus fixed-size bootstrap header read (no TOC/spec decode yet).";
+      crate.doc() =
+          "Binary crate: path sniffing, bootstrap header read, and TOC section list read (little-endian; no payload/spec decode).";
       crate.def("usdc_crate_identifier", [] { return std::string(freeusd::usd::crate::UsdcCrateIdentifier()); });
       py::enum_<freeusd::usd::crate::UsdFileKind>(crate, "UsdFileKind")
           .value("io_or_empty", freeusd::usd::crate::UsdFileKind::IoOrEmpty)
@@ -952,6 +953,29 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
             return py::make_tuple(true, d, std::string{});
           },
           py::arg("path"));
+      crate.def(
+          "read_usdc_toc_from_path",
+          [](const std::string& path, std::size_t max_sections) {
+            freeusd::usd::crate::UsdcCrateToc toc{};
+            std::string err;
+            if (!freeusd::usd::crate::ReadUsdCrateTocFromPath(path, toc, max_sections, &err)) {
+              return py::make_tuple(false, py::none(), err);
+            }
+            py::dict out;
+            out["section_count"] = toc.section_count;
+            py::list secs;
+            for (const auto& s : toc.sections) {
+              py::dict d;
+              d["name"] = s.name;
+              d["start_byte_offset"] = s.start_byte_offset;
+              d["size_bytes"] = s.size_bytes;
+              secs.append(d);
+            }
+            out["sections"] = secs;
+            return py::make_tuple(true, out, std::string{});
+          },
+          py::arg("path"),
+          py::arg("max_sections") = static_cast<std::size_t>(65536));
     }
 
     py::class_<freeusd::usd::EditTarget>(usd, "EditTarget")

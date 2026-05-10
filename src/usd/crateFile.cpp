@@ -2,6 +2,7 @@
 
 #include <cstring>
 #include <fstream>
+#include <limits>
 #include <vector>
 
 namespace freeusd::usd::crate {
@@ -26,6 +27,17 @@ std::int64_t readLeI64(const unsigned char* p) noexcept {
   std::memcpy(&v, &u, sizeof(v));
   return v;
 }
+
+std::uint64_t readLeU64(const unsigned char* p) noexcept {
+  std::uint64_t u = 0;
+  for (int i = 0; i < 8; ++i) {
+    u |= static_cast<std::uint64_t>(p[i]) << (8 * i);
+  }
+  return u;
+}
+
+constexpr std::size_t kTocSectionRecordBytes = 16u + sizeof(std::int64_t) + sizeof(std::int64_t);
+static_assert(kTocSectionRecordBytes == 32u, "USDC TOC section record size");
 
 }  // namespace
 
@@ -69,6 +81,84 @@ bool ReadUsdCrateBootstrapFromPath(const std::string& path, UsdcCrateBootstrap& 
   if (out.toc_byte_offset >= file_bytes) {
     set_detail(err_out, "table-of-contents offset past end of file");
     return false;
+  }
+  return true;
+}
+
+bool ReadUsdCrateTocFromPath(const std::string& path, UsdcCrateToc& out, std::size_t max_sections,
+                             std::string* err_out) {
+  out = UsdcCrateToc{};
+  if (path.empty()) {
+    set_detail(err_out, "empty path");
+    return false;
+  }
+  if (max_sections == 0) {
+    set_detail(err_out, "max_sections must be non-zero");
+    return false;
+  }
+  UsdcCrateBootstrap boot{};
+  if (!ReadUsdCrateBootstrapFromPath(path, boot, err_out)) {
+    return false;
+  }
+  std::ifstream in(path, std::ios::binary | std::ios::ate);
+  if (!in) {
+    set_detail(err_out, "could not open file");
+    return false;
+  }
+  const auto end_pos = in.tellg();
+  const std::int64_t file_bytes = static_cast<std::int64_t>(end_pos);
+  const std::int64_t toc_off = boot.toc_byte_offset;
+  if (toc_off < 0 || toc_off > file_bytes) {
+    set_detail(err_out, "invalid TOC offset");
+    return false;
+  }
+  const std::uint64_t bytes_after_toc =
+      static_cast<std::uint64_t>(file_bytes) - static_cast<std::uint64_t>(toc_off);
+  if (bytes_after_toc < 8u) {
+    set_detail(err_out, "file too small for USDC TOC count");
+    return false;
+  }
+  in.seekg(toc_off, std::ios::beg);
+  unsigned char count_le[8];
+  in.read(reinterpret_cast<char*>(count_le), static_cast<std::streamsize>(sizeof count_le));
+  if (in.gcount() != static_cast<std::streamsize>(sizeof count_le)) {
+    set_detail(err_out, "short read on USDC TOC count");
+    return false;
+  }
+  const std::uint64_t n = readLeU64(count_le);
+  if (n > max_sections) {
+    set_detail(err_out, "USDC TOC section count exceeds max_sections");
+    return false;
+  }
+  if (n > std::numeric_limits<std::uint64_t>::max() / kTocSectionRecordBytes) {
+    set_detail(err_out, "USDC TOC section count overflow");
+    return false;
+  }
+  const std::uint64_t toc_payload = 8u + n * kTocSectionRecordBytes;
+  if (toc_payload > bytes_after_toc) {
+    set_detail(err_out, "file too small for USDC TOC sections");
+    return false;
+  }
+  out.section_count = n;
+  out.sections.clear();
+  out.sections.reserve(static_cast<std::size_t>(n));
+  std::vector<unsigned char> rec(kTocSectionRecordBytes);
+  for (std::uint64_t i = 0; i < n; ++i) {
+    in.read(reinterpret_cast<char*>(rec.data()), static_cast<std::streamsize>(rec.size()));
+    if (in.gcount() != static_cast<std::streamsize>(rec.size())) {
+      set_detail(err_out, "short read on USDC TOC section");
+      out = UsdcCrateToc{};
+      return false;
+    }
+    UsdcCrateTocSection sec;
+    std::size_t name_len = 0;
+    while (name_len < 16u && rec[name_len] != '\0') {
+      ++name_len;
+    }
+    sec.name.assign(reinterpret_cast<const char*>(rec.data()), name_len);
+    sec.start_byte_offset = readLeI64(rec.data() + 16);
+    sec.size_bytes = readLeI64(rec.data() + 24);
+    out.sections.push_back(std::move(sec));
   }
   return true;
 }

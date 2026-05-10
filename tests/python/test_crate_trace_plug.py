@@ -56,6 +56,39 @@ def test_read_usdc_bootstrap_from_path() -> None:
         assert err3
 
 
+def test_read_usdc_toc_from_path() -> None:
+    from freeusd.usd import crate
+
+    with tempfile.TemporaryDirectory() as td:
+        p = Path(td) / "toc.usdc"
+        buf = bytearray(160)
+        buf[0:8] = b"PXR-USDC"
+        buf[8] = 0
+        buf[9] = 8
+        buf[10] = 0
+        buf[16:24] = struct.pack("<q", 88)
+        buf[88:96] = struct.pack("<Q", 2)
+        buf[96:103] = b"TOKENS\x00"
+        buf[128:134] = b"PATHS\x00"
+        buf[128 + 16 : 128 + 24] = struct.pack("<q", 120)
+        buf[128 + 24 : 128 + 32] = struct.pack("<q", 40)
+        p.write_bytes(buf)
+
+        ok, info, err = crate.read_usdc_toc_from_path(str(p), 16)
+        assert ok
+        assert not err
+        assert info is not None
+        assert info["section_count"] == 2
+        assert len(info["sections"]) == 2
+        assert info["sections"][0]["name"] == "TOKENS"
+        assert info["sections"][1]["name"] == "PATHS"
+        assert info["sections"][1]["start_byte_offset"] == 120
+        assert info["sections"][1]["size_bytes"] == 40
+
+        ok2, _i2, _e2 = crate.read_usdc_toc_from_path(str(p), 1)
+        assert not ok2
+
+
 def test_trace_stack_depth() -> None:
     import freeusd.trace as tr
 

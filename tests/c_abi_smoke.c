@@ -143,6 +143,69 @@ int main(void) {
     }
   }
 
+  {
+    char toc_path[256];
+    snprintf(toc_path, sizeof toc_path, "fusd_c_smoke_toc_%ld.usdc", c_smoke_pid());
+    FILE* wf = fopen(toc_path, "wb");
+    if (!wf) {
+      fprintf(stderr, "fopen toc temp failed\n");
+      return 1;
+    }
+    unsigned char buf[160];
+    memset(buf, 0, sizeof buf);
+    memcpy(buf, usdc_id, strlen(usdc_id));
+    buf[8] = 0;
+    buf[9] = 8;
+    buf[10] = 0;
+    buf[16] = 88;
+    buf[17] = 0;
+    buf[18] = 0;
+    buf[19] = 0;
+    buf[20] = 0;
+    buf[21] = 0;
+    buf[22] = 0;
+    buf[23] = 0;
+    buf[88] = 2;
+    memcpy(buf + 96, "TOKENS", 7);
+    memcpy(buf + 128, "PATHS", 6);
+    buf[128 + 16] = 120;
+    memset(buf + 128 + 17, 0, 7);
+    buf[128 + 24] = 40;
+    memset(buf + 128 + 25, 0, 7);
+    if (fwrite(buf, 1, sizeof buf, wf) != sizeof buf) {
+      fprintf(stderr, "write toc temp failed\n");
+      fclose(wf);
+      remove(toc_path);
+      return 1;
+    }
+    fclose(wf);
+    uint64_t total = 0;
+    uint64_t ret = 0;
+    FreeusdUsdcTocSection* secs = NULL;
+    if (freeusd_read_usdc_toc_from_path_utf8(toc_path, 16, &total, &secs, &ret) != FREEUSD_OK) {
+      fprintf(stderr, "read_usdc_toc failed: %s\n", freeusd_last_error_message());
+      remove(toc_path);
+      return 1;
+    }
+    remove(toc_path);
+    if (total != 2 || ret != 2 || !secs) {
+      fprintf(stderr, "unexpected toc counts\n");
+      freeusd_usdc_toc_sections_free(secs);
+      return 1;
+    }
+    if (strncmp(secs[0].name, "TOKENS", 16) != 0 || secs[0].start_byte_offset != 0 || secs[0].size_bytes != 0) {
+      fprintf(stderr, "unexpected toc section 0\n");
+      freeusd_usdc_toc_sections_free(secs);
+      return 1;
+    }
+    if (strncmp(secs[1].name, "PATHS", 16) != 0 || secs[1].start_byte_offset != 120 || secs[1].size_bytes != 40) {
+      fprintf(stderr, "unexpected toc section 1\n");
+      freeusd_usdc_toc_sections_free(secs);
+      return 1;
+    }
+    freeusd_usdc_toc_sections_free(secs);
+  }
+
   FreeusdLayer* layer = freeusd_layer_new_anonymous("c_smoke");
   if (!layer) {
     fprintf(stderr, "layer_new failed: %s\n", freeusd_last_error_message());

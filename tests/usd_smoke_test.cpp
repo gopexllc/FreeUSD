@@ -148,6 +148,78 @@ int main() {
     assert(!bad_err.empty());
     fs::remove(p);
   }
+  {
+    const fs::path p = fs::temp_directory_path() / "freeusd_smoke_crate_toc.usdc";
+    std::vector<unsigned char> buf(160, 0);
+    const std::string m = std::string{freeusd::usd::crate::UsdcCrateIdentifier()};
+    std::memcpy(buf.data(), m.data(), m.size());
+    buf[8] = 0;
+    buf[9] = 8;
+    buf[10] = 0;
+    {
+      const std::int64_t toc = 88;
+      std::uint64_t u = 0;
+      std::memcpy(&u, &toc, sizeof(u));
+      for (int i = 0; i < 8; ++i) {
+        buf[16 + static_cast<std::size_t>(i)] = static_cast<unsigned char>((u >> (8 * i)) & 0xffu);
+      }
+    }
+    // TOC @88: uint64 count=2 LE, then two 32-byte section records.
+    {
+      std::uint64_t count = 2;
+      for (int i = 0; i < 8; ++i) {
+        buf[88 + static_cast<std::size_t>(i)] = static_cast<unsigned char>((count >> (8 * i)) & 0xffu);
+      }
+    }
+    {
+      unsigned char* rec = buf.data() + 96;
+      const char nm[] = "TOKENS";
+      std::memcpy(rec, nm, sizeof(nm));
+      const std::int64_t st = 0;
+      const std::int64_t sz = 0;
+      std::uint64_t ust = 0;
+      std::uint64_t usz = 0;
+      std::memcpy(&ust, &st, sizeof(ust));
+      std::memcpy(&usz, &sz, sizeof(usz));
+      for (int i = 0; i < 8; ++i) {
+        rec[16 + static_cast<std::size_t>(i)] = static_cast<unsigned char>((ust >> (8 * i)) & 0xffu);
+        rec[24 + static_cast<std::size_t>(i)] = static_cast<unsigned char>((usz >> (8 * i)) & 0xffu);
+      }
+    }
+    {
+      unsigned char* rec = buf.data() + 128;
+      const char nm[] = "PATHS";
+      std::memcpy(rec, nm, sizeof(nm));
+      const std::int64_t st = 120;
+      const std::int64_t sz = 40;
+      std::uint64_t ust = 0;
+      std::uint64_t usz = 0;
+      std::memcpy(&ust, &st, sizeof(ust));
+      std::memcpy(&usz, &sz, sizeof(usz));
+      for (int i = 0; i < 8; ++i) {
+        rec[16 + static_cast<std::size_t>(i)] = static_cast<unsigned char>((ust >> (8 * i)) & 0xffu);
+        rec[24 + static_cast<std::size_t>(i)] = static_cast<unsigned char>((usz >> (8 * i)) & 0xffu);
+      }
+    }
+    {
+      std::ofstream o(p, std::ios::binary);
+      o.write(reinterpret_cast<const char*>(buf.data()), static_cast<std::streamsize>(buf.size()));
+    }
+    freeusd::usd::crate::UsdcCrateToc toc{};
+    std::string err;
+    assert(freeusd::usd::crate::ReadUsdCrateTocFromPath(p.string(), toc, 16, &err));
+    assert(err.empty());
+    assert(toc.section_count == 2u);
+    assert(toc.sections.size() == 2u);
+    assert(toc.sections[0].name == "TOKENS");
+    assert(toc.sections[0].start_byte_offset == 0);
+    assert(toc.sections[0].size_bytes == 0);
+    assert(toc.sections[1].name == "PATHS");
+    assert(toc.sections[1].start_byte_offset == 120);
+    assert(toc.sections[1].size_bytes == 40);
+    assert(!freeusd::usd::crate::ReadUsdCrateTocFromPath(p.string(), toc, 1, &err));
+    fs::remove(p);
+  }
 
   freeusd::plug::Registry::Get().RegisterPluginPaths({"/tmp/freeusd_nonexistent_plugin_path"});
   assert(!freeusd::plug::Registry::Get().RegisteredPluginPaths().empty());

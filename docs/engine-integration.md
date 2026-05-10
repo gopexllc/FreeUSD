@@ -100,7 +100,7 @@ The `.pc` file’s **`prefix=`** is taken from **`CMAKE_INSTALL_PREFIX` at confi
 ### C++ vs C ABI
 
 - **C++**: include headers under `freeusd/...` (for example `freeusd/usd/stage.hpp`) and link `freeusd::runtime` or finer-grained `freeusd::usd` etc.
-- **C ABI** (stable FFI boundary): link `freeusd::c`, include [`include/freeusd/c/freeusd.h`](../include/freeusd/c/freeusd.h). Useful for engine subsystems written in C, another language, or a DLL boundary you want to keep narrow. USDC helpers include **`freeusd_usdc_crate_identifier_utf8`**, **`freeusd_detect_usd_file_kind_from_path_utf8`** (ASCII vs crate magic by path prefix only), and **`freeusd_read_usdc_bootstrap_from_path_utf8`** (**`FreeusdUsdcBootstrap`**: file version bytes + little-endian TOC byte offset from the fixed 88-byte bootstrap).
+- **C ABI** (stable FFI boundary): link `freeusd::c`, include [`include/freeusd/c/freeusd.h`](../include/freeusd/c/freeusd.h). Useful for engine subsystems written in C, another language, or a DLL boundary you want to keep narrow. USDC helpers include **`freeusd_usdc_crate_identifier_utf8`**, **`freeusd_detect_usd_file_kind_from_path_utf8`** (ASCII vs crate magic by path prefix only), **`freeusd_read_usdc_bootstrap_from_path_utf8`** (**`FreeusdUsdcBootstrap`**: version bytes + little-endian TOC offset), and **`freeusd_read_usdc_toc_from_path_utf8`** (**`FreeusdUsdcTocSection`** + **`freeusd_usdc_toc_sections_free`**).
 
 ## Threading
 
@@ -109,7 +109,7 @@ The C header documents that **`FreeusdLayer` / `FreeusdStage` must not be used f
 ## Formats and runtime expectations
 
 - **USDA (ASCII)**: supported for load/save via `freeusd::io::usda` and stage open-from-file paths; this is the practical interchange format today.
-- **USDC (crate)**: **full decode is not implemented**, but **`PXR-USDC`** prefix sniffing, **USDA vs crate** path classification, and a **bootstrap header read** exist in C++ (`freeusd::usd::crate::ReadUsdCrateBootstrapFromPath`), Python (**`read_usdc_bootstrap_from_path`**), and the C ABI (**`freeusd_read_usdc_bootstrap_from_path_utf8`**), with thin Go / Rust wrappers. **`freeusd_detect_usd_file_kind_from_path_utf8`** remains **sniff-only** (no bootstrap). Pipelines that need **full** binary crate payloads still need another reader or an export path to USDA.
+- **USDC (crate)**: **full decode is not implemented**, but **`PXR-USDC`** prefix sniffing, **USDA vs crate** path classification, a **bootstrap** read, and a **TOC section list** read (little-endian count + fixed-size records; no token/path/string tables) exist in C++ (`ReadUsdCrateBootstrapFromPath`, **`ReadUsdCrateTocFromPath`**), Python, the C ABI (**`freeusd_read_usdc_toc_from_path_utf8`** + **`freeusd_usdc_toc_sections_free`**), and Go / Rust. **`freeusd_detect_usd_file_kind_from_path_utf8`** remains **sniff-only** (no bootstrap). Pipelines that need **full** binary crate payloads still need another reader or an export path to USDA.
 - **Hydra / UsdImaging**: **not present**. There is no built-in path from FreeUSD to GPU scene delegates like upstream USD’s imaging stack.
 
 ## Fit checklist before shipping

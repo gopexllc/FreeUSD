@@ -88,6 +88,34 @@ _Static_assert(sizeof(FreeusdUsdcBootstrap) == 16u, "FreeusdUsdcBootstrap must b
 FREEUSD_C_API int freeusd_read_usdc_bootstrap_from_path_utf8(const char* path_utf8,
                                                               FreeusdUsdcBootstrap* out_bootstrap);
 
+/** One USDC TOC section record on disk (``ReadUsdCrateTocFromPath``); **32** bytes per entry, little-endian ints. */
+typedef struct FreeusdUsdcTocSection {
+  char name[16]; /**< NUL-terminated or NUL-padded section key (at most 15 chars + NUL). */
+  int64_t start_byte_offset;
+  int64_t size_bytes;
+} FreeusdUsdcTocSection;
+
+#if defined(__cplusplus)
+static_assert(sizeof(FreeusdUsdcTocSection) == 32u, "FreeusdUsdcTocSection must be 32 bytes (FFI)");
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+_Static_assert(sizeof(FreeusdUsdcTocSection) == 32u, "FreeusdUsdcTocSection must be 32 bytes (FFI)");
+#endif
+
+/**
+ * Reads the USDC table of contents after the bootstrap. On @ref FREEUSD_OK, @p *out_total_section_count is the
+ * count from the file, @p *out_sections_returned equals that count, and @p *out_sections points to a malloc'd
+ * array of @p *out_sections_returned elements (or NULL when the count is zero). Free with @ref freeusd_usdc_toc_sections_free.
+ * Fails with @ref FREEUSD_ERR_INVALID_ARGUMENT if @p max_sections is zero, or @ref FREEUSD_ERR_PARSE if the file
+ * count exceeds @p max_sections or the file is too short.
+ */
+FREEUSD_C_API int freeusd_read_usdc_toc_from_path_utf8(const char* path_utf8, uint64_t max_sections,
+                                                       uint64_t* out_total_section_count,
+                                                       FreeusdUsdcTocSection** out_sections,
+                                                       uint64_t* out_sections_returned);
+
+/** Frees @p sections from @ref freeusd_read_usdc_toc_from_path_utf8 (safe on NULL). */
+FREEUSD_C_API void freeusd_usdc_toc_sections_free(FreeusdUsdcTocSection* sections);
+
 /**
  * Last error message for the calling thread, valid until the next FreeUSD C API
  * call on this thread. Never null (empty string if no error was recorded).

@@ -86,6 +86,39 @@ func TestReadUsdcBootstrapFromPath(t *testing.T) {
 	}
 }
 
+func TestReadUsdcTocFromPath(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "toc.usdc")
+	buf := make([]byte, 160)
+	copy(buf[0:], UsdcCrateIdentifier())
+	buf[8] = 0
+	buf[9] = 8
+	buf[10] = 0
+	binary.LittleEndian.PutUint64(buf[16:24], uint64(88))
+	binary.LittleEndian.PutUint64(buf[88:96], 2)
+	copy(buf[96:103], []byte("TOKENS\x00"))
+	copy(buf[128:134], []byte("PATHS\x00"))
+	binary.LittleEndian.PutUint64(buf[128+16:128+24], uint64(120))
+	binary.LittleEndian.PutUint64(buf[128+24:128+32], uint64(40))
+	if err := os.WriteFile(p, buf, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	secs, total, rc := ReadUsdcTocFromPath(p, 16)
+	if rc != 0 {
+		t.Fatalf("toc rc=%d %s", rc, LastErrorMessage())
+	}
+	if total != 2 || len(secs) != 2 {
+		t.Fatalf("unexpected total=%d len=%d", total, len(secs))
+	}
+	if secs[0].Name != "TOKENS" || secs[1].Name != "PATHS" || secs[1].StartByteOffset != 120 || secs[1].SizeBytes != 40 {
+		t.Fatalf("unexpected sections %+v", secs)
+	}
+	_, _, rcLow := ReadUsdcTocFromPath(p, 1)
+	if rcLow == 0 {
+		t.Fatal("expected error when max_sections below file count")
+	}
+}
+
 func TestLayerStageReadDouble(t *testing.T) {
 	const usda = `#usda 1.0
 (

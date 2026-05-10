@@ -10,6 +10,15 @@ use std::ffi::{c_char, c_double, c_int, CString, CStr};
 use std::ptr;
 
 #[repr(C)]
+pub struct FreeusdUsdcTocSection {
+    pub name: [c_char; 16],
+    pub start_byte_offset: i64,
+    pub size_bytes: i64,
+}
+
+const _: () = assert!(std::mem::size_of::<FreeusdUsdcTocSection>() == 32);
+
+#[repr(C)]
 pub struct FreeusdUsdcBootstrap {
     pub file_version_major: u8,
     pub file_version_minor: u8,
@@ -40,6 +49,14 @@ extern "C" {
         out_detail: *mut *mut c_char,
     ) -> c_int;
     fn freeusd_read_usdc_bootstrap_from_path_utf8(path: *const c_char, out: *mut FreeusdUsdcBootstrap) -> c_int;
+    fn freeusd_read_usdc_toc_from_path_utf8(
+        path: *const c_char,
+        max_sections: u64,
+        out_total: *mut u64,
+        out_sections: *mut *mut FreeusdUsdcTocSection,
+        out_returned: *mut u64,
+    ) -> c_int;
+    fn freeusd_usdc_toc_sections_free(sections: *mut FreeusdUsdcTocSection);
     fn freeusd_last_error_message() -> *const c_char;
 
     fn freeusd_layer_new_anonymous(identifier: *const c_char) -> *mut FreeusdLayer;
@@ -247,6 +264,50 @@ pub fn read_usdc_bootstrap_from_path(path: &str) -> Result<UsdcBootstrap, i32> {
         file_version_patch: raw.file_version_patch,
         toc_byte_offset: raw.toc_byte_offset,
     })
+}
+
+/// One TOC section (name + byte range in the crate file).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UsdcTocSection {
+    pub name: String,
+    pub start_byte_offset: i64,
+    pub size_bytes: i64,
+}
+
+fn toc_section_from_raw(raw: &FreeusdUsdcTocSection) -> UsdcTocSection {
+    let bytes: &[u8] =
+        unsafe { std::slice::from_raw_parts(raw.name.as_ptr() as *const u8, raw.name.len()) };
+    let end = bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len());
+    let name = String::from_utf8_lossy(&bytes[..end]).into_owned();
+    UsdcTocSection {
+        name,
+        start_byte_offset: raw.start_byte_offset,
+        size_bytes: raw.size_bytes,
+    }
+}
+
+/// Reads the USDC table of contents (section names and file ranges). `max_sections` caps how many
+/// sections the file may declare (pass at least the expected count).
+pub fn read_usdc_toc_from_path(path: &str, max_sections: u64) -> Result<(u64, Vec<UsdcTocSection>), i32> {
+    let c = CString::new(path).map_err(|_| 1i32)?;
+    let mut total: u64 = 0;
+    let mut returned: u64 = 0;
+    let mut raw_ptr: *mut FreeusdUsdcTocSection = ptr::null_mut();
+    let rc = unsafe {
+        freeusd_read_usdc_toc_from_path_utf8(c.as_ptr(), max_sections, &mut total, &mut raw_ptr, &mut returned)
+    };
+    if rc != 0 {
+        return Err(rc);
+    }
+    let mut out = Vec::new();
+    if !raw_ptr.is_null() && returned > 0 {
+        for i in 0..returned {
+            let raw = unsafe { &*raw_ptr.add(i as usize) };
+            out.push(toc_section_from_raw(raw));
+        }
+        unsafe { freeusd_usdc_toc_sections_free(raw_ptr) };
+    }
+    Ok((total, out))
 }
 
 /// Thread-local last error from the C API.
@@ -841,6 +902,32 @@ mod tests {
         assert_eq!(b.file_version_minor, 8);
         assert_eq!(b.file_version_patch, 0);
         assert_eq!(b.toc_byte_offset, 88);
+    }
+
+    #[test]
+    fn read_usdc_toc_roundtrip() {
+        let dir = std::env::temp_dir();
+        let p = dir.join(format!("freeusd_rust_toc_{}.usdc", std::process::id()));
+        let mut buf = vec![0u8; 160];
+        buf[0..8].copy_from_slice(usdc_crate_identifier().as_bytes());
+        buf[8] = 0;
+        buf[9] = 8;
+        buf[10] = 0;
+        buf[16..24].copy_from_slice(&88i64.to_le_bytes());
+        buf[88..96].copy_from_slice(&2u64.to_le_bytes());
+        buf[96..103].copy_from_slice(b"TOKENS\x00");
+        buf[128..134].copy_from_slice(b"PATHS\x00");
+        buf[128 + 16..128 + 24].copy_from_slice(&120i64.to_le_bytes());
+        buf[128 + 24..128 + 32].copy_from_slice(&40i64.to_le_bytes());
+        std::fs::write(&p, &buf).expect("write toc");
+        let (n, secs) = read_usdc_toc_from_path(&p.to_string_lossy(), 16).expect("read toc");
+        let _ = std::fs::remove_file(&p);
+        assert_eq!(n, 2);
+        assert_eq!(secs.len(), 2);
+        assert_eq!(secs[0].name, "TOKENS");
+        assert_eq!(secs[1].name, "PATHS");
+        assert_eq!(secs[1].start_byte_offset, 120);
+        assert_eq!(secs[1].size_bytes, 40);
     }
 
     #[test]
