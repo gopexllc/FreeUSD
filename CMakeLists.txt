@@ -241,11 +241,39 @@ if(FREEUSD_BUILD_PYTHON AND FREEUSD_BUILD_TESTS)
     endif()
   endif()
   if(_freeusd_have_pytest EQUAL 0)
-    add_test(
-      NAME freeusd_pytest
-      COMMAND "${_FREEUSD_PYTEST_PYTHON}" -m pytest "${CMAKE_SOURCE_DIR}/tests/python" -q
-      WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
-    set_tests_properties(freeusd_pytest PROPERTIES ENVIRONMENT "PYTHONPATH=${CMAKE_SOURCE_DIR}" LABELS "python")
+    # pytest < 9.0.3 is affected by CVE-2025-71176 (tmpdir); match pyproject.toml dev extra.
+    execute_process(
+      COMMAND "${_FREEUSD_PYTEST_PYTHON}" -m pytest --version
+      OUTPUT_VARIABLE _freeusd_pytest_ver_out
+      ERROR_VARIABLE _freeusd_pytest_ver_err
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+      ERROR_STRIP_TRAILING_WHITESPACE)
+    set(_freeusd_pytest_ver_line "${_freeusd_pytest_ver_out}${_freeusd_pytest_ver_err}")
+    set(_freeusd_pytest_semver "")
+    if(_freeusd_pytest_ver_line MATCHES "pytest ([0-9]+\\.[0-9]+\\.[0-9]+)")
+      set(_freeusd_pytest_semver "${CMAKE_MATCH_1}")
+    endif()
+    if(_freeusd_pytest_semver STREQUAL "")
+      message(
+        WARNING
+          "pytest is importable but its version could not be parsed from '${_freeusd_pytest_ver_line}'; "
+          "skipping freeusd_pytest (expected pytest>=9.0.3).")
+    elseif(_freeusd_pytest_semver VERSION_LESS "9.0.3")
+      message(
+        WARNING
+          "pytest ${_freeusd_pytest_semver} is below 9.0.3 (CVE-2025-71176); skipping freeusd_pytest. "
+          "Install pytest>=9.0.3 for this interpreter (e.g. pip install -e \".[dev]\").")
+    else()
+      add_test(
+        NAME freeusd_pytest
+        COMMAND "${_FREEUSD_PYTEST_PYTHON}" -m pytest "${CMAKE_SOURCE_DIR}/tests/python" -q
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+      set_tests_properties(freeusd_pytest PROPERTIES ENVIRONMENT "PYTHONPATH=${CMAKE_SOURCE_DIR}" LABELS "python")
+    endif()
+    unset(_freeusd_pytest_ver_out)
+    unset(_freeusd_pytest_ver_err)
+    unset(_freeusd_pytest_ver_line)
+    unset(_freeusd_pytest_semver)
   endif()
   unset(_FREEUSD_VENV_PY)
   unset(_FREEUSD_PYTEST_PYTHON)
