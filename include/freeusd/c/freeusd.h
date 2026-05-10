@@ -75,6 +75,12 @@ typedef struct FreeusdUsdcBootstrap {
   int64_t toc_byte_offset;
 } FreeusdUsdcBootstrap;
 
+#if defined(__cplusplus)
+static_assert(sizeof(FreeusdUsdcBootstrap) == 16u, "FreeusdUsdcBootstrap must be 16 bytes (FFI)");
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+_Static_assert(sizeof(FreeusdUsdcBootstrap) == 16u, "FreeusdUsdcBootstrap must be 16 bytes (FFI)");
+#endif
+
 /**
  * Reads the 88-byte USDC bootstrap from @p path_utf8 (little-endian TOC offset). On @ref FREEUSD_OK,
  * @p *out_bootstrap is filled; otherwise it is zeroed and @ref freeusd_last_error_message describes the failure.

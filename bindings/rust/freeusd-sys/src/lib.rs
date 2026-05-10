@@ -18,6 +18,9 @@ pub struct FreeusdUsdcBootstrap {
     pub toc_byte_offset: i64,
 }
 
+const _: () = assert!(std::mem::size_of::<FreeusdUsdcBootstrap>() == 16);
+const _: () = assert!(std::mem::offset_of!(FreeusdUsdcBootstrap, toc_byte_offset) == 8);
+
 #[repr(C)]
 pub struct FreeusdLayer {
     _private: [u8; 0],
