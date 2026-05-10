@@ -1,4 +1,5 @@
 #include <cassert>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <vector>
@@ -114,6 +115,37 @@ int main() {
     }
     assert(freeusd::usd::crate::DetectUsdFileKindFromPath(p.string(), nullptr) ==
            freeusd::usd::crate::UsdFileKind::UsdcCrate);
+    fs::remove(p);
+  }
+  {
+    const fs::path p = fs::temp_directory_path() / "freeusd_smoke_crate_boot.usdc";
+    std::vector<unsigned char> buf(128, 0);
+    const std::string m = std::string{freeusd::usd::crate::UsdcCrateIdentifier()};
+    std::memcpy(buf.data(), m.data(), m.size());
+    buf[8] = 0;
+    buf[9] = 8;
+    buf[10] = 0;
+    const std::int64_t toc = 88;
+    std::uint64_t u = 0;
+    std::memcpy(&u, &toc, sizeof(u));
+    for (int i = 0; i < 8; ++i) {
+      buf[16 + static_cast<std::size_t>(i)] = static_cast<unsigned char>((u >> (8 * i)) & 0xffu);
+    }
+    {
+      std::ofstream o(p, std::ios::binary);
+      o.write(reinterpret_cast<const char*>(buf.data()), static_cast<std::streamsize>(buf.size()));
+    }
+    freeusd::usd::crate::UsdcCrateBootstrap boot{};
+    std::string err;
+    assert(freeusd::usd::crate::ReadUsdCrateBootstrapFromPath(p.string(), boot, &err));
+    assert(err.empty());
+    assert(boot.file_version_major == 0);
+    assert(boot.file_version_minor == 8);
+    assert(boot.file_version_patch == 0);
+    assert(boot.toc_byte_offset == 88);
+    std::string bad_err;
+    assert(!freeusd::usd::crate::ReadUsdCrateBootstrapFromPath(p.string() + ".missing", boot, &bad_err));
+    assert(!bad_err.empty());
     fs::remove(p);
   }
 

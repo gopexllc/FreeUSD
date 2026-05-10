@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <string_view>
 
@@ -9,6 +10,20 @@ namespace freeusd::usd::crate {
 
 /// Crate / USDC files use this identifier prefix at the start of the file (public format fact).
 constexpr std::string_view UsdcCrateIdentifier() noexcept { return "PXR-USDC"; }
+
+/// Fixed-size header at offset 0 after the published USDC crate layout (little-endian integers).
+/// This is **not** a full crate decode: only the bootstrap prefix is interpreted.
+struct UsdcCrateBootstrap {
+  std::uint8_t file_version_major = 0;
+  std::uint8_t file_version_minor = 0;
+  std::uint8_t file_version_patch = 0;
+  std::int64_t toc_byte_offset = 0;
+};
+
+/// Read the crate bootstrap from \p path (binary). Returns false on I/O or layout errors.
+/// File must be at least 88 bytes and start with ``UsdcCrateIdentifier()``; integers are read **little-endian**.
+FREEUSD_API bool ReadUsdCrateBootstrapFromPath(const std::string& path, UsdcCrateBootstrap& out,
+                                               std::string* err_out = nullptr);
 
 enum class UsdFileKind {
   /// Could not read path or empty file.

@@ -22,10 +22,10 @@ These map directly to the usual **base → Sdf → Pcp → Usd** dependency dire
 | `usd/ar` | `include/freeusd/ar/` (`defaultResolver`, **`resolvedPath`**, …) | `freeusd::ar` |
 | `usd/sdf` | `include/freeusd/sdf/` (`path`, `layer`, **`layerOffset`**, **`assetPath`**, **`tokens`**, …) | `freeusd::sdf` |
 | `usd/pcp` | `include/freeusd/pcp/` | `freeusd::pcp` |
-| `usd/usd` | `include/freeusd/usd/` (`stage`, `prim`, **`kindTokens`**, **`tokens`** for composition list field names, **`schemaDataTokens.hpp`** generated from **`pxr/usd/usd/generatedSchema.usda`**, **`timeCode`**, **`editTarget`**, **`crateFile`** sniff helpers — no binary decode) | `freeusd::usd` |
+| `usd/usd` | `include/freeusd/usd/` (`stage`, `prim`, **`kindTokens`**, **`tokens`** for composition list field names, **`schemaDataTokens.hpp`** generated from **`pxr/usd/usd/generatedSchema.usda`**, **`timeCode`**, **`editTarget`**, **`crateFile`** sniff + **bootstrap** read — no full binary decode) | `freeusd::usd` |
 | `usd/usdUtils` | `include/freeusd/usdUtils/` (`pipeline` placeholder) | `freeusd::usdUtils` |
 | `usd/usdGeom` | `include/freeusd/usdGeom/` | `freeusd::usdGeom` |
-| `usd/usd/crateFile` (binary crate) | `include/freeusd/usd/crateFile.hpp` | **`UsdcCrateIdentifier`**, **`DetectUsdFileKindFromPath`** (prefix sniff only; **no** crate payload read) |
+| `usd/usd/crateFile` (binary crate) | `include/freeusd/usd/crateFile.hpp` | **`UsdcCrateIdentifier`**, **`DetectUsdFileKindFromPath`**, **`ReadUsdCrateBootstrapFromPath`** (bootstrap only; **no** TOC/tables) |
 | `usd` I/O (ASCII in upstream split) | `include/freeusd/io/usda.hpp` | `freeusd::io` |
 
 ## Schema libraries (stubs today)
@@ -76,7 +76,7 @@ When work starts in an area, prefer **new files under the matching `include/free
 - **`freeusd.sdf.builtin_tokens`** exposes common **layer / prim metadata** field names as **`tf.Token`** helpers (SdfTokens-shaped layout; not generated from upstream).
 - **`freeusd.usd.builtin_tokens`** exposes common **composition / variant / relocate** field names as **`tf.Token`** helpers (UsdTokens-shaped layout; clean-room).
 - **`freeusd.usd.schema_data_tokens`** re-exports **`_native.usd.schema_data_tokens`**: strings from **`pxr/usd/usd/generatedSchema.usda`** (ModelAPI, CollectionAPI, collection/colorSpace fields, etc.); regenerate with **`scripts/gen_schema_tokens.py`**.
-- **`freeusd.usd.crate`** — **`usdc_crate_identifier()`**, **`detect_usd_file_kind_from_path`**, **`UsdFileKind`** (USDA vs **`PXR-USDC`** magic by path prefix; C ABI and Go/Rust mirrors exist; **no** full `.usdc` read).
+- **`freeusd.usd.crate`** — **`usdc_crate_identifier()`**, **`detect_usd_file_kind_from_path`**, **`read_usdc_bootstrap_from_path`**, **`UsdFileKind`** (magic + path sniff + **bootstrap** read; **no** full `.usdc` decode; C ABI / Go / Rust still sniff-only today).
 - Model **`kind`** metadata: **`freeusd.usd.kind_tokens`** → **`freeusd._native.usd.kind_tokens`** (aligned with **`UsdKindTokens`**-style naming, not prim schema type tokens).
 - **`freeusd.usd.TimeCode`** mirrors **`UsdTimeCode`**-style default / earliest / numeric authoring; **`freeusd.usdUtils`** exposes placeholder types (e.g. **`FlattenOptions`**) until real utils land.
 - **`freeusd.gf`** wraps **`_native.gf`** (`Vec3d`, `Matrix4d`, **`BBox3d`**, **`Quatd`**, **`Range1d`**) for the same **Gf**-shaped role as `pxr.Gf` in OpenUSD stacks.

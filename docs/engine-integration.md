@@ -109,7 +109,7 @@ The C header documents that **`FreeusdLayer` / `FreeusdStage` must not be used f
 ## Formats and runtime expectations
 
 - **USDA (ASCII)**: supported for load/save via `freeusd::io::usda` and stage open-from-file paths; this is the practical interchange format today.
-- **USDC (crate)**: **full decode is not implemented**, but **`PXR-USDC`** prefix sniffing and **USDA vs crate** path classification exist (`freeusd::usd::crate::DetectUsdFileKindFromPath`, C ABI **`freeusd_detect_usd_file_kind_from_path_utf8`**, Python **`freeusd.usd.crate`**). Pipelines that need to **read** binary crate payloads still need another reader or an export path to USDA.
+- **USDC (crate)**: **full decode is not implemented**, but **`PXR-USDC`** prefix sniffing, **USDA vs crate** path classification, and a **bootstrap header read** (`freeusd::usd::crate::ReadUsdCrateBootstrapFromPath`, Python **`read_usdc_bootstrap_from_path`**) exist; the C ABI still exposes **sniff-only** **`freeusd_detect_usd_file_kind_from_path_utf8`**. Pipelines that need **full** binary crate payloads still need another reader or an export path to USDA.
 - **Hydra / UsdImaging**: **not present**. There is no built-in path from FreeUSD to GPU scene delegates like upstream USD’s imaging stack.
 
 ## Fit checklist before shipping

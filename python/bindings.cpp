@@ -921,7 +921,7 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
 
     {
       auto crate = usd.def_submodule("crate");
-      crate.doc() = "Binary crate / container sniffing (no .usdc decode yet).";
+      crate.doc() = "Binary crate: path sniffing plus fixed-size bootstrap header read (no TOC/spec decode yet).";
       crate.def("usdc_crate_identifier", [] { return std::string(freeusd::usd::crate::UsdcCrateIdentifier()); });
       py::enum_<freeusd::usd::crate::UsdFileKind>(crate, "UsdFileKind")
           .value("io_or_empty", freeusd::usd::crate::UsdFileKind::IoOrEmpty)
@@ -934,6 +934,22 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
             std::string detail;
             const auto k = freeusd::usd::crate::DetectUsdFileKindFromPath(path, &detail);
             return py::make_tuple(k, detail);
+          },
+          py::arg("path"));
+      crate.def(
+          "read_usdc_bootstrap_from_path",
+          [](const std::string& path) {
+            freeusd::usd::crate::UsdcCrateBootstrap b{};
+            std::string err;
+            if (!freeusd::usd::crate::ReadUsdCrateBootstrapFromPath(path, b, &err)) {
+              return py::make_tuple(false, py::none(), err);
+            }
+            py::dict d;
+            d["file_version_major"] = static_cast<int>(b.file_version_major);
+            d["file_version_minor"] = static_cast<int>(b.file_version_minor);
+            d["file_version_patch"] = static_cast<int>(b.file_version_patch);
+            d["toc_byte_offset"] = b.toc_byte_offset;
+            return py::make_tuple(true, d, std::string{});
           },
           py::arg("path"));
     }

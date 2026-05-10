@@ -27,7 +27,7 @@ export CGO_LDFLAGS="-L/path/to/freeusd/build/src -lfreeusd_c -lfreeusd_base -lfr
 cd bindings/go && go test -v ./...
 ```
 
-The embedded `#cgo` lines in `freeusd.go` cover **linux** (`-lstdc++`) and **darwin** (`-lc++`). Other platforms may need a local `CGO_LDFLAGS` override. **`UsdcCrateIdentifier`** mirrors **`freeusd_usdc_crate_identifier_utf8`** (the **`PXR-USDC`** prefix). **`DetectUsdFileKindFromPath`** wraps **`freeusd_detect_usd_file_kind_from_path_utf8`** (USDA vs crate magic sniff by path).
+The embedded `#cgo` lines in `freeusd.go` cover **linux** (`-lstdc++`) and **darwin** (`-lc++`). Other platforms may need a local `CGO_LDFLAGS` override. **`UsdcCrateIdentifier`** mirrors **`freeusd_usdc_crate_identifier_utf8`** (the **`PXR-USDC`** prefix). **`DetectUsdFileKindFromPath`** wraps **`freeusd_detect_usd_file_kind_from_path_utf8`** (USDA vs crate magic sniff by path). **Bootstrap** (`ReadUsdCrateBootstrapFromPath`) is C++/Python today; extend the C ABI if you need it from Go/Rust.
 
 ## Rust (`bindings/rust`)
 
