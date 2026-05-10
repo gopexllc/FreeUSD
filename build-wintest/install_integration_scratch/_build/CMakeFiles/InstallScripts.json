@@ -1,8 +1,0 @@
-{
-	"InstallScripts" : 
-	[
-		"/home/tim/freeusd/build-wintest/install_integration_scratch/_build/cmake_install.cmake",
-		"/home/tim/freeusd/build-wintest/install_integration_scratch/_build/src/cmake_install.cmake"
-	],
-	"Parallel" : false
-}

@@ -1,2 +1,0 @@
-/usr/bin/ar qc libfreeusd_plug.a CMakeFiles/freeusd_plug.dir/plug/registry.cpp.o
-/usr/bin/ranlib libfreeusd_plug.a

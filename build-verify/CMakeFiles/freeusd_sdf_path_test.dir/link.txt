@@ -1,1 +1,0 @@
-/usr/bin/c++ -Wl,--dependency-file=CMakeFiles/freeusd_sdf_path_test.dir/link.d CMakeFiles/freeusd_sdf_path_test.dir/tests/sdf_path_test.cpp.o -o freeusd_sdf_path_test  src/libfreeusd_sdf.a src/libfreeusd_vt.a src/libfreeusd_tf.a

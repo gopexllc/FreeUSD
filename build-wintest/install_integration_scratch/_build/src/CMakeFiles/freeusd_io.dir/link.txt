@@ -1,2 +1,0 @@
-/usr/bin/ar qc libfreeusd_io.a CMakeFiles/freeusd_io.dir/io/usda.cpp.o
-/usr/bin/ranlib libfreeusd_io.a

@@ -1,8 +1,0 @@
-{
-	"InstallScripts" : 
-	[
-		"/home/tim/freeusd/build-ci/cmake_install.cmake",
-		"/home/tim/freeusd/build-ci/src/cmake_install.cmake"
-	],
-	"Parallel" : false
-}

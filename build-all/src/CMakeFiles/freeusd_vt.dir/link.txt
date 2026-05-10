@@ -1,2 +1,0 @@
-/usr/bin/ar qc libfreeusd_vt.a CMakeFiles/freeusd_vt.dir/vt/value.cpp.o
-/usr/bin/ranlib libfreeusd_vt.a

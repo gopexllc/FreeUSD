@@ -1,1 +1,0 @@
-/usr/bin/c++ -O3 -DNDEBUG -Wl,--dependency-file=CMakeFiles/freeusd_gf_quatd_test.dir/link.d CMakeFiles/freeusd_gf_quatd_test.dir/tests/gf_quatd_test.cpp.o -o freeusd_gf_quatd_test

@@ -1,2 +1,0 @@
-freeusd_install_integration 2 5.17827
----

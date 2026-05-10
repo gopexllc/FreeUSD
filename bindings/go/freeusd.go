@@ -168,7 +168,7 @@ func (s *Stage) ResolvePrimSpecifierKind(primPath string) int {
 	return int(C.freeusd_stage_resolve_prim_specifier_kind(s.ptr, pp))
 }
 
-func (s *Stage) layerDouble(get func(*C.FreeusdStage, *C.double, *C.int) C.int) (value float64, has bool, rc int) {
+func stageLayerDouble(s *Stage, get func(*C.FreeusdStage, *C.double, *C.int) C.int) (value float64, has bool, rc int) {
 	if s == nil || s.ptr == nil {
 		return 0, false, -1
 	}
@@ -183,27 +183,37 @@ func (s *Stage) layerDouble(get func(*C.FreeusdStage, *C.double, *C.int) C.int) 
 
 // StartTimeCode returns (value, has, rc) from composed layer metadata (rc 0 on success).
 func (s *Stage) StartTimeCode() (float64, bool, int) {
-	return s.layerDouble(C.freeusd_stage_get_start_time_code)
+	return stageLayerDouble(s, func(st *C.FreeusdStage, v *C.double, h *C.int) C.int {
+		return C.freeusd_stage_get_start_time_code(st, v, h)
+	})
 }
 
 // EndTimeCode returns (value, has, rc).
 func (s *Stage) EndTimeCode() (float64, bool, int) {
-	return s.layerDouble(C.freeusd_stage_get_end_time_code)
+	return stageLayerDouble(s, func(st *C.FreeusdStage, v *C.double, h *C.int) C.int {
+		return C.freeusd_stage_get_end_time_code(st, v, h)
+	})
 }
 
 // TimeCodesPerSecond returns (value, has, rc).
 func (s *Stage) TimeCodesPerSecond() (float64, bool, int) {
-	return s.layerDouble(C.freeusd_stage_get_time_codes_per_second)
+	return stageLayerDouble(s, func(st *C.FreeusdStage, v *C.double, h *C.int) C.int {
+		return C.freeusd_stage_get_time_codes_per_second(st, v, h)
+	})
 }
 
 // FramesPerSecond returns (value, has, rc).
 func (s *Stage) FramesPerSecond() (float64, bool, int) {
-	return s.layerDouble(C.freeusd_stage_get_frames_per_second)
+	return stageLayerDouble(s, func(st *C.FreeusdStage, v *C.double, h *C.int) C.int {
+		return C.freeusd_stage_get_frames_per_second(st, v, h)
+	})
 }
 
 // MetersPerUnit returns (value, has, rc).
 func (s *Stage) MetersPerUnit() (float64, bool, int) {
-	return s.layerDouble(C.freeusd_stage_get_meters_per_unit)
+	return stageLayerDouble(s, func(st *C.FreeusdStage, v *C.double, h *C.int) C.int {
+		return C.freeusd_stage_get_meters_per_unit(st, v, h)
+	})
 }
 
 // FramePrecision returns (value, has, rc); value is only valid when has is true.

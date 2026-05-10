@@ -1,1 +1,0 @@
-/usr/bin/c++ -O3 -DNDEBUG -Wl,--dependency-file=CMakeFiles/freeusd_edit_target_test.dir/link.d CMakeFiles/freeusd_edit_target_test.dir/tests/edit_target_test.cpp.o -o freeusd_edit_target_test  src/libfreeusd_usd.a src/libfreeusd_pcp.a src/libfreeusd_ar.a src/libfreeusd_io.a src/libfreeusd_sdf.a src/libfreeusd_vt.a src/libfreeusd_tf.a

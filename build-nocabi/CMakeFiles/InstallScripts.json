@@ -1,8 +1,0 @@
-{
-	"InstallScripts" : 
-	[
-		"/home/tim/freeusd/build-nocabi/cmake_install.cmake",
-		"/home/tim/freeusd/build-nocabi/src/cmake_install.cmake"
-	],
-	"Parallel" : false
-}

@@ -1,10 +1,19 @@
 .venv/
 /build/
+# Alternate local CMake output prefixes (never commit; some paths break Windows checkout).
+/build-all/
+/build-ci/
+/build-int/
+/build-lic/
+/build-lic3/
+/build-nocabi/
+/build-pc/
+/build-pc2/
+/build-pkg/
+/build-verify/
+/build-wintest/
 build-cpack/
 build-s/
-build-int/
-build-ci/
-build-wintest/
 bindings/rust/target/
 /dist/
 *.egg-info/

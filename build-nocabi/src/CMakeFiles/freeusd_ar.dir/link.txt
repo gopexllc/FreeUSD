@@ -1,2 +1,0 @@
-/usr/bin/ar qc libfreeusd_ar.a CMakeFiles/freeusd_ar.dir/ar/defaultResolver.cpp.o
-/usr/bin/ranlib libfreeusd_ar.a
