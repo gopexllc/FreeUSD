@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "freeusd/gf/vec3d.hpp"
+#include "freeusd/gf/vec3f.hpp"
 #include "freeusd/io/usda.hpp"
 #include "freeusd/pcp/layerStack.hpp"
 #include "freeusd/sdf/layer.hpp"
@@ -1910,6 +1911,51 @@ int freeusd_stage_read_field_vec3d(const FreeusdStage* stage, const char* prim_p
     *out_z = vec.z();
     clear_error();
     return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_read_field_vec3f(const FreeusdStage* stage, const char* prim_path_utf8,
+                                   const char* attr_name_utf8, double time, float* out_x, float* out_y,
+                                   float* out_z) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !attr_name_utf8 || !out_x || !out_y || !out_z) {
+    set_error("freeusd_stage_read_field_vec3f: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    freeusd::vt::Value v;
+    if (!stage->inner->ReadFieldAtEvaluatedTime(p, freeusd::tf::Token{attr_name_utf8}, time, &v)) {
+      set_error("no value or could not evaluate attribute");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    freeusd::gf::Vec3f vf{};
+    if (v.GetVec3f(&vf)) {
+      *out_x = vf.x();
+      *out_y = vf.y();
+      *out_z = vf.z();
+      clear_error();
+      return FREEUSD_OK;
+    }
+    freeusd::gf::Vec3d vd{};
+    if (v.GetVec3d(&vd)) {
+      *out_x = static_cast<float>(vd.x());
+      *out_y = static_cast<float>(vd.y());
+      *out_z = static_cast<float>(vd.z());
+      clear_error();
+      return FREEUSD_OK;
+    }
+    set_error("attribute is not float3 / vec3f or double3 / Vec3d");
+    return FREEUSD_ERR_NOT_FOUND;
   } catch (const std::exception& e) {
     set_error(e.what());
     return FREEUSD_ERR_INTERNAL;

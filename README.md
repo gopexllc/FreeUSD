@@ -12,7 +12,7 @@ FreeUSD is an independent project and is not endorsed by or affiliated with Pixa
 
 All **FreeUSD** library and tool sources in this repository are licensed under the **GNU General Public License v3.0 or later**; see [`LICENSE`](LICENSE).
 
-Implementation is **clean-room** relative to Pixar’s OpenUSD sources: this tree does not incorporate upstream OpenUSD/AOUSD code. See [docs/openusd-repo-alignment.md](docs/openusd-repo-alignment.md). Compatibility targets **published formats and behavior**, not copying upstream implementation.
+Implementation is **clean-room** relative to Pixar’s OpenUSD sources: **do not copy upstream OpenUSD/AOUSD code** into this repository—only independent implementations. See [docs/openusd-repo-alignment.md](docs/openusd-repo-alignment.md). Compatibility targets **published formats and behavior**, not upstream source.
 
 **Third-party components** used at build or test time remain under their own licenses (for example **pybind11**, fetched by CMake when the Python module is enabled, is BSD-style and commonly paired with GPLv3 software). You are responsible for satisfying the license terms of any dependency you ship alongside FreeUSD.
 

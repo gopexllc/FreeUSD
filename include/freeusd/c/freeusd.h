@@ -446,6 +446,14 @@ FREEUSD_C_API int freeusd_stage_read_field_vec3d(const FreeusdStage* stage, cons
                                                  double* out_y, double* out_z);
 
 /**
+ * Read evaluated attribute as @c float3 / Vec3f at @p time. All @p out_* pointers must be non-NULL.
+ * Succeeds for @c Vec3f payloads, or @c Vec3d / @c double3 (components narrowed to @c float).
+ */
+FREEUSD_C_API int freeusd_stage_read_field_vec3f(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                 const char* attr_name_utf8, double time, float* out_x,
+                                                 float* out_y, float* out_z);
+
+/**
  * Composed prim active flag (strongest opinion; default true if no opinion).
  * @p out_active receives 0 or 1.
  */

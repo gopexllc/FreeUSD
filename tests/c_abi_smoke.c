@@ -248,6 +248,7 @@ int main(void) {
       "            7: 3.5,\n"
       "        }\n"
       "        double3 extent = (1, 2, 3)\n"
+      "        float3 displayColor = (0.25, 0.5, 0.75)\n"
       "        bool flag = true\n"
       "        int n = 42\n"
       "        string label = \"hi\"\n"
@@ -600,11 +601,27 @@ int main(void) {
     return 65;
   }
 
+  float fx = 0, fy = 0, fz = 0;
+  if (freeusd_stage_read_field_vec3f(stage, "/W/C", "displayColor", 1.0, &fx, &fy, &fz) != FREEUSD_OK ||
+      fabsf(fx - 0.25f) > 1e-5f || fabsf(fy - 0.5f) > 1e-5f || fabsf(fz - 0.75f) > 1e-5f) {
+    fprintf(stderr, "read_field_vec3f: %s\n", freeusd_last_error_message());
+    freeusd_stage_free(stage);
+    freeusd_layer_free(layer);
+    return 91;
+  }
+  if (freeusd_stage_read_field_vec3f(stage, "/W/C", "extent", 1.0, &fx, &fy, &fz) != FREEUSD_OK ||
+      fabsf(fx - 1.0f) > 1e-5f || fabsf(fy - 2.0f) > 1e-5f || fabsf(fz - 3.0f) > 1e-5f) {
+    fprintf(stderr, "read_field_vec3f extent from double3: %s\n", freeusd_last_error_message());
+    freeusd_stage_free(stage);
+    freeusd_layer_free(layer);
+    return 92;
+  }
+
   char** fnames = NULL;
   size_t nfn = 0;
-  if (freeusd_stage_list_composed_field_names(stage, "/W/C", &fnames, &nfn) != FREEUSD_OK || nfn != 5 ||
-      strcmp(fnames[0], "extent") != 0 || strcmp(fnames[1], "flag") != 0 || strcmp(fnames[2], "label") != 0 ||
-      strcmp(fnames[3], "n") != 0 || strcmp(fnames[4], "x") != 0) {
+  if (freeusd_stage_list_composed_field_names(stage, "/W/C", &fnames, &nfn) != FREEUSD_OK || nfn != 6 ||
+      strcmp(fnames[0], "displayColor") != 0 || strcmp(fnames[1], "extent") != 0 || strcmp(fnames[2], "flag") != 0 ||
+      strcmp(fnames[3], "label") != 0 || strcmp(fnames[4], "n") != 0 || strcmp(fnames[5], "x") != 0) {
     fprintf(stderr, "list_composed_field_names\n");
     if (fnames) {
       freeusd_path_list_free(fnames, nfn);

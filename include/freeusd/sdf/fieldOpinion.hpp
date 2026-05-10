@@ -23,7 +23,10 @@ struct FREEUSD_API FieldOpinion {
   void SetSample(double time, freeusd::vt::Value v);
   void ClearSamples() noexcept { time_samples.clear(); }
 
-  /// Hold: largest sample time <= `time`; if none <=, use default when set, else earliest sample; if no samples, default.
+  /// Resolves at \p time: before the first sample, uses default when set else the earliest sample; after the last
+  /// sample, holds the last; between two samples, **linear** interpolation for ``float`` / ``double`` / ``int32`` /
+  /// ``int64`` / ``vec3d`` / ``vec3f`` / ``matrix4d`` (per-element), **slerp** for ``quatd`` / ``quatf``; non-interpolable types use the lower
+  /// bracket sample. If there are no samples, returns the default when set.
   bool EvaluateAt(double time, freeusd::vt::Value* out) const;
 
   bool GetExactSample(double time, freeusd::vt::Value* out) const;

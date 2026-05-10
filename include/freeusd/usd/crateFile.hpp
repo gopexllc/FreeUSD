@@ -43,6 +43,8 @@ struct UsdcCrateToc {
 /// Reads the TOC after a successful bootstrap. Fails if ``section_count`` exceeds \p max_sections.
 /// On-disk layout matches common **`.usdc`** crate files: **uint64_t** little-endian section count,
 /// then ``section_count`` records of **16**-byte NUL-padded names plus two little-endian **int64** fields each.
+/// Each section’s ``start_byte_offset`` / ``size_bytes`` must describe a byte range that fits in the file
+/// (non-negative; ``start + size`` ≤ file size, with overflow-safe checks).
 FREEUSD_API bool ReadUsdCrateTocFromPath(const std::string& path, UsdcCrateToc& out, std::size_t max_sections,
                                         std::string* err_out = nullptr);
 

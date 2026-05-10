@@ -1,5 +1,8 @@
 #include <cassert>
+#include <vector>
 
+#include "freeusd/gf/matrix4d.hpp"
+#include "freeusd/gf/quatd.hpp"
 #include "freeusd/io/usda.hpp"
 #include "freeusd/sdf/layer.hpp"
 #include "freeusd/sdf/path.hpp"
@@ -94,6 +97,9 @@ def Xform "World"
     )
     {
         double size = 2.5
+        token[] xformOpOrder = [@xformOp:translate, @xformOp:rotateXYZ]
+        quatd quatRound = (1, 0, 0, 0)
+        matrix4d ident4 = ((1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1))
         double height.timeSamples = {
             1: 10,
             3: 30,
@@ -208,9 +214,29 @@ def Xform "World"
   assert(v.GetDouble(&d));
   assert(d == 2.5);
 
+  std::vector<Token> xorder;
+  assert(layer->GetField(cube, Token("xformOpOrder"), &v));
+  assert(v.HoldsTokenArray());
+  assert(v.GetTokenArray(&xorder));
+  assert(xorder.size() == 2u);
+  assert(xorder[0].GetText() == "xformOp:translate");
+  assert(xorder[1].GetText() == "xformOp:rotateXYZ");
+
+  freeusd::gf::Quatd qr{};
+  assert(layer->GetField(cube, Token("quatRound"), &v));
+  assert(v.HoldsQuatd());
+  assert(v.GetQuatd(&qr));
+  assert(qr.real == 1.0 && qr.i == 0.0 && qr.j == 0.0 && qr.k == 0.0);
+
+  freeusd::gf::Matrix4d mid{};
+  assert(layer->GetField(cube, Token("ident4"), &v));
+  assert(v.HoldsMatrix4d());
+  assert(v.GetMatrix4d(&mid));
+  assert(mid == freeusd::gf::Matrix4d::Identity());
+
   assert(layer->GetFieldAtTime(cube, Token("height"), 2.0, &v));
   assert(v.GetDouble(&d));
-  assert(d == 10.0);
+  assert(d == 20.0);
   assert(layer->GetFieldAtTime(cube, Token("height"), 3.0, &v));
   assert(v.GetDouble(&d));
   assert(d == 30.0);
@@ -222,9 +248,22 @@ def Xform "World"
   assert(layer2->GetField(cube, Token("size"), &v));
   assert(v.GetDouble(&d));
   assert(d == 2.5);
+  assert(layer2->GetField(cube, Token("xformOpOrder"), &v));
+  assert(v.HoldsTokenArray());
+  assert(v.GetTokenArray(&xorder));
+  assert(xorder.size() == 2u);
+  assert(xorder[0].GetText() == "xformOp:translate");
+  assert(layer2->GetField(cube, Token("quatRound"), &v));
+  assert(v.HoldsQuatd());
+  assert(v.GetQuatd(&qr));
+  assert(qr.real == 0.0 && qr.i == 0.0 && qr.j == 0.0 && qr.k == 1.0);
+  assert(layer2->GetField(cube, Token("ident4"), &v));
+  assert(v.HoldsMatrix4d());
+  assert(v.GetMatrix4d(&mid));
+  assert(mid == freeusd::gf::Matrix4d::Identity());
   assert(layer2->GetFieldAtTime(cube, Token("height"), 2.0, &v));
   assert(v.GetDouble(&d));
-  assert(d == 10.0);
+  assert(d == 20.0);
 
   assert(layer2->HasPrimKind(Path::FromString("/World")));
   assert(layer2->GetPrimKind(Path::FromString("/World")).GetText() == "Xform");

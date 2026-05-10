@@ -11,8 +11,10 @@
 #include "freeusd/gf/bbox3d.hpp"
 #include "freeusd/gf/matrix4d.hpp"
 #include "freeusd/gf/quatd.hpp"
+#include "freeusd/gf/quatf.hpp"
 #include "freeusd/gf/range1d.hpp"
 #include "freeusd/gf/vec3d.hpp"
+#include "freeusd/gf/vec3f.hpp"
 #include "freeusd/io/usda.hpp"
 #include "freeusd/pcp/compose.hpp"
 #include "freeusd/pcp/layerStack.hpp"
@@ -107,6 +109,21 @@ PYBIND11_MODULE(_native, m) {
                  std::to_string(v.z()) + ">";
         });
 
+    py::class_<freeusd::gf::Vec3f>(gf, "Vec3f")
+        .def(py::init<>())
+        .def(py::init<float, float, float>(), py::arg("x") = 0.0F, py::arg("y") = 0.0F, py::arg("z") = 0.0F)
+        .def_static("Zero", &freeusd::gf::Vec3f::Zero)
+        .def("x", &freeusd::gf::Vec3f::x)
+        .def("y", &freeusd::gf::Vec3f::y)
+        .def("z", &freeusd::gf::Vec3f::z)
+        .def("set", [](freeusd::gf::Vec3f& v, float x, float y, float z) { v.set(x, y, z); })
+        .def("as_array", &freeusd::gf::Vec3f::as_array)
+        .def("__eq__", [](const freeusd::gf::Vec3f& a, const freeusd::gf::Vec3f& b) { return a == b; })
+        .def("__repr__", [](const freeusd::gf::Vec3f& v) {
+          return "<freeusd.gf.Vec3f " + std::to_string(v.x()) + ", " + std::to_string(v.y()) + ", " +
+                 std::to_string(v.z()) + ">";
+        });
+
     py::class_<freeusd::gf::Matrix4d>(gf, "Matrix4d")
         .def(py::init<>())
         .def_static("Identity", &freeusd::gf::Matrix4d::Identity)
@@ -116,8 +133,29 @@ PYBIND11_MODULE(_native, m) {
             py::arg("tx"),
             py::arg("ty"),
             py::arg("tz"))
+        .def_static("Shear", &freeusd::gf::Matrix4d::Shear, py::arg("h_xy"), py::arg("h_xz"), py::arg("h_yz"))
         .def_static("Scale", &freeusd::gf::Matrix4d::Scale, py::arg("sx"), py::arg("sy"), py::arg("sz"))
+        .def_static("RotateDegreesX", &freeusd::gf::Matrix4d::RotateDegreesX, py::arg("degrees"))
+        .def_static("RotateDegreesY", &freeusd::gf::Matrix4d::RotateDegreesY, py::arg("degrees"))
+        .def_static("RotateDegreesZ", &freeusd::gf::Matrix4d::RotateDegreesZ, py::arg("degrees"))
+        .def_static("RotateDegreesXYZ", &freeusd::gf::Matrix4d::RotateDegreesXYZ, py::arg("ax"), py::arg("ay"), py::arg("az"))
+        .def_static("RotateDegreesXZY", &freeusd::gf::Matrix4d::RotateDegreesXZY, py::arg("ax"), py::arg("ay"), py::arg("az"))
+        .def_static("RotateDegreesYXZ", &freeusd::gf::Matrix4d::RotateDegreesYXZ, py::arg("ax"), py::arg("ay"), py::arg("az"))
+        .def_static("RotateDegreesYZX", &freeusd::gf::Matrix4d::RotateDegreesYZX, py::arg("ax"), py::arg("ay"), py::arg("az"))
+        .def_static("RotateDegreesZXY", &freeusd::gf::Matrix4d::RotateDegreesZXY, py::arg("ax"), py::arg("ay"), py::arg("az"))
+        .def_static("RotateDegreesZYX", &freeusd::gf::Matrix4d::RotateDegreesZYX, py::arg("ax"), py::arg("ay"), py::arg("az"))
+        .def_static("FromUnitQuaternion", &freeusd::gf::Matrix4d::FromUnitQuaternion, py::arg("q"))
         .def_static("Multiply", &freeusd::gf::Matrix4d::Multiply, py::arg("a"), py::arg("b"))
+        .def(
+            "get_inverse",
+            [](const freeusd::gf::Matrix4d& m) -> py::object {
+              freeusd::gf::Matrix4d inv;
+              if (m.GetInverse(&inv)) {
+                return py::cast(inv);
+              }
+              return py::none();
+            },
+            "Returns inverse matrix or None if singular.")
         .def(
             "as_list",
             [](const freeusd::gf::Matrix4d& m) {
@@ -130,6 +168,7 @@ PYBIND11_MODULE(_native, m) {
     py::class_<freeusd::gf::Quatd>(gf, "Quatd")
         .def(py::init<>())
         .def(py::init<double, double, double, double>(), py::arg("real"), py::arg("i"), py::arg("j"), py::arg("k"))
+        .def("normalized", &freeusd::gf::Quatd::Normalized)
         .def_readwrite("real", &freeusd::gf::Quatd::real)
         .def_readwrite("i", &freeusd::gf::Quatd::i)
         .def_readwrite("j", &freeusd::gf::Quatd::j)
@@ -138,6 +177,21 @@ PYBIND11_MODULE(_native, m) {
         .def("__eq__", [](const freeusd::gf::Quatd& a, const freeusd::gf::Quatd& b) { return a == b; })
         .def("__repr__", [](const freeusd::gf::Quatd& q) {
           return std::string{"<freeusd.gf.Quatd real="} + std::to_string(q.real) + " i=" + std::to_string(q.i) +
+                 " j=" + std::to_string(q.j) + " k=" + std::to_string(q.k) + ">";
+        });
+
+    py::class_<freeusd::gf::Quatf>(gf, "Quatf")
+        .def(py::init<>())
+        .def(py::init<float, float, float, float>(), py::arg("real"), py::arg("i"), py::arg("j"), py::arg("k"))
+        .def("normalized", &freeusd::gf::Quatf::Normalized)
+        .def_readwrite("real", &freeusd::gf::Quatf::real)
+        .def_readwrite("i", &freeusd::gf::Quatf::i)
+        .def_readwrite("j", &freeusd::gf::Quatf::j)
+        .def_readwrite("k", &freeusd::gf::Quatf::k)
+        .def_static("Identity", &freeusd::gf::Quatf::Identity)
+        .def("__eq__", [](const freeusd::gf::Quatf& a, const freeusd::gf::Quatf& b) { return a == b; })
+        .def("__repr__", [](const freeusd::gf::Quatf& q) {
+          return std::string{"<freeusd.gf.Quatf real="} + std::to_string(q.real) + " i=" + std::to_string(q.i) +
                  " j=" + std::to_string(q.j) + " k=" + std::to_string(q.k) + ">";
         });
 
@@ -176,6 +230,43 @@ PYBIND11_MODULE(_native, m) {
             py::arg("y"),
             py::arg("z"))
         .def_static("make_vec3d_vec", [](const freeusd::gf::Vec3d& v) { return freeusd::vt::Value::MakeVec3d(v); }, py::arg("v"))
+        .def_static(
+            "make_vec3f",
+            [](float x, float y, float z) {
+              freeusd::gf::Vec3f v;
+              v.set(x, y, z);
+              return freeusd::vt::Value::MakeVec3f(v);
+            },
+            py::arg("x"),
+            py::arg("y"),
+            py::arg("z"))
+        .def_static("make_vec3f_vec", [](const freeusd::gf::Vec3f& v) { return freeusd::vt::Value::MakeVec3f(v); }, py::arg("v"))
+        .def_static("make_matrix4d", [](const freeusd::gf::Matrix4d& m) { return freeusd::vt::Value::MakeMatrix4d(m); }, py::arg("m"))
+        .def_static(
+            "make_quatd",
+            [](double w, double i, double j, double k) { return freeusd::vt::Value::MakeQuatd(freeusd::gf::Quatd{w, i, j, k}); },
+            py::arg("real"),
+            py::arg("i"),
+            py::arg("j"),
+            py::arg("k"))
+        .def_static(
+            "make_quatf",
+            [](float w, float i, float j, float k) { return freeusd::vt::Value::MakeQuatf(freeusd::gf::Quatf{w, i, j, k}); },
+            py::arg("real"),
+            py::arg("i"),
+            py::arg("j"),
+            py::arg("k"))
+        .def_static(
+            "make_token_array",
+            [](const std::vector<std::string>& items) {
+              std::vector<freeusd::tf::Token> v;
+              v.reserve(items.size());
+              for (const std::string& s : items) {
+                v.emplace_back(freeusd::tf::Token{s});
+              }
+              return freeusd::vt::Value::MakeTokenArray(std::move(v));
+            },
+            py::arg("tokens"))
         .def("is_empty", &freeusd::vt::Value::IsEmpty)
         .def("holds_bool", &freeusd::vt::Value::HoldsBool)
         .def("holds_int32", &freeusd::vt::Value::HoldsInt32)
@@ -184,7 +275,12 @@ PYBIND11_MODULE(_native, m) {
         .def("holds_double", &freeusd::vt::Value::HoldsDouble)
         .def("holds_string", &freeusd::vt::Value::HoldsString)
         .def("holds_token", &freeusd::vt::Value::HoldsToken)
+        .def("holds_token_array", &freeusd::vt::Value::HoldsTokenArray)
+        .def("holds_quatd", &freeusd::vt::Value::HoldsQuatd)
+        .def("holds_quatf", &freeusd::vt::Value::HoldsQuatf)
+        .def("holds_matrix4d", &freeusd::vt::Value::HoldsMatrix4d)
         .def("holds_vec3d", &freeusd::vt::Value::HoldsVec3d)
+        .def("holds_vec3f", &freeusd::vt::Value::HoldsVec3f)
         .def("as_bool", [](const freeusd::vt::Value& v) -> py::object {
           bool b{};
           if (v.GetBool(&b)) {
@@ -234,9 +330,48 @@ PYBIND11_MODULE(_native, m) {
           }
           return py::none();
         })
+        .def("as_token_array", [](const freeusd::vt::Value& v) -> py::object {
+          std::vector<freeusd::tf::Token> t;
+          if (v.GetTokenArray(&t)) {
+            py::list lst;
+            for (const freeusd::tf::Token& x : t) {
+              lst.append(py::cast(x.GetText()));
+            }
+            return lst;
+          }
+          return py::none();
+        })
+        .def("as_quatd", [](const freeusd::vt::Value& v) -> py::object {
+          freeusd::gf::Quatd q;
+          if (v.GetQuatd(&q)) {
+            return py::cast(q);
+          }
+          return py::none();
+        })
+        .def("as_quatf", [](const freeusd::vt::Value& v) -> py::object {
+          freeusd::gf::Quatf q;
+          if (v.GetQuatf(&q)) {
+            return py::cast(q);
+          }
+          return py::none();
+        })
+        .def("as_matrix4d", [](const freeusd::vt::Value& v) -> py::object {
+          freeusd::gf::Matrix4d m;
+          if (v.GetMatrix4d(&m)) {
+            return py::cast(m);
+          }
+          return py::none();
+        })
         .def("as_vec3d", [](const freeusd::vt::Value& v) -> py::object {
           freeusd::gf::Vec3d out;
           if (v.GetVec3d(&out)) {
+            return py::cast(out);
+          }
+          return py::none();
+        })
+        .def("as_vec3f", [](const freeusd::vt::Value& v) -> py::object {
+          freeusd::gf::Vec3f out;
+          if (v.GetVec3f(&out)) {
             return py::cast(out);
           }
           return py::none();
@@ -1326,6 +1461,10 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def(
             "compute_local_to_world_transform",
             &freeusd::usdGeom::Xformable::ComputeLocalToWorldTransform,
+            py::arg("time") = 1.0)
+        .def(
+            "compute_parent_to_world_transform",
+            &freeusd::usdGeom::Xformable::ComputeParentToWorldTransform,
             py::arg("time") = 1.0);
   }
 

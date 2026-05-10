@@ -66,9 +66,13 @@ if(FREEUSD_BUILD_TESTS)
 
   add_executable(freeusd_gf_quatd_test tests/gf_quatd_test.cpp)
   target_include_directories(freeusd_gf_quatd_test PRIVATE "${PROJECT_SOURCE_DIR}/include")
+  target_link_libraries(freeusd_gf_quatd_test PRIVATE freeusd::gf)
 
   add_executable(freeusd_gf_bbox3d_test tests/gf_bbox3d_test.cpp)
   target_link_libraries(freeusd_gf_bbox3d_test PRIVATE freeusd::gf)
+
+  add_executable(freeusd_gf_matrix4d_test tests/gf_matrix4d_test.cpp)
+  target_link_libraries(freeusd_gf_matrix4d_test PRIVATE freeusd::gf)
 
   add_executable(freeusd_ar_resolved_path_test tests/ar_resolved_path_test.cpp)
   target_include_directories(freeusd_ar_resolved_path_test PRIVATE "${PROJECT_SOURCE_DIR}/include")
@@ -95,6 +99,7 @@ if(FREEUSD_BUILD_TESTS)
   add_test(NAME freeusd_gf_range1d_test COMMAND freeusd_gf_range1d_test)
   add_test(NAME freeusd_gf_quatd_test COMMAND freeusd_gf_quatd_test)
   add_test(NAME freeusd_gf_bbox3d_test COMMAND freeusd_gf_bbox3d_test)
+  add_test(NAME freeusd_gf_matrix4d_test COMMAND freeusd_gf_matrix4d_test)
   add_test(NAME freeusd_ar_resolved_path_test COMMAND freeusd_ar_resolved_path_test)
   add_test(NAME freeusd_sdf_tokens_test COMMAND freeusd_sdf_tokens_test)
   add_test(NAME freeusd_usd_tokens_test COMMAND freeusd_usd_tokens_test)

@@ -59,7 +59,7 @@ int main() {
   layer->SetTimeSample(cube, Token("height"), 3.0, Value::MakeDouble(30.0));
   layer->SetField(cube, Token("height"), Value::MakeDouble(0.0));
   assert(prim.GetAttribute(Token("height"), 2.0).GetDouble(&d));
-  assert(d == 10.0);
+  assert(d == 20.0);
   assert(prim.GetAttribute(Token("height"), 3.0).GetDouble(&d));
   assert(d == 30.0);
 
@@ -222,6 +222,68 @@ int main() {
     assert(!freeusd::usd::crate::ReadUsdCrateTocFromPath(p.string(), toc, 1, &err));
     fs::remove(p);
   }
+  {
+    const fs::path p = fs::temp_directory_path() / "freeusd_smoke_crate_toc_bad_range.usdc";
+    std::vector<unsigned char> buf(160, 0);
+    const std::string m = std::string{freeusd::usd::crate::UsdcCrateIdentifier()};
+    std::memcpy(buf.data(), m.data(), m.size());
+    buf[8] = 0;
+    buf[9] = 8;
+    buf[10] = 0;
+    {
+      const std::int64_t toc = 88;
+      std::uint64_t u = 0;
+      std::memcpy(&u, &toc, sizeof(u));
+      for (int i = 0; i < 8; ++i) {
+        buf[16 + static_cast<std::size_t>(i)] = static_cast<unsigned char>((u >> (8 * i)) & 0xffu);
+      }
+    }
+    {
+      std::uint64_t count = 2;
+      for (int i = 0; i < 8; ++i) {
+        buf[88 + static_cast<std::size_t>(i)] = static_cast<unsigned char>((count >> (8 * i)) & 0xffu);
+      }
+    }
+    {
+      unsigned char* rec = buf.data() + 96;
+      const char nm[] = "TOKENS";
+      std::memcpy(rec, nm, sizeof(nm));
+      std::int64_t st = 0;
+      std::int64_t sz = 0;
+      std::uint64_t ust = 0;
+      std::uint64_t usz = 0;
+      std::memcpy(&ust, &st, sizeof(ust));
+      std::memcpy(&usz, &sz, sizeof(usz));
+      for (int i = 0; i < 8; ++i) {
+        rec[16 + static_cast<std::size_t>(i)] = static_cast<unsigned char>((ust >> (8 * i)) & 0xffu);
+        rec[24 + static_cast<std::size_t>(i)] = static_cast<unsigned char>((usz >> (8 * i)) & 0xffu);
+      }
+    }
+    {
+      unsigned char* rec = buf.data() + 128;
+      const char nm[] = "PATHS";
+      std::memcpy(rec, nm, sizeof(nm));
+      const std::int64_t st = 120;
+      const std::int64_t sz = 50;
+      std::uint64_t ust = 0;
+      std::uint64_t usz = 0;
+      std::memcpy(&ust, &st, sizeof(ust));
+      std::memcpy(&usz, &sz, sizeof(usz));
+      for (int i = 0; i < 8; ++i) {
+        rec[16 + static_cast<std::size_t>(i)] = static_cast<unsigned char>((ust >> (8 * i)) & 0xffu);
+        rec[24 + static_cast<std::size_t>(i)] = static_cast<unsigned char>((usz >> (8 * i)) & 0xffu);
+      }
+    }
+    {
+      std::ofstream o(p, std::ios::binary);
+      o.write(reinterpret_cast<const char*>(buf.data()), static_cast<std::streamsize>(buf.size()));
+    }
+    freeusd::usd::crate::UsdcCrateToc toc{};
+    std::string err;
+    assert(!freeusd::usd::crate::ReadUsdCrateTocFromPath(p.string(), toc, 16, &err));
+    assert(!err.empty());
+    fs::remove(p);
+  }
 
   freeusd::plug::Registry::Get().RegisterPluginPaths({"/tmp/freeusd_nonexistent_plugin_path"});
   assert(!freeusd::plug::Registry::Get().RegisteredPluginPaths().empty());
@@ -264,6 +326,17 @@ int main() {
     const freeusd::gf::Matrix4d tcm = freeusd::gf::Matrix4d::Translate(1.0, 2.0, 3.0);
     const freeusd::gf::Matrix4d expect2 = freeusd::gf::Matrix4d::Multiply(freeusd::gf::Matrix4d::Multiply(s, twm), tcm);
     assert(mw2 == expect2);
+  }
+
+  {
+    freeusd::gf::Vec3d r90{};
+    r90.set(0.0, 0.0, 90.0);
+    layer->SetField(world, Token("xformOp:rotateXYZ"), Value::MakeVec3d(r90));
+    layer->SetField(world, Token("xformOpOrder"), Value::MakeString("xformOp:translate,xformOp:rotateXYZ"));
+    const freeusd::usdGeom::Xformable xfw(world_prim);
+    const freeusd::gf::Matrix4d loc =
+        freeusd::gf::Matrix4d::Multiply(freeusd::gf::Matrix4d::RotateDegreesZ(90.0), freeusd::gf::Matrix4d::Translate(10.0, 0.0, 0.0));
+    assert(xfw.ComputeLocalTransform(1.0) == loc);
   }
 
   return 0;

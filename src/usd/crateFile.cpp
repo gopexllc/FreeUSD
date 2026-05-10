@@ -39,6 +39,41 @@ std::uint64_t readLeU64(const unsigned char* p) noexcept {
 constexpr std::size_t kTocSectionRecordBytes = 16u + sizeof(std::int64_t) + sizeof(std::int64_t);
 static_assert(kTocSectionRecordBytes == 32u, "USDC TOC section record size");
 
+/// ``[start, start+size)`` must lie in ``[0, file_bytes)``; rejects negative fields and ``int64`` overflow on ``+``.
+bool toc_section_range_valid(std::int64_t file_bytes, std::int64_t start, std::int64_t size, std::string* err_out) {
+  if (file_bytes < 0) {
+    set_detail(err_out, "invalid file size for USDC TOC validation");
+    return false;
+  }
+  if (start < 0) {
+    set_detail(err_out, "USDC TOC section start_byte_offset is negative");
+    return false;
+  }
+  if (size < 0) {
+    set_detail(err_out, "USDC TOC section size_bytes is negative");
+    return false;
+  }
+  if (size == 0) {
+    if (start > file_bytes) {
+      set_detail(err_out, "USDC TOC section start_byte_offset past end of file");
+      return false;
+    }
+    return true;
+  }
+  const auto fb = static_cast<std::uint64_t>(file_bytes);
+  const auto st = static_cast<std::uint64_t>(start);
+  const auto sz = static_cast<std::uint64_t>(size);
+  if (st > fb) {
+    set_detail(err_out, "USDC TOC section start_byte_offset past end of file");
+    return false;
+  }
+  if (sz > fb - st) {
+    set_detail(err_out, "USDC TOC section byte range extends past end of file");
+    return false;
+  }
+  return true;
+}
+
 }  // namespace
 
 bool ReadUsdCrateBootstrapFromPath(const std::string& path, UsdcCrateBootstrap& out, std::string* err_out) {
@@ -158,6 +193,10 @@ bool ReadUsdCrateTocFromPath(const std::string& path, UsdcCrateToc& out, std::si
     sec.name.assign(reinterpret_cast<const char*>(rec.data()), name_len);
     sec.start_byte_offset = readLeI64(rec.data() + 16);
     sec.size_bytes = readLeI64(rec.data() + 24);
+    if (!toc_section_range_valid(file_bytes, sec.start_byte_offset, sec.size_bytes, err_out)) {
+      out = UsdcCrateToc{};
+      return false;
+    }
     out.sections.push_back(std::move(sec));
   }
   return true;

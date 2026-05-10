@@ -7,6 +7,60 @@ from freeusd.tf import Token
 from freeusd.vt import Value
 
 
+def test_float3_vec3f_usda() -> None:
+    src = """#usda 1.0
+(
+)
+def "P"
+{
+    float3 extent = (1.5, 2.5, 3.5)
+}
+"""
+    layer = Layer.new_anonymous("f3")
+    assert io.load_from_string(src, layer).ok
+    p = Path.from_string("/P")
+    v = layer.get_field(p, Token("extent"))
+    assert v is not None
+    assert v.holds_vec3f()
+    u = v.as_vec3f()
+    assert abs(u.x() - 1.5) < 1e-5 and abs(u.y() - 2.5) < 1e-5 and abs(u.z() - 3.5) < 1e-5
+    out = io.save_to_string(layer)
+    assert "float3 extent" in out.replace("\n", " ")
+
+
+def test_quatf_orient_usda_roundtrip() -> None:
+    """``quatf`` tuple literals use the attribute type (distinct from ``quatd`` / ``double3``)."""
+    from freeusd.gf import Matrix4d
+    from freeusd.usd import Stage
+    from freeusd.usdGeom import Xformable
+
+    src = """#usda 1.0
+(
+)
+def "Q"
+{
+    quatf xformOp:orient = (0.70710677, 0, 0, 0.70710677)
+}
+"""
+    layer = Layer.new_anonymous("qf")
+    assert io.load_from_string(src, layer).ok
+    p = Path.from_string("/Q")
+    v = layer.get_field(p, Token("xformOp:orient"))
+    assert v is not None
+    assert v.holds_quatf()
+    q = v.as_quatf()
+    assert abs(q.real - 0.70710677) < 1e-5
+    assert abs(q.k - 0.70710677) < 1e-5
+    stage = Stage.attach_root_layer(layer)
+    xf = Xformable(stage.prim_at(p))
+    m = xf.compute_local_transform(1.0)
+    exp = Matrix4d.RotateDegreesZ(90.0)
+    for a, b in zip(m.as_list(), exp.as_list()):
+        assert abs(a - b) < 1e-4
+    out = io.save_to_string(layer)
+    assert "quatf" in out and "xformOp:orient" in out
+
+
 def test_time_samples_roundtrip() -> None:
     src = """#usda 1.0
 (
@@ -29,7 +83,7 @@ def "Prim"
     assert times == [1.0, 2.0]
     v = layer.get_field_at_time(p, Token("x"), 1.5)
     assert v is not None
-    assert v.as_double() == 1.5
+    assert abs(v.as_double() - 2.0) < 1e-6
 
 
 def test_usda_roundtrip_python() -> None:

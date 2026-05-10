@@ -1,6 +1,7 @@
 #include "freeusd/io/usda.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cerrno>
 #include <cstdlib>
@@ -12,7 +13,11 @@
 #include <variant>
 #include <vector>
 
+#include "freeusd/gf/matrix4d.hpp"
+#include "freeusd/gf/quatd.hpp"
+#include "freeusd/gf/quatf.hpp"
 #include "freeusd/gf/vec3d.hpp"
+#include "freeusd/gf/vec3f.hpp"
 #include "freeusd/sdf/layer.hpp"
 #include "freeusd/sdf/layerOffset.hpp"
 #include "freeusd/sdf/path.hpp"
@@ -21,6 +26,8 @@
 
 namespace freeusd::io::usda {
 namespace {
+
+std::string ascii_lower(std::string_view in);
 
 std::string_view trim(std::string_view s) {
   while (!s.empty() && std::isspace(static_cast<unsigned char>(s.front()))) {
@@ -193,13 +200,131 @@ void set_err(ParseResult* err, std::size_t line, const char* msg) {
   err->message = msg;
 }
 
-freeusd::vt::Value parse_value(std::string_view t, ParseResult* err, std::size_t line) {
+/// Bracketed list of ``@``-prefixed tokens (subset of USDA ``token[]`` / ``token`` list literals).
+bool parse_usda_token_array_literal(std::string_view t, ParseResult* err, std::size_t line,
+                                  std::vector<freeusd::tf::Token>* out) {
+  out->clear();
+  if (t.size() < 2 || t.front() != '[' || t.back() != ']') {
+    return false;
+  }
+  std::string_view inner = trim(t.substr(1, t.size() - 2));
+  if (inner.empty()) {
+    return true;
+  }
+  std::string buf{inner};
+  std::stringstream ss(buf);
+  std::string part;
+  while (std::getline(ss, part, ',')) {
+    const std::string_view p = trim(std::string_view{part});
+    if (p.empty()) {
+      continue;
+    }
+    if (p.front() != '@' || p.size() < 2) {
+      set_err(err, line, "token[] literal elements must be @-prefixed tokens");
+      return false;
+    }
+    out->emplace_back(freeusd::tf::Token{p.substr(1)});
+  }
+  return true;
+}
+
+bool parse_tuple4_strict(std::string_view row_inner, std::array<double, 4>* out, ParseResult* err, std::size_t line) {
+  const std::string inner_str{trim(row_inner)};
+  double a{};
+  double b{};
+  double c{};
+  double d{};
+  char c1 = 0;
+  char c2 = 0;
+  char c3 = 0;
+  std::istringstream iss{inner_str};
+  iss >> a >> c1 >> b >> c2 >> c >> c3 >> d;
+  if (!iss || c1 != ',' || c2 != ',' || c3 != ',') {
+    set_err(err, line, "matrix4d row: expected four comma-separated numbers");
+    return false;
+  }
+  iss >> std::ws;
+  if (!iss.eof()) {
+    set_err(err, line, "matrix4d row: trailing tokens");
+    return false;
+  }
+  (*out)[0] = a;
+  (*out)[1] = b;
+  (*out)[2] = c;
+  (*out)[3] = d;
+  return true;
+}
+
+/// Nested ``((r0), (r1), (r2), (r3))`` with each row ``(a, b, c, d)`` — row-major ``gf::Matrix4d::m`` (``[x y z 1] * M``).
+bool parse_matrix4d_rows(std::string_view s, freeusd::gf::Matrix4d* mat, ParseResult* err, std::size_t line) {
+  if (!mat) {
+    return false;
+  }
+  s = trim(s);
+  for (int row = 0; row < 4; ++row) {
+    s = trim(s);
+    if (s.empty() || s.front() != '(') {
+      set_err(err, line, "matrix4d literal: expected '(' for row");
+      return false;
+    }
+    int depth = 0;
+    std::size_t j = 0;
+    for (; j < s.size(); ++j) {
+      if (s[j] == '(') {
+        ++depth;
+      } else if (s[j] == ')') {
+        --depth;
+        if (depth == 0) {
+          break;
+        }
+      }
+    }
+    if (j >= s.size() || depth != 0) {
+      set_err(err, line, "matrix4d literal: unclosed row");
+      return false;
+    }
+    const std::string_view row_inner = trim(s.substr(1, j - 1));
+    std::array<double, 4> cols{};
+    if (!parse_tuple4_strict(row_inner, &cols, err, line)) {
+      return false;
+    }
+    for (int c = 0; c < 4; ++c) {
+      mat->m[static_cast<std::size_t>(row * 4 + c)] = cols[static_cast<std::size_t>(c)];
+    }
+    s = trim(s.substr(j + 1));
+    if (row < 3) {
+      if (s.empty() || s.front() != ',') {
+        set_err(err, line, "matrix4d literal: expected ',' between rows");
+        return false;
+      }
+      s.remove_prefix(1);
+    }
+  }
+  s = trim(s);
+  if (!s.empty()) {
+    set_err(err, line, "matrix4d literal: trailing tokens after rows");
+    return false;
+  }
+  return true;
+}
+
+freeusd::vt::Value parse_value(std::string_view t, ParseResult* err, std::size_t line, std::string_view sdf_type = {}) {
   t = trim(t);
   if (t == "true") {
     return freeusd::vt::Value::MakeBool(true);
   }
   if (t == "false") {
     return freeusd::vt::Value::MakeBool(false);
+  }
+  if (!t.empty() && t.front() == '[' && t.back() == ']') {
+    const std::string_view bracket_inner = trim(t.substr(1, t.size() - 2));
+    if (!bracket_inner.empty() && bracket_inner.front() == '@') {
+      std::vector<freeusd::tf::Token> elems;
+      if (!parse_usda_token_array_literal(t, err, line, &elems)) {
+        return {};
+      }
+      return freeusd::vt::Value::MakeTokenArray(std::move(elems));
+    }
   }
   if (!t.empty() && t.front() == '@') {
     if (t.size() < 2) {
@@ -224,19 +349,98 @@ freeusd::vt::Value parse_value(std::string_view t, ParseResult* err, std::size_t
     return freeusd::vt::Value::MakeString(std::move(name));
   }
   if (!t.empty() && t.front() == '(' && t.back() == ')') {
-    t = trim(t.substr(1, t.size() - 2));
-    double a{}, b{}, c{};
-    char comma1 = 0;
-    char comma2 = 0;
-    std::istringstream iss{std::string{t}};
-    iss >> a >> comma1 >> b >> comma2 >> c;
-    if (!iss || comma1 != ',' || comma2 != ',') {
-      set_err(err, line, "bad tuple3 literal");
+    const std::string_view inner_sv = trim(t.substr(1, t.size() - 2));
+    const std::string_view inner_trim = trim(inner_sv);
+    if (!inner_trim.empty() && inner_trim.front() == '(') {
+      freeusd::gf::Matrix4d mat{};
+      if (!parse_matrix4d_rows(inner_sv, &mat, err, line)) {
+        return {};
+      }
+      return freeusd::vt::Value::MakeMatrix4d(mat);
+    }
+    const std::string inner_str{inner_sv};
+    const std::string type_l = sdf_type.empty() ? std::string{} : ascii_lower(sdf_type);
+
+    if (type_l == "quatf") {
+      float a{};
+      float b{};
+      float c{};
+      float d{};
+      char c1 = 0;
+      char c2 = 0;
+      char c3 = 0;
+      std::istringstream iss{inner_str};
+      iss >> a >> c1 >> b >> c2 >> c >> c3 >> d;
+      if (iss && c1 == ',' && c2 == ',' && c3 == ',') {
+        iss >> std::ws;
+        if (iss.eof()) {
+          return freeusd::vt::Value::MakeQuatf(freeusd::gf::Quatf{a, b, c, d});
+        }
+      }
+      set_err(err, line, "bad quatf literal (expected w, i, j, k)");
       return {};
     }
-    freeusd::gf::Vec3d v;
-    v.set(a, b, c);
-    return freeusd::vt::Value::MakeVec3d(v);
+
+    if (type_l == "float3") {
+      float a{};
+      float b{};
+      float c{};
+      char comma1 = 0;
+      char comma2 = 0;
+      std::istringstream iss{inner_str};
+      iss >> a >> comma1 >> b >> comma2 >> c;
+      if (!iss || comma1 != ',' || comma2 != ',') {
+        set_err(err, line, "bad float3 literal");
+        return {};
+      }
+      iss >> std::ws;
+      if (!iss.eof()) {
+        set_err(err, line, "bad float3 literal (trailing tokens)");
+        return {};
+      }
+      freeusd::gf::Vec3f v;
+      v.set(a, b, c);
+      return freeusd::vt::Value::MakeVec3f(v);
+    }
+
+    if (type_l.empty() || type_l == "quatd") {
+      double a{};
+      double b{};
+      double c{};
+      double d{};
+      char c1 = 0;
+      char c2 = 0;
+      char c3 = 0;
+      std::istringstream iss{inner_str};
+      iss >> a >> c1 >> b >> c2 >> c >> c3 >> d;
+      if (iss && c1 == ',' && c2 == ',' && c3 == ',') {
+        iss >> std::ws;
+        if (iss.eof()) {
+          return freeusd::vt::Value::MakeQuatd(freeusd::gf::Quatd{a, b, c, d});
+        }
+      }
+    }
+    {
+      double a{};
+      double b{};
+      double c{};
+      char comma1 = 0;
+      char comma2 = 0;
+      std::istringstream iss{inner_str};
+      iss >> a >> comma1 >> b >> comma2 >> c;
+      if (!iss || comma1 != ',' || comma2 != ',') {
+        set_err(err, line, "bad tuple3 literal");
+        return {};
+      }
+      iss >> std::ws;
+      if (!iss.eof()) {
+        set_err(err, line, "bad tuple3 literal (trailing tokens)");
+        return {};
+      }
+      freeusd::gf::Vec3d v;
+      v.set(a, b, c);
+      return freeusd::vt::Value::MakeVec3d(v);
+    }
   }
   // Prefer full-token integer parsing, then floating-point parse; `'e'` in identifiers (e.g. Hello)
   // must not force the float branch.
@@ -357,7 +561,8 @@ bool ends_with(std::string_view s, std::string_view suf) noexcept {
   return s.size() >= suf.size() && s.compare(s.size() - suf.size(), suf.size(), suf) == 0;
 }
 
-bool parse_time_colon_value(std::string_view line, double* t_out, freeusd::vt::Value* v_out, ParseResult* err, std::size_t line_no) {
+bool parse_time_colon_value(std::string_view line, double* t_out, freeusd::vt::Value* v_out, ParseResult* err, std::size_t line_no,
+                            std::string_view sdf_type = {}) {
   const std::size_t colon = line.find(':');
   if (colon == std::string_view::npos) {
     set_err(err, line_no, "time sample line missing ':'");
@@ -380,7 +585,7 @@ bool parse_time_colon_value(std::string_view line, double* t_out, freeusd::vt::V
     set_err(err, line_no, "bad time sample time");
     return false;
   }
-  *v_out = parse_value(rv, err, line_no);
+  *v_out = parse_value(rv, err, line_no, sdf_type);
   if (err && !err->ok) {
     return false;
   }
@@ -393,14 +598,15 @@ bool parse_inline_time_samples(std::string_view inner,
                                const freeusd::sdf::Path& prim,
                                std::string_view base_name,
                                ParseResult* r,
-                               std::size_t line_no) {
+                               std::size_t line_no,
+                               std::string_view sdf_type = {}) {
   while (!inner.empty()) {
     const std::size_t comma = inner.find(',');
     const std::string_view piece = trim(inner.substr(0, comma));
     if (!piece.empty()) {
       double t{};
       freeusd::vt::Value v;
-      if (!parse_time_colon_value(piece, &t, &v, r, line_no)) {
+      if (!parse_time_colon_value(piece, &t, &v, r, line_no, sdf_type)) {
         return false;
       }
       layer->SetTimeSample(prim, freeusd::tf::Token{std::string{base_name}}, t, v);
@@ -453,6 +659,60 @@ std::string value_to_usda(const freeusd::vt::Value& v) {
     v.GetToken(&t);
     return t.GetText();
   }
+  if (v.HoldsTokenArray()) {
+    std::vector<freeusd::tf::Token> tv;
+    v.GetTokenArray(&tv);
+    std::string o = "[";
+    for (std::size_t i = 0; i < tv.size(); ++i) {
+      if (i) {
+        o += ", ";
+      }
+      o += '@';
+      o += tv[i].GetText();
+    }
+    o += ']';
+    return o;
+  }
+  if (v.HoldsQuatf()) {
+    freeusd::gf::Quatf q;
+    v.GetQuatf(&q);
+    std::ostringstream oss;
+    oss << std::setprecision(9) << '(' << q.real << ", " << q.i << ", " << q.j << ", " << q.k << ')';
+    return oss.str();
+  }
+  if (v.HoldsQuatd()) {
+    freeusd::gf::Quatd q;
+    v.GetQuatd(&q);
+    std::ostringstream oss;
+    oss << std::setprecision(17) << '(' << q.real << ", " << q.i << ", " << q.j << ", " << q.k << ')';
+    return oss.str();
+  }
+  if (v.HoldsMatrix4d()) {
+    freeusd::gf::Matrix4d mat;
+    v.GetMatrix4d(&mat);
+    std::ostringstream oss;
+    oss << std::setprecision(17) << "((";
+    for (int row = 0; row < 4; ++row) {
+      if (row) {
+        oss << "), (";
+      }
+      for (int col = 0; col < 4; ++col) {
+        if (col) {
+          oss << ", ";
+        }
+        oss << mat.m[static_cast<std::size_t>(row * 4 + col)];
+      }
+    }
+    oss << "))";
+    return oss.str();
+  }
+  if (v.HoldsVec3f()) {
+    freeusd::gf::Vec3f vec;
+    v.GetVec3f(&vec);
+    std::ostringstream oss;
+    oss << std::setprecision(9) << "(" << vec.x() << ", " << vec.y() << ", " << vec.z() << ")";
+    return oss.str();
+  }
   if (v.HoldsVec3d()) {
     freeusd::gf::Vec3d vec;
     v.GetVec3d(&vec);
@@ -500,6 +760,21 @@ std::string field_type_hint(const freeusd::vt::Value& v) {
   }
   if (v.HoldsToken()) {
     return "token";
+  }
+  if (v.HoldsTokenArray()) {
+    return "token[]";
+  }
+  if (v.HoldsQuatf()) {
+    return "quatf";
+  }
+  if (v.HoldsQuatd()) {
+    return "quatd";
+  }
+  if (v.HoldsMatrix4d()) {
+    return "matrix4d";
+  }
+  if (v.HoldsVec3f()) {
+    return "float3";
   }
   if (v.HoldsVec3d()) {
     return "double3";
@@ -2169,12 +2444,13 @@ ParseResult LoadFromString(std::string_view text, const std::shared_ptr<freeusd:
       r.message = "bad attribute line";
       return r;
     }
-    if (rel_list_op != RelListOpKind::Replace && ascii_lower(typ) != "rel") {
+    const std::string typ_lc = ascii_lower(typ);
+    if (rel_list_op != RelListOpKind::Replace && typ_lc != "rel") {
       set_err(&r, line_no, R"(unsupported relationship list op keyword for non-rel USDA statements)");
       return r;
     }
     const std::string_view fname_sv = fname;
-    if (ascii_lower(typ) == "rel") {
+    if (typ_lc == "rel") {
       std::vector<freeusd::sdf::Path> tgts;
       const std::string_view rhs = trim(std::string_view{fval});
       if (!parse_relationship_targets_value(rhs, &tgts, &r, line_no)) {
@@ -2214,7 +2490,7 @@ ParseResult LoadFromString(std::string_view text, const std::shared_ptr<freeusd:
           }
           double t{};
           freeusd::vt::Value v;
-          if (!parse_time_colon_value(sj, &t, &v, &r, inner_line_no)) {
+          if (!parse_time_colon_value(sj, &t, &v, &r, inner_line_no, typ_lc)) {
             return r;
           }
           layer->SetTimeSample(stack.back(), freeusd::tf::Token{base}, t, v);
@@ -2230,7 +2506,7 @@ ParseResult LoadFromString(std::string_view text, const std::shared_ptr<freeusd:
       }
       if (tv.size() >= 2 && tv.front() == '{' && tv.back() == '}') {
         const std::string_view inner = trim(tv.substr(1, tv.size() - 2));
-        if (!parse_inline_time_samples(inner, layer, stack.back(), base, &r, line_no)) {
+        if (!parse_inline_time_samples(inner, layer, stack.back(), base, &r, line_no, typ_lc)) {
           return r;
         }
         continue;
@@ -2265,7 +2541,7 @@ ParseResult LoadFromString(std::string_view text, const std::shared_ptr<freeusd:
       continue;
     }
 
-    freeusd::vt::Value v = parse_value(fval, &r, line_no);
+    freeusd::vt::Value v = parse_value(fval, &r, line_no, typ_lc);
     if (!r.ok) {
       return r;
     }

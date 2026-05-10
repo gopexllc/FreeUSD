@@ -42,7 +42,7 @@ def test_prim_get_attribute_at_time() -> None:
     layer.set_time_sample(cube, Token("height"), 3.0, Value.make_double(30.0))
     stage = Stage.attach_root_layer(layer)
     prim = stage.prim_at(cube)
-    assert prim.get_attribute(Token("height"), 2.0).as_double() == 10.0
+    assert prim.get_attribute(Token("height"), 2.0).as_double() == 20.0
     assert prim.get_attribute(Token("height"), 3.0).as_double() == 30.0
 
 
@@ -174,6 +174,191 @@ def test_usd_geom_xformable_local_to_world() -> None:
     xf = Xformable(prim)
     mw = xf.compute_local_to_world_transform(1.0)
     expect = Matrix4d.Multiply(Matrix4d.Translate(10.0, 0.0, 0.0), Matrix4d.Translate(1.0, 2.0, 3.0))
+    assert mw.as_list() == expect.as_list()
+
+    xf_world = Xformable(stage.prim_at(world))
+    ptw = xf.compute_parent_to_world_transform(1.0)
+    assert ptw.as_list() == xf_world.compute_local_to_world_transform(1.0).as_list()
+    assert ptw.as_list() == Matrix4d.Translate(10.0, 0.0, 0.0).as_list()
+    assert xf_world.compute_parent_to_world_transform(1.0).as_list() == Matrix4d.Identity().as_list()
+
+
+def test_usd_geom_xformable_reset_xform_stack() -> None:
+    from freeusd.gf import Matrix4d
+    from freeusd.usdGeom import Xformable
+
+    layer = Layer.new_anonymous("xf_rst")
+    world = Path.from_string("/World")
+    cube = Path.from_string("/World/Cube")
+    layer.set_field(world, Token("xformOp:translate"), Value.make_vec3d(100.0, 0.0, 0.0))
+    layer.set_field(
+        cube,
+        Token("xformOpOrder"),
+        Value.make_string("!resetXformStack!,xformOp:translate"),
+    )
+    layer.set_field(cube, Token("xformOp:translate"), Value.make_vec3d(1.0, 2.0, 3.0))
+    layer.set_default_prim("World")
+    stage = Stage.attach_root_layer(layer)
+    xf = Xformable(stage.prim_at(cube))
+    mw = xf.compute_local_to_world_transform(1.0)
+    expect = Matrix4d.Translate(1.0, 2.0, 3.0)
+    assert mw.as_list() == expect.as_list()
+
+
+def test_usd_geom_xformable_invert_translate() -> None:
+    from freeusd.gf import Matrix4d
+    from freeusd.usdGeom import Xformable
+
+    layer = Layer.new_anonymous("xf_inv")
+    world = Path.from_string("/World")
+    cube = Path.from_string("/World/Cube")
+    layer.set_field(world, Token("xformOp:translate"), Value.make_vec3d(4.0, 0.0, 0.0))
+    layer.set_field(
+        world,
+        Token("xformOpOrder"),
+        Value.make_token_array(["!invert!xformOp:translate", "xformOp:translate"]),
+    )
+    layer.set_field(cube, Token("xformOp:translate"), Value.make_vec3d(1.0, 0.0, 0.0))
+    layer.set_default_prim("World")
+    stage = Stage.attach_root_layer(layer)
+    xf = Xformable(stage.prim_at(cube))
+    mw = xf.compute_local_to_world_transform(1.0)
+    inv_t = Matrix4d.Translate(4.0, 0.0, 0.0).get_inverse()
+    assert inv_t is not None
+    rw = Matrix4d.Multiply(Matrix4d.Translate(4.0, 0.0, 0.0), inv_t)
+    expect = Matrix4d.Multiply(rw, Matrix4d.Translate(1.0, 0.0, 0.0))
+    assert mw.as_list() == expect.as_list()
+
+
+def test_usd_geom_xformable_translate_pivot_ops() -> None:
+    from freeusd.gf import Matrix4d
+    from freeusd.usdGeom import Xformable
+
+    layer = Layer.new_anonymous("xf_piv")
+    world = Path.from_string("/World")
+    layer.set_field(world, Token("xformOp:translate"), Value.make_vec3d(5.0, 0.0, 0.0))
+    layer.set_field(world, Token("xformOp:translate:pivot"), Value.make_vec3d(0.0, 10.0, 0.0))
+    layer.set_field(world, Token("xformOp:rotateZ"), Value.make_double(90.0))
+    layer.set_field(world, Token("xformOp:translate:pivotInverse"), Value.make_vec3d(0.0, -10.0, 0.0))
+    layer.set_field(
+        world,
+        Token("xformOpOrder"),
+        Value.make_string(
+            "xformOp:translate,xformOp:translate:pivot,xformOp:rotateZ,xformOp:translate:pivotInverse"
+        ),
+    )
+    layer.set_default_prim("World")
+    stage = Stage.attach_root_layer(layer)
+    xf = Xformable(stage.prim_at(world))
+    local = xf.compute_local_transform(1.0)
+    t5 = Matrix4d.Translate(5.0, 0.0, 0.0)
+    t_piv = Matrix4d.Translate(0.0, 10.0, 0.0)
+    rz = Matrix4d.RotateDegreesZ(90.0)
+    t_inv = Matrix4d.Translate(0.0, -10.0, 0.0)
+    expect = Matrix4d.Multiply(t_inv, Matrix4d.Multiply(rz, Matrix4d.Multiply(t_piv, t5)))
+    assert local.as_list() == expect.as_list()
+
+
+def test_usd_geom_xformable_shear() -> None:
+    from freeusd.gf import Matrix4d
+    from freeusd.usdGeom import Xformable
+
+    layer = Layer.new_anonymous("xf_sh")
+    world = Path.from_string("/World")
+    layer.set_field(world, Token("xformOp:translate"), Value.make_vec3d(1.0, 0.0, 0.0))
+    layer.set_field(world, Token("xformOp:shear"), Value.make_vec3d(0.5, 0.0, 0.0))
+    layer.set_field(world, Token("xformOpOrder"), Value.make_string("xformOp:translate,xformOp:shear"))
+    layer.set_default_prim("World")
+    stage = Stage.attach_root_layer(layer)
+    xf = Xformable(stage.prim_at(world))
+    local = xf.compute_local_transform(1.0)
+    expect = Matrix4d.Multiply(Matrix4d.Shear(0.5, 0.0, 0.0), Matrix4d.Translate(1.0, 0.0, 0.0))
+    assert local.as_list() == expect.as_list()
+
+
+def test_usd_geom_xformable_transform_matrix4d() -> None:
+    from freeusd.gf import Matrix4d
+    from freeusd.usdGeom import Xformable
+
+    layer = Layer.new_anonymous("xf_xf")
+    world = Path.from_string("/World")
+    cube = Path.from_string("/World/Cube")
+    t = Matrix4d.Translate(3.0, 0.0, 0.0)
+    layer.set_field(world, Token("xformOp:transform"), Value.make_matrix4d(t))
+    layer.set_field(world, Token("xformOpOrder"), Value.make_string("xformOp:transform"))
+    layer.set_field(cube, Token("xformOp:translate"), Value.make_vec3d(1.0, 0.0, 0.0))
+    layer.set_default_prim("World")
+    stage = Stage.attach_root_layer(layer)
+    xf = Xformable(stage.prim_at(cube))
+    mw = xf.compute_local_to_world_transform(1.0)
+    expect = Matrix4d.Multiply(t, Matrix4d.Translate(1.0, 0.0, 0.0))
+    assert mw.as_list() == expect.as_list()
+
+
+def test_usd_geom_xformable_orient_quat() -> None:
+    import math
+
+    from freeusd.gf import Matrix4d, Quatd
+    from freeusd.usdGeom import Xformable
+
+    layer = Layer.new_anonymous("xf_orient")
+    world = Path.from_string("/World")
+    cube = Path.from_string("/World/Cube")
+    layer.set_field(world, Token("xformOp:translate"), Value.make_vec3d(1.0, 0.0, 0.0))
+    s2 = math.sqrt(0.5)
+    layer.set_field(world, Token("xformOp:orient"), Value.make_quatd(s2, 0.0, 0.0, s2))
+    layer.set_field(world, Token("xformOpOrder"), Value.make_string("xformOp:translate,xformOp:orient"))
+    layer.set_field(cube, Token("xformOp:translate"), Value.make_vec3d(1.0, 0.0, 0.0))
+    layer.set_default_prim("World")
+    stage = Stage.attach_root_layer(layer)
+    xf = Xformable(stage.prim_at(cube))
+    mw = xf.compute_local_to_world_transform(1.0)
+    rw = Matrix4d.Multiply(Matrix4d.FromUnitQuaternion(Quatd(s2, 0.0, 0.0, s2)), Matrix4d.Translate(1.0, 0.0, 0.0))
+    expect = Matrix4d.Multiply(rw, Matrix4d.Translate(1.0, 0.0, 0.0))
+    assert mw.as_list() == expect.as_list()
+
+
+def test_usd_geom_xformable_xform_op_order_token_array() -> None:
+    from freeusd.gf import Matrix4d
+    from freeusd.usdGeom import Xformable
+
+    layer = Layer.new_anonymous("xf_tok")
+    world = Path.from_string("/World")
+    cube = Path.from_string("/World/Cube")
+    layer.set_field(world, Token("xformOp:translate"), Value.make_vec3d(1.0, 0.0, 0.0))
+    layer.set_field(
+        world,
+        Token("xformOpOrder"),
+        Value.make_token_array(["xformOp:translate", "xformOp:rotateXYZ"]),
+    )
+    layer.set_field(world, Token("xformOp:rotateXYZ"), Value.make_vec3d(0.0, 0.0, 90.0))
+    layer.set_field(cube, Token("xformOp:translate"), Value.make_vec3d(1.0, 0.0, 0.0))
+    layer.set_default_prim("World")
+    stage = Stage.attach_root_layer(layer)
+    xf = Xformable(stage.prim_at(cube))
+    mw = xf.compute_local_to_world_transform(1.0)
+    rw = Matrix4d.Multiply(Matrix4d.RotateDegreesZ(90.0), Matrix4d.Translate(1.0, 0.0, 0.0))
+    expect = Matrix4d.Multiply(rw, Matrix4d.Translate(1.0, 0.0, 0.0))
+    assert mw.as_list() == expect.as_list()
+
+
+def test_usd_geom_xformable_rotate_xyz_order() -> None:
+    from freeusd.gf import Matrix4d
+    from freeusd.usdGeom import Xformable
+
+    layer = Layer.new_anonymous("xfrot")
+    world = Path.from_string("/World")
+    cube = Path.from_string("/World/Cube")
+    layer.set_field(world, Token("xformOp:translate"), Value.make_vec3d(1.0, 0.0, 0.0))
+    layer.set_field(world, Token("xformOp:rotateXYZ"), Value.make_vec3d(0.0, 0.0, 90.0))
+    layer.set_field(world, Token("xformOpOrder"), Value.make_string("xformOp:translate,xformOp:rotateXYZ"))
+    layer.set_field(cube, Token("xformOp:translate"), Value.make_vec3d(1.0, 0.0, 0.0))
+    layer.set_default_prim("World")
+    stage = Stage.attach_root_layer(layer)
+    xf = Xformable(stage.prim_at(cube))
+    mw = xf.compute_local_to_world_transform(1.0)
+    rw = Matrix4d.Multiply(Matrix4d.RotateDegreesZ(90.0), Matrix4d.Translate(1.0, 0.0, 0.0))
+    expect = Matrix4d.Multiply(rw, Matrix4d.Translate(1.0, 0.0, 0.0))
     assert mw.as_list() == expect.as_list()
 
 

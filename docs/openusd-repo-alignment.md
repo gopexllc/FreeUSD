@@ -1,6 +1,6 @@
 # Aligning FreeUSD with the OpenUSD repository (clean-room)
 
-This project tracks the **shape** of the [OpenUSD](https://github.com/PixarAnimationStudios/OpenUSD) monorepo—library boundaries, public concepts, and where extensions live—so contributors and integrators can navigate FreeUSD with familiar mental models. **No Pixar / AOUSD source is copied**; behavior is reimplemented or stubbed under the `freeusd::` namespace and `include/freeusd/` tree. The FreeUSD codebase is distributed under the **GNU GPL v3.0 or later** (see the repository `LICENSE`); that choice is independent of upstream OpenUSD’s license.
+This project tracks the **shape** of the [OpenUSD](https://github.com/PixarAnimationStudios/OpenUSD) monorepo—library boundaries, public concepts, and where extensions live—so contributors and integrators can navigate FreeUSD with familiar mental models. **Do not copy code from OpenUSD (Pixar) or other upstream USD implementations** into this tree: no Pixar / AOUSD **source** is incorporated. Parity work uses **published specs**, file-format documentation, and **observed behavior** only; implementations are written clean-room under the `freeusd::` namespace and `include/freeusd/` tree. The FreeUSD codebase is distributed under the **GNU GPL v3.0 or later** (see the repository `LICENSE`); that choice is independent of upstream OpenUSD’s license.
 
 ## Namespaces and headers
 
@@ -34,7 +34,7 @@ OpenUSD ships many **Usd* schema** libraries (`usdShade`, `usdLux`, …). FreeUS
 
 | OpenUSD library | FreeUSD include | CMake target |
 | --- | --- | --- |
-| `usdGeom` (partial) | `usdGeom/` (tokens + `Xformable` stub) | `freeusd::usdGeom` |
+| `usdGeom` (partial) | `usdGeom/` (tokens + `Xformable` translate/scale/rotate subset) | `freeusd::usdGeom` |
 | `usdShade` | `usdShade/tokens.hpp` | `freeusd::usdShade` |
 | `usdLux` | `usdLux/tokens.hpp` | `freeusd::usdLux` |
 | `usdPhysics` | `usdPhysics/tokens.hpp` | `freeusd::usdPhysics` |

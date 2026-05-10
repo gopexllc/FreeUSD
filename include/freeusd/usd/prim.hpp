@@ -36,7 +36,7 @@ class FREEUSD_API Prim {
   std::vector<Prim> GetChildren() const;
 
   bool HasAttribute(const freeusd::tf::Token& name) const;
-  /// Evaluated attribute at \p time (hold interpolation; default stage time is \c 1.0 when omitted).
+  /// Evaluated attribute at \p time (linear / slerp where supported; default stage time is \c 1.0 when omitted).
   freeusd::vt::Value GetAttribute(const freeusd::tf::Token& name, double time = 1.0) const;
 
   /// Composed attribute names (union across the layer stack, stable sort).
