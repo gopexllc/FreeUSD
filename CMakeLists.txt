@@ -11,6 +11,7 @@ option(FREEUSD_BUILD_TESTS "Build and register C++ self-tests" ON)
 option(FREEUSD_BUILD_C_ABI "Build libfreeusd_c C API wrapper" ON)
 
 include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 
 add_subdirectory(src)
 
@@ -237,14 +238,62 @@ endif()
 
 install(DIRECTORY include/freeusd TYPE INCLUDE)
 
-set(_freeusd_install_targets freeusd_base freeusd_tf freeusd_vt freeusd_ar freeusd_sdf freeusd_io freeusd_pcp
-                             freeusd_usd freeusd_plug)
+# Targets exported as freeusd::<name> for find_package(FreeUSD) (see EXPORT_NAME in src/CMakeLists.txt).
+set(
+  _freeusd_export_targets
+  freeusd_build_settings
+  freeusd_base
+  freeusd_tf
+  freeusd_gf
+  freeusd_vt
+  freeusd_ar
+  freeusd_sdf
+  freeusd_io
+  freeusd_pcp
+  freeusd_usd
+  freeusd_usdUtils
+  freeusd_usdGeom
+  freeusd_usdShade
+  freeusd_usdLux
+  freeusd_usdPhysics
+  freeusd_usdVol
+  freeusd_usdSkel
+  freeusd_usdMedia
+  freeusd_usdRender
+  freeusd_usdRi
+  freeusd_usd_schemas
+  freeusd_plug
+  freeusd_trace
+  freeusd_work
+  freeusd_runtime)
 if(FREEUSD_BUILD_C_ABI)
-  list(APPEND _freeusd_install_targets freeusd_c)
+  list(APPEND _freeusd_export_targets freeusd_c)
 endif()
+
 install(
-  TARGETS ${_freeusd_install_targets}
+  TARGETS ${_freeusd_export_targets}
+  EXPORT FreeUsdTargets
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-)
+  INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+install(
+  EXPORT FreeUsdTargets
+  FILE FreeUsdTargets.cmake
+  NAMESPACE freeusd::
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/FreeUSD)
+
+set(_freeusd_cmake_dir "${CMAKE_INSTALL_LIBDIR}/cmake/FreeUSD")
+configure_package_config_file(
+  "${CMAKE_SOURCE_DIR}/cmake/FreeUSDConfig.cmake.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/FreeUSDConfig.cmake"
+  INSTALL_DESTINATION "${_freeusd_cmake_dir}")
+
+write_basic_package_version_file(
+  "${CMAKE_CURRENT_BINARY_DIR}/FreeUSDConfigVersion.cmake"
+  VERSION ${PROJECT_VERSION}
+  COMPATIBILITY SameMajorVersion)
+
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/FreeUSDConfig.cmake" "${CMAKE_CURRENT_BINARY_DIR}/FreeUSDConfigVersion.cmake"
+        DESTINATION "${_freeusd_cmake_dir}")

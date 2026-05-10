@@ -1,0 +1,91 @@
+# Integrating FreeUSD into a C++ project (including game engines)
+
+This document is a practical companion to [openusd-map.md](openusd-map.md) (feature coverage) and [openusd-repo-alignment.md](openusd-repo-alignment.md) (layout vs upstream OpenUSD). It focuses on **how to link** and **what to expect**, not on duplicating the full API map.
+
+## Licensing
+
+FreeUSD library sources are **GPL-3.0-or-later**; see the root [README](../README.md) and [LICENSE](../LICENSE). The project is aimed especially at **GPL-3 (or compatible) applications**—for example a **GPL-3 game engine**—that want a USD-shaped scene stack under the **same copyleft** as the rest of the engine, without pulling in upstream OpenUSD’s different license terms. If you **statically link** FreeUSD into a binary you **distribute**, you must comply with the GPL’s requirements for that combined work; for a GPLv3 engine, that is usually aligned with how you already ship the engine. **Proprietary** engines that cannot adopt GPLv3 for linked code still need a **separate** license or another USD implementation.
+
+## CMake consumption
+
+### In-tree (`add_subdirectory`)
+
+From your project’s `CMakeLists.txt` after adding this repository (submodule, monorepo path, or `FetchContent`):
+
+```cmake
+add_subdirectory(third_party/freeusd EXCLUDE_FROM_ALL)
+
+target_link_libraries(your_target PRIVATE freeusd::runtime)
+target_include_directories(your_target PRIVATE ...) # usually unnecessary; targets propagate include/
+```
+
+`freeusd::runtime` is an **INTERFACE** aggregate defined in `src/CMakeLists.txt`: it pulls in `freeusd::base`, `tf`, `gf`, `vt`, `ar`, `sdf`, `io`, `pcp`, `usd`, `usdGeom`, `plug`, `trace`, and `work` (stubs where noted in the map). That is the closest thing to “link one CMake target for the C++ core.”
+
+For the optional **header-only schema token bundles** (`usdShade`, `usdLux`, …) as a single dependency, use:
+
+```cmake
+target_link_libraries(your_target PRIVATE freeusd::usd_schemas)
+```
+
+(`usd_schemas` already depends on `usdGeom` and the other stub packages; you can use it **instead of** or **in addition to** pieces of `runtime` depending on whether you already link `runtime`—linking both is redundant but harmless for INTERFACE libs.)
+
+### Build options relevant to engines
+
+| CMake option | Default | Notes |
+| --- | --- | --- |
+| `FREEUSD_BUILD_PYTHON` | `ON` | Set `OFF` if you do not need the extension and want to avoid pybind11 fetch/build. |
+| `FREEUSD_BUILD_TESTS` | `ON` | Set `OFF` for minimal integration builds. |
+| `FREEUSD_BUILD_C_ABI` | `ON` | Set `OFF` if you only use C++ APIs and want to skip `libfreeusd_c`. |
+
+Example minimal configure:
+
+```bash
+cmake -S freeusd -B build/freeusd \
+  -DFREEUSD_BUILD_PYTHON=OFF \
+  -DFREEUSD_BUILD_TESTS=OFF \
+  -DCMAKE_BUILD_TYPE=Release
+cmake --build build/freeusd -j
+```
+
+### Install layout
+
+`cmake --install` copies:
+
+- Headers under the install prefix’s include tree (`include/freeusd/...`).
+- Static archives for the compiled targets (`libfreeusd_*.a`, including `libfreeusd_c.a` when `FREEUSD_BUILD_C_ABI` is on) into `${CMAKE_INSTALL_LIBDIR}`.
+- **CMake package files** under `${CMAKE_INSTALL_LIBDIR}/cmake/FreeUSD/`: `FreeUSDConfig.cmake`, `FreeUSDConfigVersion.cmake`, and `FreeUsdTargets.cmake` (imported targets use the same names as in-tree, for example `freeusd::runtime`, `freeusd::usd`, `freeusd::c` when the C ABI was built).
+
+After install, a consumer project can use:
+
+```cmake
+list(APPEND CMAKE_PREFIX_PATH "/path/to/freeusd/prefix")
+find_package(FreeUSD REQUIRED)
+target_link_libraries(your_target PRIVATE freeusd::runtime)
+```
+
+`find_package` is case-sensitive: the package name is **`FreeUSD`**. You can still use **`add_subdirectory`** on a source checkout if you prefer not to install.
+
+### C++ vs C ABI
+
+- **C++**: include headers under `freeusd/...` (for example `freeusd/usd/stage.hpp`) and link `freeusd::runtime` or finer-grained `freeusd::usd` etc.
+- **C ABI** (stable FFI boundary): link `freeusd::c`, include [`include/freeusd/c/freeusd.h`](../include/freeusd/c/freeusd.h). Useful for engine subsystems written in C, another language, or a DLL boundary you want to keep narrow.
+
+## Threading
+
+The C header documents that **`FreeusdLayer` / `FreeusdStage` must not be used from multiple threads concurrently** unless you add your own synchronization, and that `freeusd_last_error_message` is **thread-local**. Treat the C++ `Stage`, layers, and related mutable objects the same way unless a future release documents stronger guarantees: **one thread at a time per stage/layer graph**, or external locking.
+
+## Formats and runtime expectations
+
+- **USDA (ASCII)**: supported for load/save via `freeusd::io::usda` and stage open-from-file paths; this is the practical interchange format today.
+- **USDC (crate)**: **not implemented** (placeholder only). Pipelines that rely on binary crate files need another reader or an export path to USDA.
+- **Hydra / UsdImaging**: **not present**. There is no built-in path from FreeUSD to GPU scene delegates like upstream USD’s imaging stack.
+
+## Fit checklist before shipping
+
+1. **License**: GPLv3 engines align with FreeUSD’s **GPL-3.0-or-later**; proprietary stacks need a different USD path or a separate license.
+2. **Asset format**: USDA-only vs need for `.usdc`.
+3. **Feature subset**: compare your required composition and schema behavior with [openusd-map.md](openusd-map.md); FreeUSD is intentionally smaller and **not** drop-in API-compatible with Pixar OpenUSD.
+4. **Threading**: serialize access or clone per thread if you load in workers.
+5. **Link model**: default build is **static** `.a` libraries; `BUILD_SHARED_LIBS` affects `FREEUSD_SHARED` define for any future shared usage—confirm what your platform ships.
+
+For a high-level “what exists vs upstream,” keep [openusd-map.md](openusd-map.md) as the source of truth.

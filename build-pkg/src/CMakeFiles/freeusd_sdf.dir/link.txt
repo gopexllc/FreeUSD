@@ -1,0 +1,2 @@
+/usr/bin/ar qc libfreeusd_sdf.a CMakeFiles/freeusd_sdf.dir/sdf/path.cpp.o CMakeFiles/freeusd_sdf.dir/sdf/layer.cpp.o CMakeFiles/freeusd_sdf.dir/sdf/fieldOpinion.cpp.o CMakeFiles/freeusd_sdf.dir/sdf/primReference.cpp.o
+/usr/bin/ranlib libfreeusd_sdf.a

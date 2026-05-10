@@ -1,6 +1,8 @@
 # FreeUSD
 A **GPL-3.0-or-later** licensed, independent implementation of the OpenUSD (Universal Scene Description) file formats and core data model.
 
+It is intended for **GPL-3-compatible** stacks—for example a **GPL-3 game engine**—that want USD-style authoring and composition under the **same license family** as the engine, rather than depending on upstream OpenUSD’s license for that layer.
+
 ---
 
 FreeUSD is an independent project and is not endorsed by or affiliated with Pixar, the Alliance for OpenUSD, or the official OpenUSD project. It aims for compliance with the published OpenUSD Core Specification.
@@ -15,7 +17,7 @@ Implementation is **clean-room** relative to Pixar’s OpenUSD sources: this tre
 
 ## Layout
 
-C++ libraries follow OpenUSD-style layering (`tf`, `gf`, `vt`, `ar`, `sdf`, `pcp`, `usd`, `usdGeom`, plus `plug` / `trace` / `work` stubs). See [docs/openusd-map.md](docs/openusd-map.md) for a side-by-side map and [docs/openusd-repo-alignment.md](docs/openusd-repo-alignment.md) for how this tree maps to a full **OpenUSD** checkout (names, CMake targets, and out-of-scope areas)—without copying upstream code. **USDA:** minimal ASCII load/save (`freeusd::io::usda` / `freeusd.io`), including `attr.timeSamples = { t: v, ... }` blocks. **`.usdc`:** not implemented yet (header placeholder only).
+C++ libraries follow OpenUSD-style layering (`tf`, `gf`, `vt`, `ar`, `sdf`, `pcp`, `usd`, `usdGeom`, plus `plug` / `trace` / `work` stubs). See [docs/openusd-map.md](docs/openusd-map.md) for a side-by-side map and [docs/openusd-repo-alignment.md](docs/openusd-repo-alignment.md) for how this tree maps to a full **OpenUSD** checkout (names, CMake targets, and out-of-scope areas)—without copying upstream code. For **embedding in another CMake project** (game engines, tools), see [docs/engine-integration.md](docs/engine-integration.md). **USDA:** minimal ASCII load/save (`freeusd::io::usda` / `freeusd.io`), including `attr.timeSamples = { t: v, ... }` blocks. **`.usdc`:** not implemented yet (header placeholder only).
 
 ## Building
 
@@ -26,6 +28,8 @@ cmake -S . -B build -DFREEUSD_BUILD_PYTHON=ON -DFREEUSD_BUILD_TESTS=ON
 cmake --build build -j
 ctest --test-dir build --output-on-failure
 ```
+
+To install headers, static libraries, and **`find_package(FreeUSD)`** support: `cmake --install build --prefix /your/prefix` (see [docs/engine-integration.md](docs/engine-integration.md)).
 
 If Python and tests are both enabled and **`pytest`** is importable at configure time, **`ctest`** also registers **`freeusd_pytest`** (label **`python`**). Re-run **`cmake -S . -B build`** after installing pytest so the test appears. Build **`_native`** before pytest so `freeusd/_native*.so` exists beside the package.
 
