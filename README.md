@@ -43,6 +43,8 @@ The native Python module is built as `_native*.so` under `build/`; CMake also co
 
 **Python package (recommended for development)**
 
+The wheel / editable metadata require **Python 3.10+** (see `requires-python` in [`pyproject.toml`](pyproject.toml)). The **`dev`** extra pins **pytest 9.0.3+**, which fixes **CVE-2025-71176** (tmpdir handling) and matches what **`uv.lock`** resolves for local tooling.
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate

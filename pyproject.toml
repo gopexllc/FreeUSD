@@ -7,12 +7,12 @@ name = "freeusd"
 version = "0.1.0"
 description = "GPL-3.0-or-later independent OpenUSD-related formats and core data model (clean-room)"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0"]
+dev = ["pytest>=9.0.3"]
 
 [tool.scikit-build]
 minimum-version = "0.10"
