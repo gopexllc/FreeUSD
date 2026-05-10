@@ -1,0 +1,2 @@
+/usr/bin/ar qc libfreeusd_pcp.a CMakeFiles/freeusd_pcp.dir/pcp/layerStack.cpp.o CMakeFiles/freeusd_pcp.dir/pcp/compose.cpp.o CMakeFiles/freeusd_pcp.dir/pcp/resolve.cpp.o
+/usr/bin/ranlib libfreeusd_pcp.a

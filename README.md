@@ -29,7 +29,9 @@ cmake --build build -j
 ctest --test-dir build --output-on-failure
 ```
 
-To install headers, static libraries, and **`find_package(FreeUSD)`** support: `cmake --install build --prefix /your/prefix` (see [docs/engine-integration.md](docs/engine-integration.md)).
+Continuous integration (GitHub Actions) runs **Linux**, **macOS**, and **Windows** (Visual Studio 2022, **Release**) with **Python disabled**, **tests on**, and **`FREEUSD_TEST_INSTALL_INTEGRATION=ON`** so **`find_package`** is exercised; see [`.github/workflows/ci.yml`](.github/workflows/ci.yml). Workflows can also be started manually (**Actions → CI → Run workflow**).
+
+To install headers, static libraries, **`find_package(FreeUSD)`**, and **`pkg-config`** (`freeusd.pc`): configure with **`-DCMAKE_INSTALL_PREFIX=`** matching the tree you will install into, then `cmake --install build` (or `--prefix` same as that). Details in [docs/engine-integration.md](docs/engine-integration.md).
 
 If Python and tests are both enabled and **`pytest`** is importable at configure time, **`ctest`** also registers **`freeusd_pytest`** (label **`python`**). Re-run **`cmake -S . -B build`** after installing pytest so the test appears. Build **`_native`** before pytest so `freeusd/_native*.so` exists beside the package.
 

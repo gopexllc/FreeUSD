@@ -1,0 +1,2 @@
+/usr/bin/ar qc libfreeusd_base.a CMakeFiles/freeusd_base.dir/version.cpp.o
+/usr/bin/ranlib libfreeusd_base.a

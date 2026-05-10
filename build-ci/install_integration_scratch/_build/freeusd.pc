@@ -1,0 +1,11 @@
+prefix=/home/tim/freeusd/build-ci/install_integration_scratch/_prefix
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: FreeUSD
+Description: GPL-3.0-or-later USD-shaped scene libraries (clean-room)
+Version: 0.1.0
+Requires:
+Libs: -L${libdir} -Wl,--start-group -lfreeusd_c -lfreeusd_base -lfreeusd_usd -lfreeusd_ar -lfreeusd_io -lfreeusd_pcp -lfreeusd_sdf -lfreeusd_vt -lfreeusd_tf -lfreeusd_plug -Wl,--end-group
+Cflags: -I${includedir}

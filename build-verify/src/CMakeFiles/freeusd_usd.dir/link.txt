@@ -1,0 +1,2 @@
+/usr/bin/ar qc libfreeusd_usd.a CMakeFiles/freeusd_usd.dir/usd/stage.cpp.o CMakeFiles/freeusd_usd.dir/usd/prim.cpp.o CMakeFiles/freeusd_usd.dir/usd/crateFile.cpp.o
+/usr/bin/ranlib libfreeusd_usd.a

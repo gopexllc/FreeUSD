@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.20)
+project(freeusd_find_consumer LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+find_package(FreeUSD REQUIRED)
+add_executable(freeusd_find_consumer main.cpp)
+target_link_libraries(freeusd_find_consumer PRIVATE freeusd::runtime)

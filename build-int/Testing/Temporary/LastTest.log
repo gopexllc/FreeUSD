@@ -1,0 +1,27 @@
+Start testing: May 09 20:45 PDT
+----------------------------------------------------------
+30/30 Testing: freeusd_install_integration
+30/30 Test: freeusd_install_integration
+Command: "/usr/bin/cmake" "-E" "env" "FREEUSD_SOURCE_DIR=/home/tim/freeusd" "FREEUSD_SCRATCH=/home/tim/freeusd/build-int/install_integration_scratch" "/usr/bin/cmake" "-P" "/home/tim/freeusd/tests/install_integration.cmake"
+Directory: /home/tim/freeusd/build-int
+"freeusd_install_integration" start time: May 09 20:45 PDT
+Output:
+----------------------------------------------------------
+-- FreeUSD install integration: configure (prefix=/home/tim/freeusd/build-int/install_integration_scratch/_prefix)
+-- FreeUSD install integration: build
+-- FreeUSD install integration: install
+-- FreeUSD install integration: consumer find_package
+-- FreeUSD install integration: run /home/tim/freeusd/build-int/install_integration_scratch/_consumer/freeusd_find_consumer
+-- FreeUSD install integration: OK
+<end of output>
+Test time =  11.13 sec
+----------------------------------------------------------
+Test Passed.
+"freeusd_install_integration" end time: May 09 20:45 PDT
+"freeusd_install_integration" time elapsed: 00:00:11
+----------------------------------------------------------
+
+End testing: May 09 20:45 PDT
+
+install_integration =  11.13 sec*proc
+

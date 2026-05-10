@@ -9,6 +9,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 option(FREEUSD_BUILD_PYTHON "Build pybind11 Python extension" ON)
 option(FREEUSD_BUILD_TESTS "Build and register C++ self-tests" ON)
 option(FREEUSD_BUILD_C_ABI "Build libfreeusd_c C API wrapper" ON)
+option(FREEUSD_TEST_INSTALL_INTEGRATION "CTest: full configure+install+find_package smoke (slow)" OFF)
 
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
@@ -171,6 +172,17 @@ if(FREEUSD_BUILD_TESTS)
   endif()
 endif()
 
+if(FREEUSD_BUILD_TESTS AND FREEUSD_TEST_INSTALL_INTEGRATION)
+  # Use cmake -E env (not PROPERTIES ENVIRONMENT) so paths are not split on ';'.
+  add_test(
+    NAME freeusd_install_integration
+    COMMAND
+      "${CMAKE_COMMAND}" -E env "FREEUSD_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
+      "FREEUSD_SCRATCH=${CMAKE_BINARY_DIR}/install_integration_scratch" "${CMAKE_COMMAND}" -P
+      "${CMAKE_SOURCE_DIR}/tests/install_integration.cmake")
+  set_tests_properties(freeusd_install_integration PROPERTIES LABELS "install_integration" TIMEOUT 600)
+endif()
+
 if(FREEUSD_BUILD_PYTHON)
   include(FetchContent)
   FetchContent_Declare(
@@ -237,6 +249,8 @@ if(FREEUSD_BUILD_PYTHON AND FREEUSD_BUILD_TESTS)
 endif()
 
 install(DIRECTORY include/freeusd TYPE INCLUDE)
+install(FILES "${CMAKE_SOURCE_DIR}/LICENSE"
+        DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/doc/${PROJECT_NAME}")
 
 # Targets exported as freeusd::<name> for find_package(FreeUSD) (see EXPORT_NAME in src/CMakeLists.txt).
 set(
@@ -297,3 +311,23 @@ write_basic_package_version_file(
 
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/FreeUSDConfig.cmake" "${CMAKE_CURRENT_BINARY_DIR}/FreeUSDConfigVersion.cmake"
         DESTINATION "${_freeusd_cmake_dir}")
+
+# pkg-config (static archives; link order matches typical CMake consumer for freeusd::runtime + optional C ABI).
+set(_freeusd_pc_arch base usd ar io pcp sdf vt tf plug)
+set(FREEUSD_PC_ARCHIVE_LIBS "")
+foreach(_s IN LISTS _freeusd_pc_arch)
+  string(APPEND FREEUSD_PC_ARCHIVE_LIBS " -lfreeusd_${_s}")
+endforeach()
+if(FREEUSD_BUILD_C_ABI)
+  set(FREEUSD_PC_ARCHIVE_LIBS " -lfreeusd_c${FREEUSD_PC_ARCHIVE_LIBS}")
+endif()
+# GNU ld accepts --start-group/--end-group for static cycles; Apple ld does not.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" OR MINGW)
+  set(FREEUSD_PC_LINK_WRAP_START "-Wl,--start-group")
+  set(FREEUSD_PC_LINK_WRAP_END "-Wl,--end-group")
+else()
+  set(FREEUSD_PC_LINK_WRAP_START "")
+  set(FREEUSD_PC_LINK_WRAP_END "")
+endif()
+configure_file("${CMAKE_SOURCE_DIR}/cmake/freeusd.pc.in" "${CMAKE_CURRENT_BINARY_DIR}/freeusd.pc" @ONLY)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/freeusd.pc" DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")

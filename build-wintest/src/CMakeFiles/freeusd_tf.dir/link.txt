@@ -1,0 +1,2 @@
+/usr/bin/ar qc libfreeusd_tf.a CMakeFiles/freeusd_tf.dir/tf/token.cpp.o CMakeFiles/freeusd_tf.dir/tf/hash.cpp.o
+/usr/bin/ranlib libfreeusd_tf.a

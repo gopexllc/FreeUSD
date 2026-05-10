@@ -1,0 +1,11 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+exec_prefix=${prefix}
+libdir=${prefix}/@CMAKE_INSTALL_LIBDIR@
+includedir=${prefix}/@CMAKE_INSTALL_INCLUDEDIR@
+
+Name: FreeUSD
+Description: GPL-3.0-or-later USD-shaped scene libraries (clean-room)
+Version: @PROJECT_VERSION@
+Requires:
+Libs: -L${libdir} @FREEUSD_PC_LINK_WRAP_START@@FREEUSD_PC_ARCHIVE_LIBS@ @FREEUSD_PC_LINK_WRAP_END@
+Cflags: -I${includedir}

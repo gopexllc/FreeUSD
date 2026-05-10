@@ -1,0 +1,8 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/tim/freeusd/build-wintest/cmake_install.cmake",
+		"/home/tim/freeusd/build-wintest/src/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

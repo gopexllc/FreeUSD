@@ -36,6 +36,7 @@ target_link_libraries(your_target PRIVATE freeusd::usd_schemas)
 | `FREEUSD_BUILD_PYTHON` | `ON` | Set `OFF` if you do not need the extension and want to avoid pybind11 fetch/build. |
 | `FREEUSD_BUILD_TESTS` | `ON` | Set `OFF` for minimal integration builds. |
 | `FREEUSD_BUILD_C_ABI` | `ON` | Set `OFF` if you only use C++ APIs and want to skip `libfreeusd_c`. |
+| `FREEUSD_TEST_INSTALL_INTEGRATION` | `OFF` | When `ON` and tests are enabled, registers **`freeusd_install_integration`** CTest (full clean configure + install + `find_package` consumer; ~10s+, label **`install_integration`**). |
 
 Example minimal configure:
 
@@ -52,6 +53,7 @@ cmake --build build/freeusd -j
 `cmake --install` copies:
 
 - Headers under the install prefix’s include tree (`include/freeusd/...`).
+- The **`LICENSE`** file under **`${CMAKE_INSTALL_DATAROOTDIR}/doc/${PROJECT_NAME}/`** (default **`share/doc/freeusd/`** under the prefix).
 - Static archives for the compiled targets (`libfreeusd_*.a`, including `libfreeusd_c.a` when `FREEUSD_BUILD_C_ABI` is on) into `${CMAKE_INSTALL_LIBDIR}`.
 - **CMake package files** under `${CMAKE_INSTALL_LIBDIR}/cmake/FreeUSD/`: `FreeUSDConfig.cmake`, `FreeUSDConfigVersion.cmake`, and `FreeUsdTargets.cmake` (imported targets use the same names as in-tree, for example `freeusd::runtime`, `freeusd::usd`, `freeusd::c` when the C ABI was built).
 
@@ -63,7 +65,20 @@ find_package(FreeUSD REQUIRED)
 target_link_libraries(your_target PRIVATE freeusd::runtime)
 ```
 
-`find_package` is case-sensitive: the package name is **`FreeUSD`**. You can still use **`add_subdirectory`** on a source checkout if you prefer not to install.
+With a **multi-config** generator (for example **Visual Studio** on Windows), configure and build a **Release** tree (or pass **`CMAKE_BUILD_TYPE=Release`** for single-config generators), and run **`ctest -C Release`** if you run tests from the build directory.
+
+`find_package` is case-sensitive: the package name is **`FreeUSD`**. If CMake still does not locate the config file, set **`FreeUSD_DIR`** to the directory that contains **`FreeUSDConfig.cmake`** (for a typical layout that is **`${install_prefix}/lib/cmake/FreeUSD`**, or under **`lib/<triplet>/cmake/FreeUSD`** on some Linux multi-arch installs). You can still use **`add_subdirectory`** on a source checkout if you prefer not to install.
+
+### pkg-config
+
+A **`freeusd.pc`** file is installed under **`${CMAKE_INSTALL_LIBDIR}/pkgconfig/`**. It lists the **static** archives needed for the core stack (same ordering style as a typical `freeusd::runtime` link). On **Linux** (and **MinGW**), **`pkg-config` adds `-Wl,--start-group` / `--end-group`** so GNU `ld` can resolve circular references between the `.a` files; on **macOS** those flags are omitted because Apple’s linker does not support them. When the C ABI was built, **`-lfreeusd_c`** is included.
+
+```bash
+export PKG_CONFIG_PATH="/path/to/freeusd/prefix/lib/pkgconfig"
+g++ -std=c++17 main.cpp $(pkg-config --cflags --libs freeusd) -o app
+```
+
+The `.pc` file’s **`prefix=`** is taken from **`CMAKE_INSTALL_PREFIX` at configure time**. If you install with `cmake --install … --prefix /other` **without** that matching your configure-time prefix, regenerate the build with **`-DCMAKE_INSTALL_PREFIX=/other`** before installing so `prefix`, `libdir`, and `includedir` stay consistent (the same caveat applies to many CMake-generated pkg-config files).
 
 ### C++ vs C ABI
 

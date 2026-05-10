@@ -1,0 +1,3 @@
+/home/tim/freeusd/build-wintest/install_integration_scratch/_consumer/CMakeFiles/freeusd_find_consumer.dir
+/home/tim/freeusd/build-wintest/install_integration_scratch/_consumer/CMakeFiles/edit_cache.dir
+/home/tim/freeusd/build-wintest/install_integration_scratch/_consumer/CMakeFiles/rebuild_cache.dir
