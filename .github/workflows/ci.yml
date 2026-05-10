@@ -13,6 +13,22 @@ on:
   workflow_dispatch:
 
 jobs:
+  tree-hygiene:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Refuse tracked paths under build-*
+        run: |
+          set -euo pipefail
+          bad="$(git ls-files | grep -E '^build-' || true)"
+          if [ -n "${bad}" ]; then
+            echo "::error::Tracked build-* paths must not be committed (invalid on Windows; use /build/ or ignored prefixes only)."
+            printf '%s\n' "${bad}"
+            exit 1
+          fi
+
   linux:
     runs-on: ubuntu-latest
     timeout-minutes: 30
