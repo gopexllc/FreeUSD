@@ -66,6 +66,22 @@ enum FreeusdUsdFileKind {
 FREEUSD_C_API int freeusd_detect_usd_file_kind_from_path_utf8(const char* path_utf8, int* out_kind,
                                                                char** out_detail_utf8);
 
+/** Fixed-size USDC crate bootstrap (``ReadUsdCrateBootstrapFromPath``); matches C++ logical fields. */
+typedef struct FreeusdUsdcBootstrap {
+  uint8_t file_version_major;
+  uint8_t file_version_minor;
+  uint8_t file_version_patch;
+  uint8_t reserved[5]; /**< Pad so @c toc_byte_offset is 8-byte aligned (portable C layout). */
+  int64_t toc_byte_offset;
+} FreeusdUsdcBootstrap;
+
+/**
+ * Reads the 88-byte USDC bootstrap from @p path_utf8 (little-endian TOC offset). On @ref FREEUSD_OK,
+ * @p *out_bootstrap is filled; otherwise it is zeroed and @ref freeusd_last_error_message describes the failure.
+ */
+FREEUSD_C_API int freeusd_read_usdc_bootstrap_from_path_utf8(const char* path_utf8,
+                                                              FreeusdUsdcBootstrap* out_bootstrap);
+
 /**
  * Last error message for the calling thread, valid until the next FreeUSD C API
  * call on this thread. Never null (empty string if no error was recorded).

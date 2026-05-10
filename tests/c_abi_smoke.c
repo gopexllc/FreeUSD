@@ -99,6 +99,50 @@ int main(void) {
     }
   }
 
+  {
+    char boot_path[256];
+    snprintf(boot_path, sizeof boot_path, "fusd_c_smoke_boot_%ld.usdc", c_smoke_pid());
+    FILE* wf = fopen(boot_path, "wb");
+    if (!wf) {
+      fprintf(stderr, "fopen bootstrap temp failed\n");
+      return 1;
+    }
+    unsigned char buf[128];
+    memset(buf, 0, sizeof buf);
+    memcpy(buf, usdc_id, strlen(usdc_id));
+    buf[8] = 0;
+    buf[9] = 8;
+    buf[10] = 0;
+    buf[16] = 88;
+    buf[17] = 0;
+    buf[18] = 0;
+    buf[19] = 0;
+    buf[20] = 0;
+    buf[21] = 0;
+    buf[22] = 0;
+    buf[23] = 0;
+    if (fwrite(buf, 1, sizeof buf, wf) != sizeof buf) {
+      fprintf(stderr, "write bootstrap temp failed\n");
+      fclose(wf);
+      remove(boot_path);
+      return 1;
+    }
+    fclose(wf);
+    FreeusdUsdcBootstrap boot;
+    memset(&boot, 0, sizeof boot);
+    if (freeusd_read_usdc_bootstrap_from_path_utf8(boot_path, &boot) != FREEUSD_OK) {
+      fprintf(stderr, "read_usdc_bootstrap failed: %s\n", freeusd_last_error_message());
+      remove(boot_path);
+      return 1;
+    }
+    remove(boot_path);
+    if (boot.file_version_major != 0 || boot.file_version_minor != 8 || boot.file_version_patch != 0 ||
+        boot.toc_byte_offset != 88) {
+      fprintf(stderr, "unexpected bootstrap fields\n");
+      return 1;
+    }
+  }
+
   FreeusdLayer* layer = freeusd_layer_new_anonymous("c_smoke");
   if (!layer) {
     fprintf(stderr, "layer_new failed: %s\n", freeusd_last_error_message());

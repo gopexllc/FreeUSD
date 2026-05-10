@@ -59,6 +59,31 @@ func DetectUsdFileKindFromPath(path string) (kind UsdFileKind, detail string, rc
 	return kind, detail, 0
 }
 
+// UsdcBootstrap is the decoded USDC file bootstrap (matches C FreeusdUsdcBootstrap).
+type UsdcBootstrap struct {
+	FileVersionMajor byte
+	FileVersionMinor byte
+	FileVersionPatch byte
+	TocByteOffset      int64
+}
+
+// ReadUsdcBootstrapFromPath reads the 88-byte USDC bootstrap (little-endian TOC offset). rc is 0 on success.
+func ReadUsdcBootstrapFromPath(path string) (boot UsdcBootstrap, rc int) {
+	cs := C.CString(path)
+	defer C.free(unsafe.Pointer(cs))
+	var raw C.FreeusdUsdcBootstrap
+	rc = int(C.freeusd_read_usdc_bootstrap_from_path_utf8(cs, &raw))
+	if rc != 0 {
+		return UsdcBootstrap{}, rc
+	}
+	return UsdcBootstrap{
+		FileVersionMajor: byte(raw.file_version_major),
+		FileVersionMinor: byte(raw.file_version_minor),
+		FileVersionPatch: byte(raw.file_version_patch),
+		TocByteOffset:      int64(raw.toc_byte_offset),
+	}, 0
+}
+
 // LastErrorMessage returns the thread-local C API error string (valid until the next C call on this thread).
 func LastErrorMessage() string {
 	return C.GoString(C.freeusd_last_error_message())

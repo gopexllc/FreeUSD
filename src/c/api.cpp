@@ -153,6 +153,33 @@ int freeusd_detect_usd_file_kind_from_path_utf8(const char* path_utf8, int* out_
   }
 }
 
+int freeusd_read_usdc_bootstrap_from_path_utf8(const char* path_utf8, FreeusdUsdcBootstrap* out_bootstrap) {
+  if (!path_utf8 || !out_bootstrap) {
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  std::memset(out_bootstrap, 0, sizeof(*out_bootstrap));
+  try {
+    clear_error();
+    freeusd::usd::crate::UsdcCrateBootstrap b;
+    std::string err;
+    if (!freeusd::usd::crate::ReadUsdCrateBootstrapFromPath(std::string{path_utf8}, b, &err)) {
+      set_error(err.empty() ? "read usdc bootstrap failed" : err);
+      return FREEUSD_ERR_PARSE;
+    }
+    out_bootstrap->file_version_major = b.file_version_major;
+    out_bootstrap->file_version_minor = b.file_version_minor;
+    out_bootstrap->file_version_patch = b.file_version_patch;
+    out_bootstrap->toc_byte_offset = b.toc_byte_offset;
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown error");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
 const char* freeusd_last_error_message(void) { return g_last_error.c_str(); }
 
 void freeusd_string_free(char* s) { std::free(s); }

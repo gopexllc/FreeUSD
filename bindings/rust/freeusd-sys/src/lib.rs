@@ -10,6 +10,15 @@ use std::ffi::{c_char, c_double, c_int, CString, CStr};
 use std::ptr;
 
 #[repr(C)]
+pub struct FreeusdUsdcBootstrap {
+    pub file_version_major: u8,
+    pub file_version_minor: u8,
+    pub file_version_patch: u8,
+    pub reserved: [u8; 5],
+    pub toc_byte_offset: i64,
+}
+
+#[repr(C)]
 pub struct FreeusdLayer {
     _private: [u8; 0],
 }
@@ -27,6 +36,7 @@ extern "C" {
         out_kind: *mut c_int,
         out_detail: *mut *mut c_char,
     ) -> c_int;
+    fn freeusd_read_usdc_bootstrap_from_path_utf8(path: *const c_char, out: *mut FreeusdUsdcBootstrap) -> c_int;
     fn freeusd_last_error_message() -> *const c_char;
 
     fn freeusd_layer_new_anonymous(identifier: *const c_char) -> *mut FreeusdLayer;
@@ -203,6 +213,37 @@ pub fn detect_usd_file_kind_from_path(path: &str) -> Result<(UsdFileKind, Option
         Some(s)
     };
     Ok((k, detail_opt))
+}
+
+/// Decoded USDC bootstrap (matches C `FreeusdUsdcBootstrap` layout).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UsdcBootstrap {
+    pub file_version_major: u8,
+    pub file_version_minor: u8,
+    pub file_version_patch: u8,
+    pub toc_byte_offset: i64,
+}
+
+/// Reads the 88-byte USDC bootstrap from `path`.
+pub fn read_usdc_bootstrap_from_path(path: &str) -> Result<UsdcBootstrap, i32> {
+    let c = CString::new(path).map_err(|_| 1i32)?;
+    let mut raw = FreeusdUsdcBootstrap {
+        file_version_major: 0,
+        file_version_minor: 0,
+        file_version_patch: 0,
+        reserved: [0; 5],
+        toc_byte_offset: 0,
+    };
+    let rc = unsafe { freeusd_read_usdc_bootstrap_from_path_utf8(c.as_ptr(), &mut raw) };
+    if rc != 0 {
+        return Err(rc);
+    }
+    Ok(UsdcBootstrap {
+        file_version_major: raw.file_version_major,
+        file_version_minor: raw.file_version_minor,
+        file_version_patch: raw.file_version_patch,
+        toc_byte_offset: raw.toc_byte_offset,
+    })
 }
 
 /// Thread-local last error from the C API.
@@ -778,6 +819,25 @@ mod tests {
     #[test]
     fn usdc_crate_id_is_pxr_magic() {
         assert_eq!(usdc_crate_identifier(), "PXR-USDC");
+    }
+
+    #[test]
+    fn read_usdc_bootstrap_roundtrip() {
+        let dir = std::env::temp_dir();
+        let p = dir.join(format!("freeusd_rust_boot_{}.usdc", std::process::id()));
+        let mut buf = vec![0u8; 128];
+        buf[0..8].copy_from_slice(usdc_crate_identifier().as_bytes());
+        buf[8] = 0;
+        buf[9] = 8;
+        buf[10] = 0;
+        buf[16..24].copy_from_slice(&88i64.to_le_bytes());
+        std::fs::write(&p, &buf).expect("write bootstrap");
+        let b = read_usdc_bootstrap_from_path(&p.to_string_lossy()).expect("read bootstrap");
+        let _ = std::fs::remove_file(&p);
+        assert_eq!(b.file_version_major, 0);
+        assert_eq!(b.file_version_minor, 8);
+        assert_eq!(b.file_version_patch, 0);
+        assert_eq!(b.toc_byte_offset, 88);
     }
 
     #[test]

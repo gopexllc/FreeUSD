@@ -1,6 +1,7 @@
 package freeusd
 
 import (
+	"encoding/binary"
 	"os"
 	"path/filepath"
 	"strings"
@@ -57,6 +58,31 @@ func TestDetectUsdFileKindFromPath(t *testing.T) {
 	}
 	if d3 == "" {
 		t.Fatal("expected non-empty detail for missing file")
+	}
+}
+
+func TestReadUsdcBootstrapFromPath(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "boot.usdc")
+	buf := make([]byte, 128)
+	copy(buf[0:], UsdcCrateIdentifier())
+	buf[8] = 0
+	buf[9] = 8
+	buf[10] = 0
+	binary.LittleEndian.PutUint64(buf[16:24], uint64(88))
+	if err := os.WriteFile(p, buf, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	b, rc := ReadUsdcBootstrapFromPath(p)
+	if rc != 0 {
+		t.Fatalf("bootstrap rc=%d %s", rc, LastErrorMessage())
+	}
+	if b.FileVersionMajor != 0 || b.FileVersionMinor != 8 || b.FileVersionPatch != 0 || b.TocByteOffset != 88 {
+		t.Fatalf("unexpected bootstrap %+v", b)
+	}
+	_, rcBad := ReadUsdcBootstrapFromPath(filepath.Join(dir, "missing.usdc"))
+	if rcBad == 0 {
+		t.Fatal("expected error for missing path")
 	}
 }
 
