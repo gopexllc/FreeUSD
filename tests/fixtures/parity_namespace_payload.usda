@@ -1,0 +1,13 @@
+#usda 1.0
+(
+    defaultPrim = "PayloadRoot"
+)
+
+def Xform "PayloadRoot"
+{
+    double payloadOnly = 33.0
+    def "PayloadLeaf"
+    {
+        double branch = 44.0
+    }
+}

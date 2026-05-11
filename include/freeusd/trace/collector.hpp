@@ -2,7 +2,7 @@
 
 namespace freeusd::trace {
 
-/// Lightweight tracing hook (TraceCollector-shaped): tracks stack depth only (no string storage).
+/// Lightweight tracing hook (TraceCollector-shaped): stack depth is thread-local.
 class Collector {
  public:
   static Collector& Get() noexcept {
@@ -19,7 +19,7 @@ class Collector {
   void Reset() noexcept { stack_depth_ = 0; }
 
  private:
-  unsigned stack_depth_{0};
+  inline static thread_local unsigned stack_depth_{0};
 };
 
 }  // namespace freeusd::trace

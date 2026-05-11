@@ -181,9 +181,11 @@ class FREEUSD_API Stage : public std::enable_shared_from_this<Stage> {
   void SetResolver(std::unique_ptr<freeusd::ar::Resolver> resolver);
 
  private:
-  explicit Stage(std::vector<std::shared_ptr<freeusd::sdf::Layer>> compose);
+  explicit Stage(std::vector<std::shared_ptr<freeusd::sdf::Layer>> compose,
+                 std::vector<freeusd::sdf::LayerOffset> compose_offsets = {});
 
   std::vector<std::shared_ptr<freeusd::sdf::Layer>> compose_;
+  std::vector<freeusd::sdf::LayerOffset> compose_offsets_;
   std::unique_ptr<freeusd::ar::Resolver> resolver_;
 };
 

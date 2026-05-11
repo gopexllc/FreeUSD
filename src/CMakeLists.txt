@@ -63,7 +63,7 @@ add_library(freeusd::usdUtils ALIAS freeusd_usdUtils)
 target_include_directories(freeusd_usdUtils PUBLIC "$<BUILD_INTERFACE:${FREEUSD_INC}>" "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
 target_link_libraries(freeusd_usdUtils PUBLIC freeusd_usd freeusd_sdf freeusd_build_settings)
 
-add_library(freeusd_usdGeom STATIC usdGeom/xformable.cpp usdGeom/imageable.cpp)
+add_library(freeusd_usdGeom STATIC usdGeom/xformable.cpp usdGeom/imageable.cpp usdGeom/boundable.cpp)
 add_library(freeusd::usdGeom ALIAS freeusd_usdGeom)
 target_include_directories(freeusd_usdGeom PUBLIC "$<BUILD_INTERFACE:${FREEUSD_INC}>" "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
 target_link_libraries(freeusd_usdGeom PUBLIC freeusd_usd freeusd_gf freeusd_build_settings)

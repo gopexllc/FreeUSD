@@ -1,6 +1,7 @@
 #include "freeusd/usd/stage.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <filesystem>
 #include <functional>
 #include <set>
@@ -22,6 +23,29 @@ namespace freeusd::usd {
 namespace {
 
 constexpr int kAttrConnectionHopLimit = 64;
+
+bool map_composed_time_to_layer_time(const freeusd::sdf::LayerOffset& offset, double composed_time, double* out_layer_time) {
+  if (!out_layer_time) {
+    return false;
+  }
+  if (offset.scale == 0.0) {
+    return false;
+  }
+  *out_layer_time = (composed_time - offset.offset) / offset.scale;
+  return true;
+}
+
+double map_layer_time_to_composed_time(const freeusd::sdf::LayerOffset& offset, double layer_time) {
+  return layer_time * offset.scale + offset.offset;
+}
+
+const freeusd::sdf::LayerOffset& layer_offset_for_index(const std::vector<freeusd::sdf::LayerOffset>& offsets, std::size_t index) {
+  static const freeusd::sdf::LayerOffset kIdentity{};
+  if (index >= offsets.size()) {
+    return kIdentity;
+  }
+  return offsets[index];
+}
 
 std::vector<std::pair<freeusd::sdf::Path, freeusd::sdf::Path>> list_composed_relocates(
     const std::vector<std::shared_ptr<freeusd::sdf::Layer>>& compose) {
@@ -170,10 +194,113 @@ bool ResolveAttributeConnectionStrongestFirst(const std::vector<std::shared_ptr<
   return false;
 }
 
+std::vector<freeusd::sdf::Path> prim_ancestors_deepest_first(const freeusd::sdf::Path& prim_path) {
+  std::vector<freeusd::sdf::Path> out;
+  if (!prim_path.IsPrimPath()) {
+    return out;
+  }
+  for (freeusd::sdf::Path cur = prim_path; cur.IsPrimPath(); cur = cur.GetParentPath()) {
+    out.push_back(cur);
+    if (cur.GetParentPath().IsAbsoluteRootPath()) {
+      break;
+    }
+  }
+  return out;
+}
+
+bool map_subtree_query_path(const freeusd::sdf::Path& query_path, const freeusd::sdf::Path& source_root,
+                            const freeusd::sdf::Path& target_root, freeusd::sdf::Path* out) {
+  if (!out || !query_path.IsPrimPath() || !source_root.IsPrimPath()) {
+    return false;
+  }
+  if (query_path != source_root && !query_path.HasPrefix(source_root)) {
+    return false;
+  }
+  const std::string suffix = query_path.GetString().substr(source_root.GetString().size());
+  if (target_root.IsAbsoluteRootPath()) {
+    *out = suffix.empty() ? target_root : freeusd::sdf::Path::FromString(suffix);
+    return out->IsAbsoluteRootPath() || out->IsPrimPath();
+  }
+  if (!target_root.IsPrimPath()) {
+    return false;
+  }
+  *out = freeusd::sdf::Path::FromString(target_root.GetString() + suffix);
+  return out->IsPrimPath();
+}
+
+std::string resolve_asset_relative_to_layer_identifier(const std::string& layer_identifier, const std::string& asset_path) {
+  if (asset_path.empty()) {
+    return {};
+  }
+  namespace fs = std::filesystem;
+  std::error_code ec;
+  fs::path authored(asset_path);
+  if (authored.is_absolute()) {
+    return fs::weakly_canonical(authored, ec).string();
+  }
+  if (!layer_identifier.empty()) {
+    const fs::path base(layer_identifier);
+    const fs::path anchored = base.has_parent_path() ? base.parent_path() / authored : authored;
+    return fs::weakly_canonical(anchored, ec).string();
+  }
+  return fs::weakly_canonical(fs::absolute(authored), ec).string();
+}
+
+std::shared_ptr<freeusd::usd::Stage> open_asset_stage_from_reference(
+    const freeusd::sdf::Layer& source_layer, const std::vector<std::shared_ptr<freeusd::sdf::Layer>>& compose,
+    const freeusd::sdf::PrimReference& ref) {
+  if (ref.asset_path.empty()) {
+    return {};
+  }
+  const std::string resolved_asset =
+      resolve_asset_relative_to_layer_identifier(source_layer.GetIdentifier(),
+                                                apply_composed_prefix_substitutions(compose, ref.asset_path));
+  if (resolved_asset.empty()) {
+    return {};
+  }
+  return freeusd::usd::Stage::OpenFromRootFile(resolved_asset, freeusd::usd::RootLayerSublayersPolicy::DepthFirst, nullptr);
+}
+
+freeusd::sdf::Path reference_target_root(const freeusd::usd::Stage& target_stage, const freeusd::sdf::PrimReference& ref) {
+  if (ref.prim_path.has_value() && ref.prim_path->IsPrimPath()) {
+    return *ref.prim_path;
+  }
+  if (target_stage.HasDefaultPrim()) {
+    return freeusd::sdf::Path::AbsoluteRootPath().AppendChild(freeusd::tf::Token(target_stage.GetDefaultPrimName()));
+  }
+  const std::vector<freeusd::usd::Prim> roots = target_stage.GetChildren(freeusd::sdf::Path::AbsoluteRootPath());
+  if (!roots.empty()) {
+    return roots.front().GetPath();
+  }
+  return freeusd::sdf::Path::AbsoluteRootPath();
+}
+
+std::shared_ptr<freeusd::usd::Stage> build_variant_stage_from_payload(const std::string& payload_body) {
+  auto layer = freeusd::sdf::Layer::NewAnonymous("__variant__.usda");
+  const std::string wrapped = "#usda 1.0\n(\n)\ndef Scope \"__VariantRoot\"\n{\n" + payload_body + "\n}\n";
+  const auto parsed = freeusd::io::usda::LoadFromString(wrapped, layer);
+  if (!parsed.ok) {
+    return {};
+  }
+  return freeusd::usd::Stage::AttachRootLayer(std::move(layer));
+}
+
+struct ActiveQueryGuard {
+  std::unordered_set<std::string>* set = nullptr;
+  std::string key;
+  ~ActiveQueryGuard() {
+    if (set) {
+      set->erase(key);
+    }
+  }
+};
+
 }  // namespace
 
-Stage::Stage(std::vector<std::shared_ptr<freeusd::sdf::Layer>> compose)
+Stage::Stage(std::vector<std::shared_ptr<freeusd::sdf::Layer>> compose,
+             std::vector<freeusd::sdf::LayerOffset> compose_offsets)
     : compose_(std::move(compose)),
+      compose_offsets_(std::move(compose_offsets)),
       resolver_(std::make_unique<freeusd::ar::DefaultResolver>()) {}
 
 std::shared_ptr<Stage> Stage::AttachRootLayer(std::shared_ptr<freeusd::sdf::Layer> root) {
@@ -182,19 +309,22 @@ std::shared_ptr<Stage> Stage::AttachRootLayer(std::shared_ptr<freeusd::sdf::Laye
   }
   std::vector<std::shared_ptr<freeusd::sdf::Layer>> one;
   one.push_back(std::move(root));
-  return std::shared_ptr<Stage>(new Stage(std::move(one)));
+  return std::shared_ptr<Stage>(new Stage(std::move(one), std::vector<freeusd::sdf::LayerOffset>(1)));
 }
 
 std::shared_ptr<Stage> Stage::AttachLayerStack(freeusd::pcp::LayerStack stack) {
   std::vector<std::shared_ptr<freeusd::sdf::Layer>> lys;
-  lys.reserve(stack.GetLayers().size());
-  for (const std::shared_ptr<freeusd::sdf::Layer>& L : stack.GetLayers()) {
-    lys.push_back(L);
+  std::vector<freeusd::sdf::LayerOffset> offsets;
+  lys.reserve(stack.GetEntries().size());
+  offsets.reserve(stack.GetEntries().size());
+  for (const freeusd::pcp::LayerStackEntry& entry : stack.GetEntries()) {
+    lys.push_back(entry.layer);
+    offsets.push_back(entry.offset);
   }
   if (lys.empty()) {
     return {};
   }
-  return std::shared_ptr<Stage>(new Stage(std::move(lys)));
+  return std::shared_ptr<Stage>(new Stage(std::move(lys), std::move(offsets)));
 }
 
 std::shared_ptr<Stage> Stage::OpenFromRootFile(const std::string& layer_path, RootLayerSublayersPolicy sublayers,
@@ -290,7 +420,97 @@ bool Stage::ReadFieldAtEvaluatedTime(const freeusd::sdf::Path& prim_path, const 
     }
     freeusd::sdf::Path conn_to;
     if (!ResolveAttributeConnectionStrongestFirst(compose_, cur_prim, cur_name, &conn_to)) {
-      return freeusd::pcp::ResolveFieldAtTimeStrongestWins(compose_, cur_prim, cur_name, time, out);
+      for (std::size_t i = 0; i < compose_.size(); ++i) {
+        const std::shared_ptr<freeusd::sdf::Layer>& layer = compose_[i];
+        if (!layer) {
+          continue;
+        }
+        double layer_time = time;
+        if (!map_composed_time_to_layer_time(layer_offset_for_index(compose_offsets_, i), time, &layer_time)) {
+          continue;
+        }
+        if (layer->GetFieldAtTime(cur_prim, cur_name, layer_time, out)) {
+          return true;
+        }
+      }
+      static thread_local std::unordered_set<std::string> active_queries;
+      const std::string active_key = std::to_string(reinterpret_cast<std::uintptr_t>(this)) + "|" + cur_prim.GetString() +
+                                     "|" + cur_name.GetText() + "|" + std::to_string(time);
+      if (!active_queries.insert(active_key).second) {
+        return false;
+      }
+      ActiveQueryGuard active_guard{&active_queries, active_key};
+      const freeusd::sdf::Path variant_root = freeusd::sdf::Path::FromString("/__VariantRoot");
+      for (const std::shared_ptr<freeusd::sdf::Layer>& layer : compose_) {
+        if (!layer) {
+          continue;
+        }
+        for (const freeusd::sdf::Path& ancestor : prim_ancestors_deepest_first(cur_prim)) {
+          freeusd::sdf::Path mapped_query;
+          const auto try_reference_list = [&](const std::vector<freeusd::sdf::PrimReference>& refs) -> bool {
+            for (const freeusd::sdf::PrimReference& ref : refs) {
+              std::shared_ptr<Stage> target_stage = open_asset_stage_from_reference(*layer, compose_, ref);
+              if (!target_stage) {
+                continue;
+              }
+              if (!map_subtree_query_path(cur_prim, ancestor, reference_target_root(*target_stage, ref), &mapped_query)) {
+                continue;
+              }
+              freeusd::vt::Value tmp;
+              if (target_stage->ReadFieldAtEvaluatedTime(mapped_query, cur_name, time, &tmp)) {
+                *out = std::move(tmp);
+                return true;
+              }
+            }
+            return false;
+          };
+          const auto try_internal_arcs = [&](const std::vector<freeusd::sdf::Path>& targets) -> bool {
+            for (const freeusd::sdf::Path& target_root : targets) {
+              if (!map_subtree_query_path(cur_prim, ancestor, target_root, &mapped_query)) {
+                continue;
+              }
+              freeusd::vt::Value tmp;
+              if (ReadFieldAtEvaluatedTime(map_authored_to_composed_path(compose_, mapped_query), cur_name, time, &tmp)) {
+                *out = std::move(tmp);
+                return true;
+              }
+            }
+            return false;
+          };
+          for (const std::string& set_name : layer->ListPrimVariantSetNames(ancestor)) {
+            std::string selected;
+            if (!GetComposedPrimVariantSelection(map_authored_to_composed_path(compose_, ancestor), set_name, &selected)) {
+              continue;
+            }
+            std::string payload_body;
+            if (!layer->GetPrimVariantPayload(ancestor, set_name, selected, &payload_body)) {
+              continue;
+            }
+            std::shared_ptr<Stage> variant_stage = build_variant_stage_from_payload(payload_body);
+            if (!variant_stage || !map_subtree_query_path(cur_prim, ancestor, variant_root, &mapped_query)) {
+              continue;
+            }
+            freeusd::vt::Value tmp;
+            if (variant_stage->ReadFieldAtEvaluatedTime(mapped_query, cur_name, time, &tmp)) {
+              *out = std::move(tmp);
+              return true;
+            }
+          }
+          if (try_reference_list(layer->ListPrimReferences(ancestor))) {
+            return true;
+          }
+          if (try_reference_list(layer->ListPrimPayloads(ancestor))) {
+            return true;
+          }
+          if (try_internal_arcs(layer->ListPrimInherits(ancestor))) {
+            return true;
+          }
+          if (try_internal_arcs(layer->ListPrimSpecializes(ancestor))) {
+            return true;
+          }
+        }
+      }
+      return false;
     }
     if (!conn_to.IsPropertyPath()) {
       return false;
@@ -305,12 +525,16 @@ bool Stage::ReadFieldAtEvaluatedTime(const freeusd::sdf::Path& prim_path, const 
 }
 
 bool Stage::HasFieldOpinion(const freeusd::sdf::Path& prim_path, const freeusd::tf::Token& name) const {
+  if (name.IsEmpty()) {
+    return false;
+  }
+  freeusd::vt::Value tmp;
+  if (ReadFieldAtEvaluatedTime(prim_path, name, 1.0, &tmp)) {
+    return true;
+  }
   const freeusd::sdf::Path authored = map_composed_to_authored_path(compose_, prim_path);
   if (map_authored_to_composed_path(compose_, authored) != prim_path) {
     return false;
-  }
-  if (freeusd::pcp::HasFieldOpinionOnAnyLayer(compose_, authored, name)) {
-    return true;
   }
   for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
     if (L && L->HasAttributeConnection(authored, name)) {
@@ -372,6 +596,64 @@ bool Stage::PrimPathInUse(const freeusd::sdf::Path& path) const {
       }
     }
   }
+  static thread_local std::unordered_set<std::string> active_queries;
+  const std::string active_key =
+      std::to_string(reinterpret_cast<std::uintptr_t>(this)) + "|prim|" + authored.GetString();
+  if (!active_queries.insert(active_key).second) {
+    return false;
+  }
+  ActiveQueryGuard active_guard{&active_queries, active_key};
+  const freeusd::sdf::Path variant_root = freeusd::sdf::Path::FromString("/__VariantRoot");
+  for (const std::shared_ptr<freeusd::sdf::Layer>& layer : compose_) {
+    if (!layer) {
+      continue;
+    }
+    for (const freeusd::sdf::Path& ancestor : prim_ancestors_deepest_first(authored)) {
+      freeusd::sdf::Path mapped_query;
+      for (const std::string& set_name : layer->ListPrimVariantSetNames(ancestor)) {
+        std::string selected;
+        std::string payload_body;
+        if (!GetComposedPrimVariantSelection(map_authored_to_composed_path(compose_, ancestor), set_name, &selected) ||
+            !layer->GetPrimVariantPayload(ancestor, set_name, selected, &payload_body) ||
+            !map_subtree_query_path(authored, ancestor, variant_root, &mapped_query)) {
+          continue;
+        }
+        std::shared_ptr<Stage> variant_stage = build_variant_stage_from_payload(payload_body);
+        if (variant_stage && variant_stage->PrimPathInUse(mapped_query)) {
+          return true;
+        }
+      }
+      const auto try_reference_list = [&](const std::vector<freeusd::sdf::PrimReference>& refs) -> bool {
+        for (const freeusd::sdf::PrimReference& ref : refs) {
+          std::shared_ptr<Stage> target_stage = open_asset_stage_from_reference(*layer, compose_, ref);
+          if (!target_stage || !map_subtree_query_path(authored, ancestor, reference_target_root(*target_stage, ref), &mapped_query)) {
+            continue;
+          }
+          if (target_stage->PrimPathInUse(mapped_query)) {
+            return true;
+          }
+        }
+        return false;
+      };
+      if (try_reference_list(layer->ListPrimReferences(ancestor)) || try_reference_list(layer->ListPrimPayloads(ancestor))) {
+        return true;
+      }
+      const auto try_internal_arcs = [&](const std::vector<freeusd::sdf::Path>& targets) -> bool {
+        for (const freeusd::sdf::Path& target_root : targets) {
+          if (!map_subtree_query_path(authored, ancestor, target_root, &mapped_query)) {
+            continue;
+          }
+          if (PrimPathInUse(map_authored_to_composed_path(compose_, mapped_query))) {
+            return true;
+          }
+        }
+        return false;
+      };
+      if (try_internal_arcs(layer->ListPrimInherits(ancestor)) || try_internal_arcs(layer->ListPrimSpecializes(ancestor))) {
+        return true;
+      }
+    }
+  }
   return false;
 }
 
@@ -394,23 +676,75 @@ bool Stage::ReadRelationship(const freeusd::sdf::Path& prim_path, const freeusd:
     out_targets->insert(out_targets->end(), part.begin(), part.end());
     any = true;
   }
+  static thread_local std::unordered_set<std::string> active_queries;
+  const std::string active_key = std::to_string(reinterpret_cast<std::uintptr_t>(this)) + "|rel|" + authored.GetString() +
+                                 "|" + rel_name.GetText();
+  if (!active_queries.insert(active_key).second) {
+    return any;
+  }
+  ActiveQueryGuard active_guard{&active_queries, active_key};
+  const freeusd::sdf::Path variant_root = freeusd::sdf::Path::FromString("/__VariantRoot");
+  for (const std::shared_ptr<freeusd::sdf::Layer>& layer : compose_) {
+    if (!layer) {
+      continue;
+    }
+    for (const freeusd::sdf::Path& ancestor : prim_ancestors_deepest_first(authored)) {
+      freeusd::sdf::Path mapped_query;
+      for (const std::string& set_name : layer->ListPrimVariantSetNames(ancestor)) {
+        std::string selected;
+        std::string payload_body;
+        if (!GetComposedPrimVariantSelection(map_authored_to_composed_path(compose_, ancestor), set_name, &selected) ||
+            !layer->GetPrimVariantPayload(ancestor, set_name, selected, &payload_body) ||
+            !map_subtree_query_path(authored, ancestor, variant_root, &mapped_query)) {
+          continue;
+        }
+        std::shared_ptr<Stage> variant_stage = build_variant_stage_from_payload(payload_body);
+        if (!variant_stage) {
+          continue;
+        }
+        std::vector<freeusd::sdf::Path> part;
+        if (variant_stage->ReadRelationship(mapped_query, rel_name, &part)) {
+          out_targets->insert(out_targets->end(), part.begin(), part.end());
+          any = true;
+        }
+      }
+      const auto pull_reference_targets = [&](const std::vector<freeusd::sdf::PrimReference>& refs) {
+        for (const freeusd::sdf::PrimReference& ref : refs) {
+          std::shared_ptr<Stage> target_stage = open_asset_stage_from_reference(*layer, compose_, ref);
+          if (!target_stage || !map_subtree_query_path(authored, ancestor, reference_target_root(*target_stage, ref), &mapped_query)) {
+            continue;
+          }
+          std::vector<freeusd::sdf::Path> part;
+          if (target_stage->ReadRelationship(mapped_query, rel_name, &part)) {
+            out_targets->insert(out_targets->end(), part.begin(), part.end());
+            any = true;
+          }
+        }
+      };
+      pull_reference_targets(layer->ListPrimReferences(ancestor));
+      pull_reference_targets(layer->ListPrimPayloads(ancestor));
+      const auto pull_internal_targets = [&](const std::vector<freeusd::sdf::Path>& targets) {
+        for (const freeusd::sdf::Path& target_root : targets) {
+          if (!map_subtree_query_path(authored, ancestor, target_root, &mapped_query)) {
+            continue;
+          }
+          std::vector<freeusd::sdf::Path> part;
+          if (ReadRelationship(map_authored_to_composed_path(compose_, mapped_query), rel_name, &part)) {
+            out_targets->insert(out_targets->end(), part.begin(), part.end());
+            any = true;
+          }
+        }
+      };
+      pull_internal_targets(layer->ListPrimInherits(ancestor));
+      pull_internal_targets(layer->ListPrimSpecializes(ancestor));
+    }
+  }
   return any;
 }
 
 bool Stage::HasRelationship(const freeusd::sdf::Path& prim_path, const freeusd::tf::Token& rel_name) const {
-  if (rel_name.IsEmpty()) {
-    return false;
-  }
-  const freeusd::sdf::Path authored = map_composed_to_authored_path(compose_, prim_path);
-  if (map_authored_to_composed_path(compose_, authored) != prim_path) {
-    return false;
-  }
-  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
-    if (L && L->HasRelationship(authored, rel_name)) {
-      return true;
-    }
-  }
-  return false;
+  std::vector<freeusd::sdf::Path> targets;
+  return ReadRelationship(prim_path, rel_name, &targets);
 }
 
 std::vector<freeusd::sdf::PrimReference> Stage::ReadPrimReferences(const freeusd::sdf::Path& prim_path) const {
@@ -764,6 +1098,63 @@ std::vector<std::string> Stage::ListComposedFieldNames(const freeusd::sdf::Path&
       keys.insert(k);
     }
   }
+  static thread_local std::unordered_set<std::string> active_queries;
+  const std::string active_key =
+      std::to_string(reinterpret_cast<std::uintptr_t>(this)) + "|fields|" + authored.GetString();
+  if (!active_queries.insert(active_key).second) {
+    return std::vector<std::string>(keys.begin(), keys.end());
+  }
+  ActiveQueryGuard active_guard{&active_queries, active_key};
+  const freeusd::sdf::Path variant_root = freeusd::sdf::Path::FromString("/__VariantRoot");
+  for (const std::shared_ptr<freeusd::sdf::Layer>& layer : compose_) {
+    if (!layer) {
+      continue;
+    }
+    for (const freeusd::sdf::Path& ancestor : prim_ancestors_deepest_first(authored)) {
+      freeusd::sdf::Path mapped_query;
+      for (const std::string& set_name : layer->ListPrimVariantSetNames(ancestor)) {
+        std::string selected;
+        std::string payload_body;
+        if (!GetComposedPrimVariantSelection(map_authored_to_composed_path(compose_, ancestor), set_name, &selected) ||
+            !layer->GetPrimVariantPayload(ancestor, set_name, selected, &payload_body) ||
+            !map_subtree_query_path(authored, ancestor, variant_root, &mapped_query)) {
+          continue;
+        }
+        std::shared_ptr<Stage> variant_stage = build_variant_stage_from_payload(payload_body);
+        if (!variant_stage) {
+          continue;
+        }
+        for (const std::string& k : variant_stage->ListComposedFieldNames(mapped_query)) {
+          keys.insert(k);
+        }
+      }
+      const auto pull_reference_fields = [&](const std::vector<freeusd::sdf::PrimReference>& refs) {
+        for (const freeusd::sdf::PrimReference& ref : refs) {
+          std::shared_ptr<Stage> target_stage = open_asset_stage_from_reference(*layer, compose_, ref);
+          if (!target_stage || !map_subtree_query_path(authored, ancestor, reference_target_root(*target_stage, ref), &mapped_query)) {
+            continue;
+          }
+          for (const std::string& k : target_stage->ListComposedFieldNames(mapped_query)) {
+            keys.insert(k);
+          }
+        }
+      };
+      pull_reference_fields(layer->ListPrimReferences(ancestor));
+      pull_reference_fields(layer->ListPrimPayloads(ancestor));
+      const auto pull_internal_fields = [&](const std::vector<freeusd::sdf::Path>& targets) {
+        for (const freeusd::sdf::Path& target_root : targets) {
+          if (!map_subtree_query_path(authored, ancestor, target_root, &mapped_query)) {
+            continue;
+          }
+          for (const std::string& k : ListComposedFieldNames(map_authored_to_composed_path(compose_, mapped_query))) {
+            keys.insert(k);
+          }
+        }
+      };
+      pull_internal_fields(layer->ListPrimInherits(ancestor));
+      pull_internal_fields(layer->ListPrimSpecializes(ancestor));
+    }
+  }
   return std::vector<std::string>(keys.begin(), keys.end());
 }
 
@@ -775,12 +1166,14 @@ std::vector<double> Stage::ListComposedFieldSampleTimes(const freeusd::sdf::Path
     return {};
   }
   if (!name.IsEmpty()) {
-    for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    for (std::size_t i = 0; i < compose_.size(); ++i) {
+      const std::shared_ptr<freeusd::sdf::Layer>& L = compose_[i];
       if (!L) {
         continue;
       }
+      const freeusd::sdf::LayerOffset& offset = layer_offset_for_index(compose_offsets_, i);
       for (const double t : L->ListSampleTimes(authored, name)) {
-        times.insert(t);
+        times.insert(map_layer_time_to_composed_time(offset, t));
       }
     }
   }
@@ -805,20 +1198,33 @@ std::vector<std::string> Stage::ListComposedRelationshipNames(const freeusd::sdf
 }
 
 std::vector<freeusd::sdf::Path> Stage::ListComposedPrimPaths() const {
-  std::set<std::string> sorted;
-  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
-    if (!L) {
+  std::vector<freeusd::sdf::Path> out;
+  std::unordered_set<std::string> seen;
+  for (const std::shared_ptr<freeusd::sdf::Layer>& layer : compose_) {
+    if (!layer) {
       continue;
     }
-    for (const freeusd::sdf::Path& p : L->ListPrimPaths()) {
-      sorted.insert(map_authored_to_composed_path(compose_, p).GetString());
+    for (const freeusd::sdf::Path& p : layer->ListPrimPaths()) {
+      const freeusd::sdf::Path composed = map_authored_to_composed_path(compose_, p);
+      if ((composed.IsPrimPath() || composed.IsAbsoluteRootPath()) && seen.insert(composed.GetString()).second) {
+        out.push_back(composed);
+      }
     }
   }
-  std::vector<freeusd::sdf::Path> out;
-  out.reserve(sorted.size());
-  for (const std::string& s : sorted) {
-    out.push_back(freeusd::sdf::Path::FromString(s));
-  }
+  const std::function<void(const freeusd::sdf::Path&)> descend = [&](const freeusd::sdf::Path& parent) {
+    for (const Prim& child : GetChildren(parent)) {
+      const std::string key = child.GetPath().GetString();
+      if (!seen.insert(key).second) {
+        continue;
+      }
+      out.push_back(child.GetPath());
+      descend(child.GetPath());
+    }
+  };
+  descend(freeusd::sdf::Path::AbsoluteRootPath());
+  std::sort(out.begin(), out.end(), [](const freeusd::sdf::Path& a, const freeusd::sdf::Path& b) {
+    return a.GetString() < b.GetString();
+  });
   return out;
 }
 
@@ -1049,12 +1455,86 @@ std::vector<Prim> Stage::GetChildren(const freeusd::sdf::Path& primPath) const {
     return out;
   }
   std::unordered_map<std::string, freeusd::sdf::Path> unique;
-  for (const auto& p : ListComposedPrimPaths()) {
-    if (!p.IsPrimPath()) {
+  const auto add_child = [&](const freeusd::sdf::Path& child_path) {
+    if (child_path.IsPrimPath() && child_path.GetParentPath() == primPath) {
+      unique[child_path.GetString()] = child_path;
+    }
+  };
+  for (const std::shared_ptr<freeusd::sdf::Layer>& layer : compose_) {
+    if (!layer) {
       continue;
     }
-    if (p.GetParentPath() == primPath) {
-      unique[p.GetString()] = p;
+    for (const freeusd::sdf::Path& p : layer->ListPrimPaths()) {
+      add_child(map_authored_to_composed_path(compose_, p));
+    }
+  }
+  static thread_local std::unordered_set<std::string> active_queries;
+  const std::string active_key =
+      std::to_string(reinterpret_cast<std::uintptr_t>(this)) + "|children|" + primPath.GetString();
+  if (active_queries.insert(active_key).second) {
+    ActiveQueryGuard active_guard{&active_queries, active_key};
+    const freeusd::sdf::Path authored_parent =
+        primPath.IsAbsoluteRootPath() ? primPath : map_composed_to_authored_path(compose_, primPath);
+    const freeusd::sdf::Path variant_root = freeusd::sdf::Path::FromString("/__VariantRoot");
+    for (const std::shared_ptr<freeusd::sdf::Layer>& layer : compose_) {
+      if (!layer) {
+        continue;
+      }
+      const std::vector<freeusd::sdf::Path> ancestors =
+          authored_parent.IsPrimPath() ? prim_ancestors_deepest_first(authored_parent) : std::vector<freeusd::sdf::Path>{};
+      for (const freeusd::sdf::Path& ancestor : ancestors) {
+        freeusd::sdf::Path mapped_parent;
+        for (const std::string& set_name : layer->ListPrimVariantSetNames(ancestor)) {
+          std::string selected;
+          std::string payload_body;
+          if (!GetComposedPrimVariantSelection(map_authored_to_composed_path(compose_, ancestor), set_name, &selected) ||
+              !layer->GetPrimVariantPayload(ancestor, set_name, selected, &payload_body) ||
+              !map_subtree_query_path(authored_parent, ancestor, variant_root, &mapped_parent)) {
+            continue;
+          }
+          std::shared_ptr<Stage> variant_stage = build_variant_stage_from_payload(payload_body);
+          if (!variant_stage) {
+            continue;
+          }
+          for (const Prim& child : variant_stage->GetChildren(mapped_parent)) {
+            freeusd::sdf::Path mapped_back;
+            if (map_subtree_query_path(child.GetPath(), mapped_parent, ancestor, &mapped_back)) {
+              add_child(map_authored_to_composed_path(compose_, mapped_back));
+            }
+          }
+        }
+        const auto pull_reference_children = [&](const std::vector<freeusd::sdf::PrimReference>& refs) {
+          for (const freeusd::sdf::PrimReference& ref : refs) {
+            std::shared_ptr<Stage> target_stage = open_asset_stage_from_reference(*layer, compose_, ref);
+            if (!target_stage || !map_subtree_query_path(authored_parent, ancestor, reference_target_root(*target_stage, ref), &mapped_parent)) {
+              continue;
+            }
+            for (const Prim& child : target_stage->GetChildren(mapped_parent)) {
+              freeusd::sdf::Path mapped_back;
+              if (map_subtree_query_path(child.GetPath(), mapped_parent, ancestor, &mapped_back)) {
+                add_child(map_authored_to_composed_path(compose_, mapped_back));
+              }
+            }
+          }
+        };
+        pull_reference_children(layer->ListPrimReferences(ancestor));
+        pull_reference_children(layer->ListPrimPayloads(ancestor));
+        const auto pull_internal_children = [&](const std::vector<freeusd::sdf::Path>& targets) {
+          for (const freeusd::sdf::Path& target_root : targets) {
+            if (!map_subtree_query_path(authored_parent, ancestor, target_root, &mapped_parent)) {
+              continue;
+            }
+            for (const Prim& child : GetChildren(map_authored_to_composed_path(compose_, mapped_parent))) {
+              freeusd::sdf::Path mapped_back;
+              if (map_subtree_query_path(map_composed_to_authored_path(compose_, child.GetPath()), mapped_parent, ancestor, &mapped_back)) {
+                add_child(map_authored_to_composed_path(compose_, mapped_back));
+              }
+            }
+          }
+        };
+        pull_internal_children(layer->ListPrimInherits(ancestor));
+        pull_internal_children(layer->ListPrimSpecializes(ancestor));
+      }
     }
   }
   out.reserve(unique.size());

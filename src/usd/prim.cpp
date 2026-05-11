@@ -108,12 +108,7 @@ bool Prim::HasRelationship(const freeusd::tf::Token& relName) const {
   if (!st || relName.IsEmpty()) {
     return false;
   }
-  for (const std::shared_ptr<freeusd::sdf::Layer>& L : st->GetComposeLayers()) {
-    if (L && L->HasRelationship(path_, relName)) {
-      return true;
-    }
-  }
-  return false;
+  return st->HasRelationship(path_, relName);
 }
 
 std::vector<freeusd::sdf::Path> Prim::GetRelationshipTargets(const freeusd::tf::Token& relName) const {

@@ -12,8 +12,8 @@ def Xform "Library"
 {
     def "Source"
     (
-        prepend references = @/Assets/tree.usda@
-        prepend payload = @/Assets/tree_payload.usdc@
+        prepend references = @./parity_namespace_ref.usda@
+        prepend payload = @./parity_namespace_payload.usda@
     )
     {
         double radius = 2.0

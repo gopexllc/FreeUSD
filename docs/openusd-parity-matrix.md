@@ -23,37 +23,37 @@ Status vocabulary:
 - `tests/fixtures/parity_namespace.usda`
   Namespace-affecting metadata: `relocates`, `prefixSubstitutions`, references, and payloads.
 - `tests/fixtures/parity_variants.usda`
-  `variantSets` declarations plus `variantSelection` metadata.
+  `variantSets` declarations, selected-variant payload execution, and variant child expansion.
 - `tests/fixtures/parity_imageable.usda`
-  Schema-facing `purpose` / `visibility` behavior for `usdGeom::Imageable`.
-- Synthetic `.usdc` buffers in `tests/usd_smoke_test.cpp`, `tests/c_abi_smoke.c`, `bindings/go/freeusd_test.go`, and `bindings/rust/freeusd-sys/src/lib.rs`
-  Low-level crate bootstrap, TOC, and section-payload parity anchors.
+  Schema-facing `purpose` / `visibility` behavior for `usdGeom::Imageable` and cube-like bounds via `usdGeom::Boundable`.
+- `tests/fixtures/parity_tables.usdc`
+  Shared binary crate fixture for bootstrap, TOC, raw section payloads, and validated `TOKENS` / `STRINGS` / `PATHS` table decode.
 
 ## Current Matrix
 
 ### Formats And Data Model
 
 - `implemented`: USDA load/save, typed scalar/vector/quaternion/matrix values, layer metadata, references/payload/inherits/specializes storage, relationship targets, and time-sample evaluation.
-- `partial`: USDC bootstrap parsing, TOC parsing, and raw section-payload reads are available in C++, the C ABI, Python, Go, and Rust.
-- `planned`: spec-level `.usdc` payload decode beyond raw section access, plus richer authored default-vs-sample preservation during flattening.
+- `partial`: USDC bootstrap parsing, TOC parsing, raw section-payload reads, and validated `TOKENS` / `STRINGS` / `PATHS` table decode are available in C++, the C ABI, Python, Go, and Rust.
+- `planned`: spec-level `.usdc` payload decode beyond the validated table sections, plus binary stage opening from decoded scene data.
 
 ### Composition Semantics
 
 - `implemented`: strongest-wins field reads, concatenated relationship lists, composed field/relationship/prim-path unions, relocated prim-path query behavior, and prefix-substituted reference/payload asset paths.
-- `partial`: references/payloads/inherits/specializes remain listed metadata rather than full graph expansion; `variantSelection` and `variantSets` are queryable but not yet graph-applying; `subLayerOffsets` are stored and fixture-owned but not time-remapped during composition.
-- `planned`: resolver-aware arc expansion, executable variants, and `subLayerOffsets` remapping.
+- `partial`: `subLayerOffsets` now remap composed sample times and file-backed reads; selected variants plus reference/payload/inherit/specialize arcs now affect file-backed field and prim-path queries, but deeper schema/custom-data/specifier propagation through every arc type remains incomplete.
+- `planned`: broader resolver-aware arc expansion for the remaining composed query families.
 
 ### Schema And Runtime Helpers
 
-- `implemented`: `usdGeom::Xformable`, `usdGeom::Imageable`, and `usdUtils::FlattenStageAtTime`.
-- `partial`: flattening currently captures a composed single-time view, not full authored default/sample fidelity.
+- `implemented`: `usdGeom::Xformable`, `usdGeom::Imageable`, `usdGeom::Boundable`, and `usdUtils::FlattenStageAtTime`.
+- `partial`: flattening now preserves evaluated defaults plus composed sample times, but it does not yet reconstruct full authored layer provenance for every arc source.
 - `token-only`: most non-`usdGeom` schema packages remain generated token surfaces only.
 
 ### ABI And Bindings
 
 - `implemented`: the C ABI remains the stable FFI contract for stage queries, typed field reads, crate bootstrap/TOC helpers, and raw crate section payload access.
-- `partial`: Python is still the broadest wrapper; Go and Rust follow the validated subset and now include the new crate section-payload surface.
-- `planned`: milestone-by-milestone expansion for more composition graph behavior once the core semantics land in C++ first.
+- `partial`: Python remains the broadest wrapper; the C ABI, Go, and Rust now follow the validated crate bootstrap/TOC/raw-section/table subset, but broader runtime/schema helpers are still not fully mirrored outside Python/C++.
+- `planned`: milestone-by-milestone expansion for more composed query families and runtime helpers once the C ABI slice is stable.
 
 ### Runtime Hardening And Deferred Stacks
 

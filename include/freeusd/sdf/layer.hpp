@@ -75,12 +75,17 @@ class FREEUSD_API Layer : public std::enable_shared_from_this<Layer> {
   bool GetPrimVariantSelectionEntry(const Path& primPath, const std::string& variantSet, std::string* outName) const;
   std::vector<std::string> ListPrimVariantSelectionSets(const Path& primPath) const;
 
-  /// Declared \c variantSets: variant set name → ordered variant child names (no variant payload prims).
+  /// Declared \c variantSets: variant set name → ordered variant child names.
   void ClearPrimVariantSets(const Path& primPath);
   void SetPrimVariantSetVariants(const Path& primPath, std::string variantSetName, std::vector<std::string> variantNames);
   bool HasPrimVariantSet(const Path& primPath, const std::string& variantSetName) const;
   std::vector<std::string> ListPrimVariantSetNames(const Path& primPath) const;
   std::vector<std::string> ListPrimVariantNames(const Path& primPath, const std::string& variantSetName) const;
+  /// Raw inner USDA-like body for the authored variant payload block.
+  void SetPrimVariantPayload(const Path& primPath, std::string variantSetName, std::string variantName, std::string payloadBody);
+  bool HasPrimVariantPayload(const Path& primPath, const std::string& variantSetName, const std::string& variantName) const;
+  bool GetPrimVariantPayload(const Path& primPath, const std::string& variantSetName, const std::string& variantName,
+                             std::string* outPayloadBody) const;
 
   /// Layer header: human-readable summary (USD `documentation` mapping).
   const std::string& GetDocumentation() const noexcept { return documentation_; }
@@ -283,6 +288,13 @@ class FREEUSD_API Layer : public std::enable_shared_from_this<Layer> {
   std::unordered_map<Path, std::unordered_map<std::string, std::vector<std::string>, freeusd::tf::HashString, std::equal_to<>>,
                      Path::Hash>
       prim_variant_sets_;
+  std::unordered_map<
+      Path,
+      std::unordered_map<std::string,
+                         std::unordered_map<std::string, std::string, freeusd::tf::HashString, std::equal_to<>>,
+                         freeusd::tf::HashString, std::equal_to<>>,
+      Path::Hash>
+      prim_variant_payloads_;
   std::unordered_map<Path, std::unordered_map<std::string, Path, freeusd::tf::HashString, std::equal_to<>>, Path::Hash>
       attribute_connections_;
 };

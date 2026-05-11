@@ -10,5 +10,8 @@ def Xform "World"
         double animated.timeSamples = {
             -5: -1.0,
         }
+        double stackedOnly.timeSamples = {
+            -5: -10.0,
+        }
     }
 }

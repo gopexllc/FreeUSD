@@ -1556,11 +1556,14 @@ bool apply_prim_variant_sets_from_dictionary(const std::shared_ptr<freeusd::sdf:
           set_err(err, line_no, "variant payload must be a {...} block");
           return false;
         }
-        if (!outer_closing_brace_index(vrv, 0).has_value()) {
+        const std::optional<std::size_t> variant_close = outer_closing_brace_index(vrv, 0);
+        if (!variant_close.has_value()) {
           set_err(err, line_no, "unclosed '{' in variant payload");
           return false;
         }
+        const std::string payload_body = std::string{trim(vrv.substr(1, *variant_close - 1))};
         variant_names.push_back(vnm);
+        layer->SetPrimVariantPayload(prim, set_name, vnm, payload_body);
       }
     }
     layer->SetPrimVariantSetVariants(prim, set_name, std::move(variant_names));

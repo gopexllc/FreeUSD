@@ -153,6 +153,46 @@ func ReadUsdcSectionBytesFromPath(path, sectionName string, maxBytes uint64) (pa
 	return C.GoBytes(unsafe.Pointer(raw), C.int(n)), 0
 }
 
+func readUsdcStringList(path string, maxEntries uint64, maxTotalBytes uint64,
+	call func(*C.char, C.uint64_t, C.uint64_t, ***C.char, *C.size_t) C.int) ([]string, int) {
+	cs := C.CString(path)
+	defer C.free(unsafe.Pointer(cs))
+	var raw **C.char
+	var n C.size_t
+	rc := int(call(cs, C.uint64_t(maxEntries), C.uint64_t(maxTotalBytes), &raw, &n))
+	if rc != 0 {
+		return nil, rc
+	}
+	if raw == nil || n == 0 {
+		return []string{}, 0
+	}
+	defer C.freeusd_path_list_free(raw, n)
+	count := int(n)
+	out := make([]string, count)
+	base := unsafe.Pointer(raw)
+	step := unsafe.Sizeof(raw)
+	for i := 0; i < count; i++ {
+		ptr := *(**C.char)(unsafe.Add(base, uintptr(i)*step))
+		out[i] = C.GoString(ptr)
+	}
+	return out, 0
+}
+
+// ReadUsdcTokenTableFromPath reads the validated TOKENS table from a shared crate fixture.
+func ReadUsdcTokenTableFromPath(path string, maxEntries uint64, maxTotalBytes uint64) ([]string, int) {
+	return readUsdcStringList(path, maxEntries, maxTotalBytes, C.freeusd_read_usdc_token_table_from_path_utf8)
+}
+
+// ReadUsdcStringTableFromPath reads the validated STRINGS table from a shared crate fixture.
+func ReadUsdcStringTableFromPath(path string, maxEntries uint64, maxTotalBytes uint64) ([]string, int) {
+	return readUsdcStringList(path, maxEntries, maxTotalBytes, C.freeusd_read_usdc_string_table_from_path_utf8)
+}
+
+// ReadUsdcPathTableFromPath reads the validated PATHS table from a shared crate fixture.
+func ReadUsdcPathTableFromPath(path string, maxEntries uint64, maxTotalBytes uint64) ([]string, int) {
+	return readUsdcStringList(path, maxEntries, maxTotalBytes, C.freeusd_read_usdc_path_table_from_path_utf8)
+}
+
 // LastErrorMessage returns the thread-local C API error string (valid until the next C call on this thread).
 func LastErrorMessage() string {
 	return C.GoString(C.freeusd_last_error_message())

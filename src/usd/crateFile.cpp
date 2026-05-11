@@ -74,6 +74,55 @@ bool toc_section_range_valid(std::int64_t file_bytes, std::int64_t start, std::i
   return true;
 }
 
+bool readSizedStringTableSection(const std::string& path, std::string_view section_name, std::vector<std::string>* out,
+                                 std::size_t max_entries, std::size_t max_total_bytes, std::string* err_out) {
+  if (!out) {
+    set_detail(err_out, "null output table");
+    return false;
+  }
+  out->clear();
+  if (max_entries == 0u) {
+    set_detail(err_out, "max_entries must be non-zero");
+    return false;
+  }
+  std::vector<std::uint8_t> bytes;
+  if (!ReadUsdCrateSectionBytesFromPath(path, section_name, bytes, max_total_bytes, err_out)) {
+    return false;
+  }
+  if (bytes.size() < 8u) {
+    set_detail(err_out, "USDC table payload too small for count");
+    return false;
+  }
+  const std::uint64_t count = readLeU64(bytes.data());
+  if (count > max_entries) {
+    set_detail(err_out, "USDC table entry count exceeds max_entries");
+    return false;
+  }
+  std::size_t cursor = 8u;
+  out->reserve(static_cast<std::size_t>(count));
+  for (std::uint64_t i = 0; i < count; ++i) {
+    if (cursor + 8u > bytes.size()) {
+      out->clear();
+      set_detail(err_out, "USDC table payload ended before string length");
+      return false;
+    }
+    const std::uint64_t len = readLeU64(bytes.data() + cursor);
+    cursor += 8u;
+    if (len > static_cast<std::uint64_t>(bytes.size() - cursor)) {
+      out->clear();
+      set_detail(err_out, "USDC table string length exceeds payload bytes");
+      return false;
+    }
+    out->emplace_back(reinterpret_cast<const char*>(bytes.data() + cursor), static_cast<std::size_t>(len));
+    cursor += static_cast<std::size_t>(len);
+  }
+  if (cursor != bytes.size()) {
+    set_detail(err_out, "USDC table payload has trailing bytes");
+    return false;
+  }
+  return true;
+}
+
 }  // namespace
 
 bool ReadUsdCrateBootstrapFromPath(const std::string& path, UsdcCrateBootstrap& out, std::string* err_out) {
@@ -264,6 +313,38 @@ bool ReadUsdCrateSectionBytesFromPath(const std::string& path, std::string_view 
     out_bytes.clear();
     set_detail(err_out, "short read on USDC section payload");
     return false;
+  }
+  return true;
+}
+
+bool ReadUsdCrateStringTableFromPath(const std::string& path, UsdcCrateStringTable& out, std::size_t max_entries,
+                                     std::size_t max_total_bytes, std::string* err_out) {
+  out = UsdcCrateStringTable{};
+  return readSizedStringTableSection(path, "STRINGS", &out.values, max_entries, max_total_bytes, err_out);
+}
+
+bool ReadUsdCrateTokenTableFromPath(const std::string& path, UsdcCrateStringTable& out, std::size_t max_entries,
+                                    std::size_t max_total_bytes, std::string* err_out) {
+  out = UsdcCrateStringTable{};
+  return readSizedStringTableSection(path, "TOKENS", &out.values, max_entries, max_total_bytes, err_out);
+}
+
+bool ReadUsdCratePathTableFromPath(const std::string& path, UsdcCratePathTable& out, std::size_t max_entries,
+                                   std::size_t max_total_bytes, std::string* err_out) {
+  out = UsdcCratePathTable{};
+  std::vector<std::string> items;
+  if (!readSizedStringTableSection(path, "PATHS", &items, max_entries, max_total_bytes, err_out)) {
+    return false;
+  }
+  out.paths.reserve(items.size());
+  for (const std::string& item : items) {
+    const freeusd::sdf::Path path_value = freeusd::sdf::Path::FromString(item);
+    if (path_value.IsEmpty()) {
+      out = UsdcCratePathTable{};
+      set_detail(err_out, "USDC PATHS entry is not a valid sdf path");
+      return false;
+    }
+    out.paths.push_back(path_value);
   }
   return true;
 }

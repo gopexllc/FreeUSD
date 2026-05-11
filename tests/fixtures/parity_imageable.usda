@@ -10,5 +10,7 @@ def Xform "World"
     {
         token visibility = "invisible"
         double size = 2.0
+        double3 xformOp:translate = (1, 2, 3)
+        token[] xformOpOrder = [xformOp:translate]
     }
 }

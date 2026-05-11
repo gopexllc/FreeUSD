@@ -159,6 +159,31 @@ func TestReadUsdcSectionBytesFromPath(t *testing.T) {
 	}
 }
 
+func TestReadStructuredUsdcTablesFromFixture(t *testing.T) {
+	p := filepath.Join("..", "..", "tests", "fixtures", "parity_tables.usdc")
+	tokens, rc := ReadUsdcTokenTableFromPath(p, 8, 1024)
+	if rc != 0 {
+		t.Fatalf("token table rc=%d %s", rc, LastErrorMessage())
+	}
+	if len(tokens) != 2 || tokens[0] != "render" || tokens[1] != "invisible" {
+		t.Fatalf("unexpected tokens %#v", tokens)
+	}
+	strings, rc := ReadUsdcStringTableFromPath(p, 8, 1024)
+	if rc != 0 {
+		t.Fatalf("string table rc=%d %s", rc, LastErrorMessage())
+	}
+	if len(strings) != 2 || strings[0] != "hello" || strings[1] != "world" {
+		t.Fatalf("unexpected strings %#v", strings)
+	}
+	paths, rc := ReadUsdcPathTableFromPath(p, 8, 1024)
+	if rc != 0 {
+		t.Fatalf("path table rc=%d %s", rc, LastErrorMessage())
+	}
+	if len(paths) != 2 || paths[0] != "/World" || paths[1] != "/World/Cube" {
+		t.Fatalf("unexpected paths %#v", paths)
+	}
+}
+
 func TestLayerStageReadDouble(t *testing.T) {
 	const usda = `#usda 1.0
 (

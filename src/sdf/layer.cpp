@@ -996,6 +996,7 @@ std::vector<std::string> Layer::ListPrimVariantSelectionSets(const Path& primPat
 
 void Layer::ClearPrimVariantSets(const Path& primPath) {
   prim_variant_sets_.erase(primPath);
+  prim_variant_payloads_.erase(primPath);
 }
 
 void Layer::SetPrimVariantSetVariants(const Path& primPath, std::string variantSetName,
@@ -1056,6 +1057,66 @@ std::vector<std::string> Layer::ListPrimVariantNames(const Path& primPath, const
     return {};
   }
   return jt->second;
+}
+
+void Layer::SetPrimVariantPayload(const Path& primPath, std::string variantSetName, std::string variantName,
+                                  std::string payloadBody) {
+  if (!primPath.IsPrimPath() || variantSetName.empty() || variantName.empty()) {
+    return;
+  }
+  touch_hierarchy(primPath);
+  const std::string set_key = variantSetName;
+  const std::string variant_key = variantName;
+  auto& by_set = prim_variant_payloads_[primPath];
+  auto& by_variant = by_set[std::move(variantSetName)];
+  if (payloadBody.empty()) {
+    by_variant.erase(variant_key);
+    if (by_variant.empty()) {
+      by_set.erase(set_key);
+    }
+    if (by_set.empty()) {
+      prim_variant_payloads_.erase(primPath);
+    }
+    return;
+  }
+  by_variant[variant_key] = std::move(payloadBody);
+}
+
+bool Layer::HasPrimVariantPayload(const Path& primPath, const std::string& variantSetName,
+                                  const std::string& variantName) const {
+  if (!primPath.IsPrimPath() || variantSetName.empty() || variantName.empty()) {
+    return false;
+  }
+  const auto it = prim_variant_payloads_.find(primPath);
+  if (it == prim_variant_payloads_.end()) {
+    return false;
+  }
+  const auto jt = it->second.find(variantSetName);
+  if (jt == it->second.end()) {
+    return false;
+  }
+  return jt->second.find(variantName) != jt->second.end();
+}
+
+bool Layer::GetPrimVariantPayload(const Path& primPath, const std::string& variantSetName, const std::string& variantName,
+                                  std::string* outPayloadBody) const {
+  if (!outPayloadBody || !primPath.IsPrimPath() || variantSetName.empty() || variantName.empty()) {
+    return false;
+  }
+  const auto it = prim_variant_payloads_.find(primPath);
+  if (it == prim_variant_payloads_.end()) {
+    return false;
+  }
+  const auto jt = it->second.find(variantSetName);
+  if (jt == it->second.end()) {
+    return false;
+  }
+  const auto kt = jt->second.find(variantName);
+  if (kt == jt->second.end()) {
+    return false;
+  }
+  *outPayloadBody = kt->second;
+  return true;
 }
 
 }  // namespace freeusd::sdf

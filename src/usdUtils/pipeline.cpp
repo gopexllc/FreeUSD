@@ -115,6 +115,12 @@ void copy_prim_at_time(const freeusd::usd::Prim& prim, double time, freeusd::sdf
     if (prim.GetAttributeConnectionTarget(token, &conn_target)) {
       out.SetAttributeConnection(path, token, conn_target);
     }
+    for (const double sample_time : prim.ListAttributeSampleTimes(token)) {
+      const freeusd::vt::Value sample_v = prim.GetAttribute(token, sample_time);
+      if (!sample_v.IsEmpty()) {
+        out.SetTimeSample(path, token, sample_time, sample_v);
+      }
+    }
     const freeusd::vt::Value v = prim.GetAttribute(token, time);
     if (!v.IsEmpty()) {
       out.SetField(path, token, v);

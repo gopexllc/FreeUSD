@@ -1,0 +1,14 @@
+#usda 1.0
+(
+    defaultPrim = "RefRoot"
+)
+
+def Xform "RefRoot"
+{
+    double refOnly = 11.0
+    rel refLink = </RefRoot/RefLeaf>
+    def "RefLeaf"
+    {
+        double branch = 22.0
+    }
+}

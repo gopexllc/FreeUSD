@@ -284,6 +284,86 @@ int freeusd_read_usdc_section_bytes_from_path_utf8(const char* path_utf8, const 
 
 void freeusd_bytes_free(void* bytes) { std::free(bytes); }
 
+int freeusd_read_usdc_token_table_from_path_utf8(const char* path_utf8, uint64_t max_entries, uint64_t max_total_bytes,
+                                                 char*** out_strings, size_t* out_count) {
+  if (!path_utf8 || !out_strings || !out_count || max_entries == 0u) {
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    clear_error();
+    freeusd::usd::crate::UsdcCrateStringTable table;
+    std::string err;
+    if (!freeusd::usd::crate::ReadUsdCrateTokenTableFromPath(std::string{path_utf8}, table,
+                                                             static_cast<std::size_t>(max_entries),
+                                                             static_cast<std::size_t>(max_total_bytes), &err)) {
+      set_error(err.empty() ? "read usdc token table failed" : err);
+      return FREEUSD_ERR_PARSE;
+    }
+    return malloc_string_list(table.values, out_strings, out_count);
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown error");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_read_usdc_string_table_from_path_utf8(const char* path_utf8, uint64_t max_entries, uint64_t max_total_bytes,
+                                                  char*** out_strings, size_t* out_count) {
+  if (!path_utf8 || !out_strings || !out_count || max_entries == 0u) {
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    clear_error();
+    freeusd::usd::crate::UsdcCrateStringTable table;
+    std::string err;
+    if (!freeusd::usd::crate::ReadUsdCrateStringTableFromPath(std::string{path_utf8}, table,
+                                                              static_cast<std::size_t>(max_entries),
+                                                              static_cast<std::size_t>(max_total_bytes), &err)) {
+      set_error(err.empty() ? "read usdc string table failed" : err);
+      return FREEUSD_ERR_PARSE;
+    }
+    return malloc_string_list(table.values, out_strings, out_count);
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown error");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_read_usdc_path_table_from_path_utf8(const char* path_utf8, uint64_t max_entries, uint64_t max_total_bytes,
+                                                char*** out_paths, size_t* out_count) {
+  if (!path_utf8 || !out_paths || !out_count || max_entries == 0u) {
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    clear_error();
+    freeusd::usd::crate::UsdcCratePathTable table;
+    std::string err;
+    if (!freeusd::usd::crate::ReadUsdCratePathTableFromPath(std::string{path_utf8}, table,
+                                                            static_cast<std::size_t>(max_entries),
+                                                            static_cast<std::size_t>(max_total_bytes), &err)) {
+      set_error(err.empty() ? "read usdc path table failed" : err);
+      return FREEUSD_ERR_PARSE;
+    }
+    std::vector<std::string> items;
+    items.reserve(table.paths.size());
+    for (const freeusd::sdf::Path& path : table.paths) {
+      items.push_back(path.GetString());
+    }
+    return malloc_string_list(items, out_paths, out_count);
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown error");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
 const char* freeusd_last_error_message(void) { return g_last_error.c_str(); }
 
 void freeusd_string_free(char* s) { std::free(s); }

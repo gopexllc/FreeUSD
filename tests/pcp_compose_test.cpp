@@ -25,7 +25,7 @@ int main() {
   });
 
   assert(!stack.IsEmpty());
-  const auto& layers = stack.GetLayers();
+  const auto layers = stack.GetLayers();
   assert(layers.size() == 3);
   assert(layers[0] == root);
   assert(layers[1] == sub_a);

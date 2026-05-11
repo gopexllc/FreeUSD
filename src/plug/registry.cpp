@@ -10,6 +10,7 @@ Registry& Registry::Get() noexcept {
 }
 
 void Registry::RegisterPluginPaths(const std::vector<std::string>& paths) {
+  std::lock_guard<std::mutex> lock(mu_);
   std::unordered_set<std::string> seen(paths_.begin(), paths_.end());
   for (const std::string& p : paths) {
     if (p.empty()) {
@@ -21,6 +22,19 @@ void Registry::RegisterPluginPaths(const std::vector<std::string>& paths) {
   }
 }
 
-void Registry::LoadAllPlugins() {}
+std::vector<std::string> Registry::SnapshotRegisteredPluginPaths() const {
+  std::lock_guard<std::mutex> lock(mu_);
+  return paths_;
+}
+
+void Registry::LoadAllPlugins() {
+  std::lock_guard<std::mutex> lock(mu_);
+  ++load_pass_count_;
+}
+
+std::size_t Registry::LoadPassCount() const {
+  std::lock_guard<std::mutex> lock(mu_);
+  return load_pass_count_;
+}
 
 }  // namespace freeusd::plug

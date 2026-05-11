@@ -64,6 +64,27 @@ extern "C" {
         out_bytes: *mut *mut u8,
         out_size: *mut u64,
     ) -> c_int;
+    fn freeusd_read_usdc_token_table_from_path_utf8(
+        path: *const c_char,
+        max_entries: u64,
+        max_total_bytes: u64,
+        out_strings: *mut *mut *mut c_char,
+        out_count: *mut usize,
+    ) -> c_int;
+    fn freeusd_read_usdc_string_table_from_path_utf8(
+        path: *const c_char,
+        max_entries: u64,
+        max_total_bytes: u64,
+        out_strings: *mut *mut *mut c_char,
+        out_count: *mut usize,
+    ) -> c_int;
+    fn freeusd_read_usdc_path_table_from_path_utf8(
+        path: *const c_char,
+        max_entries: u64,
+        max_total_bytes: u64,
+        out_paths: *mut *mut *mut c_char,
+        out_count: *mut usize,
+    ) -> c_int;
     fn freeusd_bytes_free(bytes: *mut std::ffi::c_void);
     fn freeusd_last_error_message() -> *const c_char;
 
@@ -430,6 +451,42 @@ pub fn read_usdc_section_bytes_from_path(path: &str, section_name: &str, max_byt
     let out = unsafe { std::slice::from_raw_parts(raw_ptr as *const u8, size as usize) }.to_vec();
     unsafe { freeusd_bytes_free(raw_ptr.cast()) };
     Ok(out)
+}
+
+fn read_usdc_string_list(
+    path: &str,
+    max_entries: u64,
+    max_total_bytes: u64,
+    f: unsafe extern "C" fn(*const c_char, u64, u64, *mut *mut *mut c_char, *mut usize) -> c_int,
+) -> Result<Vec<String>, i32> {
+    let c_path = CString::new(path).map_err(|_| 1i32)?;
+    let mut raw_ptr: *mut *mut c_char = ptr::null_mut();
+    let mut count: usize = 0;
+    let rc = unsafe { f(c_path.as_ptr(), max_entries, max_total_bytes, &mut raw_ptr, &mut count) };
+    if rc != 0 {
+        return Err(rc);
+    }
+    let mut out = Vec::new();
+    if !raw_ptr.is_null() && count > 0 {
+        for i in 0..count {
+            let s = unsafe { CStr::from_ptr(*raw_ptr.add(i)) }.to_string_lossy().into_owned();
+            out.push(s);
+        }
+        unsafe { freeusd_path_list_free(raw_ptr, count) };
+    }
+    Ok(out)
+}
+
+pub fn read_usdc_token_table_from_path(path: &str, max_entries: u64, max_total_bytes: u64) -> Result<Vec<String>, i32> {
+    read_usdc_string_list(path, max_entries, max_total_bytes, freeusd_read_usdc_token_table_from_path_utf8)
+}
+
+pub fn read_usdc_string_table_from_path(path: &str, max_entries: u64, max_total_bytes: u64) -> Result<Vec<String>, i32> {
+    read_usdc_string_list(path, max_entries, max_total_bytes, freeusd_read_usdc_string_table_from_path_utf8)
+}
+
+pub fn read_usdc_path_table_from_path(path: &str, max_entries: u64, max_total_bytes: u64) -> Result<Vec<String>, i32> {
+    read_usdc_string_list(path, max_entries, max_total_bytes, freeusd_read_usdc_path_table_from_path_utf8)
 }
 
 /// Thread-local last error from the C API.
@@ -1358,6 +1415,17 @@ mod tests {
         assert_eq!(payload, b"alpha");
         assert!(read_usdc_section_bytes_from_path(&p.to_string_lossy(), "MISSING", 64).is_err());
         let _ = std::fs::remove_file(&p);
+    }
+
+    #[test]
+    fn read_structured_usdc_tables_from_fixture() {
+        let p = fixture_path("parity_tables.usdc");
+        let tokens = read_usdc_token_table_from_path(&p.to_string_lossy(), 8, 1024).expect("token table");
+        assert_eq!(tokens, vec!["render".to_string(), "invisible".to_string()]);
+        let strings = read_usdc_string_table_from_path(&p.to_string_lossy(), 8, 1024).expect("string table");
+        assert_eq!(strings, vec!["hello".to_string(), "world".to_string()]);
+        let paths = read_usdc_path_table_from_path(&p.to_string_lossy(), 8, 1024).expect("path table");
+        assert_eq!(paths, vec!["/World".to_string(), "/World/Cube".to_string()]);
     }
 
     #[test]

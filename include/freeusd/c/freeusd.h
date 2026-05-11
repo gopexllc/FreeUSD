@@ -130,6 +130,30 @@ FREEUSD_C_API int freeusd_read_usdc_section_bytes_from_path_utf8(const char* pat
 FREEUSD_C_API void freeusd_bytes_free(void* bytes);
 
 /**
+ * Reads the validated ``TOKENS`` table payload from a shared test fixture style ``.usdc`` file.
+ * On @ref FREEUSD_OK, @p *out_strings / @p *out_count use @ref freeusd_path_list_free.
+ */
+FREEUSD_C_API int freeusd_read_usdc_token_table_from_path_utf8(const char* path_utf8, uint64_t max_entries,
+                                                               uint64_t max_total_bytes, char*** out_strings,
+                                                               size_t* out_count);
+
+/**
+ * Reads the validated ``STRINGS`` table payload from a shared test fixture style ``.usdc`` file.
+ * On @ref FREEUSD_OK, @p *out_strings / @p *out_count use @ref freeusd_path_list_free.
+ */
+FREEUSD_C_API int freeusd_read_usdc_string_table_from_path_utf8(const char* path_utf8, uint64_t max_entries,
+                                                                uint64_t max_total_bytes, char*** out_strings,
+                                                                size_t* out_count);
+
+/**
+ * Reads the validated ``PATHS`` table payload from a shared test fixture style ``.usdc`` file.
+ * On @ref FREEUSD_OK, @p *out_paths / @p *out_count use @ref freeusd_path_list_free.
+ */
+FREEUSD_C_API int freeusd_read_usdc_path_table_from_path_utf8(const char* path_utf8, uint64_t max_entries,
+                                                              uint64_t max_total_bytes, char*** out_paths,
+                                                              size_t* out_count);
+
+/**
  * Last error message for the calling thread, valid until the next FreeUSD C API
  * call on this thread. Never null (empty string if no error was recorded).
  */
@@ -402,7 +426,8 @@ FREEUSD_C_API int freeusd_stage_prim_is_valid(const FreeusdStage* stage, const c
 /**
  * Read evaluated attribute as double at @p time (strongest opinion; follows
  * attribute connections where implemented).
- * Missing prims, missing attributes, and non-double payloads all report @ref FREEUSD_ERR_NOT_FOUND.
+ * Succeeds for @c double payloads, or @c float / @c int32 / @c int64 coerced to @c double.
+ * Missing prims, missing attributes, and unsupported coercions report @ref FREEUSD_ERR_NOT_FOUND.
  * @return @ref FREEUSD_OK or error code; @p out_value unchanged on failure.
  */
 FREEUSD_C_API int freeusd_stage_read_field_double(const FreeusdStage* stage, const char* prim_path_utf8,

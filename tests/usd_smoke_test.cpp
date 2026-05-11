@@ -1,7 +1,9 @@
 #include <cassert>
+#include <atomic>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <thread>
 #include <vector>
 
 #include "freeusd/gf/matrix4d.hpp"
@@ -18,6 +20,7 @@
 #include "freeusd/usdShade/tokens.hpp"
 #include "freeusd/usdUtils/pipeline.hpp"
 #include "freeusd/vt/value.hpp"
+#include "freeusd/work/dispatcher.hpp"
 
 int main() {
   using freeusd::sdf::Layer;
@@ -341,13 +344,48 @@ int main() {
   }
 
   freeusd::plug::Registry::Get().RegisterPluginPaths({"/tmp/freeusd_nonexistent_plugin_path"});
-  assert(!freeusd::plug::Registry::Get().RegisteredPluginPaths().empty());
+  assert(!freeusd::plug::Registry::Get().SnapshotRegisteredPluginPaths().empty());
+  {
+    std::vector<std::thread> workers;
+    for (int i = 0; i < 4; ++i) {
+      workers.emplace_back([i]() {
+        freeusd::plug::Registry::Get().RegisterPluginPaths(
+            {"/tmp/freeusd_nonexistent_plugin_path", "/tmp/freeusd_nonexistent_plugin_path_" + std::to_string(i)});
+        freeusd::plug::Registry::Get().LoadAllPlugins();
+      });
+    }
+    for (auto& worker : workers) {
+      worker.join();
+    }
+    const auto paths = freeusd::plug::Registry::Get().SnapshotRegisteredPluginPaths();
+    assert(paths.size() >= 5u);
+    assert(freeusd::plug::Registry::Get().LoadPassCount() >= 4u);
+  }
 
   freeusd::trace::Collector::Get().Reset();
   freeusd::trace::Collector::Get().Push("scope");
   assert(freeusd::trace::Collector::Get().StackDepth() == 1u);
   freeusd::trace::Collector::Get().Pop();
   assert(freeusd::trace::Collector::Get().StackDepth() == 0u);
+  {
+    std::atomic<unsigned> child_depth{99u};
+    std::thread child([&child_depth]() {
+      freeusd::trace::Collector::Get().Reset();
+      freeusd::trace::Collector::Get().Push("child");
+      child_depth.store(freeusd::trace::Collector::Get().StackDepth());
+      freeusd::trace::Collector::Get().Pop();
+    });
+    child.join();
+    assert(child_depth.load() == 1u);
+    assert(freeusd::trace::Collector::Get().StackDepth() == 0u);
+  }
+  {
+    auto& dispatcher = freeusd::work::Dispatcher::Get();
+    dispatcher.ResetCompletedJobs();
+    dispatcher.Run([]() {});
+    dispatcher.Run([]() {});
+    assert(dispatcher.CompletedJobs() == 2u);
+  }
 
   freeusd::usdUtils::FlattenOptions fo;
   assert(fo.merge_authored_layer_metadata);

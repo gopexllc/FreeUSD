@@ -5,6 +5,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef FREEUSD_TEST_FIXTURES_DIR
+#error "FREEUSD_TEST_FIXTURES_DIR must be set by CMake for c_abi_smoke"
+#endif
+
 #ifdef _WIN32
 #include <process.h>
 #else
@@ -253,6 +257,51 @@ int main(void) {
       return 1;
     }
     remove(sec_path);
+  }
+
+  {
+    char tables_path[4096];
+    if (snprintf(tables_path, sizeof tables_path, "%s/parity_tables.usdc", FREEUSD_TEST_FIXTURES_DIR) >=
+        (int)sizeof tables_path) {
+      fprintf(stderr, "tables fixture path too long\n");
+      return 1;
+    }
+    char** items = NULL;
+    size_t count = 0;
+    if (freeusd_read_usdc_token_table_from_path_utf8(tables_path, 8, 1024, &items, &count) != FREEUSD_OK) {
+      fprintf(stderr, "read token table failed: %s\n", freeusd_last_error_message());
+      return 1;
+    }
+    if (!items || count != 2u || strcmp(items[0], "render") != 0 || strcmp(items[1], "invisible") != 0) {
+      fprintf(stderr, "unexpected token table\n");
+      freeusd_path_list_free(items, count);
+      return 1;
+    }
+    freeusd_path_list_free(items, count);
+    items = NULL;
+    count = 0;
+    if (freeusd_read_usdc_string_table_from_path_utf8(tables_path, 8, 1024, &items, &count) != FREEUSD_OK) {
+      fprintf(stderr, "read string table failed: %s\n", freeusd_last_error_message());
+      return 1;
+    }
+    if (!items || count != 2u || strcmp(items[0], "hello") != 0 || strcmp(items[1], "world") != 0) {
+      fprintf(stderr, "unexpected string table\n");
+      freeusd_path_list_free(items, count);
+      return 1;
+    }
+    freeusd_path_list_free(items, count);
+    items = NULL;
+    count = 0;
+    if (freeusd_read_usdc_path_table_from_path_utf8(tables_path, 8, 1024, &items, &count) != FREEUSD_OK) {
+      fprintf(stderr, "read path table failed: %s\n", freeusd_last_error_message());
+      return 1;
+    }
+    if (!items || count != 2u || strcmp(items[0], "/World") != 0 || strcmp(items[1], "/World/Cube") != 0) {
+      fprintf(stderr, "unexpected path table\n");
+      freeusd_path_list_free(items, count);
+      return 1;
+    }
+    freeusd_path_list_free(items, count);
   }
 
   FreeusdLayer* layer = freeusd_layer_new_anonymous("c_smoke");

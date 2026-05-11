@@ -36,6 +36,7 @@
 #include "freeusd/usd/stage.hpp"
 #include "freeusd/usd/timeCode.hpp"
 #include "freeusd/usdUtils/pipeline.hpp"
+#include "freeusd/usdGeom/boundable.hpp"
 #include "freeusd/usdGeom/imageable.hpp"
 #include "freeusd/usdGeom/tokens.hpp"
 #include "freeusd/usdGeom/xformable.hpp"
@@ -1421,6 +1422,57 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
           py::arg("path"),
           py::arg("section_name"),
           py::arg("max_bytes") = static_cast<std::size_t>(16u * 1024u * 1024u));
+      crate.def(
+          "read_usdc_token_table_from_path",
+          [](const std::string& path, std::size_t max_entries, std::size_t max_total_bytes) {
+            freeusd::usd::crate::UsdcCrateStringTable table{};
+            std::string err;
+            if (!freeusd::usd::crate::ReadUsdCrateTokenTableFromPath(path, table, max_entries, max_total_bytes, &err)) {
+              return py::make_tuple(false, py::none(), err);
+            }
+            py::list items;
+            for (const std::string& value : table.values) {
+              items.append(value);
+            }
+            return py::make_tuple(true, items, std::string{});
+          },
+          py::arg("path"),
+          py::arg("max_entries") = static_cast<std::size_t>(65536u),
+          py::arg("max_total_bytes") = static_cast<std::size_t>(16u * 1024u * 1024u));
+      crate.def(
+          "read_usdc_string_table_from_path",
+          [](const std::string& path, std::size_t max_entries, std::size_t max_total_bytes) {
+            freeusd::usd::crate::UsdcCrateStringTable table{};
+            std::string err;
+            if (!freeusd::usd::crate::ReadUsdCrateStringTableFromPath(path, table, max_entries, max_total_bytes, &err)) {
+              return py::make_tuple(false, py::none(), err);
+            }
+            py::list items;
+            for (const std::string& value : table.values) {
+              items.append(value);
+            }
+            return py::make_tuple(true, items, std::string{});
+          },
+          py::arg("path"),
+          py::arg("max_entries") = static_cast<std::size_t>(65536u),
+          py::arg("max_total_bytes") = static_cast<std::size_t>(16u * 1024u * 1024u));
+      crate.def(
+          "read_usdc_path_table_from_path",
+          [](const std::string& path, std::size_t max_entries, std::size_t max_total_bytes) {
+            freeusd::usd::crate::UsdcCratePathTable table{};
+            std::string err;
+            if (!freeusd::usd::crate::ReadUsdCratePathTableFromPath(path, table, max_entries, max_total_bytes, &err)) {
+              return py::make_tuple(false, py::none(), err);
+            }
+            py::list items;
+            for (const freeusd::sdf::Path& value : table.paths) {
+              items.append(value);
+            }
+            return py::make_tuple(true, items, std::string{});
+          },
+          py::arg("path"),
+          py::arg("max_entries") = static_cast<std::size_t>(65536u),
+          py::arg("max_total_bytes") = static_cast<std::size_t>(16u * 1024u * 1024u));
     }
 
     py::class_<freeusd::usd::EditTarget>(usd, "EditTarget")
@@ -1983,6 +2035,11 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def_readonly("prim", &freeusd::usdGeom::Imageable::prim)
         .def("compute_visibility", &freeusd::usdGeom::Imageable::ComputeVisibility, py::arg("time") = 1.0)
         .def("compute_purpose", &freeusd::usdGeom::Imageable::ComputePurpose, py::arg("time") = 1.0);
+    py::class_<freeusd::usdGeom::Boundable>(geom, "Boundable")
+        .def(py::init<const freeusd::usd::Prim&>(), py::arg("prim"))
+        .def_readonly("prim", &freeusd::usdGeom::Boundable::prim)
+        .def("compute_local_bound", &freeusd::usdGeom::Boundable::ComputeLocalBound, py::arg("time") = 1.0)
+        .def("compute_world_bound", &freeusd::usdGeom::Boundable::ComputeWorldBound, py::arg("time") = 1.0);
     py::class_<freeusd::usdGeom::Xformable>(geom, "Xformable")
         .def(py::init<const freeusd::usd::Prim&>(), py::arg("prim"))
         .def_readonly("prim", &freeusd::usdGeom::Xformable::prim)

@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "freeusd/export.hpp"
+#include "freeusd/sdf/path.hpp"
 
 namespace freeusd::usd::crate {
 
@@ -53,6 +54,28 @@ FREEUSD_API bool ReadUsdCrateTocFromPath(const std::string& path, UsdcCrateToc& 
 FREEUSD_API bool ReadUsdCrateSectionBytesFromPath(const std::string& path, std::string_view section_name,
                                                   std::vector<std::uint8_t>& out_bytes, std::size_t max_section_bytes,
                                                   std::string* err_out = nullptr);
+
+/// Validated low-level table payload: little-endian ``uint64_t`` count, then repeated ``uint64_t`` byte length + bytes.
+struct UsdcCrateStringTable {
+  std::vector<std::string> values;
+};
+
+/// Reads the ``STRINGS`` section using the shared fixture-oriented table payload shape documented above.
+FREEUSD_API bool ReadUsdCrateStringTableFromPath(const std::string& path, UsdcCrateStringTable& out,
+                                                 std::size_t max_entries, std::size_t max_total_bytes,
+                                                 std::string* err_out = nullptr);
+/// Reads the ``TOKENS`` section using the same validated table payload shape as @ref ReadUsdCrateStringTableFromPath.
+FREEUSD_API bool ReadUsdCrateTokenTableFromPath(const std::string& path, UsdcCrateStringTable& out,
+                                                std::size_t max_entries, std::size_t max_total_bytes,
+                                                std::string* err_out = nullptr);
+
+struct UsdcCratePathTable {
+  std::vector<freeusd::sdf::Path> paths;
+};
+
+/// Reads the ``PATHS`` section using the same validated table payload shape as @ref ReadUsdCrateStringTableFromPath.
+FREEUSD_API bool ReadUsdCratePathTableFromPath(const std::string& path, UsdcCratePathTable& out, std::size_t max_entries,
+                                               std::size_t max_total_bytes, std::string* err_out = nullptr);
 
 enum class UsdFileKind {
   /// Could not read path or empty file.

@@ -8,8 +8,16 @@ def Xform "World"
     (
         variantSets = {
             modelVariant = {
-                "Hi" = {},
-                "Lo" = {},
+                "Hi" = {
+                    double variantValue = 5.0
+                    def "VariantChild"
+                    {
+                        double branch = 9.0
+                    }
+                },
+                "Lo" = {
+                    double variantValue = 1.0
+                },
             }
         }
         variantSelection = {
