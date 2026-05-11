@@ -18,6 +18,10 @@ def test_stage_prim_roundtrip() -> None:
 
     prim = stage.prim_at(cube)
     assert prim.is_valid()
+    assert prim.read_field_double(Token("size"), 1.0) == stage.read_field_double(cube, Token("size"), 1.0)
+    v_at = prim.read_field_at_time(Token("size"), 1.0)
+    assert v_at is not None
+    assert v_at.as_double() == stage.read_field_at_time(cube, Token("size"), 1.0).as_double()
     assert prim.name() == "Cube"
     assert prim.parent().is_valid()
     assert prim.parent().path().text() == "/World"
@@ -44,6 +48,157 @@ def test_prim_get_attribute_at_time() -> None:
     prim = stage.prim_at(cube)
     assert prim.get_attribute(Token("height"), 2.0).as_double() == 20.0
     assert prim.get_attribute(Token("height"), 3.0).as_double() == 30.0
+    assert prim.read_field_at_time(Token("height"), 2.0).as_double() == 20.0
+    assert prim.read_field_at_time(Token("height"), 3.0).as_double() == 30.0
+
+
+def test_stage_read_field_float_and_double() -> None:
+    import freeusd.io as io
+
+    src = """#usda 1.0
+(
+)
+def "P"
+{
+    float a = 1.5
+    double b = 2.5
+}
+"""
+    layer = Layer.new_anonymous("rfconv")
+    assert io.load_from_string(src, layer).ok
+    p = Path.from_string("/P")
+    st = Stage.attach_root_layer(layer)
+    fa = st.read_field_float(p, Token("a"), 1.0)
+    fb = st.read_field_float(p, Token("b"), 1.0)
+    da = st.read_field_double(p, Token("a"), 1.0)
+    db = st.read_field_double(p, Token("b"), 1.0)
+    assert fa is not None and abs(float(fa) - 1.5) < 1e-5
+    assert fb is not None and abs(float(fb) - 2.5) < 1e-5
+    assert da is not None and abs(float(da) - 1.5) < 1e-9
+    assert db is not None and abs(float(db) - 2.5) < 1e-9
+
+
+def test_stage_read_field_bool_int64_string() -> None:
+    import freeusd.io as io
+
+    src = """#usda 1.0
+(
+)
+def "P"
+{
+    bool on = true
+    int n = -7
+    float f = 3.9
+    string s = "ab"
+    token t = hello
+}
+"""
+    layer = Layer.new_anonymous("rfbis")
+    assert io.load_from_string(src, layer).ok
+    p = Path.from_string("/P")
+    st = Stage.attach_root_layer(layer)
+    assert st.read_field_bool(p, Token("on"), 1.0) is True
+    assert st.read_field_int64(p, Token("n"), 1.0) == -7
+    assert st.read_field_int64(p, Token("f"), 1.0) == 3
+    assert st.read_field_string(p, Token("s"), 1.0) == "ab"
+    assert st.read_field_string(p, Token("t"), 1.0) == "hello"
+
+
+def test_stage_read_field_vec3d_vec3f() -> None:
+    import freeusd.io as io
+
+    src = """#usda 1.0
+(
+)
+def "P"
+{
+    double3 p = (1, 2, 3)
+    color3f c = (0.25, 0.5, 0.75)
+}
+"""
+    layer = Layer.new_anonymous("rfv3")
+    assert io.load_from_string(src, layer).ok
+    p = Path.from_string("/P")
+    st = Stage.attach_root_layer(layer)
+    t3 = st.read_field_vec3d(p, Token("p"), 1.0)
+    assert t3 is not None and t3 == (1.0, 2.0, 3.0)
+    assert st.read_field_vec3d(p, Token("c"), 1.0) is None
+    tc = st.read_field_vec3f(p, Token("c"), 1.0)
+    assert tc is not None and abs(tc[0] - 0.25) < 1e-5 and abs(tc[1] - 0.5) < 1e-5 and abs(tc[2] - 0.75) < 1e-5
+    tp = st.read_field_vec3f(p, Token("p"), 1.0)
+    assert tp is not None and abs(tp[0] - 1.0) < 1e-5 and abs(tp[1] - 2.0) < 1e-5 and abs(tp[2] - 3.0) < 1e-5
+
+
+def test_stage_read_field_matrix4d() -> None:
+    import freeusd.io as io
+    from freeusd.gf import Matrix4d
+
+    src = """#usda 1.0
+(
+)
+def "P"
+{
+    matrix4d m = ((1,0,0,0), (0,1,0,0), (0,0,1,0), (0,0,0,1))
+}
+"""
+    layer = Layer.new_anonymous("rfm4")
+    assert io.load_from_string(src, layer).ok
+    p = Path.from_string("/P")
+    st = Stage.attach_root_layer(layer)
+    mat = st.read_field_matrix4d(p, Token("m"), 1.0)
+    assert mat is not None
+    assert mat == Matrix4d.Identity()
+
+
+def test_stage_read_field_quatd_quatf() -> None:
+    import freeusd.io as io
+    from freeusd.gf import Quatd, Quatf
+
+    src = """#usda 1.0
+(
+)
+def "P"
+{
+    quatd qd = (1, 0, 0, 0)
+    quatf qf = (0.70710677, 0, 0, 0.70710677)
+}
+"""
+    layer = Layer.new_anonymous("rfq")
+    assert io.load_from_string(src, layer).ok
+    p = Path.from_string("/P")
+    st = Stage.attach_root_layer(layer)
+    qd = st.read_field_quatd(p, Token("qd"), 1.0)
+    assert qd is not None and qd == Quatd.Identity()
+    qf = st.read_field_quatf(p, Token("qf"), 1.0)
+    assert qf is not None
+    assert abs(qf.real - 0.70710677) < 1e-5 and abs(qf.k - 0.70710677) < 1e-5
+    assert st.read_field_quatf(p, Token("qd"), 1.0) is None
+    assert st.read_field_quatd(p, Token("qf"), 1.0) is None
+
+
+def test_stage_read_field_token_and_token_array() -> None:
+    import freeusd.io as io
+
+    src = """#usda 1.0
+(
+)
+def "P"
+{
+    token kind = component
+    token[] tags = [@a@, @b@]
+}
+"""
+    layer = Layer.new_anonymous("rftok")
+    assert io.load_from_string(src, layer).ok
+    p = Path.from_string("/P")
+    st = Stage.attach_root_layer(layer)
+    kind = st.read_field_token(p, Token("kind"), 1.0)
+    assert kind is not None and kind.text() == "component"
+    tags = st.read_field_token_array(p, Token("tags"), 1.0)
+    assert tags is not None and len(tags) == 2
+    assert tags[0].text() == "a" and tags[1].text() == "b"
+    assert st.read_field_token_array(p, Token("kind"), 1.0) is None
+    assert st.read_field_token(p, Token("tags"), 1.0) is None
 
 
 def test_prim_references_inherits_payloads_compose() -> None:

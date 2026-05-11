@@ -39,6 +39,10 @@ std::string_view trim(std::string_view s) {
   return s;
 }
 
+bool sdf_type_is_float3_tuple_family(const std::string& type_l) noexcept {
+  return type_l == "float3" || type_l == "point3f" || type_l == "normal3f" || type_l == "color3f";
+}
+
 bool sv_starts_with(std::string_view s, std::string_view p) noexcept {
   return s.size() >= p.size() && s.compare(0, p.size(), p) == 0;
 }
@@ -223,7 +227,11 @@ bool parse_usda_token_array_literal(std::string_view t, ParseResult* err, std::s
       set_err(err, line, "token[] literal elements must be @-prefixed tokens");
       return false;
     }
-    out->emplace_back(freeusd::tf::Token{p.substr(1)});
+    std::string_view body = trim(p.substr(1));
+    if (!body.empty() && body.back() == '@') {
+      body = trim(body.substr(0, body.size() - 1));
+    }
+    out->emplace_back(freeusd::tf::Token{std::string{body}});
   }
   return true;
 }
@@ -381,7 +389,7 @@ freeusd::vt::Value parse_value(std::string_view t, ParseResult* err, std::size_t
       return {};
     }
 
-    if (type_l == "float3") {
+    if (sdf_type_is_float3_tuple_family(type_l)) {
       float a{};
       float b{};
       float c{};
@@ -390,12 +398,12 @@ freeusd::vt::Value parse_value(std::string_view t, ParseResult* err, std::size_t
       std::istringstream iss{inner_str};
       iss >> a >> comma1 >> b >> comma2 >> c;
       if (!iss || comma1 != ',' || comma2 != ',') {
-        set_err(err, line, "bad float3 literal");
+        set_err(err, line, "bad vec3f tuple literal");
         return {};
       }
       iss >> std::ws;
       if (!iss.eof()) {
-        set_err(err, line, "bad float3 literal (trailing tokens)");
+        set_err(err, line, "bad vec3f tuple literal (trailing tokens)");
         return {};
       }
       freeusd::gf::Vec3f v;
@@ -445,10 +453,15 @@ freeusd::vt::Value parse_value(std::string_view t, ParseResult* err, std::size_t
   // Prefer full-token integer parsing, then floating-point parse; `'e'` in identifiers (e.g. Hello)
   // must not force the float branch.
   const std::string tstr{t};
+  const std::string type_l_scalar = sdf_type.empty() ? std::string{} : ascii_lower(sdf_type);
+  const bool want_float_scalar = (type_l_scalar == "float" || type_l_scalar == "half");
   char* endi = nullptr;
   errno = 0;
   const long long vi = std::strtoll(tstr.c_str(), &endi, 10);
   if (endi == tstr.c_str() + tstr.size() && errno == 0) {
+    if (want_float_scalar) {
+      return freeusd::vt::Value::MakeFloat(static_cast<float>(static_cast<double>(vi)));
+    }
     if (vi > 2147483647LL || vi < -2147483648LL) {
       return freeusd::vt::Value::MakeInt64(static_cast<std::int64_t>(vi));
     }
@@ -458,6 +471,9 @@ freeusd::vt::Value parse_value(std::string_view t, ParseResult* err, std::size_t
   char* endf = nullptr;
   const double vd = std::strtod(tstr.c_str(), &endf);
   if (endf == tstr.c_str() + tstr.size() && errno == 0) {
+    if (want_float_scalar) {
+      return freeusd::vt::Value::MakeFloat(static_cast<float>(vd));
+    }
     return freeusd::vt::Value::MakeDouble(vd);
   }
   // unquoted non-numeric literal -> TfToken

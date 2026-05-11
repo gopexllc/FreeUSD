@@ -81,7 +81,19 @@ When work starts in an area, prefer **new files under the matching `include/free
 - **`freeusd.usd.TimeCode`** mirrors **`UsdTimeCode`**-style default / earliest / numeric authoring; **`freeusd.usdUtils`** exposes placeholder types (e.g. **`FlattenOptions`**) until real utils land.
 - **`freeusd.gf`** wraps **`_native.gf`** (`Vec3d`, `Matrix4d`, **`BBox3d`**, **`Quatd`**, **`Range1d`**) for the same **Gf**-shaped role as `pxr.Gf` in OpenUSD stacks.
 - **`freeusd.vt.Value`** exposes scalar **`holds_*` / `as_*`** helpers; **`as_double`** still uses **`GetDouble`**, which promotes stored integers and floats to **`double`** where the C++ API allows.
+- **`freeusd.usd.Stage`** adds **`read_field_at_time`** (composed **`vt.Value`** or **`None`**) plus typed **`read_field_double`**, **`read_field_float`**, **`read_field_bool`**, **`read_field_int64`**, **`read_field_string`**, **`read_field_vec3d`**, **`read_field_vec3f`**, **`read_field_matrix4d`**, **`read_field_quatd`**, **`read_field_quatf`**, **`read_field_token`**, **`read_field_token_array`** (**`read_field_string`** accepts **`string`** or **`token`** payloads; vector rules match the C ABI). **`read_field_at_time`** and the same **`read_field_*`** names exist on **`freeusd.usd.Prim`** with **`(name, time=…)`** (no path argument; invalid prims or destroyed stages yield **`None`**).
 - **`freeusd.plug`**, **`freeusd.work`**, **`freeusd.trace`** mirror **`pxr` plug / work / trace** entry points at the Python package level (see **`_native`** submodules).
+
+## Parity strategy (clean-room, no upstream sources)
+
+Reaching a **similar feature set** to OpenUSD for authoring and interchange means growing FreeUSD against **published** USD/USDC descriptions, **real-world files**, and **tests written here**—not by translating Pixar’s C++ line-by-line (which would be copying) or matching every private helper. A practical order of work:
+
+1. **Formats and data model** — Strengthen `sdf` / `vt` / `gf` value shapes, USDA coverage, and (eventually) **USDC payload decode** using the public crate layout, until common layers round-trip reliably.
+2. **Composition** — Deepen `pcp` / `usd` so layer stacks, arcs, variants, and attribute resolution behave like the spec and like reference scenes, before investing in imaging.
+3. **Schema-facing APIs** — Expand typed helpers (e.g. `usdGeom::Xformable`, then mesh/bound roles) behind the same **token headers** you already ship, still without importing upstream schema logic.
+4. **Out-of-core items stay explicit** — Hydra, Ndr/Sdr, exec, and full `trace` remain **documented gaps** until a dedicated clean-room effort starts; see *Not in scope* above.
+
+API **names and module boundaries** track OpenUSD so integrators can navigate; **ABI and exhaustive method parity** are not goals.
 
 ## References
 

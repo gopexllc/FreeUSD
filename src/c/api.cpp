@@ -11,6 +11,9 @@
 #include <variant>
 #include <vector>
 
+#include "freeusd/gf/matrix4d.hpp"
+#include "freeusd/gf/quatd.hpp"
+#include "freeusd/gf/quatf.hpp"
 #include "freeusd/gf/vec3d.hpp"
 #include "freeusd/gf/vec3f.hpp"
 #include "freeusd/io/usda.hpp"
@@ -1641,6 +1644,64 @@ int freeusd_stage_read_field_double(const FreeusdStage* stage, const char* prim_
   }
 }
 
+int freeusd_stage_read_field_float(const FreeusdStage* stage, const char* prim_path_utf8,
+                                   const char* attr_name_utf8, double time, float* out_value) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !attr_name_utf8 || !out_value) {
+    set_error("freeusd_stage_read_field_float: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    freeusd::vt::Value v;
+    if (!stage->inner->ReadFieldAtEvaluatedTime(p, freeusd::tf::Token{attr_name_utf8}, time, &v)) {
+      set_error("no value or could not evaluate attribute");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    float f = 0.0F;
+    if (v.GetFloat(&f)) {
+      *out_value = f;
+      clear_error();
+      return FREEUSD_OK;
+    }
+    double d = 0.0;
+    if (v.GetDouble(&d)) {
+      *out_value = static_cast<float>(d);
+      clear_error();
+      return FREEUSD_OK;
+    }
+    std::int32_t i32 = 0;
+    if (v.GetInt32(&i32)) {
+      *out_value = static_cast<float>(i32);
+      clear_error();
+      return FREEUSD_OK;
+    }
+    std::int64_t i64 = 0;
+    if (v.GetInt64(&i64)) {
+      *out_value = static_cast<float>(i64);
+      clear_error();
+      return FREEUSD_OK;
+    }
+    bool b = false;
+    if (v.GetBool(&b)) {
+      *out_value = b ? 1.0F : 0.0F;
+      clear_error();
+      return FREEUSD_OK;
+    }
+    set_error("attribute is not coercible to float");
+    return FREEUSD_ERR_NOT_FOUND;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
 int freeusd_stage_list_field_sample_times(const FreeusdStage* stage, const char* prim_path_utf8,
                                           const char* attr_name_utf8, double** out_times, size_t* out_count) {
   if (!stage || !stage->inner || !prim_path_utf8 || !attr_name_utf8 || !out_times || !out_count) {
@@ -1956,6 +2017,214 @@ int freeusd_stage_read_field_vec3f(const FreeusdStage* stage, const char* prim_p
     }
     set_error("attribute is not float3 / vec3f or double3 / Vec3d");
     return FREEUSD_ERR_NOT_FOUND;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_read_field_matrix4d(const FreeusdStage* stage, const char* prim_path_utf8,
+                                      const char* attr_name_utf8, double time, double* out_row_major) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !attr_name_utf8 || !out_row_major) {
+    set_error("freeusd_stage_read_field_matrix4d: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    freeusd::vt::Value v;
+    if (!stage->inner->ReadFieldAtEvaluatedTime(p, freeusd::tf::Token{attr_name_utf8}, time, &v)) {
+      set_error("no value or could not evaluate attribute");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    freeusd::gf::Matrix4d m{};
+    if (!v.GetMatrix4d(&m)) {
+      set_error("attribute is not matrix4d");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    for (int i = 0; i < 16; ++i) {
+      out_row_major[i] = m.m[static_cast<std::size_t>(i)];
+    }
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_read_field_quatd(const FreeusdStage* stage, const char* prim_path_utf8,
+                                   const char* attr_name_utf8, double time, double* out_real, double* out_i,
+                                   double* out_j, double* out_k) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !attr_name_utf8 || !out_real || !out_i || !out_j || !out_k) {
+    set_error("freeusd_stage_read_field_quatd: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    freeusd::vt::Value v;
+    if (!stage->inner->ReadFieldAtEvaluatedTime(p, freeusd::tf::Token{attr_name_utf8}, time, &v)) {
+      set_error("no value or could not evaluate attribute");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    freeusd::gf::Quatd q{};
+    if (!v.GetQuatd(&q)) {
+      set_error("attribute is not quatd");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    *out_real = q.real;
+    *out_i = q.i;
+    *out_j = q.j;
+    *out_k = q.k;
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_read_field_quatf(const FreeusdStage* stage, const char* prim_path_utf8,
+                                   const char* attr_name_utf8, double time, float* out_real, float* out_i,
+                                   float* out_j, float* out_k) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !attr_name_utf8 || !out_real || !out_i || !out_j || !out_k) {
+    set_error("freeusd_stage_read_field_quatf: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    freeusd::vt::Value v;
+    if (!stage->inner->ReadFieldAtEvaluatedTime(p, freeusd::tf::Token{attr_name_utf8}, time, &v)) {
+      set_error("no value or could not evaluate attribute");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    freeusd::gf::Quatf qf{};
+    if (v.GetQuatf(&qf)) {
+      *out_real = qf.real;
+      *out_i = qf.i;
+      *out_j = qf.j;
+      *out_k = qf.k;
+      clear_error();
+      return FREEUSD_OK;
+    }
+    freeusd::gf::Quatd qd{};
+    if (v.GetQuatd(&qd)) {
+      *out_real = static_cast<float>(qd.real);
+      *out_i = static_cast<float>(qd.i);
+      *out_j = static_cast<float>(qd.j);
+      *out_k = static_cast<float>(qd.k);
+      clear_error();
+      return FREEUSD_OK;
+    }
+    set_error("attribute is not quatf or quatd");
+    return FREEUSD_ERR_NOT_FOUND;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_read_field_token(const FreeusdStage* stage, const char* prim_path_utf8,
+                                   const char* attr_name_utf8, double time, char** out_token_utf8) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !attr_name_utf8 || !out_token_utf8) {
+    set_error("freeusd_stage_read_field_token: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_token_utf8 = nullptr;
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    freeusd::vt::Value v;
+    if (!stage->inner->ReadFieldAtEvaluatedTime(p, freeusd::tf::Token{attr_name_utf8}, time, &v)) {
+      set_error("no value or could not evaluate attribute");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    freeusd::tf::Token tok;
+    if (!v.GetToken(&tok)) {
+      set_error("attribute is not a token");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    *out_token_utf8 = dup_cstr(std::string{tok.GetText()});
+    if (!*out_token_utf8) {
+      set_error("out of memory");
+      return FREEUSD_ERR_INTERNAL;
+    }
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_read_field_token_array(const FreeusdStage* stage, const char* prim_path_utf8,
+                                         const char* attr_name_utf8, double time, char*** out_strings,
+                                         size_t* out_count) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !attr_name_utf8 || !out_strings || !out_count) {
+    set_error("freeusd_stage_read_field_token_array: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_strings = nullptr;
+  *out_count = 0;
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    freeusd::vt::Value v;
+    if (!stage->inner->ReadFieldAtEvaluatedTime(p, freeusd::tf::Token{attr_name_utf8}, time, &v)) {
+      set_error("no value or could not evaluate attribute");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    std::vector<freeusd::tf::Token> elems;
+    if (!v.GetTokenArray(&elems)) {
+      set_error("attribute is not token[]");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    std::vector<std::string> strs;
+    strs.reserve(elems.size());
+    for (const auto& t : elems) {
+      strs.emplace_back(t.GetText());
+    }
+    const int ml = malloc_string_list(strs, out_strings, out_count);
+    if (ml != FREEUSD_OK) {
+      if (ml == FREEUSD_ERR_INTERNAL) {
+        set_error("out of memory");
+      }
+      return ml;
+    }
+    clear_error();
+    return FREEUSD_OK;
   } catch (const std::exception& e) {
     set_error(e.what());
     return FREEUSD_ERR_INTERNAL;

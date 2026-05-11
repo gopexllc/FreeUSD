@@ -28,6 +28,63 @@ def "P"
     assert "float3 extent" in out.replace("\n", " ")
 
 
+def test_float_half_scalar_usda_stores_vt_float() -> None:
+    """Typed ``float`` / ``half`` attributes keep ``vt::Value`` as float (not double)."""
+    src = """#usda 1.0
+(
+)
+def "P"
+{
+    float a = 1.5
+    half b = 2.25
+    float c = 3
+}
+"""
+    layer = Layer.new_anonymous("fsc")
+    assert io.load_from_string(src, layer).ok
+    p = Path.from_string("/P")
+    va = layer.get_field(p, Token("a"))
+    vb = layer.get_field(p, Token("b"))
+    vc = layer.get_field(p, Token("c"))
+    assert va is not None and va.holds_float()
+    assert vb is not None and vb.holds_float()
+    assert vc is not None and vc.holds_float()
+    assert abs(va.as_float() - 1.5) < 1e-5
+    assert abs(vb.as_float() - 2.25) < 1e-5
+    assert abs(vc.as_float() - 3.0) < 1e-5
+    out = io.save_to_string(layer)
+    joined = out.replace("\n", " ")
+    assert "float a" in joined and "float c" in joined
+    # Authored ``half`` is stored as float; USDA save uses ``float`` for float payloads.
+    assert "float b" in joined
+
+
+def test_point3f_normal3f_color3f_alias_vec3f_usda() -> None:
+    """USDA ``point3f`` / ``normal3f`` / ``color3f`` parse like ``float3`` (Vec3f)."""
+    src = """#usda 1.0
+(
+)
+def "P"
+{
+    point3f p = (1, 2, 3)
+    normal3f n = (0, 0, 1)
+    color3f c = (0.1, 0.2, 0.3)
+}
+"""
+    layer = Layer.new_anonymous("f3alias")
+    assert io.load_from_string(src, layer).ok
+    base = Path.from_string("/P")
+    vp = layer.get_field(base, Token("p"))
+    vn = layer.get_field(base, Token("n"))
+    vc = layer.get_field(base, Token("c"))
+    assert vp is not None and vp.holds_vec3f()
+    assert vn is not None and vn.holds_vec3f()
+    assert vc is not None and vc.holds_vec3f()
+    assert abs(vp.as_vec3f().x() - 1.0) < 1e-5
+    assert abs(vn.as_vec3f().z() - 1.0) < 1e-5
+    assert abs(vc.as_vec3f().y() - 0.2) < 1e-5
+
+
 def test_quatf_orient_usda_roundtrip() -> None:
     """``quatf`` tuple literals use the attribute type (distinct from ``quatd`` / ``double3``)."""
     from freeusd.gf import Matrix4d
@@ -84,6 +141,35 @@ def "Prim"
     v = layer.get_field_at_time(p, Token("x"), 1.5)
     assert v is not None
     assert abs(v.as_double() - 2.0) < 1e-6
+
+
+def test_color3f_time_samples_vec3f_usda() -> None:
+    """``color3f`` in ``.timeSamples`` uses the same vec3f tuple parsing as ``float3``."""
+    src = """#usda 1.0
+(
+)
+def "Prim"
+{
+    color3f c = (0, 0, 0)
+    color3f c.timeSamples = {
+        1: (1, 0, 0),
+        2: (0, 1, 0),
+    }
+}
+"""
+    layer = Layer.new_anonymous("c3ts")
+    assert io.load_from_string(src, layer).ok
+    p = Path.from_string("/Prim")
+    times = layer.list_sample_times(p, Token("c"))
+    assert times == [1.0, 2.0]
+    v1 = layer.get_field_at_time(p, Token("c"), 1.0)
+    v2 = layer.get_field_at_time(p, Token("c"), 2.0)
+    assert v1 is not None and v1.holds_vec3f()
+    assert v2 is not None and v2.holds_vec3f()
+    u1 = v1.as_vec3f()
+    u2 = v2.as_vec3f()
+    assert abs(u1.x() - 1.0) < 1e-5 and abs(u1.y()) < 1e-5
+    assert abs(u2.y() - 1.0) < 1e-5 and abs(u2.x()) < 1e-5
 
 
 def test_usda_roundtrip_python() -> None:

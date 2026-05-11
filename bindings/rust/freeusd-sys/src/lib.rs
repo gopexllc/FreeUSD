@@ -6,7 +6,7 @@
 #![allow(non_upper_case_globals)]
 #![allow(non_camel_case_types)]
 
-use std::ffi::{c_char, c_double, c_int, CString, CStr};
+use std::ffi::{c_char, c_double, c_float, c_int, CString, CStr};
 use std::ptr;
 
 #[repr(C)]
@@ -164,6 +164,94 @@ extern "C" {
         attr: *const c_char,
         time: c_double,
         out: *mut c_double,
+    ) -> c_int;
+    fn freeusd_stage_read_field_float(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        attr: *const c_char,
+        time: c_double,
+        out: *mut c_float,
+    ) -> c_int;
+    fn freeusd_stage_read_field_bool(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        attr: *const c_char,
+        time: c_double,
+        out: *mut c_int,
+    ) -> c_int;
+    fn freeusd_stage_read_field_int64(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        attr: *const c_char,
+        time: c_double,
+        out: *mut i64,
+    ) -> c_int;
+    fn freeusd_stage_read_field_string(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        attr: *const c_char,
+        time: c_double,
+        out_string: *mut *mut c_char,
+    ) -> c_int;
+    fn freeusd_stage_read_field_vec3d(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        attr: *const c_char,
+        time: c_double,
+        out_x: *mut c_double,
+        out_y: *mut c_double,
+        out_z: *mut c_double,
+    ) -> c_int;
+    fn freeusd_stage_read_field_vec3f(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        attr: *const c_char,
+        time: c_double,
+        out_x: *mut c_float,
+        out_y: *mut c_float,
+        out_z: *mut c_float,
+    ) -> c_int;
+    fn freeusd_stage_read_field_matrix4d(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        attr: *const c_char,
+        time: c_double,
+        out_row_major: *mut c_double,
+    ) -> c_int;
+    fn freeusd_stage_read_field_quatd(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        attr: *const c_char,
+        time: c_double,
+        out_real: *mut c_double,
+        out_i: *mut c_double,
+        out_j: *mut c_double,
+        out_k: *mut c_double,
+    ) -> c_int;
+    fn freeusd_stage_read_field_quatf(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        attr: *const c_char,
+        time: c_double,
+        out_real: *mut c_float,
+        out_i: *mut c_float,
+        out_j: *mut c_float,
+        out_k: *mut c_float,
+    ) -> c_int;
+    fn freeusd_stage_read_field_token(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        attr: *const c_char,
+        time: c_double,
+        out_token: *mut *mut c_char,
+    ) -> c_int;
+    fn freeusd_stage_read_field_token_array(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        attr: *const c_char,
+        time: c_double,
+        out_strings: *mut *mut *mut c_char,
+        out_count: *mut usize,
     ) -> c_int;
 }
 
@@ -533,6 +621,285 @@ impl Stage {
         } else {
             Ok(out as f64)
         }
+    }
+
+    /// Composed scalar as `f32` (`float` or coerced from double / int / bool).
+    pub fn read_field_float(&self, prim_path: &str, attr: &str, time: f64) -> Result<f32, i32> {
+        let pp = std::ffi::CString::new(prim_path).map_err(|_| 1)?;
+        let an = std::ffi::CString::new(attr).map_err(|_| 1)?;
+        let mut out: c_float = 0.0;
+        let rc = unsafe {
+            freeusd_stage_read_field_float(
+                self.ptr as *const FreeusdStage,
+                pp.as_ptr(),
+                an.as_ptr(),
+                time as c_double,
+                &mut out,
+            )
+        };
+        if rc != 0 {
+            Err(rc as i32)
+        } else {
+            Ok(out as f32)
+        }
+    }
+
+    /// Composed `bool` at `time` (strict; bool payload only).
+    pub fn read_field_bool(&self, prim_path: &str, attr: &str, time: f64) -> Result<bool, i32> {
+        let pp = std::ffi::CString::new(prim_path).map_err(|_| 1)?;
+        let an = std::ffi::CString::new(attr).map_err(|_| 1)?;
+        let mut out: c_int = 0;
+        let rc = unsafe {
+            freeusd_stage_read_field_bool(
+                self.ptr as *const FreeusdStage,
+                pp.as_ptr(),
+                an.as_ptr(),
+                time as c_double,
+                &mut out,
+            )
+        };
+        if rc != 0 {
+            Err(rc as i32)
+        } else {
+            Ok(out != 0)
+        }
+    }
+
+    /// Composed integer (`int64` / coerced scalars per C ABI) at `time`.
+    pub fn read_field_int64(&self, prim_path: &str, attr: &str, time: f64) -> Result<i64, i32> {
+        let pp = std::ffi::CString::new(prim_path).map_err(|_| 1)?;
+        let an = std::ffi::CString::new(attr).map_err(|_| 1)?;
+        let mut out: i64 = 0;
+        let rc = unsafe {
+            freeusd_stage_read_field_int64(
+                self.ptr as *const FreeusdStage,
+                pp.as_ptr(),
+                an.as_ptr(),
+                time as c_double,
+                &mut out,
+            )
+        };
+        if rc != 0 {
+            Err(rc as i32)
+        } else {
+            Ok(out)
+        }
+    }
+
+    /// Composed `string` or token-as-string at `time` (matches C `read_field_string`).
+    pub fn read_field_string(&self, prim_path: &str, attr: &str, time: f64) -> Result<String, i32> {
+        let pp = std::ffi::CString::new(prim_path).map_err(|_| 1)?;
+        let an = std::ffi::CString::new(attr).map_err(|_| 1)?;
+        let mut p: *mut c_char = ptr::null_mut();
+        let rc = unsafe {
+            freeusd_stage_read_field_string(
+                self.ptr as *const FreeusdStage,
+                pp.as_ptr(),
+                an.as_ptr(),
+                time as c_double,
+                &mut p,
+            )
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        if p.is_null() {
+            return Ok(String::new());
+        }
+        let s = unsafe {
+            let out = CStr::from_ptr(p).to_string_lossy().into_owned();
+            freeusd_string_free(p);
+            out
+        };
+        Ok(s)
+    }
+
+    /// Composed `double3` / `Vec3d` at `time` (strict; no `Vec3f` promotion).
+    pub fn read_field_vec3d(&self, prim_path: &str, attr: &str, time: f64) -> Result<(f64, f64, f64), i32> {
+        let pp = std::ffi::CString::new(prim_path).map_err(|_| 1)?;
+        let an = std::ffi::CString::new(attr).map_err(|_| 1)?;
+        let mut x: c_double = 0.0;
+        let mut y: c_double = 0.0;
+        let mut z: c_double = 0.0;
+        let rc = unsafe {
+            freeusd_stage_read_field_vec3d(
+                self.ptr as *const FreeusdStage,
+                pp.as_ptr(),
+                an.as_ptr(),
+                time as c_double,
+                &mut x,
+                &mut y,
+                &mut z,
+            )
+        };
+        if rc != 0 {
+            Err(rc as i32)
+        } else {
+            Ok((x as f64, y as f64, z as f64))
+        }
+    }
+
+    /// Composed `float3` / `Vec3f` (or `Vec3d` narrowed to `f32`) at `time`.
+    pub fn read_field_vec3f(&self, prim_path: &str, attr: &str, time: f64) -> Result<(f32, f32, f32), i32> {
+        let pp = std::ffi::CString::new(prim_path).map_err(|_| 1)?;
+        let an = std::ffi::CString::new(attr).map_err(|_| 1)?;
+        let mut x: c_float = 0.0;
+        let mut y: c_float = 0.0;
+        let mut z: c_float = 0.0;
+        let rc = unsafe {
+            freeusd_stage_read_field_vec3f(
+                self.ptr as *const FreeusdStage,
+                pp.as_ptr(),
+                an.as_ptr(),
+                time as c_double,
+                &mut x,
+                &mut y,
+                &mut z,
+            )
+        };
+        if rc != 0 {
+            Err(rc as i32)
+        } else {
+            Ok((x as f32, y as f32, z as f32))
+        }
+    }
+
+    /// Composed `matrix4d` at `time` as 16 `f64` values, row-major `m[row * 4 + col]`.
+    pub fn read_field_matrix4d(&self, prim_path: &str, attr: &str, time: f64) -> Result<[f64; 16], i32> {
+        let pp = std::ffi::CString::new(prim_path).map_err(|_| 1)?;
+        let an = std::ffi::CString::new(attr).map_err(|_| 1)?;
+        let mut m = [0.0_f64; 16];
+        let rc = unsafe {
+            freeusd_stage_read_field_matrix4d(
+                self.ptr as *const FreeusdStage,
+                pp.as_ptr(),
+                an.as_ptr(),
+                time as c_double,
+                m.as_mut_ptr(),
+            )
+        };
+        if rc != 0 {
+            Err(rc as i32)
+        } else {
+            Ok(m)
+        }
+    }
+
+    /// Composed `quatd` at `time` as `(real, i, j, k)`.
+    pub fn read_field_quatd(&self, prim_path: &str, attr: &str, time: f64) -> Result<(f64, f64, f64, f64), i32> {
+        let pp = std::ffi::CString::new(prim_path).map_err(|_| 1)?;
+        let an = std::ffi::CString::new(attr).map_err(|_| 1)?;
+        let mut r: c_double = 0.0;
+        let mut i: c_double = 0.0;
+        let mut j: c_double = 0.0;
+        let mut k: c_double = 0.0;
+        let rc = unsafe {
+            freeusd_stage_read_field_quatd(
+                self.ptr as *const FreeusdStage,
+                pp.as_ptr(),
+                an.as_ptr(),
+                time as c_double,
+                &mut r,
+                &mut i,
+                &mut j,
+                &mut k,
+            )
+        };
+        if rc != 0 {
+            Err(rc as i32)
+        } else {
+            Ok((r as f64, i as f64, j as f64, k as f64))
+        }
+    }
+
+    /// Composed `quatf` (or `quatd` narrowed) at `time`.
+    pub fn read_field_quatf(&self, prim_path: &str, attr: &str, time: f64) -> Result<(f32, f32, f32, f32), i32> {
+        let pp = std::ffi::CString::new(prim_path).map_err(|_| 1)?;
+        let an = std::ffi::CString::new(attr).map_err(|_| 1)?;
+        let mut r: c_float = 0.0;
+        let mut i: c_float = 0.0;
+        let mut j: c_float = 0.0;
+        let mut k: c_float = 0.0;
+        let rc = unsafe {
+            freeusd_stage_read_field_quatf(
+                self.ptr as *const FreeusdStage,
+                pp.as_ptr(),
+                an.as_ptr(),
+                time as c_double,
+                &mut r,
+                &mut i,
+                &mut j,
+                &mut k,
+            )
+        };
+        if rc != 0 {
+            Err(rc as i32)
+        } else {
+            Ok((r as f32, i as f32, j as f32, k as f32))
+        }
+    }
+
+    /// Composed `token` (not a plain string) at `time`.
+    pub fn read_field_token(&self, prim_path: &str, attr: &str, time: f64) -> Result<String, i32> {
+        let pp = std::ffi::CString::new(prim_path).map_err(|_| 1)?;
+        let an = std::ffi::CString::new(attr).map_err(|_| 1)?;
+        let mut p: *mut c_char = std::ptr::null_mut();
+        let rc = unsafe {
+            freeusd_stage_read_field_token(
+                self.ptr as *const FreeusdStage,
+                pp.as_ptr(),
+                an.as_ptr(),
+                time as c_double,
+                &mut p,
+            )
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        if p.is_null() {
+            return Ok(String::new());
+        }
+        let s = unsafe {
+            let out = std::ffi::CStr::from_ptr(p).to_string_lossy().into_owned();
+            freeusd_string_free(p);
+            out
+        };
+        Ok(s)
+    }
+
+    /// Composed `token[]` at `time` (empty vec is ok).
+    pub fn read_field_token_array(&self, prim_path: &str, attr: &str, time: f64) -> Result<Vec<String>, i32> {
+        let pp = std::ffi::CString::new(prim_path).map_err(|_| 1)?;
+        let an = std::ffi::CString::new(attr).map_err(|_| 1)?;
+        let mut arr: *mut *mut c_char = std::ptr::null_mut();
+        let mut n: usize = 0;
+        let rc = unsafe {
+            freeusd_stage_read_field_token_array(
+                self.ptr as *const FreeusdStage,
+                pp.as_ptr(),
+                an.as_ptr(),
+                time as c_double,
+                &mut arr,
+                &mut n,
+            )
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        if n == 0 || arr.is_null() {
+            return Ok(Vec::new());
+        }
+        let slice = unsafe { std::slice::from_raw_parts(arr, n) };
+        let mut out = Vec::with_capacity(n);
+        for &p in slice {
+            if !p.is_null() {
+                out.push(unsafe { std::ffi::CStr::from_ptr(p).to_string_lossy().into_owned() });
+            }
+        }
+        unsafe {
+            freeusd_path_list_free(arr, n);
+        }
+        Ok(out)
     }
 
     /// True if any composed layer authors `relocates` with this source prim path.
@@ -990,6 +1357,162 @@ def Xform "W"
             .read_field_double("/W/C", "x", 1.0)
             .expect(last_error_message());
         assert!((v - 3.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn read_bool_int64_string_smoke() {
+        const USDA: &str = r#"#usda 1.0
+(
+)
+def Xform "W"
+{
+    def "C"
+    {
+        bool flag = true
+        int n = 42
+        string label = "hi"
+    }
+}
+"#;
+        let mut layer = Layer::new_anonymous(Some("rust_bis")).expect("layer");
+        assert_eq!(layer.load_usda(USDA), 0, "{}", last_error_message());
+        let stage = Stage::attach_root_layer(&layer).expect("stage");
+        assert!(stage
+            .read_field_bool("/W/C", "flag", 1.0)
+            .expect(last_error_message()));
+        assert_eq!(
+            stage
+                .read_field_int64("/W/C", "n", 1.0)
+                .expect(last_error_message()),
+            42
+        );
+        assert_eq!(
+            stage
+                .read_field_string("/W/C", "label", 1.0)
+                .expect(last_error_message()),
+            "hi"
+        );
+    }
+
+    #[test]
+    fn read_float_smoke() {
+        const USDA: &str = r#"#usda 1.0
+(
+)
+def Xform "W"
+{
+    def "C"
+    {
+        float r = 2.5
+    }
+}
+"#;
+        let mut layer = Layer::new_anonymous(Some("rust_float")).expect("layer");
+        assert_eq!(layer.load_usda(USDA), 0, "{}", last_error_message());
+        let stage = Stage::attach_root_layer(&layer).expect("stage");
+        let f = stage
+            .read_field_float("/W/C", "r", 1.0)
+            .expect(last_error_message());
+        assert!((f - 2.5f32).abs() < 1e-5);
+    }
+
+    #[test]
+    fn read_vec3d_smoke() {
+        const USDA: &str = r#"#usda 1.0
+(
+)
+def Xform "W"
+{
+    def "C"
+    {
+        double3 extent = (1.5, 2.5, 3.5)
+    }
+}
+"#;
+        let mut layer = Layer::new_anonymous(Some("rust_vec3d")).expect("layer");
+        assert_eq!(layer.load_usda(USDA), 0, "{}", last_error_message());
+        let stage = Stage::attach_root_layer(&layer).expect("stage");
+        let (x, y, z) = stage
+            .read_field_vec3d("/W/C", "extent", 1.0)
+            .expect(last_error_message());
+        assert!((x - 1.5).abs() < 1e-9);
+        assert!((y - 2.5).abs() < 1e-9);
+        assert!((z - 3.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn read_vec3f_smoke() {
+        const USDA: &str = r#"#usda 1.0
+(
+)
+def Xform "W"
+{
+    def "C"
+    {
+        normal3f n = (0.25, 0.5, 0.75)
+    }
+}
+"#;
+        let mut layer = Layer::new_anonymous(Some("rust_vec3f")).expect("layer");
+        assert_eq!(layer.load_usda(USDA), 0, "{}", last_error_message());
+        let stage = Stage::attach_root_layer(&layer).expect("stage");
+        let (x, y, z) = stage
+            .read_field_vec3f("/W/C", "n", 1.0)
+            .expect(last_error_message());
+        assert!((x - 0.25f32).abs() < 1e-5);
+        assert!((y - 0.5f32).abs() < 1e-5);
+        assert!((z - 0.75f32).abs() < 1e-5);
+    }
+
+    #[test]
+    fn read_matrix4d_quat_token_smoke() {
+        const USDA: &str = r#"#usda 1.0
+(
+)
+def Xform "W"
+{
+    def "P"
+    {
+        matrix4d m = ((1,0,0,0), (0,1,0,0), (0,0,1,0), (0,0,0,1))
+        quatd qd = (1, 0, 0, 0)
+        quatf qf = (0.70710677, 0, 0, 0.70710677)
+        token kind = component
+        token[] tags = [@a@, @b@]
+    }
+}
+"#;
+        let mut layer = Layer::new_anonymous(Some("rust_gfreads")).expect("layer");
+        assert_eq!(layer.load_usda(USDA), 0, "{}", last_error_message());
+        let stage = Stage::attach_root_layer(&layer).expect("stage");
+        let m = stage
+            .read_field_matrix4d("/W/P", "m", 1.0)
+            .expect(last_error_message());
+        for i in 0..16 {
+            let want = if i == 0 || i == 5 || i == 10 || i == 15 {
+                1.0
+            } else {
+                0.0
+            };
+            assert!((m[i] - want).abs() < 1e-9, "m[{i}]={}", m[i]);
+        }
+        let (qr, qi, qj, qk) = stage
+            .read_field_quatd("/W/P", "qd", 1.0)
+            .expect(last_error_message());
+        assert!((qr - 1.0).abs() < 1e-9 && qi.abs() < 1e-9 && qj.abs() < 1e-9 && qk.abs() < 1e-9);
+        let (fr, fi, fj, fk) = stage
+            .read_field_quatf("/W/P", "qf", 1.0)
+            .expect(last_error_message());
+        assert!((fr - 0.70710677f32).abs() < 1e-5);
+        assert!(fi.abs() < 1e-5 && fj.abs() < 1e-5);
+        assert!((fk - 0.70710677f32).abs() < 1e-5);
+        let tok = stage
+            .read_field_token("/W/P", "kind", 1.0)
+            .expect(last_error_message());
+        assert_eq!(tok, "component");
+        let tags = stage
+            .read_field_token_array("/W/P", "tags", 1.0)
+            .expect(last_error_message());
+        assert_eq!(tags, vec!["a".to_string(), "b".to_string()]);
     }
 
     #[test]

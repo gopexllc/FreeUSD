@@ -395,6 +395,13 @@ FREEUSD_C_API int freeusd_stage_read_field_double(const FreeusdStage* stage, con
                                                   const char* attr_name_utf8, double time, double* out_value);
 
 /**
+ * Read evaluated attribute as @c float at @p time (strongest opinion; follows connections where implemented).
+ * Succeeds for @c float payloads, or @c double / @c int32 / @c int64 / @c bool coerced to @c float.
+ */
+FREEUSD_C_API int freeusd_stage_read_field_float(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                 const char* attr_name_utf8, double time, float* out_value);
+
+/**
  * Sorted union of authored time-sample times for @p attr_name_utf8 on @p prim_path_utf8 across composed layers.
  * On @ref FREEUSD_OK, @p *out_times points to @p *out_count doubles (single malloc block); free with @ref freeusd_double_array_free.
  */
@@ -452,6 +459,44 @@ FREEUSD_C_API int freeusd_stage_read_field_vec3d(const FreeusdStage* stage, cons
 FREEUSD_C_API int freeusd_stage_read_field_vec3f(const FreeusdStage* stage, const char* prim_path_utf8,
                                                  const char* attr_name_utf8, double time, float* out_x,
                                                  float* out_y, float* out_z);
+
+/**
+ * Read evaluated @c matrix4d at @p time (strict; @c Matrix4d / @c double4x4 only).
+ * @p out_row_major must point to 16 @c double values in row-major order @c m[row*4+col]
+ * (row homogeneous vectors @c [x y z 1] * M).
+ */
+FREEUSD_C_API int freeusd_stage_read_field_matrix4d(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                    const char* attr_name_utf8, double time,
+                                                    double* out_row_major);
+
+/**
+ * Read evaluated @c quatd at @p time (strict; @c quatd payload only). Components are @c (real, i, j, k).
+ */
+FREEUSD_C_API int freeusd_stage_read_field_quatd(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                 const char* attr_name_utf8, double time, double* out_real,
+                                                 double* out_i, double* out_j, double* out_k);
+
+/**
+ * Read evaluated @c quatf at @p time (@c quatf payload, or @c quatd narrowed to @c float).
+ */
+FREEUSD_C_API int freeusd_stage_read_field_quatf(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                 const char* attr_name_utf8, double time, float* out_real,
+                                                 float* out_i, float* out_j, float* out_k);
+
+/**
+ * Read evaluated @c token at @p time (token payload only; fails for plain string).
+ * On @ref FREEUSD_OK, @p *out_token_utf8 is malloc'd UTF-8; free with @ref freeusd_string_free.
+ */
+FREEUSD_C_API int freeusd_stage_read_field_token(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                 const char* attr_name_utf8, double time, char** out_token_utf8);
+
+/**
+ * Read evaluated @c token[] at @p time.
+ * On @ref FREEUSD_OK, @p *out_strings / @p *out_count use @ref freeusd_path_list_free (possibly empty).
+ */
+FREEUSD_C_API int freeusd_stage_read_field_token_array(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                       const char* attr_name_utf8, double time, char*** out_strings,
+                                                       size_t* out_count);
 
 /**
  * Composed prim active flag (strongest opinion; default true if no opinion).

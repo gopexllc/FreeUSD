@@ -153,6 +153,212 @@ def Xform "W"
 	}
 }
 
+func TestLayerStageReadBoolInt64String(t *testing.T) {
+	const usda = `#usda 1.0
+(
+)
+def Xform "W"
+{
+    def "C"
+    {
+        bool flag = true
+        int n = 42
+        string label = "hi"
+    }
+}
+`
+	l := NewAnonymousLayer("go_scalar_str")
+	if l == nil {
+		t.Fatal("NewAnonymousLayer failed:", LastErrorMessage())
+	}
+	defer l.Free()
+	if rc := l.LoadUSDA(usda); rc != 0 {
+		t.Fatalf("LoadUSDA rc=%d %s", rc, LastErrorMessage())
+	}
+	st := AttachRootLayer(l)
+	if st == nil {
+		t.Fatal("AttachRootLayer failed:", LastErrorMessage())
+	}
+	defer st.Free()
+	b, rc := st.ReadFieldBool("/W/C", "flag", 1.0)
+	if rc != 0 || !b {
+		t.Fatalf("ReadFieldBool rc=%d b=%v %s", rc, b, LastErrorMessage())
+	}
+	n, rc := st.ReadFieldInt64("/W/C", "n", 1.0)
+	if rc != 0 || n != 42 {
+		t.Fatalf("ReadFieldInt64 rc=%d n=%d %s", rc, n, LastErrorMessage())
+	}
+	s, rc := st.ReadFieldString("/W/C", "label", 1.0)
+	if rc != 0 || s != "hi" {
+		t.Fatalf("ReadFieldString rc=%d %q %s", rc, s, LastErrorMessage())
+	}
+}
+
+func TestLayerStageReadFloat(t *testing.T) {
+	const usda = `#usda 1.0
+(
+)
+def Xform "W"
+{
+    def "C"
+    {
+        float r = 1.25
+    }
+}
+`
+	l := NewAnonymousLayer("go_float")
+	if l == nil {
+		t.Fatal("NewAnonymousLayer failed:", LastErrorMessage())
+	}
+	defer l.Free()
+	if rc := l.LoadUSDA(usda); rc != 0 {
+		t.Fatalf("LoadUSDA rc=%d %s", rc, LastErrorMessage())
+	}
+	st := AttachRootLayer(l)
+	if st == nil {
+		t.Fatal("AttachRootLayer failed:", LastErrorMessage())
+	}
+	defer st.Free()
+	f, rc := st.ReadFieldFloat("/W/C", "r", 1.0)
+	if rc != 0 {
+		t.Fatalf("ReadFieldFloat rc=%d %s", rc, LastErrorMessage())
+	}
+	if f != 1.25 {
+		t.Fatalf("got %v want 1.25", f)
+	}
+}
+
+func TestLayerStageReadVec3f(t *testing.T) {
+	const usda = `#usda 1.0
+(
+)
+def Xform "W"
+{
+    def "C"
+    {
+        color3f displayColor = (0.25, 0.5, 0.75)
+    }
+}
+`
+	l := NewAnonymousLayer("go_vec3f")
+	if l == nil {
+		t.Fatal("NewAnonymousLayer failed:", LastErrorMessage())
+	}
+	defer l.Free()
+	if rc := l.LoadUSDA(usda); rc != 0 {
+		t.Fatalf("LoadUSDA rc=%d %s", rc, LastErrorMessage())
+	}
+	st := AttachRootLayer(l)
+	if st == nil {
+		t.Fatal("AttachRootLayer failed:", LastErrorMessage())
+	}
+	defer st.Free()
+	x, y, z, rc := st.ReadFieldVec3f("/W/C", "displayColor", 1.0)
+	if rc != 0 {
+		t.Fatalf("ReadFieldVec3f rc=%d %s", rc, LastErrorMessage())
+	}
+	if x != 0.25 || y != 0.5 || z != 0.75 {
+		t.Fatalf("got (%v,%v,%v) want (0.25,0.5,0.75)", x, y, z)
+	}
+}
+
+func TestLayerStageReadVec3d(t *testing.T) {
+	const usda = `#usda 1.0
+(
+)
+def Xform "W"
+{
+    def "C"
+    {
+        double3 extent = (1.5, 2.5, 3.5)
+    }
+}
+`
+	l := NewAnonymousLayer("go_vec3d")
+	if l == nil {
+		t.Fatal("NewAnonymousLayer failed:", LastErrorMessage())
+	}
+	defer l.Free()
+	if rc := l.LoadUSDA(usda); rc != 0 {
+		t.Fatalf("LoadUSDA rc=%d %s", rc, LastErrorMessage())
+	}
+	st := AttachRootLayer(l)
+	if st == nil {
+		t.Fatal("AttachRootLayer failed:", LastErrorMessage())
+	}
+	defer st.Free()
+	x, y, z, rc := st.ReadFieldVec3d("/W/C", "extent", 1.0)
+	if rc != 0 {
+		t.Fatalf("ReadFieldVec3d rc=%d %s", rc, LastErrorMessage())
+	}
+	if x != 1.5 || y != 2.5 || z != 3.5 {
+		t.Fatalf("got (%v,%v,%v) want (1.5,2.5,3.5)", x, y, z)
+	}
+}
+
+func TestLayerStageReadMatrix4dQuatToken(t *testing.T) {
+	const usda = `#usda 1.0
+(
+)
+def Xform "W"
+{
+    def "P"
+    {
+        matrix4d m = ((1,0,0,0), (0,1,0,0), (0,0,1,0), (0,0,0,1))
+        quatd qd = (1, 0, 0, 0)
+        quatf qf = (0.70710677, 0, 0, 0.70710677)
+        token kind = component
+        token[] tags = [@a@, @b@]
+    }
+}
+`
+	l := NewAnonymousLayer("go_gfreads")
+	if l == nil {
+		t.Fatal("NewAnonymousLayer failed:", LastErrorMessage())
+	}
+	defer l.Free()
+	if rc := l.LoadUSDA(usda); rc != 0 {
+		t.Fatalf("LoadUSDA rc=%d %s", rc, LastErrorMessage())
+	}
+	st := AttachRootLayer(l)
+	if st == nil {
+		t.Fatal("AttachRootLayer failed:", LastErrorMessage())
+	}
+	defer st.Free()
+	m, rc := st.ReadFieldMatrix4d("/W/P", "m", 1.0)
+	if rc != 0 {
+		t.Fatalf("ReadFieldMatrix4d rc=%d %s", rc, LastErrorMessage())
+	}
+	for i := 0; i < 16; i++ {
+		want := 0.0
+		if i == 0 || i == 5 || i == 10 || i == 15 {
+			want = 1.0
+		}
+		if m[i] != want {
+			t.Fatalf("m[%d]=%v want %v", i, m[i], want)
+		}
+	}
+	qr, qi, qj, qk, rc := st.ReadFieldQuatd("/W/P", "qd", 1.0)
+	if rc != 0 || qr != 1.0 || qi != 0 || qj != 0 || qk != 0 {
+		t.Fatalf("ReadFieldQuatd rc=%d (%v,%v,%v,%v) %s", rc, qr, qi, qj, qk, LastErrorMessage())
+	}
+	fr, fi, fj, fk, rc := st.ReadFieldQuatf("/W/P", "qf", 1.0)
+	if rc != 0 {
+		t.Fatalf("ReadFieldQuatf rc=%d %s", rc, LastErrorMessage())
+	}
+	if fr < 0.707 || fr > 0.708 || fi != 0 || fj != 0 || fk < 0.707 || fk > 0.708 {
+		t.Fatalf("quatf got (%v,%v,%v,%v)", fr, fi, fj, fk)
+	}
+	tok, rc := st.ReadFieldToken("/W/P", "kind", 1.0)
+	if rc != 0 || tok != "component" {
+		t.Fatalf("ReadFieldToken rc=%d %q %s", rc, tok, LastErrorMessage())
+	}
+	tags, rc := st.ReadFieldTokenArray("/W/P", "tags", 1.0)
+	if rc != 0 || len(tags) != 2 || tags[0] != "a" || tags[1] != "b" {
+		t.Fatalf("ReadFieldTokenArray rc=%d %#v %s", rc, tags, LastErrorMessage())
+	}
+}
+
 func TestOpenStageFromRootFile(t *testing.T) {
 	root := filepath.Join("..", "..", "tests", "fixtures", "stage_open_root.usda")
 	st := OpenStageFromRootFile(root, RootSubDepthFirst)

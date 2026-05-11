@@ -248,11 +248,20 @@ int main(void) {
       "            7: 3.5,\n"
       "        }\n"
       "        double3 extent = (1, 2, 3)\n"
-      "        float3 displayColor = (0.25, 0.5, 0.75)\n"
+      "        color3f displayColor = (0.25, 0.5, 0.75)\n"
+      "        float radius = 2.5\n"
       "        bool flag = true\n"
       "        int n = 42\n"
       "        string label = \"hi\"\n"
       "        rel link = </W>\n"
+      "    }\n"
+      "    def \"GFTypes\"\n"
+      "    {\n"
+      "        matrix4d m = ((1,0,0,0), (0,1,0,0), (0,0,1,0), (0,0,0,1))\n"
+      "        quatd qd = (1, 0, 0, 0)\n"
+      "        quatf qf = (0.70710677, 0, 0, 0.70710677)\n"
+      "        token kind = component\n"
+      "        token[] tags = [@a@, @b@]\n"
       "    }\n"
       "}\n";
 
@@ -427,6 +436,22 @@ int main(void) {
     freeusd_stage_free(stage);
     freeusd_layer_free(layer);
     return 8;
+  }
+
+  float rf = 0.0f;
+  if (freeusd_stage_read_field_float(stage, "/W/C", "radius", 1.0, &rf) != FREEUSD_OK ||
+      fabsf(rf - 2.5f) > 1e-5f) {
+    fprintf(stderr, "read_field_float radius: %s\n", freeusd_last_error_message());
+    freeusd_stage_free(stage);
+    freeusd_layer_free(layer);
+    return 93;
+  }
+  rf = 0.0f;
+  if (freeusd_stage_read_field_float(stage, "/W/C", "x", 1.0, &rf) != FREEUSD_OK || fabsf(rf - 3.0f) > 1e-5f) {
+    fprintf(stderr, "read_field_float from double x\n");
+    freeusd_stage_free(stage);
+    freeusd_layer_free(layer);
+    return 94;
   }
 
   double* stimes = NULL;
@@ -617,11 +642,73 @@ int main(void) {
     return 92;
   }
 
+  {
+    double m16[16];
+    if (freeusd_stage_read_field_matrix4d(stage, "/W/GFTypes", "m", 1.0, m16) != FREEUSD_OK) {
+      fprintf(stderr, "read_field_matrix4d: %s\n", freeusd_last_error_message());
+      freeusd_stage_free(stage);
+      freeusd_layer_free(layer);
+      return 95;
+    }
+    for (int i = 0; i < 16; ++i) {
+      const double want = (i == 0 || i == 5 || i == 10 || i == 15) ? 1.0 : 0.0;
+      if (fabs(m16[i] - want) > 1e-9) {
+        fprintf(stderr, "read_field_matrix4d[%d] got %g want %g\n", i, m16[i], want);
+        freeusd_stage_free(stage);
+        freeusd_layer_free(layer);
+        return 96;
+      }
+    }
+    double qr = 0, qi = 0, qj = 0, qk = 0;
+    if (freeusd_stage_read_field_quatd(stage, "/W/GFTypes", "qd", 1.0, &qr, &qi, &qj, &qk) != FREEUSD_OK ||
+        fabs(qr - 1.0) > 1e-9 || fabs(qi) > 1e-9 || fabs(qj) > 1e-9 || fabs(qk) > 1e-9) {
+      fprintf(stderr, "read_field_quatd: %s\n", freeusd_last_error_message());
+      freeusd_stage_free(stage);
+      freeusd_layer_free(layer);
+      return 97;
+    }
+    float fr = 0, fi = 0, fj = 0, fk = 0;
+    if (freeusd_stage_read_field_quatf(stage, "/W/GFTypes", "qf", 1.0, &fr, &fi, &fj, &fk) != FREEUSD_OK ||
+        fabsf(fr - 0.70710677f) > 1e-5f || fabsf(fi) > 1e-5f || fabsf(fj) > 1e-5f ||
+        fabsf(fk - 0.70710677f) > 1e-5f) {
+      fprintf(stderr, "read_field_quatf: %s\n", freeusd_last_error_message());
+      freeusd_stage_free(stage);
+      freeusd_layer_free(layer);
+      return 98;
+    }
+    char* tok = NULL;
+    if (freeusd_stage_read_field_token(stage, "/W/GFTypes", "kind", 1.0, &tok) != FREEUSD_OK ||
+        strcmp(tok, "component") != 0) {
+      fprintf(stderr, "read_field_token: %s\n", freeusd_last_error_message());
+      if (tok) {
+        freeusd_string_free(tok);
+      }
+      freeusd_stage_free(stage);
+      freeusd_layer_free(layer);
+      return 99;
+    }
+    freeusd_string_free(tok);
+    char** tags = NULL;
+    size_t nt = 0;
+    if (freeusd_stage_read_field_token_array(stage, "/W/GFTypes", "tags", 1.0, &tags, &nt) != FREEUSD_OK ||
+        nt != 2 || strcmp(tags[0], "a") != 0 || strcmp(tags[1], "b") != 0) {
+      fprintf(stderr, "read_field_token_array: %s\n", freeusd_last_error_message());
+      if (tags) {
+        freeusd_path_list_free(tags, nt);
+      }
+      freeusd_stage_free(stage);
+      freeusd_layer_free(layer);
+      return 100;
+    }
+    freeusd_path_list_free(tags, nt);
+  }
+
   char** fnames = NULL;
   size_t nfn = 0;
-  if (freeusd_stage_list_composed_field_names(stage, "/W/C", &fnames, &nfn) != FREEUSD_OK || nfn != 6 ||
+  if (freeusd_stage_list_composed_field_names(stage, "/W/C", &fnames, &nfn) != FREEUSD_OK || nfn != 7 ||
       strcmp(fnames[0], "displayColor") != 0 || strcmp(fnames[1], "extent") != 0 || strcmp(fnames[2], "flag") != 0 ||
-      strcmp(fnames[3], "label") != 0 || strcmp(fnames[4], "n") != 0 || strcmp(fnames[5], "x") != 0) {
+      strcmp(fnames[3], "label") != 0 || strcmp(fnames[4], "n") != 0 || strcmp(fnames[5], "radius") != 0 ||
+      strcmp(fnames[6], "x") != 0) {
     fprintf(stderr, "list_composed_field_names\n");
     if (fnames) {
       freeusd_path_list_free(fnames, nfn);
