@@ -55,9 +55,12 @@ class FREEUSD_API Stage : public std::enable_shared_from_this<Stage> {
   const std::vector<std::shared_ptr<freeusd::sdf::Layer>>& GetComposeLayers() const noexcept { return compose_; }
 
   /// Evaluated attribute at \p time (default + time samples per layer); strongest opinion wins.
+  /// Returns @c false when @p out is null, @p name is empty, no composed value exists, or
+  /// connection-following fails (invalid target / cycle / hop limit).
   bool ReadFieldAtEvaluatedTime(const freeusd::sdf::Path& prim_path, const freeusd::tf::Token& name, double time,
                                 freeusd::vt::Value* out) const;
 
+  /// True when any composed layer authors @p name on @p prim_path, including \c .connect opinions.
   bool HasFieldOpinion(const freeusd::sdf::Path& prim_path, const freeusd::tf::Token& name) const;
 
   /// True if any composed layer authors a @c .connect entry for @p attr_name on @p prim_path.

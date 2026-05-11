@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import freeusd.io as io
+from freeusd.gf import Matrix4d, Quatd, Quatf
 from freeusd.sdf import Layer, Path as SdfPath
 from freeusd.tf import Token
 from freeusd.usd import Stage
@@ -43,3 +44,66 @@ def test_usd_cross_language_fixture_matches_cpp_contract() -> None:
 
     assert prim.get_attribute(Token("mass"), 1.0).as_double() == 2.5
     assert prim.get_attribute(Token("mass"), 2.0).as_double() == 4.0
+
+
+def test_usd_cross_language_field_read_contract() -> None:
+    text = FIXTURE.read_text(encoding="utf-8")
+    layer = Layer.new_anonymous("cross_lang_field_reads")
+    assert io.load_from_string(text, layer).ok
+
+    stage = Stage.attach_root_layer(layer)
+    assert stage is not None
+
+    child = SdfPath.from_string("/Scene/Child")
+    partial = SdfPath.from_string("/Scene/Partial")
+    missing = SdfPath.from_string("/Scene/Missing")
+    prim = stage.prim_at(child)
+    assert prim.is_valid()
+    assert stage.prim_at(missing).is_valid() is False
+
+    assert stage.has_field_opinion(child, Token("mass"))
+    assert not stage.has_field_opinion(child, Token("missingAttr"))
+    assert prim.has_attribute(Token("mass"))
+    assert not prim.has_attribute(Token("missingAttr"))
+
+    assert stage.read_field_double(child, Token("mass"), 1.0) == 2.5
+    assert stage.read_field_double(child, Token("mass"), 2.0) == 4.0
+    assert prim.read_field_double(Token("mass"), 2.0) == 4.0
+
+    assert stage.read_field_float(child, Token("density"), 1.0) == 1.25
+    assert stage.read_field_float(child, Token("mass"), 1.0) == 2.5
+    assert prim.read_field_float(Token("mass"), 1.0) == 2.5
+
+    assert stage.read_field_bool(child, Token("enabled"), 1.0) is True
+    assert stage.read_field_int64(child, Token("count"), 1.0) == -7
+    assert stage.read_field_int64(child, Token("mass"), 1.0) == 2
+    assert stage.read_field_string(child, Token("label"), 1.0) == "hello"
+    assert stage.read_field_string(child, Token("kind"), 1.0) == "component"
+
+    assert stage.read_field_vec3d(child, Token("extent"), 1.0) == (1.0, 2.0, 3.0)
+    assert stage.read_field_vec3f(child, Token("displayColor"), 1.0) == (0.25, 0.5, 0.75)
+    assert stage.read_field_vec3f(child, Token("extent"), 1.0) == (1.0, 2.0, 3.0)
+    assert stage.read_field_matrix4d(child, Token("xf"), 1.0) == Matrix4d.Identity()
+    assert stage.read_field_quatd(child, Token("qd"), 1.0) == Quatd.Identity()
+    assert stage.read_field_quatf(child, Token("qf"), 1.0) == Quatf(0.70710677, 0.0, 0.0, 0.70710677)
+    assert stage.read_field_quatf(child, Token("qd"), 1.0) == Quatf(1.0, 0.0, 0.0, 0.0)
+
+    kind = stage.read_field_token(child, Token("kind"), 1.0)
+    assert kind is not None and kind.text() == "component"
+    tags = stage.read_field_token_array(child, Token("tags"), 1.0)
+    assert tags is not None and [t.text() for t in tags] == ["a", "b"]
+
+    assert stage.read_field_at_time(child, Token("missingAttr"), 1.0) is None
+    assert stage.read_field_double(child, Token("missingAttr"), 1.0) is None
+    assert stage.read_field_double(missing, Token("mass"), 1.0) is None
+    assert stage.read_field_double(partial, Token("missingAttr"), 1.0) is None
+    assert prim.read_field_at_time(Token("missingAttr"), 1.0) is None
+    assert prim.read_field_double(Token("missingAttr"), 1.0) is None
+
+    assert stage.read_field_double(child, Token("label"), 1.0) is None
+    assert stage.read_field_bool(child, Token("label"), 1.0) is None
+    assert stage.read_field_vec3d(child, Token("displayColor"), 1.0) is None
+    assert stage.read_field_matrix4d(child, Token("kind"), 1.0) is None
+    assert stage.read_field_quatd(child, Token("qf"), 1.0) is None
+    assert stage.read_field_token(child, Token("label"), 1.0) is None
+    assert stage.read_field_token_array(child, Token("kind"), 1.0) is None

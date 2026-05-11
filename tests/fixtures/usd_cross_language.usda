@@ -20,5 +20,22 @@ def Xform "Scene"
         double mass.timeSamples = {
             2: 4.0,
         }
+        float density = 1.25
+        bool enabled = true
+        int count = -7
+        string label = "hello"
+        token kind = component
+        token[] tags = [@a@, @b@]
+        double3 extent = (1, 2, 3)
+        color3f displayColor = (0.25, 0.5, 0.75)
+        matrix4d xf = ((1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1))
+        quatd qd = (1, 0, 0, 0)
+        quatf qf = (0.70710677, 0, 0, 0.70710677)
+    }
+
+    def "Partial"
+    {
+        double only = 9.0
+        token justToken = partial
     }
 }

@@ -616,6 +616,7 @@ func (s *Stage) ListComposedPrimVariantNames(primPath, variantSetName string) ([
 }
 
 // ReadFieldDouble reads a composed double attribute at the given time.
+// On non-zero rc the returned float64 is always zero (C out is not read).
 func (s *Stage) ReadFieldDouble(primPath, attrName string, time float64) (float64, int) {
 	if s == nil || s.ptr == nil {
 		return 0, 1
@@ -626,10 +627,14 @@ func (s *Stage) ReadFieldDouble(primPath, attrName string, time float64) (float6
 	defer C.free(unsafe.Pointer(an))
 	var out C.double
 	rc := int(C.freeusd_stage_read_field_double(s.ptr, pp, an, C.double(time), &out))
-	return float64(out), rc
+	if rc != 0 {
+		return 0, rc
+	}
+	return float64(out), 0
 }
 
 // ReadFieldFloat reads a composed float attribute (or double / int / bool coerced to float32) at the given time.
+// On non-zero rc the returned float32 is always zero.
 func (s *Stage) ReadFieldFloat(primPath, attrName string, time float64) (float32, int) {
 	if s == nil || s.ptr == nil {
 		return 0, 1
@@ -640,10 +645,14 @@ func (s *Stage) ReadFieldFloat(primPath, attrName string, time float64) (float32
 	defer C.free(unsafe.Pointer(an))
 	var out C.float
 	rc := int(C.freeusd_stage_read_field_float(s.ptr, pp, an, C.double(time), &out))
-	return float32(out), rc
+	if rc != 0 {
+		return 0, rc
+	}
+	return float32(out), 0
 }
 
-// ReadFieldBool reads a composed bool attribute at the given time. On success rc is 0 and v is true or false.
+// ReadFieldBool reads a composed bool attribute at the given time.
+// On non-zero rc, v is always false.
 func (s *Stage) ReadFieldBool(primPath, attrName string, time float64) (v bool, rc int) {
 	if s == nil || s.ptr == nil {
 		return false, 1
@@ -661,6 +670,7 @@ func (s *Stage) ReadFieldBool(primPath, attrName string, time float64) (v bool, 
 }
 
 // ReadFieldInt64 reads a composed int64 attribute (or coerced int/bool/float) at the given time.
+// On non-zero rc, n is always zero.
 func (s *Stage) ReadFieldInt64(primPath, attrName string, time float64) (n int64, rc int) {
 	if s == nil || s.ptr == nil {
 		return 0, 1
@@ -671,10 +681,14 @@ func (s *Stage) ReadFieldInt64(primPath, attrName string, time float64) (n int64
 	defer C.free(unsafe.Pointer(an))
 	var out C.int64_t
 	rc = int(C.freeusd_stage_read_field_int64(s.ptr, pp, an, C.double(time), &out))
-	return int64(out), rc
+	if rc != 0 {
+		return 0, rc
+	}
+	return int64(out), 0
 }
 
-// ReadFieldString reads a composed string attribute (or token text) at the given time. On success rc is 0.
+// ReadFieldString reads a composed string attribute (or token text) at the given time.
+// On non-zero rc, str is always empty.
 func (s *Stage) ReadFieldString(primPath, attrName string, time float64) (str string, rc int) {
 	if s == nil || s.ptr == nil {
 		return "", 1
@@ -697,6 +711,7 @@ func (s *Stage) ReadFieldString(primPath, attrName string, time float64) (str st
 }
 
 // ReadFieldVec3d reads a composed double3 / Vec3d attribute at the given time.
+// On non-zero rc, x/y/z are always zero.
 func (s *Stage) ReadFieldVec3d(primPath, attrName string, time float64) (x, y, z float64, rc int) {
 	if s == nil || s.ptr == nil {
 		return 0, 0, 0, 1
@@ -707,10 +722,14 @@ func (s *Stage) ReadFieldVec3d(primPath, attrName string, time float64) (x, y, z
 	defer C.free(unsafe.Pointer(an))
 	var ox, oy, oz C.double
 	rc = int(C.freeusd_stage_read_field_vec3d(s.ptr, pp, an, C.double(time), &ox, &oy, &oz))
-	return float64(ox), float64(oy), float64(oz), rc
+	if rc != 0 {
+		return 0, 0, 0, rc
+	}
+	return float64(ox), float64(oy), float64(oz), 0
 }
 
 // ReadFieldVec3f reads a composed float3 / Vec3f attribute (or Vec3d narrowed to float) at the given time.
+// On non-zero rc, x/y/z are always zero.
 func (s *Stage) ReadFieldVec3f(primPath, attrName string, time float64) (x, y, z float32, rc int) {
 	if s == nil || s.ptr == nil {
 		return 0, 0, 0, 1
@@ -721,7 +740,10 @@ func (s *Stage) ReadFieldVec3f(primPath, attrName string, time float64) (x, y, z
 	defer C.free(unsafe.Pointer(an))
 	var ox, oy, oz C.float
 	rc = int(C.freeusd_stage_read_field_vec3f(s.ptr, pp, an, C.double(time), &ox, &oy, &oz))
-	return float32(ox), float32(oy), float32(oz), rc
+	if rc != 0 {
+		return 0, 0, 0, rc
+	}
+	return float32(ox), float32(oy), float32(oz), 0
 }
 
 // ReadFieldMatrix4d reads a composed matrix4d (row-major 16 doubles) at the given time.
@@ -745,6 +767,7 @@ func (s *Stage) ReadFieldMatrix4d(primPath, attrName string, time float64) (m [1
 }
 
 // ReadFieldQuatd reads a composed quatd (real, i, j, k) at the given time.
+// On non-zero rc, all quaternion components are zero.
 func (s *Stage) ReadFieldQuatd(primPath, attrName string, time float64) (real, i, j, k float64, rc int) {
 	if s == nil || s.ptr == nil {
 		return 0, 0, 0, 0, 1
@@ -755,10 +778,14 @@ func (s *Stage) ReadFieldQuatd(primPath, attrName string, time float64) (real, i
 	defer C.free(unsafe.Pointer(an))
 	var wr, wi, wj, wk C.double
 	rc = int(C.freeusd_stage_read_field_quatd(s.ptr, pp, an, C.double(time), &wr, &wi, &wj, &wk))
-	return float64(wr), float64(wi), float64(wj), float64(wk), rc
+	if rc != 0 {
+		return 0, 0, 0, 0, rc
+	}
+	return float64(wr), float64(wi), float64(wj), float64(wk), 0
 }
 
 // ReadFieldQuatf reads a composed quatf (or quatd narrowed to float32) at the given time.
+// On non-zero rc, all quaternion components are zero.
 func (s *Stage) ReadFieldQuatf(primPath, attrName string, time float64) (real, i, j, k float32, rc int) {
 	if s == nil || s.ptr == nil {
 		return 0, 0, 0, 0, 1
@@ -769,7 +796,10 @@ func (s *Stage) ReadFieldQuatf(primPath, attrName string, time float64) (real, i
 	defer C.free(unsafe.Pointer(an))
 	var wr, wi, wj, wk C.float
 	rc = int(C.freeusd_stage_read_field_quatf(s.ptr, pp, an, C.double(time), &wr, &wi, &wj, &wk))
-	return float32(wr), float32(wi), float32(wj), float32(wk), rc
+	if rc != 0 {
+		return 0, 0, 0, 0, rc
+	}
+	return float32(wr), float32(wi), float32(wj), float32(wk), 0
 }
 
 // ReadFieldToken reads a composed token (not a plain string) at the given time. On success rc is 0.

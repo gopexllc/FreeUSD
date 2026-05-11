@@ -60,10 +60,121 @@ namespace py = pybind11;
 /// Composed attribute reads at \p time (shared by `Stage.read_field_*` and `Prim.read_field_*`).
 namespace freeusd_py_composed_read {
 
+bool read_field_value(const freeusd::usd::Stage& st, const freeusd::sdf::Path& p, const freeusd::tf::Token& t,
+                      double time, freeusd::vt::Value* out) {
+  return out && st.ReadFieldAtEvaluatedTime(p, t, time, out);
+}
+
+bool value_to_float(const freeusd::vt::Value& v, float* out) {
+  if (!out) {
+    return false;
+  }
+  if (v.GetFloat(out)) {
+    return true;
+  }
+  double d = 0.0;
+  if (v.GetDouble(&d)) {
+    *out = static_cast<float>(d);
+    return true;
+  }
+  std::int32_t i32 = 0;
+  if (v.GetInt32(&i32)) {
+    *out = static_cast<float>(i32);
+    return true;
+  }
+  std::int64_t i64 = 0;
+  if (v.GetInt64(&i64)) {
+    *out = static_cast<float>(i64);
+    return true;
+  }
+  bool b = false;
+  if (v.GetBool(&b)) {
+    *out = b ? 1.0F : 0.0F;
+    return true;
+  }
+  return false;
+}
+
+bool value_to_int64(const freeusd::vt::Value& v, std::int64_t* out) {
+  if (!out) {
+    return false;
+  }
+  bool b = false;
+  if (v.GetBool(&b)) {
+    *out = b ? 1 : 0;
+    return true;
+  }
+  std::int32_t i32 = 0;
+  if (v.GetInt32(&i32)) {
+    *out = i32;
+    return true;
+  }
+  if (v.GetInt64(out)) {
+    return true;
+  }
+  float f = 0.0F;
+  if (v.GetFloat(&f)) {
+    *out = static_cast<std::int64_t>(f);
+    return true;
+  }
+  double d = 0.0;
+  if (v.GetDouble(&d)) {
+    *out = static_cast<std::int64_t>(d);
+    return true;
+  }
+  return false;
+}
+
+bool value_to_string(const freeusd::vt::Value& v, std::string* out) {
+  if (!out) {
+    return false;
+  }
+  if (v.GetString(out)) {
+    return true;
+  }
+  freeusd::tf::Token tok;
+  if (v.GetToken(&tok)) {
+    *out = tok.GetText();
+    return true;
+  }
+  return false;
+}
+
+bool value_to_vec3f(const freeusd::vt::Value& v, freeusd::gf::Vec3f* out) {
+  if (!out) {
+    return false;
+  }
+  if (v.GetVec3f(out)) {
+    return true;
+  }
+  freeusd::gf::Vec3d vd{};
+  if (v.GetVec3d(&vd)) {
+    out->set(static_cast<float>(vd.x()), static_cast<float>(vd.y()), static_cast<float>(vd.z()));
+    return true;
+  }
+  return false;
+}
+
+bool value_to_quatf(const freeusd::vt::Value& v, freeusd::gf::Quatf* out) {
+  if (!out) {
+    return false;
+  }
+  if (v.GetQuatf(out)) {
+    return true;
+  }
+  freeusd::gf::Quatd qd{};
+  if (v.GetQuatd(&qd)) {
+    *out = freeusd::gf::Quatf(static_cast<float>(qd.real), static_cast<float>(qd.i), static_cast<float>(qd.j),
+                              static_cast<float>(qd.k));
+    return true;
+  }
+  return false;
+}
+
 py::object read_field_at_time(const freeusd::usd::Stage& st, const freeusd::sdf::Path& p,
                               const freeusd::tf::Token& t, double time) {
   freeusd::vt::Value v;
-  if (st.ReadFieldAtEvaluatedTime(p, t, time, &v)) {
+  if (read_field_value(st, p, t, time, &v)) {
     return py::cast(v);
   }
   return py::none();
@@ -72,7 +183,7 @@ py::object read_field_at_time(const freeusd::usd::Stage& st, const freeusd::sdf:
 py::object read_field_double(const freeusd::usd::Stage& st, const freeusd::sdf::Path& p,
                               const freeusd::tf::Token& t, double time) {
   freeusd::vt::Value v;
-  if (!st.ReadFieldAtEvaluatedTime(p, t, time, &v)) {
+  if (!read_field_value(st, p, t, time, &v)) {
     return py::none();
   }
   double d = 0.0;
@@ -85,28 +196,12 @@ py::object read_field_double(const freeusd::usd::Stage& st, const freeusd::sdf::
 py::object read_field_float(const freeusd::usd::Stage& st, const freeusd::sdf::Path& p,
                             const freeusd::tf::Token& t, double time) {
   freeusd::vt::Value v;
-  if (!st.ReadFieldAtEvaluatedTime(p, t, time, &v)) {
+  if (!read_field_value(st, p, t, time, &v)) {
     return py::none();
   }
   float f = 0.0F;
-  if (v.GetFloat(&f)) {
+  if (value_to_float(v, &f)) {
     return py::cast(f);
-  }
-  double d = 0.0;
-  if (v.GetDouble(&d)) {
-    return py::cast(static_cast<float>(d));
-  }
-  std::int32_t i32 = 0;
-  if (v.GetInt32(&i32)) {
-    return py::cast(static_cast<float>(i32));
-  }
-  std::int64_t i64 = 0;
-  if (v.GetInt64(&i64)) {
-    return py::cast(static_cast<float>(i64));
-  }
-  bool b = false;
-  if (v.GetBool(&b)) {
-    return py::cast(b ? 1.0F : 0.0F);
   }
   return py::none();
 }
@@ -114,7 +209,7 @@ py::object read_field_float(const freeusd::usd::Stage& st, const freeusd::sdf::P
 py::object read_field_bool(const freeusd::usd::Stage& st, const freeusd::sdf::Path& p, const freeusd::tf::Token& t,
                            double time) {
   freeusd::vt::Value v;
-  if (!st.ReadFieldAtEvaluatedTime(p, t, time, &v)) {
+  if (!read_field_value(st, p, t, time, &v)) {
     return py::none();
   }
   bool b = false;
@@ -127,28 +222,12 @@ py::object read_field_bool(const freeusd::usd::Stage& st, const freeusd::sdf::Pa
 py::object read_field_int64(const freeusd::usd::Stage& st, const freeusd::sdf::Path& p, const freeusd::tf::Token& t,
                             double time) {
   freeusd::vt::Value v;
-  if (!st.ReadFieldAtEvaluatedTime(p, t, time, &v)) {
+  if (!read_field_value(st, p, t, time, &v)) {
     return py::none();
   }
   std::int64_t n = 0;
-  if (v.GetInt64(&n)) {
+  if (value_to_int64(v, &n)) {
     return py::cast(n);
-  }
-  std::int32_t i32 = 0;
-  if (v.GetInt32(&i32)) {
-    return py::cast(static_cast<std::int64_t>(i32));
-  }
-  bool b = false;
-  if (v.GetBool(&b)) {
-    return py::cast(static_cast<std::int64_t>(b ? 1 : 0));
-  }
-  float f = 0.0F;
-  if (v.GetFloat(&f)) {
-    return py::cast(static_cast<std::int64_t>(f));
-  }
-  double d = 0.0;
-  if (v.GetDouble(&d)) {
-    return py::cast(static_cast<std::int64_t>(d));
   }
   return py::none();
 }
@@ -156,16 +235,12 @@ py::object read_field_int64(const freeusd::usd::Stage& st, const freeusd::sdf::P
 py::object read_field_string(const freeusd::usd::Stage& st, const freeusd::sdf::Path& p, const freeusd::tf::Token& t,
                              double time) {
   freeusd::vt::Value v;
-  if (!st.ReadFieldAtEvaluatedTime(p, t, time, &v)) {
+  if (!read_field_value(st, p, t, time, &v)) {
     return py::none();
   }
   std::string s;
-  if (v.GetString(&s)) {
+  if (value_to_string(v, &s)) {
     return py::cast(s);
-  }
-  freeusd::tf::Token tok;
-  if (v.GetToken(&tok)) {
-    return py::cast(std::string{tok.GetText()});
   }
   return py::none();
 }
@@ -173,7 +248,7 @@ py::object read_field_string(const freeusd::usd::Stage& st, const freeusd::sdf::
 py::object read_field_vec3d(const freeusd::usd::Stage& st, const freeusd::sdf::Path& p, const freeusd::tf::Token& t,
                             double time) {
   freeusd::vt::Value v;
-  if (!st.ReadFieldAtEvaluatedTime(p, t, time, &v)) {
+  if (!read_field_value(st, p, t, time, &v)) {
     return py::none();
   }
   freeusd::gf::Vec3d vec{};
@@ -186,16 +261,12 @@ py::object read_field_vec3d(const freeusd::usd::Stage& st, const freeusd::sdf::P
 py::object read_field_vec3f(const freeusd::usd::Stage& st, const freeusd::sdf::Path& p, const freeusd::tf::Token& t,
                             double time) {
   freeusd::vt::Value v;
-  if (!st.ReadFieldAtEvaluatedTime(p, t, time, &v)) {
+  if (!read_field_value(st, p, t, time, &v)) {
     return py::none();
   }
   freeusd::gf::Vec3f vf{};
-  if (v.GetVec3f(&vf)) {
+  if (value_to_vec3f(v, &vf)) {
     return py::make_tuple(static_cast<double>(vf.x()), static_cast<double>(vf.y()), static_cast<double>(vf.z()));
-  }
-  freeusd::gf::Vec3d vd{};
-  if (v.GetVec3d(&vd)) {
-    return py::make_tuple(static_cast<double>(vd.x()), static_cast<double>(vd.y()), static_cast<double>(vd.z()));
   }
   return py::none();
 }
@@ -203,7 +274,7 @@ py::object read_field_vec3f(const freeusd::usd::Stage& st, const freeusd::sdf::P
 py::object read_field_matrix4d(const freeusd::usd::Stage& st, const freeusd::sdf::Path& p, const freeusd::tf::Token& t,
                                double time) {
   freeusd::vt::Value v;
-  if (!st.ReadFieldAtEvaluatedTime(p, t, time, &v)) {
+  if (!read_field_value(st, p, t, time, &v)) {
     return py::none();
   }
   freeusd::gf::Matrix4d m{};
@@ -216,7 +287,7 @@ py::object read_field_matrix4d(const freeusd::usd::Stage& st, const freeusd::sdf
 py::object read_field_quatd(const freeusd::usd::Stage& st, const freeusd::sdf::Path& p, const freeusd::tf::Token& t,
                             double time) {
   freeusd::vt::Value v;
-  if (!st.ReadFieldAtEvaluatedTime(p, t, time, &v)) {
+  if (!read_field_value(st, p, t, time, &v)) {
     return py::none();
   }
   freeusd::gf::Quatd q{};
@@ -229,11 +300,11 @@ py::object read_field_quatd(const freeusd::usd::Stage& st, const freeusd::sdf::P
 py::object read_field_quatf(const freeusd::usd::Stage& st, const freeusd::sdf::Path& p, const freeusd::tf::Token& t,
                             double time) {
   freeusd::vt::Value v;
-  if (!st.ReadFieldAtEvaluatedTime(p, t, time, &v)) {
+  if (!read_field_value(st, p, t, time, &v)) {
     return py::none();
   }
   freeusd::gf::Quatf q{};
-  if (!v.GetQuatf(&q)) {
+  if (!value_to_quatf(v, &q)) {
     return py::none();
   }
   return py::cast(q);
@@ -242,7 +313,7 @@ py::object read_field_quatf(const freeusd::usd::Stage& st, const freeusd::sdf::P
 py::object read_field_token(const freeusd::usd::Stage& st, const freeusd::sdf::Path& p, const freeusd::tf::Token& t,
                             double time) {
   freeusd::vt::Value v;
-  if (!st.ReadFieldAtEvaluatedTime(p, t, time, &v)) {
+  if (!read_field_value(st, p, t, time, &v)) {
     return py::none();
   }
   freeusd::tf::Token tok;
@@ -255,7 +326,7 @@ py::object read_field_token(const freeusd::usd::Stage& st, const freeusd::sdf::P
 py::object read_field_token_array(const freeusd::usd::Stage& st, const freeusd::sdf::Path& p,
                                   const freeusd::tf::Token& t, double time) {
   freeusd::vt::Value v;
-  if (!st.ReadFieldAtEvaluatedTime(p, t, time, &v)) {
+  if (!read_field_value(st, p, t, time, &v)) {
     return py::none();
   }
   std::vector<freeusd::tf::Token> elems;

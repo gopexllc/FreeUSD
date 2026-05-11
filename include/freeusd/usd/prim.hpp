@@ -35,8 +35,11 @@ class FREEUSD_API Prim {
   /// Direct child prims (composed); empty if invalid.
   std::vector<Prim> GetChildren() const;
 
+  /// True when any composed layer authors @p name on this prim, including \c .connect opinions.
   bool HasAttribute(const freeusd::tf::Token& name) const;
   /// Evaluated attribute at \p time (linear / slerp where supported; default stage time is \c 1.0 when omitted).
+  /// Returns an empty @c vt::Value when the prim/stage is invalid, @p name is empty, no composed value
+  /// exists, or evaluation fails while following connections.
   freeusd::vt::Value GetAttribute(const freeusd::tf::Token& name, double time = 1.0) const;
 
   /// Composed attribute names (union across the layer stack, stable sort).

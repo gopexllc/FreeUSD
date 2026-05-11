@@ -8,6 +8,16 @@ import (
 	"testing"
 )
 
+func readFixtureUSDA(t *testing.T, elems ...string) string {
+	t.Helper()
+	path := filepath.Join(elems...)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile(%s): %v", path, err)
+	}
+	return string(data)
+}
+
 func TestVersionString(t *testing.T) {
 	v := VersionString()
 	if v == "" {
@@ -150,6 +160,183 @@ def Xform "W"
 	}
 	if v != 3.0 {
 		t.Fatalf("got %v want 3", v)
+	}
+}
+
+func TestCrossLanguageFieldReadContract(t *testing.T) {
+	usda := readFixtureUSDA(t, "..", "..", "tests", "fixtures", "usd_cross_language.usda")
+	l := NewAnonymousLayer("go_cross_lang")
+	if l == nil {
+		t.Fatal("NewAnonymousLayer failed:", LastErrorMessage())
+	}
+	defer l.Free()
+	if rc := l.LoadUSDA(usda); rc != 0 {
+		t.Fatalf("LoadUSDA rc=%d %s", rc, LastErrorMessage())
+	}
+	st := AttachRootLayer(l)
+	if st == nil {
+		t.Fatal("AttachRootLayer failed:", LastErrorMessage())
+	}
+	defer st.Free()
+
+	if ok := st.PrimPathInUse("/Scene/Child"); !ok {
+		t.Fatalf("PrimPathInUse child ok=%v %s", ok, LastErrorMessage())
+	}
+	if ok := st.PrimPathInUse("/Scene/Missing"); ok {
+		t.Fatalf("PrimPathInUse missing ok=%v %s", ok, LastErrorMessage())
+	}
+
+	if v, rc := st.ReadFieldDouble("/Scene/Child", "mass", 1.0); rc != 0 || v != 2.5 {
+		t.Fatalf("ReadFieldDouble mass rc=%d v=%v %s", rc, v, LastErrorMessage())
+	}
+	if v, rc := st.ReadFieldDouble("/Scene/Child", "mass", 2.0); rc != 0 || v != 4.0 {
+		t.Fatalf("ReadFieldDouble mass@2 rc=%d v=%v %s", rc, v, LastErrorMessage())
+	}
+	if f, rc := st.ReadFieldFloat("/Scene/Child", "density", 1.0); rc != 0 || f != 1.25 {
+		t.Fatalf("ReadFieldFloat density rc=%d f=%v %s", rc, f, LastErrorMessage())
+	}
+	if f, rc := st.ReadFieldFloat("/Scene/Child", "mass", 1.0); rc != 0 || f != 2.5 {
+		t.Fatalf("ReadFieldFloat mass rc=%d f=%v %s", rc, f, LastErrorMessage())
+	}
+	if b, rc := st.ReadFieldBool("/Scene/Child", "enabled", 1.0); rc != 0 || !b {
+		t.Fatalf("ReadFieldBool enabled rc=%d b=%v %s", rc, b, LastErrorMessage())
+	}
+	if n, rc := st.ReadFieldInt64("/Scene/Child", "count", 1.0); rc != 0 || n != -7 {
+		t.Fatalf("ReadFieldInt64 count rc=%d n=%d %s", rc, n, LastErrorMessage())
+	}
+	if n, rc := st.ReadFieldInt64("/Scene/Child", "mass", 1.0); rc != 0 || n != 2 {
+		t.Fatalf("ReadFieldInt64 mass rc=%d n=%d %s", rc, n, LastErrorMessage())
+	}
+	if s, rc := st.ReadFieldString("/Scene/Child", "label", 1.0); rc != 0 || s != "hello" {
+		t.Fatalf("ReadFieldString label rc=%d s=%q %s", rc, s, LastErrorMessage())
+	}
+	if s, rc := st.ReadFieldString("/Scene/Child", "kind", 1.0); rc != 0 || s != "component" {
+		t.Fatalf("ReadFieldString kind rc=%d s=%q %s", rc, s, LastErrorMessage())
+	}
+	if x, y, z, rc := st.ReadFieldVec3d("/Scene/Child", "extent", 1.0); rc != 0 || x != 1 || y != 2 || z != 3 {
+		t.Fatalf("ReadFieldVec3d extent rc=%d (%v,%v,%v) %s", rc, x, y, z, LastErrorMessage())
+	}
+	if x, y, z, rc := st.ReadFieldVec3f("/Scene/Child", "displayColor", 1.0); rc != 0 || x != 0.25 || y != 0.5 || z != 0.75 {
+		t.Fatalf("ReadFieldVec3f color rc=%d (%v,%v,%v) %s", rc, x, y, z, LastErrorMessage())
+	}
+	if x, y, z, rc := st.ReadFieldVec3f("/Scene/Child", "extent", 1.0); rc != 0 || x != 1 || y != 2 || z != 3 {
+		t.Fatalf("ReadFieldVec3f extent rc=%d (%v,%v,%v) %s", rc, x, y, z, LastErrorMessage())
+	}
+	if m, rc := st.ReadFieldMatrix4d("/Scene/Child", "xf", 1.0); rc != 0 || m[0] != 1 || m[5] != 1 || m[10] != 1 || m[15] != 1 {
+		t.Fatalf("ReadFieldMatrix4d xf rc=%d m=%v %s", rc, m, LastErrorMessage())
+	}
+	if real, i, j, k, rc := st.ReadFieldQuatd("/Scene/Child", "qd", 1.0); rc != 0 || real != 1 || i != 0 || j != 0 || k != 0 {
+		t.Fatalf("ReadFieldQuatd qd rc=%d (%v,%v,%v,%v) %s", rc, real, i, j, k, LastErrorMessage())
+	}
+	if real, i, j, k, rc := st.ReadFieldQuatf("/Scene/Child", "qf", 1.0); rc != 0 || real != 0.70710677 || i != 0 || j != 0 || k != 0.70710677 {
+		t.Fatalf("ReadFieldQuatf qf rc=%d (%v,%v,%v,%v) %s", rc, real, i, j, k, LastErrorMessage())
+	}
+	if real, i, j, k, rc := st.ReadFieldQuatf("/Scene/Child", "qd", 1.0); rc != 0 || real != 1 || i != 0 || j != 0 || k != 0 {
+		t.Fatalf("ReadFieldQuatf qd rc=%d (%v,%v,%v,%v) %s", rc, real, i, j, k, LastErrorMessage())
+	}
+	if tok, rc := st.ReadFieldToken("/Scene/Child", "kind", 1.0); rc != 0 || tok != "component" {
+		t.Fatalf("ReadFieldToken kind rc=%d tok=%q %s", rc, tok, LastErrorMessage())
+	}
+	if tags, rc := st.ReadFieldTokenArray("/Scene/Child", "tags", 1.0); rc != 0 || len(tags) != 2 || tags[0] != "a" || tags[1] != "b" {
+		t.Fatalf("ReadFieldTokenArray tags rc=%d tags=%v %s", rc, tags, LastErrorMessage())
+	}
+
+	if v, rc := st.ReadFieldDouble("/Scene/Child", "missingAttr", 1.0); rc == 0 || v != 0 {
+		t.Fatalf("missing attr double rc=%d v=%v", rc, v)
+	}
+	if v, rc := st.ReadFieldDouble("/Scene/Missing", "mass", 1.0); rc == 0 || v != 0 {
+		t.Fatalf("missing prim double rc=%d v=%v", rc, v)
+	}
+	if real, i, j, k, rc := st.ReadFieldQuatd("/Scene/Child", "qf", 1.0); rc == 0 || real != 0 || i != 0 || j != 0 || k != 0 {
+		t.Fatalf("wrong-type quatd rc=%d (%v,%v,%v,%v)", rc, real, i, j, k)
+	}
+	if tok, rc := st.ReadFieldToken("/Scene/Child", "label", 1.0); rc == 0 || tok != "" {
+		t.Fatalf("wrong-type token rc=%d tok=%q", rc, tok)
+	}
+	if tags, rc := st.ReadFieldTokenArray("/Scene/Child", "kind", 1.0); rc == 0 || tags != nil {
+		t.Fatalf("wrong-type token array rc=%d tags=%v", rc, tags)
+	}
+}
+
+// Regression: on C API failure, Go wrappers must not return uninitialized C out-parameters.
+func TestStageReadFieldErrorsReturnZeroValues(t *testing.T) {
+	const usda = `#usda 1.0
+(
+)
+def Xform "W"
+{
+    def "C"
+    {
+        double x = 1.0
+    }
+}
+`
+	l := NewAnonymousLayer("go_read_err")
+	if l == nil {
+		t.Fatal("NewAnonymousLayer failed:", LastErrorMessage())
+	}
+	defer l.Free()
+	if rc := l.LoadUSDA(usda); rc != 0 {
+		t.Fatalf("LoadUSDA rc=%d %s", rc, LastErrorMessage())
+	}
+	st := AttachRootLayer(l)
+	if st == nil {
+		t.Fatal("AttachRootLayer failed:", LastErrorMessage())
+	}
+	defer st.Free()
+
+	v, rc := st.ReadFieldDouble("/W/C", "no_such_attr", 1.0)
+	if rc == 0 || v != 0 {
+		t.Fatalf("ReadFieldDouble missing: rc=%d v=%v want rc!=0 v=0", rc, v)
+	}
+	f, rc := st.ReadFieldFloat("/W/C", "no_such_attr", 1.0)
+	if rc == 0 || f != 0 {
+		t.Fatalf("ReadFieldFloat missing: rc=%d f=%v", rc, f)
+	}
+	x, y, z, rc := st.ReadFieldVec3d("/W/C", "no_such_attr", 1.0)
+	if rc == 0 || x != 0 || y != 0 || z != 0 {
+		t.Fatalf("ReadFieldVec3d missing: rc=%d (%v,%v,%v)", rc, x, y, z)
+	}
+	fx, fy, fz, rc := st.ReadFieldVec3f("/W/C", "no_such_attr", 1.0)
+	if rc == 0 || fx != 0 || fy != 0 || fz != 0 {
+		t.Fatalf("ReadFieldVec3f missing: rc=%d", rc)
+	}
+	qr, qi, qj, qk, rc := st.ReadFieldQuatd("/W/C", "no_such_attr", 1.0)
+	if rc == 0 || qr != 0 || qi != 0 || qj != 0 || qk != 0 {
+		t.Fatalf("ReadFieldQuatd missing: rc=%d", rc)
+	}
+	fr, fi, fj, fk, rc := st.ReadFieldQuatf("/W/C", "no_such_attr", 1.0)
+	if rc == 0 || fr != 0 || fi != 0 || fj != 0 || fk != 0 {
+		t.Fatalf("ReadFieldQuatf missing: rc=%d", rc)
+	}
+	n, rc := st.ReadFieldInt64("/W/C", "no_such_attr", 1.0)
+	if rc == 0 || n != 0 {
+		t.Fatalf("ReadFieldInt64 missing: rc=%d n=%d", rc, n)
+	}
+	b, rc := st.ReadFieldBool("/W/C", "no_such_attr", 1.0)
+	if rc == 0 || b {
+		t.Fatalf("ReadFieldBool missing: rc=%d b=%v", rc, b)
+	}
+	s, rc := st.ReadFieldString("/W/C", "no_such_attr", 1.0)
+	if rc == 0 || s != "" {
+		t.Fatalf("ReadFieldString missing: rc=%d s=%q", rc, s)
+	}
+	m, rc := st.ReadFieldMatrix4d("/W/C", "no_such_attr", 1.0)
+	if rc == 0 {
+		t.Fatalf("ReadFieldMatrix4d missing: want rc!=0")
+	}
+	for i := 0; i < 16; i++ {
+		if m[i] != 0 {
+			t.Fatalf("ReadFieldMatrix4d missing: m[%d]=%v want 0", i, m[i])
+		}
+	}
+	tok, rc := st.ReadFieldToken("/W/C", "no_such_attr", 1.0)
+	if rc == 0 || tok != "" {
+		t.Fatalf("ReadFieldToken missing: rc=%d tok=%q", rc, tok)
+	}
+	tags, rc := st.ReadFieldTokenArray("/W/C", "no_such_attr", 1.0)
+	if rc == 0 || tags != nil {
+		t.Fatalf("ReadFieldTokenArray missing: rc=%d tags=%#v want rc!=0 tags=nil", rc, tags)
 	}
 }
 

@@ -9,6 +9,7 @@
 #include <iomanip>
 #include <optional>
 #include <sstream>
+#include <string_view>
 #include <unordered_map>
 #include <variant>
 #include <vector>
@@ -39,7 +40,8 @@ std::string_view trim(std::string_view s) {
   return s;
 }
 
-bool sdf_type_is_float3_tuple_family(const std::string& type_l) noexcept {
+/// Lowercase SDF type name (e.g. from ``ascii_lower`` on the declared attribute type).
+bool sdf_type_is_float3_tuple_family(std::string_view type_l) noexcept {
   return type_l == "float3" || type_l == "point3f" || type_l == "normal3f" || type_l == "color3f";
 }
 

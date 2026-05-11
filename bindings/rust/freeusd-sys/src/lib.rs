@@ -1242,6 +1242,12 @@ mod tests {
     use super::*;
     use std::path::PathBuf;
 
+    fn fixture_path(name: &str) -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../tests/fixtures")
+            .join(name)
+    }
+
     #[test]
     fn version_non_empty() {
         assert!(!version_string().is_empty());
@@ -1357,6 +1363,98 @@ def Xform "W"
             .read_field_double("/W/C", "x", 1.0)
             .expect(last_error_message());
         assert!((v - 3.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn cross_language_field_read_contract() {
+        let fixture = fixture_path("usd_cross_language.usda");
+        let usda = std::fs::read_to_string(&fixture).expect("read fixture");
+        let mut layer = Layer::new_anonymous(Some("rust_cross_lang")).expect("layer");
+        assert_eq!(layer.load_usda(&usda), 0, "{}", last_error_message());
+        let stage = Stage::attach_root_layer(&layer).expect("stage");
+
+        assert!(stage.prim_path_in_use("/Scene/Child").expect("child valid"));
+        assert!(!stage.prim_path_in_use("/Scene/Missing").expect("missing invalid"));
+
+        assert!((stage.read_field_double("/Scene/Child", "mass", 1.0).expect("mass") - 2.5).abs() < 1e-9);
+        assert!((stage.read_field_double("/Scene/Child", "mass", 2.0).expect("mass samples") - 4.0).abs() < 1e-9);
+        assert!((stage.read_field_float("/Scene/Child", "density", 1.0).expect("density") - 1.25).abs() < 1e-5);
+        assert!((stage.read_field_float("/Scene/Child", "mass", 1.0).expect("mass float") - 2.5).abs() < 1e-5);
+        assert!(stage.read_field_bool("/Scene/Child", "enabled", 1.0).expect("enabled"));
+        assert_eq!(stage.read_field_int64("/Scene/Child", "count", 1.0).expect("count"), -7);
+        assert_eq!(stage.read_field_int64("/Scene/Child", "mass", 1.0).expect("mass int"), 2);
+        assert_eq!(stage.read_field_string("/Scene/Child", "label", 1.0).expect("label"), "hello");
+        assert_eq!(stage.read_field_string("/Scene/Child", "kind", 1.0).expect("kind string"), "component");
+
+        let (x, y, z) = stage.read_field_vec3d("/Scene/Child", "extent", 1.0).expect("extent");
+        assert!((x - 1.0).abs() < 1e-9 && (y - 2.0).abs() < 1e-9 && (z - 3.0).abs() < 1e-9);
+
+        let (x, y, z) = stage
+            .read_field_vec3f("/Scene/Child", "displayColor", 1.0)
+            .expect("displayColor");
+        assert!((x - 0.25).abs() < 1e-5 && (y - 0.5).abs() < 1e-5 && (z - 0.75).abs() < 1e-5);
+
+        let (x, y, z) = stage.read_field_vec3f("/Scene/Child", "extent", 1.0).expect("extent vec3f");
+        assert!((x - 1.0).abs() < 1e-5 && (y - 2.0).abs() < 1e-5 && (z - 3.0).abs() < 1e-5);
+
+        let m = stage.read_field_matrix4d("/Scene/Child", "xf", 1.0).expect("xf");
+        assert_eq!(m[0], 1.0);
+        assert_eq!(m[5], 1.0);
+        assert_eq!(m[10], 1.0);
+        assert_eq!(m[15], 1.0);
+
+        let (r, i, j, k) = stage.read_field_quatd("/Scene/Child", "qd", 1.0).expect("qd");
+        assert!((r - 1.0).abs() < 1e-9 && i.abs() < 1e-9 && j.abs() < 1e-9 && k.abs() < 1e-9);
+
+        let (r, i, j, k) = stage.read_field_quatf("/Scene/Child", "qf", 1.0).expect("qf");
+        assert!((r - 0.70710677).abs() < 1e-5 && i.abs() < 1e-5 && j.abs() < 1e-5 && (k - 0.70710677).abs() < 1e-5);
+
+        let (r, i, j, k) = stage.read_field_quatf("/Scene/Child", "qd", 1.0).expect("qd narrowed");
+        assert!((r - 1.0).abs() < 1e-5 && i.abs() < 1e-5 && j.abs() < 1e-5 && k.abs() < 1e-5);
+
+        assert_eq!(stage.read_field_token("/Scene/Child", "kind", 1.0).expect("kind token"), "component");
+        assert_eq!(
+            stage
+                .read_field_token_array("/Scene/Child", "tags", 1.0)
+                .expect("tags"),
+            vec!["a".to_string(), "b".to_string()]
+        );
+
+        assert!(stage.read_field_double("/Scene/Child", "missingAttr", 1.0).is_err());
+        assert!(stage.read_field_double("/Scene/Missing", "mass", 1.0).is_err());
+        assert!(stage.read_field_quatd("/Scene/Child", "qf", 1.0).is_err());
+        assert!(stage.read_field_token("/Scene/Child", "label", 1.0).is_err());
+        assert!(stage.read_field_token_array("/Scene/Child", "kind", 1.0).is_err());
+    }
+
+    #[test]
+    fn read_field_missing_attribute_returns_err() {
+        const USDA: &str = r#"#usda 1.0
+(
+)
+def Xform "W"
+{
+    def "C"
+    {
+        double x = 1.0
+    }
+}
+"#;
+        let mut layer = Layer::new_anonymous(Some("rust_miss")).expect("layer");
+        assert_eq!(layer.load_usda(USDA), 0, "{}", last_error_message());
+        let stage = Stage::attach_root_layer(&layer).expect("stage");
+        assert!(stage.read_field_double("/W/C", "no_such", 1.0).is_err());
+        assert!(stage.read_field_float("/W/C", "no_such", 1.0).is_err());
+        assert!(stage.read_field_vec3d("/W/C", "no_such", 1.0).is_err());
+        assert!(stage.read_field_vec3f("/W/C", "no_such", 1.0).is_err());
+        assert!(stage.read_field_quatd("/W/C", "no_such", 1.0).is_err());
+        assert!(stage.read_field_quatf("/W/C", "no_such", 1.0).is_err());
+        assert!(stage.read_field_int64("/W/C", "no_such", 1.0).is_err());
+        assert!(stage.read_field_string("/W/C", "no_such", 1.0).is_err());
+        assert!(stage.read_field_bool("/W/C", "no_such", 1.0).is_err());
+        assert!(stage.read_field_matrix4d("/W/C", "no_such", 1.0).is_err());
+        assert!(stage.read_field_token("/W/C", "no_such", 1.0).is_err());
+        assert!(stage.read_field_token_array("/W/C", "no_such", 1.0).is_err());
     }
 
     #[test]

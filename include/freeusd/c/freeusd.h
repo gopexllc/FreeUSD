@@ -389,6 +389,7 @@ FREEUSD_C_API int freeusd_stage_prim_is_valid(const FreeusdStage* stage, const c
 /**
  * Read evaluated attribute as double at @p time (strongest opinion; follows
  * attribute connections where implemented).
+ * Missing prims, missing attributes, and non-double payloads all report @ref FREEUSD_ERR_NOT_FOUND.
  * @return @ref FREEUSD_OK or error code; @p out_value unchanged on failure.
  */
 FREEUSD_C_API int freeusd_stage_read_field_double(const FreeusdStage* stage, const char* prim_path_utf8,
@@ -397,6 +398,7 @@ FREEUSD_C_API int freeusd_stage_read_field_double(const FreeusdStage* stage, con
 /**
  * Read evaluated attribute as @c float at @p time (strongest opinion; follows connections where implemented).
  * Succeeds for @c float payloads, or @c double / @c int32 / @c int64 / @c bool coerced to @c float.
+ * Missing prims, missing attributes, and unsupported coercions report @ref FREEUSD_ERR_NOT_FOUND.
  */
 FREEUSD_C_API int freeusd_stage_read_field_float(const FreeusdStage* stage, const char* prim_path_utf8,
                                                  const char* attr_name_utf8, double time, float* out_value);
@@ -427,6 +429,7 @@ FREEUSD_C_API int freeusd_stage_get_attribute_connection_target(const FreeusdSta
 
 /**
  * Read evaluated attribute as bool at @p time (payload must be bool).
+ * Missing prims, missing attributes, and non-bool payloads report @ref FREEUSD_ERR_NOT_FOUND.
  * @p out_value receives 0 or 1.
  */
 FREEUSD_C_API int freeusd_stage_read_field_bool(const FreeusdStage* stage, const char* prim_path_utf8,
@@ -434,12 +437,14 @@ FREEUSD_C_API int freeusd_stage_read_field_bool(const FreeusdStage* stage, const
 
 /**
  * Read evaluated attribute as integer at @p time (bool coerces to 0/1; int32/int64/float/double truncated toward zero).
+ * Missing prims, missing attributes, and unsupported coercions report @ref FREEUSD_ERR_NOT_FOUND.
  */
 FREEUSD_C_API int freeusd_stage_read_field_int64(const FreeusdStage* stage, const char* prim_path_utf8,
                                                  const char* attr_name_utf8, double time, int64_t* out_value);
 
 /**
- * Read evaluated attribute default/string at @p time (string payload only; fails if not a string).
+ * Read evaluated attribute as UTF-8 string at @p time (string payload, or token text).
+ * Missing prims, missing attributes, and non-string/non-token payloads report @ref FREEUSD_ERR_NOT_FOUND.
  * On @ref FREEUSD_OK, @p *out_string is malloc'd UTF-8; free with @ref freeusd_string_free.
  */
 FREEUSD_C_API int freeusd_stage_read_field_string(const FreeusdStage* stage, const char* prim_path_utf8,
@@ -447,6 +452,7 @@ FREEUSD_C_API int freeusd_stage_read_field_string(const FreeusdStage* stage, con
 
 /**
  * Read evaluated attribute as @c double3 / Vec3d at @p time. All @p out_* pointers must be non-NULL.
+ * Missing prims, missing attributes, and non-@c Vec3d payloads report @ref FREEUSD_ERR_NOT_FOUND.
  */
 FREEUSD_C_API int freeusd_stage_read_field_vec3d(const FreeusdStage* stage, const char* prim_path_utf8,
                                                  const char* attr_name_utf8, double time, double* out_x,
@@ -455,6 +461,7 @@ FREEUSD_C_API int freeusd_stage_read_field_vec3d(const FreeusdStage* stage, cons
 /**
  * Read evaluated attribute as @c float3 / Vec3f at @p time. All @p out_* pointers must be non-NULL.
  * Succeeds for @c Vec3f payloads, or @c Vec3d / @c double3 (components narrowed to @c float).
+ * Missing prims, missing attributes, and unsupported coercions report @ref FREEUSD_ERR_NOT_FOUND.
  */
 FREEUSD_C_API int freeusd_stage_read_field_vec3f(const FreeusdStage* stage, const char* prim_path_utf8,
                                                  const char* attr_name_utf8, double time, float* out_x,
@@ -462,6 +469,7 @@ FREEUSD_C_API int freeusd_stage_read_field_vec3f(const FreeusdStage* stage, cons
 
 /**
  * Read evaluated @c matrix4d at @p time (strict; @c Matrix4d / @c double4x4 only).
+ * Missing prims, missing attributes, and non-matrix payloads report @ref FREEUSD_ERR_NOT_FOUND.
  * @p out_row_major must point to 16 @c double values in row-major order @c m[row*4+col]
  * (row homogeneous vectors @c [x y z 1] * M).
  */
@@ -471,6 +479,7 @@ FREEUSD_C_API int freeusd_stage_read_field_matrix4d(const FreeusdStage* stage, c
 
 /**
  * Read evaluated @c quatd at @p time (strict; @c quatd payload only). Components are @c (real, i, j, k).
+ * Missing prims, missing attributes, and non-@c quatd payloads report @ref FREEUSD_ERR_NOT_FOUND.
  */
 FREEUSD_C_API int freeusd_stage_read_field_quatd(const FreeusdStage* stage, const char* prim_path_utf8,
                                                  const char* attr_name_utf8, double time, double* out_real,
@@ -478,6 +487,7 @@ FREEUSD_C_API int freeusd_stage_read_field_quatd(const FreeusdStage* stage, cons
 
 /**
  * Read evaluated @c quatf at @p time (@c quatf payload, or @c quatd narrowed to @c float).
+ * Missing prims, missing attributes, and unsupported coercions report @ref FREEUSD_ERR_NOT_FOUND.
  */
 FREEUSD_C_API int freeusd_stage_read_field_quatf(const FreeusdStage* stage, const char* prim_path_utf8,
                                                  const char* attr_name_utf8, double time, float* out_real,
@@ -485,6 +495,7 @@ FREEUSD_C_API int freeusd_stage_read_field_quatf(const FreeusdStage* stage, cons
 
 /**
  * Read evaluated @c token at @p time (token payload only; fails for plain string).
+ * Missing prims, missing attributes, and non-token payloads report @ref FREEUSD_ERR_NOT_FOUND.
  * On @ref FREEUSD_OK, @p *out_token_utf8 is malloc'd UTF-8; free with @ref freeusd_string_free.
  */
 FREEUSD_C_API int freeusd_stage_read_field_token(const FreeusdStage* stage, const char* prim_path_utf8,
@@ -492,6 +503,7 @@ FREEUSD_C_API int freeusd_stage_read_field_token(const FreeusdStage* stage, cons
 
 /**
  * Read evaluated @c token[] at @p time.
+ * Missing prims, missing attributes, and non-@c token[] payloads report @ref FREEUSD_ERR_NOT_FOUND.
  * On @ref FREEUSD_OK, @p *out_strings / @p *out_count use @ref freeusd_path_list_free (possibly empty).
  */
 FREEUSD_C_API int freeusd_stage_read_field_token_array(const FreeusdStage* stage, const char* prim_path_utf8,

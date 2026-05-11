@@ -52,6 +52,20 @@ def test_prim_get_attribute_at_time() -> None:
     assert prim.read_field_at_time(Token("height"), 3.0).as_double() == 30.0
 
 
+def test_stage_prim_read_field_missing_returns_none() -> None:
+    layer = Layer.new_anonymous("missing")
+    p = Path.from_string("/World/Cube")
+    layer.set_field(p, Token("x"), Value.make_double(1.0))
+    stage = Stage.attach_root_layer(layer)
+    prim = stage.prim_at(p)
+    assert prim.is_valid()
+    missing = Token("no_such_attr")
+    assert stage.read_field_at_time(p, missing, 1.0) is None
+    assert stage.read_field_double(p, missing, 1.0) is None
+    assert prim.read_field_at_time(missing, 1.0) is None
+    assert prim.read_field_double(missing, 1.0) is None
+
+
 def test_stage_read_field_float_and_double() -> None:
     import freeusd.io as io
 
@@ -172,7 +186,8 @@ def "P"
     qf = st.read_field_quatf(p, Token("qf"), 1.0)
     assert qf is not None
     assert abs(qf.real - 0.70710677) < 1e-5 and abs(qf.k - 0.70710677) < 1e-5
-    assert st.read_field_quatf(p, Token("qd"), 1.0) is None
+    narrowed = st.read_field_quatf(p, Token("qd"), 1.0)
+    assert narrowed is not None and narrowed == Quatf(1.0, 0.0, 0.0, 0.0)
     assert st.read_field_quatd(p, Token("qf"), 1.0) is None
 
 
