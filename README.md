@@ -23,12 +23,13 @@ C++ libraries follow OpenUSD-style layering: `tf`, `gf`, `vt`, `ar`, `sdf`, `pcp
 | Topic | Doc |
 | --- | --- |
 | Feature map vs OpenUSD | [docs/openusd-map.md](docs/openusd-map.md) |
+| Parity baseline and fixture corpus | [docs/openusd-parity-matrix.md](docs/openusd-parity-matrix.md) |
 | Repo / CMake / out-of-scope | [docs/openusd-repo-alignment.md](docs/openusd-repo-alignment.md) |
 | Embedding, `find_package`, pkg-config | [docs/engine-integration.md](docs/engine-integration.md) |
 
 **USDA:** minimal ASCII load/save (`freeusd::io::usda`, Python `freeusd.io`), including `attr.timeSamples = { t: v, … }` blocks.
 
-**`.usdc` (crate):** Full binary decode is **not** implemented. What exists today: `PXR-USDC` sniffing, USDA vs crate path classification, a fixed **bootstrap** read (version bytes + little-endian TOC offset), and a **TOC section table** read (LE section count + 32-byte name/start/size rows; no token/path payload decode). Surfaces in C++ (`freeusd::usd::crate`), Python (`freeusd.usd.crate`), the **C ABI**, and thin **Go** / **Rust** bindings under [`bindings/`](bindings/README.md).
+**`.usdc` (crate):** Full binary decode is still **partial**. What exists today: `PXR-USDC` sniffing, USDA vs crate path classification, a fixed **bootstrap** read (version bytes + little-endian TOC offset), a **TOC section table** read (LE section count + 32-byte name/start/size rows), and raw **section payload** reads by TOC name. Surfaces in C++ (`freeusd::usd::crate`), Python (`freeusd.usd.crate`), the **C ABI**, and thin **Go** / **Rust** bindings under [`bindings/`](bindings/README.md).
 
 ## Building
 
@@ -55,7 +56,7 @@ Concurrency cancels superseded runs on the same branch. [`.github/dependabot.yml
 
 **Schema token headers** (`include/freeusd/<UsdLib>/tokens.hpp`, `include/freeusd/usd/schemaDataTokens.hpp`): regenerate with `python3 scripts/gen_schema_tokens.py`, then rebuild **`_native`**. **`tests/python/conftest.py`** avoids the skbuild editable hook during pytest so **`ctest`** and **`.venv`** runs both load the working-tree package.
 
-**C ABI** (on by default: `-DFREEUSD_BUILD_C_ABI=ON`): link **`freeusd_c`** and include [`include/freeusd/c/freeusd.h`](include/freeusd/c/freeusd.h). Stable entry points cover in-memory and on-disk **USDA** layers, **layer stacks**, **composed stages** (prim paths, fields, time samples, composition arcs, relocates, prefix substitutions, variants, layer hints, custom layer data, specifier kind, and related queries), plus **USDC** helpers (crate id string, path kind sniff, bootstrap struct, TOC sections with documented malloc/free). Typed field reads document which conversions are strict vs coercive (`float`, `int64`, `string`, `vec3f`, `quatf`), and missing prims / missing attributes / wrong-type reads currently share the same non-zero C ABI failure result. Full symbol list, ownership rules, and thread-local errors are documented in the header—prefer that over duplicating API names here.
+**C ABI** (on by default: `-DFREEUSD_BUILD_C_ABI=ON`): link **`freeusd_c`** and include [`include/freeusd/c/freeusd.h`](include/freeusd/c/freeusd.h). Stable entry points cover in-memory and on-disk **USDA** layers, **layer stacks**, **composed stages** (prim paths, fields, time samples, composition arcs, relocates, prefix substitutions, variants, layer hints, custom layer data, specifier kind, and related queries), plus **USDC** helpers (crate id string, path kind sniff, bootstrap struct, TOC sections, and raw section bytes with documented malloc/free). Typed field reads document which conversions are strict vs coercive (`float`, `int64`, `string`, `vec3f`, `quatf`), and missing prims / missing attributes / wrong-type reads currently share the same non-zero C ABI failure result. Full symbol list, ownership rules, and thread-local errors are documented in the header—prefer that over duplicating API names here.
 
 The extension is built as **`_native*.so`** under `build/`; CMake can copy it beside `freeusd/` (gitignored `*.so`) so `import freeusd._native` works with **`PYTHONPATH`** at the repo root.
 

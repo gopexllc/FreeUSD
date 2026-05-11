@@ -239,6 +239,51 @@ int freeusd_read_usdc_toc_from_path_utf8(const char* path_utf8, uint64_t max_sec
 
 void freeusd_usdc_toc_sections_free(FreeusdUsdcTocSection* sections) { std::free(sections); }
 
+int freeusd_read_usdc_section_bytes_from_path_utf8(const char* path_utf8, const char* section_name_utf8,
+                                                   uint64_t max_bytes, uint8_t** out_bytes, uint64_t* out_size) {
+  if (!path_utf8 || !section_name_utf8 || !out_bytes || !out_size) {
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_bytes = nullptr;
+  *out_size = 0;
+  if (section_name_utf8[0] == '\0') {
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    clear_error();
+    std::vector<std::uint8_t> bytes;
+    std::string err;
+    if (!freeusd::usd::crate::ReadUsdCrateSectionBytesFromPath(std::string{path_utf8}, std::string_view{section_name_utf8},
+                                                               bytes, static_cast<std::size_t>(max_bytes), &err)) {
+      set_error(err.empty() ? "read usdc section payload failed" : err);
+      if (err.find("not found") != std::string::npos) {
+        return FREEUSD_ERR_NOT_FOUND;
+      }
+      return FREEUSD_ERR_PARSE;
+    }
+    *out_size = static_cast<uint64_t>(bytes.size());
+    if (bytes.empty()) {
+      return FREEUSD_OK;
+    }
+    auto* arr = static_cast<uint8_t*>(std::malloc(bytes.size()));
+    if (!arr) {
+      set_error("out of memory");
+      return FREEUSD_ERR_INTERNAL;
+    }
+    std::memcpy(arr, bytes.data(), bytes.size());
+    *out_bytes = arr;
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown error");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+void freeusd_bytes_free(void* bytes) { std::free(bytes); }
+
 const char* freeusd_last_error_message(void) { return g_last_error.c_str(); }
 
 void freeusd_string_free(char* s) { std::free(s); }

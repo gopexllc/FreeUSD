@@ -1,0 +1,14 @@
+#usda 1.0
+(
+    defaultPrim = "World"
+)
+
+def Xform "World"
+{
+    token purpose = "render"
+    def "Cube"
+    {
+        token visibility = "invisible"
+        double size = 2.0
+    }
+}

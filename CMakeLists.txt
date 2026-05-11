@@ -26,7 +26,7 @@ if(FREEUSD_BUILD_TESTS)
   target_link_libraries(freeusd_sdf_path_test PRIVATE freeusd::sdf)
 
   add_executable(freeusd_usd_smoke_test tests/usd_smoke_test.cpp)
-  target_link_libraries(freeusd_usd_smoke_test PRIVATE freeusd::usd freeusd::usdGeom freeusd::plug)
+  target_link_libraries(freeusd_usd_smoke_test PRIVATE freeusd::usd freeusd::usdUtils freeusd::usdGeom freeusd::plug)
 
   add_executable(freeusd_usd_cross_language_test tests/usd_cross_language_test.cpp)
   target_link_libraries(freeusd_usd_cross_language_test PRIVATE freeusd::io freeusd::usd)

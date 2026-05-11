@@ -1,0 +1,14 @@
+#usda 1.0
+(
+)
+
+def Xform "World"
+{
+    def "Model"
+    {
+        double strength = 10.0
+        double animated.timeSamples = {
+            5: 5.0,
+        }
+    }
+}

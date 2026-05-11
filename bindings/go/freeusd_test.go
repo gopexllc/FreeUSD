@@ -129,6 +129,36 @@ func TestReadUsdcTocFromPath(t *testing.T) {
 	}
 }
 
+func TestReadUsdcSectionBytesFromPath(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "section.usdc")
+	buf := make([]byte, 160)
+	copy(buf[0:], UsdcCrateIdentifier())
+	buf[8] = 0
+	buf[9] = 8
+	buf[10] = 0
+	binary.LittleEndian.PutUint64(buf[16:24], uint64(88))
+	binary.LittleEndian.PutUint64(buf[88:96], 1)
+	copy(buf[96:103], []byte("TOKENS\x00"))
+	binary.LittleEndian.PutUint64(buf[112:120], uint64(128))
+	binary.LittleEndian.PutUint64(buf[120:128], uint64(5))
+	copy(buf[128:133], []byte("alpha"))
+	if err := os.WriteFile(p, buf, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	payload, rc := ReadUsdcSectionBytesFromPath(p, "TOKENS", 64)
+	if rc != 0 {
+		t.Fatalf("section rc=%d %s", rc, LastErrorMessage())
+	}
+	if string(payload) != "alpha" {
+		t.Fatalf("unexpected payload %q", string(payload))
+	}
+	_, rcMissing := ReadUsdcSectionBytesFromPath(p, "MISSING", 64)
+	if rcMissing == 0 {
+		t.Fatal("expected missing section error")
+	}
+}
+
 func TestLayerStageReadDouble(t *testing.T) {
 	const usda = `#usda 1.0
 (

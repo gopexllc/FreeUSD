@@ -13,6 +13,7 @@
 #include "freeusd/trace/collector.hpp"
 #include "freeusd/usd/crateFile.hpp"
 #include "freeusd/usd/stage.hpp"
+#include "freeusd/usdGeom/imageable.hpp"
 #include "freeusd/usdGeom/xformable.hpp"
 #include "freeusd/usdShade/tokens.hpp"
 #include "freeusd/usdUtils/pipeline.hpp"
@@ -284,6 +285,60 @@ int main() {
     assert(!err.empty());
     fs::remove(p);
   }
+  {
+    const fs::path p = fs::temp_directory_path() / "freeusd_smoke_crate_section.usdc";
+    std::vector<unsigned char> buf(160, 0);
+    const std::string m = std::string{freeusd::usd::crate::UsdcCrateIdentifier()};
+    std::memcpy(buf.data(), m.data(), m.size());
+    buf[8] = 0;
+    buf[9] = 8;
+    buf[10] = 0;
+    {
+      const std::int64_t toc = 88;
+      std::uint64_t u = 0;
+      std::memcpy(&u, &toc, sizeof(u));
+      for (int i = 0; i < 8; ++i) {
+        buf[16 + static_cast<std::size_t>(i)] = static_cast<unsigned char>((u >> (8 * i)) & 0xffu);
+      }
+    }
+    {
+      std::uint64_t count = 1;
+      for (int i = 0; i < 8; ++i) {
+        buf[88 + static_cast<std::size_t>(i)] = static_cast<unsigned char>((count >> (8 * i)) & 0xffu);
+      }
+    }
+    {
+      unsigned char* rec = buf.data() + 96;
+      const char nm[] = "TOKENS";
+      std::memcpy(rec, nm, sizeof(nm));
+      const std::int64_t st = 128;
+      const std::int64_t sz = 5;
+      std::uint64_t ust = 0;
+      std::uint64_t usz = 0;
+      std::memcpy(&ust, &st, sizeof(ust));
+      std::memcpy(&usz, &sz, sizeof(usz));
+      for (int i = 0; i < 8; ++i) {
+        rec[16 + static_cast<std::size_t>(i)] = static_cast<unsigned char>((ust >> (8 * i)) & 0xffu);
+        rec[24 + static_cast<std::size_t>(i)] = static_cast<unsigned char>((usz >> (8 * i)) & 0xffu);
+      }
+      const unsigned char payload[] = {'a', 'l', 'p', 'h', 'a'};
+      std::memcpy(buf.data() + 128, payload, sizeof(payload));
+    }
+    {
+      std::ofstream o(p, std::ios::binary);
+      o.write(reinterpret_cast<const char*>(buf.data()), static_cast<std::streamsize>(buf.size()));
+    }
+    std::vector<std::uint8_t> sec;
+    std::string err;
+    assert(freeusd::usd::crate::ReadUsdCrateSectionBytesFromPath(p.string(), "TOKENS", sec, 64, &err));
+    assert(err.empty());
+    assert(sec.size() == 5u);
+    assert(sec[0] == static_cast<std::uint8_t>('a'));
+    assert(sec[4] == static_cast<std::uint8_t>('a'));
+    assert(!freeusd::usd::crate::ReadUsdCrateSectionBytesFromPath(p.string(), "MISSING", sec, 64, &err));
+    assert(!freeusd::usd::crate::ReadUsdCrateSectionBytesFromPath(p.string(), "TOKENS", sec, 4, &err));
+    fs::remove(p);
+  }
 
   freeusd::plug::Registry::Get().RegisterPluginPaths({"/tmp/freeusd_nonexistent_plugin_path"});
   assert(!freeusd::plug::Registry::Get().RegisteredPluginPaths().empty());
@@ -302,6 +357,25 @@ int main() {
   const freeusd::usdGeom::Xformable xf(prim);
   assert(static_cast<bool>(xf));
   assert(xf.ComputeLocalToWorldTransform(1.0) == freeusd::gf::Matrix4d::Identity());
+  {
+    layer->SetField(world, Token("purpose"), Value::MakeToken(Token("render")));
+    layer->SetField(cube, Token("visibility"), Value::MakeToken(Token("invisible")));
+    const freeusd::usdGeom::Imageable img_world(world_prim);
+    const freeusd::usdGeom::Imageable img_cube(prim);
+    assert(img_world.ComputePurpose(1.0) == "render");
+    assert(img_cube.ComputePurpose(1.0) == "render");
+    assert(!img_cube.ComputeVisibility(1.0));
+  }
+  {
+    auto flat = freeusd::usdUtils::FlattenStageAtTime(*stage, 1.0);
+    assert(flat);
+    assert(flat->HasPrimKind(world));
+    freeusd::vt::Value vv;
+    assert(flat->GetField(cube, Token("size"), &vv));
+    double d = 0.0;
+    assert(vv.GetDouble(&d));
+    assert(d == 2.0);
+  }
 
   {
     freeusd::gf::Vec3d tw{};

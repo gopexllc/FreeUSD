@@ -202,6 +202,72 @@ bool ReadUsdCrateTocFromPath(const std::string& path, UsdcCrateToc& out, std::si
   return true;
 }
 
+bool ReadUsdCrateSectionBytesFromPath(const std::string& path, std::string_view section_name,
+                                      std::vector<std::uint8_t>& out_bytes, std::size_t max_section_bytes,
+                                      std::string* err_out) {
+  out_bytes.clear();
+  if (path.empty()) {
+    set_detail(err_out, "empty path");
+    return false;
+  }
+  if (section_name.empty()) {
+    set_detail(err_out, "empty USDC section name");
+    return false;
+  }
+  if (section_name.size() > 16u) {
+    set_detail(err_out, "USDC section name exceeds 16-byte TOC entry width");
+    return false;
+  }
+
+  UsdcCrateToc toc{};
+  if (!ReadUsdCrateTocFromPath(path, toc, 65536u, err_out)) {
+    return false;
+  }
+
+  const UsdcCrateTocSection* match = nullptr;
+  for (const auto& sec : toc.sections) {
+    if (sec.name == section_name) {
+      match = &sec;
+      break;
+    }
+  }
+  if (!match) {
+    set_detail(err_out, "USDC TOC section not found");
+    return false;
+  }
+  if (match->size_bytes < 0) {
+    set_detail(err_out, "USDC TOC section size_bytes is negative");
+    return false;
+  }
+  const std::uint64_t want = static_cast<std::uint64_t>(match->size_bytes);
+  if (want > static_cast<std::uint64_t>(max_section_bytes)) {
+    set_detail(err_out, "USDC section size exceeds max_section_bytes");
+    return false;
+  }
+  if (want == 0u) {
+    return true;
+  }
+
+  std::ifstream in(path, std::ios::binary);
+  if (!in) {
+    set_detail(err_out, "could not open file");
+    return false;
+  }
+  in.seekg(match->start_byte_offset, std::ios::beg);
+  if (!in) {
+    set_detail(err_out, "failed to seek to USDC section payload");
+    return false;
+  }
+  out_bytes.resize(static_cast<std::size_t>(want));
+  in.read(reinterpret_cast<char*>(out_bytes.data()), static_cast<std::streamsize>(out_bytes.size()));
+  if (in.gcount() != static_cast<std::streamsize>(out_bytes.size())) {
+    out_bytes.clear();
+    set_detail(err_out, "short read on USDC section payload");
+    return false;
+  }
+  return true;
+}
+
 UsdFileKind DetectUsdFileKindFromPath(const std::string& path, std::string* detail_out) {
   if (path.empty()) {
     set_detail(detail_out, "empty path");

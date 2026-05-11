@@ -16,6 +16,11 @@ int main(void) {
       "(\n"
       ")\n"
       "{\n"
+      "    double weight = 3.0\n"
+      "    def \"Leaf\"\n"
+      "    {\n"
+      "        double radius = 1.5\n"
+      "    }\n"
       "}\n"
       "def Xform \"Dst\"\n"
       "(\n"
@@ -95,6 +100,28 @@ int main(void) {
     freeusd_stage_free(stage);
     freeusd_layer_free(layer);
     return 9;
+  }
+
+  if (freeusd_stage_prim_is_valid(stage, "/Src") != 0 || freeusd_stage_prim_is_valid(stage, "/Dst") != 1 ||
+      freeusd_stage_prim_is_valid(stage, "/Dst/Leaf") != 1) {
+    fprintf(stderr, "relocated prim validity mismatch\n");
+    freeusd_stage_free(stage);
+    freeusd_layer_free(layer);
+    return 10;
+  }
+
+  double v = 0.0;
+  if (freeusd_stage_read_field_double(stage, "/Dst", "weight", 1.0, &v) != FREEUSD_OK || v != 3.0) {
+    fprintf(stderr, "relocated field read failed\n");
+    freeusd_stage_free(stage);
+    freeusd_layer_free(layer);
+    return 11;
+  }
+  if (freeusd_stage_read_field_double(stage, "/Dst/Leaf", "radius", 1.0, &v) != FREEUSD_OK || v != 1.5) {
+    fprintf(stderr, "relocated child field read failed\n");
+    freeusd_stage_free(stage);
+    freeusd_layer_free(layer);
+    return 12;
   }
 
   freeusd_stage_free(stage);

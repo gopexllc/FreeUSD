@@ -206,6 +206,55 @@ int main(void) {
     freeusd_usdc_toc_sections_free(secs);
   }
 
+  {
+    char sec_path[256];
+    snprintf(sec_path, sizeof sec_path, "fusd_c_smoke_sec_%ld.usdc", c_smoke_pid());
+    FILE* wf = fopen(sec_path, "wb");
+    if (!wf) {
+      fprintf(stderr, "fopen section temp failed\n");
+      return 1;
+    }
+    unsigned char buf[160];
+    memset(buf, 0, sizeof buf);
+    memcpy(buf, usdc_id, strlen(usdc_id));
+    buf[8] = 0;
+    buf[9] = 8;
+    buf[10] = 0;
+    buf[16] = 88;
+    buf[88] = 1;
+    memcpy(buf + 96, "TOKENS", 7);
+    buf[96 + 16] = 128;
+    buf[96 + 24] = 5;
+    memcpy(buf + 128, "alpha", 5);
+    if (fwrite(buf, 1, sizeof buf, wf) != sizeof buf) {
+      fprintf(stderr, "write section temp failed\n");
+      fclose(wf);
+      remove(sec_path);
+      return 1;
+    }
+    fclose(wf);
+    uint8_t* bytes = NULL;
+    uint64_t nbytes = 0;
+    if (freeusd_read_usdc_section_bytes_from_path_utf8(sec_path, "TOKENS", 64, &bytes, &nbytes) != FREEUSD_OK) {
+      fprintf(stderr, "read_usdc_section_bytes failed: %s\n", freeusd_last_error_message());
+      remove(sec_path);
+      return 1;
+    }
+    if (!bytes || nbytes != 5 || bytes[0] != 'a' || bytes[4] != 'a') {
+      fprintf(stderr, "unexpected section payload\n");
+      freeusd_bytes_free(bytes);
+      remove(sec_path);
+      return 1;
+    }
+    freeusd_bytes_free(bytes);
+    if (freeusd_read_usdc_section_bytes_from_path_utf8(sec_path, "MISSING", 64, &bytes, &nbytes) != FREEUSD_ERR_NOT_FOUND) {
+      fprintf(stderr, "expected NOT_FOUND for missing section\n");
+      remove(sec_path);
+      return 1;
+    }
+    remove(sec_path);
+  }
+
   FreeusdLayer* layer = freeusd_layer_new_anonymous("c_smoke");
   if (!layer) {
     fprintf(stderr, "layer_new failed: %s\n", freeusd_last_error_message());

@@ -117,6 +117,19 @@ FREEUSD_C_API int freeusd_read_usdc_toc_from_path_utf8(const char* path_utf8, ui
 FREEUSD_C_API void freeusd_usdc_toc_sections_free(FreeusdUsdcTocSection* sections);
 
 /**
+ * Reads one USDC TOC section payload by name. On @ref FREEUSD_OK, @p *out_bytes points to a malloc'd byte buffer of
+ * @p *out_size bytes (or NULL when the section exists but is empty). Free the allocation with @ref freeusd_bytes_free.
+ * Fails with @ref FREEUSD_ERR_NOT_FOUND if the section is absent, @ref FREEUSD_ERR_INVALID_ARGUMENT for null pointers
+ * / empty names, or @ref FREEUSD_ERR_PARSE when the payload exceeds @p max_bytes or cannot be read fully.
+ */
+FREEUSD_C_API int freeusd_read_usdc_section_bytes_from_path_utf8(const char* path_utf8, const char* section_name_utf8,
+                                                                 uint64_t max_bytes, uint8_t** out_bytes,
+                                                                 uint64_t* out_size);
+
+/** Frees byte buffers returned by @ref freeusd_read_usdc_section_bytes_from_path_utf8 (safe on NULL). */
+FREEUSD_C_API void freeusd_bytes_free(void* bytes);
+
+/**
  * Last error message for the calling thread, valid until the next FreeUSD C API
  * call on this thread. Never null (empty string if no error was recorded).
  */

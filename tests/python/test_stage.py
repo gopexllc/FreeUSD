@@ -580,3 +580,84 @@ def test_stage_pseudoroot_fallback_weaker_layer() -> None:
     assert stage.start_time_code() == 2.0
     assert len(stage.prim_order()) == 1
     assert stage.prim_order()[0].text() == "/W"
+
+
+def test_usdc_section_bytes_roundtrip(tmp_path) -> None:
+    import freeusd.usd.crate as crate
+
+    p = tmp_path / "section.usdc"
+    buf = bytearray(160)
+    buf[0 : len(crate.usdc_crate_identifier())] = crate.usdc_crate_identifier().encode("utf-8")
+    buf[8] = 0
+    buf[9] = 8
+    buf[10] = 0
+    buf[16:24] = (88).to_bytes(8, "little", signed=False)
+    buf[88:96] = (1).to_bytes(8, "little", signed=False)
+    buf[96:103] = b"TOKENS\x00"
+    buf[112:120] = (128).to_bytes(8, "little", signed=False)
+    buf[120:128] = (5).to_bytes(8, "little", signed=False)
+    buf[128:133] = b"alpha"
+    p.write_bytes(bytes(buf))
+
+    ok, payload, err = crate.read_usdc_section_bytes_from_path(str(p), "TOKENS", 64)
+    assert ok and err == ""
+    assert payload == b"alpha"
+
+    ok, payload, err = crate.read_usdc_section_bytes_from_path(str(p), "MISSING", 64)
+    assert not ok and payload is None and err
+
+
+def test_stage_relocates_affect_composed_paths() -> None:
+    from freeusd.pcp import LayerStack
+
+    strong = Layer.new_anonymous("reloc_s")
+    weak = Layer.new_anonymous("reloc_w")
+    src = Path.from_string("/Src")
+    dst = Path.from_string("/Dst")
+    strong.set_field(src, Token("weight"), Value.make_double(3.0))
+    strong.set_field(Path.from_string("/Src/Leaf"), Token("radius"), Value.make_double(1.5))
+    strong.set_relocate(src, dst)
+    weak.set_relocate(src, Path.from_string("/WeakDst"))
+
+    stack = LayerStack()
+    stack.append(strong)
+    stack.append(weak)
+    stage = Stage.attach_layer_stack(stack)
+    assert not stage.prim_at(src).is_valid()
+    assert stage.prim_at(dst).is_valid()
+    assert stage.prim_at(Path.from_string("/Dst/Leaf")).is_valid()
+    assert stage.read_field_double(dst, Token("weight"), 1.0) == 3.0
+    assert stage.read_field_double(Path.from_string("/Dst/Leaf"), Token("radius"), 1.0) == 1.5
+
+
+def test_stage_prefix_substitutions_affect_asset_arcs() -> None:
+    layer = Layer.new_anonymous("psub_arc")
+    px = Path.from_string("/Root")
+    layer.set_prefix_substitution("/Models", "/ModelsV2")
+    layer.add_prim_reference(px, PrimReference("/Models/tree.usda"))
+    layer.add_prim_payload(px, PrimReference("/Models/tree_payload.usdc"))
+    stage = Stage.attach_root_layer(layer)
+    assert stage.read_prim_references(px)[0].asset_path == "/ModelsV2/tree.usda"
+    assert stage.read_prim_payloads(px)[0].asset_path == "/ModelsV2/tree_payload.usdc"
+
+
+def test_usd_geom_imageable_and_usdutils_flatten() -> None:
+    from freeusd.usdGeom import Imageable
+    from freeusd.usdUtils import flatten_stage_at_time
+
+    layer = Layer.new_anonymous("img_flat")
+    world = Path.from_string("/World")
+    cube = Path.from_string("/World/Cube")
+    layer.set_field(world, Token("purpose"), Value.make_token(Token("render")))
+    layer.set_field(cube, Token("visibility"), Value.make_token(Token("invisible")))
+    layer.set_field(cube, Token("size"), Value.make_double(2.0))
+    layer.set_default_prim("World")
+    stage = Stage.attach_root_layer(layer)
+
+    img = Imageable(stage.prim_at(cube))
+    assert img.compute_purpose(1.0) == "render"
+    assert img.compute_visibility(1.0) is False
+
+    flat = flatten_stage_at_time(stage, 1.0)
+    assert flat.default_prim() == "World"
+    assert flat.get_field(cube, Token("size")).as_double() == 2.0

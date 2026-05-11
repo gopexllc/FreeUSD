@@ -7,5 +7,6 @@ import importlib
 _utils = importlib.import_module("freeusd._native").usdUtils
 
 FlattenOptions = _utils.FlattenOptions
+flatten_stage_at_time = _utils.flatten_stage_at_time
 
-__all__ = ["FlattenOptions"]
+__all__ = ["FlattenOptions", "flatten_stage_at_time"]

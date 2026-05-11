@@ -1,0 +1,21 @@
+#usda 1.0
+(
+)
+
+def Xform "World"
+{
+    def "VariantHost"
+    (
+        variantSets = {
+            modelVariant = {
+                "Hi" = {},
+                "Lo" = {},
+            }
+        }
+        variantSelection = {
+            string modelVariant = "Hi",
+        }
+    )
+    {
+    }
+}

@@ -57,6 +57,14 @@ extern "C" {
         out_returned: *mut u64,
     ) -> c_int;
     fn freeusd_usdc_toc_sections_free(sections: *mut FreeusdUsdcTocSection);
+    fn freeusd_read_usdc_section_bytes_from_path_utf8(
+        path: *const c_char,
+        section_name: *const c_char,
+        max_bytes: u64,
+        out_bytes: *mut *mut u8,
+        out_size: *mut u64,
+    ) -> c_int;
+    fn freeusd_bytes_free(bytes: *mut std::ffi::c_void);
     fn freeusd_last_error_message() -> *const c_char;
 
     fn freeusd_layer_new_anonymous(identifier: *const c_char) -> *mut FreeusdLayer;
@@ -396,6 +404,32 @@ pub fn read_usdc_toc_from_path(path: &str, max_sections: u64) -> Result<(u64, Ve
         unsafe { freeusd_usdc_toc_sections_free(raw_ptr) };
     }
     Ok((total, out))
+}
+
+/// Reads one raw USDC section payload by name. The returned bytes are copied into Rust-owned memory.
+pub fn read_usdc_section_bytes_from_path(path: &str, section_name: &str, max_bytes: u64) -> Result<Vec<u8>, i32> {
+    let c_path = CString::new(path).map_err(|_| 1i32)?;
+    let c_name = CString::new(section_name).map_err(|_| 1i32)?;
+    let mut raw_ptr: *mut u8 = ptr::null_mut();
+    let mut size: u64 = 0;
+    let rc = unsafe {
+        freeusd_read_usdc_section_bytes_from_path_utf8(
+            c_path.as_ptr(),
+            c_name.as_ptr(),
+            max_bytes,
+            &mut raw_ptr,
+            &mut size,
+        )
+    };
+    if rc != 0 {
+        return Err(rc);
+    }
+    if raw_ptr.is_null() || size == 0 {
+        return Ok(Vec::new());
+    }
+    let out = unsafe { std::slice::from_raw_parts(raw_ptr as *const u8, size as usize) }.to_vec();
+    unsafe { freeusd_bytes_free(raw_ptr.cast()) };
+    Ok(out)
 }
 
 /// Thread-local last error from the C API.
@@ -1301,6 +1335,29 @@ mod tests {
         assert_eq!(secs[1].name, "PATHS");
         assert_eq!(secs[1].start_byte_offset, 120);
         assert_eq!(secs[1].size_bytes, 40);
+    }
+
+    #[test]
+    fn read_usdc_section_bytes_roundtrip() {
+        let dir = std::env::temp_dir();
+        let p = dir.join(format!("freeusd_rust_section_{}.usdc", std::process::id()));
+        let mut buf = vec![0u8; 160];
+        buf[0..8].copy_from_slice(usdc_crate_identifier().as_bytes());
+        buf[8] = 0;
+        buf[9] = 8;
+        buf[10] = 0;
+        buf[16..24].copy_from_slice(&88i64.to_le_bytes());
+        buf[88..96].copy_from_slice(&1u64.to_le_bytes());
+        buf[96..103].copy_from_slice(b"TOKENS\x00");
+        buf[112..120].copy_from_slice(&128i64.to_le_bytes());
+        buf[120..128].copy_from_slice(&5i64.to_le_bytes());
+        buf[128..133].copy_from_slice(b"alpha");
+        std::fs::write(&p, &buf).expect("write section");
+        let payload =
+            read_usdc_section_bytes_from_path(&p.to_string_lossy(), "TOKENS", 64).expect("read section");
+        assert_eq!(payload, b"alpha");
+        assert!(read_usdc_section_bytes_from_path(&p.to_string_lossy(), "MISSING", 64).is_err());
+        let _ = std::fs::remove_file(&p);
     }
 
     #[test]

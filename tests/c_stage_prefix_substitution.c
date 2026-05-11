@@ -14,6 +14,8 @@ int main(void) {
       ")\n"
       "def Xform \"Root\"\n"
       "(\n"
+      "    prepend references = @/Models/tree.usda@\n"
+      "    prepend payload = @/Models/tree_payload.usdc@\n"
       ")\n"
       "{\n"
       "}\n";
@@ -99,6 +101,34 @@ int main(void) {
     freeusd_layer_free(layer);
     return 10;
   }
+
+  char** refs = NULL;
+  size_t nrefs = 0;
+  if (freeusd_stage_list_prim_references(stage, "/Root", &refs, &nrefs) != FREEUSD_OK || nrefs != 1u ||
+      strcmp(refs[0], "@/ModelsV2/tree.usda@") != 0) {
+    fprintf(stderr, "expected prefix-substituted reference\n");
+    if (refs) {
+      freeusd_path_list_free(refs, nrefs);
+    }
+    freeusd_stage_free(stage);
+    freeusd_layer_free(layer);
+    return 11;
+  }
+  freeusd_path_list_free(refs, nrefs);
+
+  char** payloads = NULL;
+  size_t npayloads = 0;
+  if (freeusd_stage_list_prim_payloads(stage, "/Root", &payloads, &npayloads) != FREEUSD_OK || npayloads != 1u ||
+      strcmp(payloads[0], "@/ModelsV2/tree_payload.usdc@") != 0) {
+    fprintf(stderr, "expected prefix-substituted payload\n");
+    if (payloads) {
+      freeusd_path_list_free(payloads, npayloads);
+    }
+    freeusd_stage_free(stage);
+    freeusd_layer_free(layer);
+    return 12;
+  }
+  freeusd_path_list_free(payloads, npayloads);
 
   freeusd_stage_free(stage);
   freeusd_layer_free(layer);

@@ -36,6 +36,7 @@
 #include "freeusd/usd/stage.hpp"
 #include "freeusd/usd/timeCode.hpp"
 #include "freeusd/usdUtils/pipeline.hpp"
+#include "freeusd/usdGeom/imageable.hpp"
 #include "freeusd/usdGeom/tokens.hpp"
 #include "freeusd/usdGeom/xformable.hpp"
 #include "freeusd/usdHydra/tokens.hpp"
@@ -1352,7 +1353,7 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
     {
       auto crate = usd.def_submodule("crate");
       crate.doc() =
-          "Binary crate: path sniffing, bootstrap header read, and TOC section list read (little-endian; no payload/spec decode).";
+          "Binary crate: path sniffing, bootstrap header read, TOC section list read, and raw section payload access (little-endian; no spec-level decode yet).";
       crate.def("usdc_crate_identifier", [] { return std::string(freeusd::usd::crate::UsdcCrateIdentifier()); });
       py::enum_<freeusd::usd::crate::UsdFileKind>(crate, "UsdFileKind")
           .value("io_or_empty", freeusd::usd::crate::UsdFileKind::IoOrEmpty)
@@ -1406,6 +1407,20 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
           },
           py::arg("path"),
           py::arg("max_sections") = static_cast<std::size_t>(65536));
+      crate.def(
+          "read_usdc_section_bytes_from_path",
+          [](const std::string& path, const std::string& section_name, std::size_t max_bytes) {
+            std::vector<std::uint8_t> bytes;
+            std::string err;
+            if (!freeusd::usd::crate::ReadUsdCrateSectionBytesFromPath(path, section_name, bytes, max_bytes, &err)) {
+              return py::make_tuple(false, py::none(), err);
+            }
+            return py::make_tuple(true, py::bytes(reinterpret_cast<const char*>(bytes.data()), bytes.size()),
+                                  std::string{});
+          },
+          py::arg("path"),
+          py::arg("section_name"),
+          py::arg("max_bytes") = static_cast<std::size_t>(16u * 1024u * 1024u));
     }
 
     py::class_<freeusd::usd::EditTarget>(usd, "EditTarget")
@@ -1963,6 +1978,11 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
     auto geom = m.def_submodule("usdGeom");
     auto geom_tokens = geom.def_submodule("tokens");
 #include "generated/usdGeom_tokens.inc"
+    py::class_<freeusd::usdGeom::Imageable>(geom, "Imageable")
+        .def(py::init<const freeusd::usd::Prim&>(), py::arg("prim"))
+        .def_readonly("prim", &freeusd::usdGeom::Imageable::prim)
+        .def("compute_visibility", &freeusd::usdGeom::Imageable::ComputeVisibility, py::arg("time") = 1.0)
+        .def("compute_purpose", &freeusd::usdGeom::Imageable::ComputePurpose, py::arg("time") = 1.0);
     py::class_<freeusd::usdGeom::Xformable>(geom, "Xformable")
         .def(py::init<const freeusd::usd::Prim&>(), py::arg("prim"))
         .def_readonly("prim", &freeusd::usdGeom::Xformable::prim)
@@ -2057,7 +2077,7 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
 
   {
     auto usdUtils = m.def_submodule("usdUtils");
-    usdUtils.doc() = "UsdUtils-shaped utilities (clean-room; extend with flatten/cache helpers as they land).";
+    usdUtils.doc() = "UsdUtils-shaped utilities (clean-room; narrow stage flattening helper plus option flags).";
     py::class_<freeusd::usdUtils::FlattenOptions>(usdUtils, "FlattenOptions")
         .def(py::init<>())
         .def_readwrite("merge_authored_layer_metadata",
@@ -2066,6 +2086,12 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
                        &freeusd::usdUtils::FlattenOptions::flatten_contribution_sublayers)
         .def_readwrite("preserve_relative_asset_paths",
                        &freeusd::usdUtils::FlattenOptions::preserve_relative_asset_paths);
+    usdUtils.def(
+        "flatten_stage_at_time",
+        &freeusd::usdUtils::FlattenStageAtTime,
+        py::arg("stage"),
+        py::arg("time") = 1.0,
+        py::arg("options") = freeusd::usdUtils::FlattenOptions{});
   }
 
   {

@@ -48,6 +48,12 @@ struct UsdcCrateToc {
 FREEUSD_API bool ReadUsdCrateTocFromPath(const std::string& path, UsdcCrateToc& out, std::size_t max_sections,
                                         std::string* err_out = nullptr);
 
+/// Reads one TOC section payload by name into \p out_bytes. The payload is returned verbatim; no section-specific
+/// decode is performed yet. Fails if the section is missing, exceeds \p max_section_bytes, or cannot be read fully.
+FREEUSD_API bool ReadUsdCrateSectionBytesFromPath(const std::string& path, std::string_view section_name,
+                                                  std::vector<std::uint8_t>& out_bytes, std::size_t max_section_bytes,
+                                                  std::string* err_out = nullptr);
+
 enum class UsdFileKind {
   /// Could not read path or empty file.
   IoOrEmpty = 0,

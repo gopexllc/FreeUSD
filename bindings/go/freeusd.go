@@ -133,6 +133,26 @@ func ReadUsdcTocFromPath(path string, maxSections uint64) (sections []UsdcTocSec
 	return out, total, 0
 }
 
+// ReadUsdcSectionBytesFromPath reads one raw USDC section payload by name. On success rc is 0.
+// The returned bytes are copied into Go memory before the C allocation is freed.
+func ReadUsdcSectionBytesFromPath(path, sectionName string, maxBytes uint64) (payload []byte, rc int) {
+	cs := C.CString(path)
+	defer C.free(unsafe.Pointer(cs))
+	cname := C.CString(sectionName)
+	defer C.free(unsafe.Pointer(cname))
+	var raw *C.uint8_t
+	var n C.uint64_t
+	rc = int(C.freeusd_read_usdc_section_bytes_from_path_utf8(cs, cname, C.uint64_t(maxBytes), &raw, &n))
+	if rc != 0 {
+		return nil, rc
+	}
+	if raw == nil || n == 0 {
+		return []byte{}, 0
+	}
+	defer C.freeusd_bytes_free(unsafe.Pointer(raw))
+	return C.GoBytes(unsafe.Pointer(raw), C.int(n)), 0
+}
+
 // LastErrorMessage returns the thread-local C API error string (valid until the next C call on this thread).
 func LastErrorMessage() string {
 	return C.GoString(C.freeusd_last_error_message())

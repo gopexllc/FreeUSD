@@ -23,6 +23,136 @@ namespace {
 
 constexpr int kAttrConnectionHopLimit = 64;
 
+std::vector<std::pair<freeusd::sdf::Path, freeusd::sdf::Path>> list_composed_relocates(
+    const std::vector<std::shared_ptr<freeusd::sdf::Layer>>& compose) {
+  std::unordered_set<std::string> seen_from;
+  std::vector<std::pair<freeusd::sdf::Path, freeusd::sdf::Path>> acc;
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose) {
+    if (!L) {
+      continue;
+    }
+    for (const auto& pr : L->ListRelocates()) {
+      const std::string& fs = pr.first.GetString();
+      if (seen_from.insert(fs).second) {
+        acc.emplace_back(pr.first, pr.second);
+      }
+    }
+  }
+  std::sort(acc.begin(), acc.end(), [](const std::pair<freeusd::sdf::Path, freeusd::sdf::Path>& a,
+                                       const std::pair<freeusd::sdf::Path, freeusd::sdf::Path>& b) {
+    return a.first.GetString() < b.first.GetString();
+  });
+  return acc;
+}
+
+std::vector<std::pair<std::string, std::string>> list_composed_prefix_substitutions(
+    const std::vector<std::shared_ptr<freeusd::sdf::Layer>>& compose) {
+  std::unordered_set<std::string> seen_from;
+  std::vector<std::pair<std::string, std::string>> acc;
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose) {
+    if (!L) {
+      continue;
+    }
+    for (const auto& pr : L->ListPrefixSubstitutions()) {
+      if (seen_from.insert(pr.first).second) {
+        acc.emplace_back(pr.first, pr.second);
+      }
+    }
+  }
+  std::sort(acc.begin(), acc.end(), [](const std::pair<std::string, std::string>& a,
+                                       const std::pair<std::string, std::string>& b) { return a.first < b.first; });
+  return acc;
+}
+
+bool replace_path_prefix(const freeusd::sdf::Path& input, const freeusd::sdf::Path& from, const freeusd::sdf::Path& to,
+                         freeusd::sdf::Path* out) {
+  if (!out || !from.IsPrimPath() || !to.IsPrimPath()) {
+    return false;
+  }
+  const freeusd::sdf::Path prim_path = input.IsPropertyPath() ? input.GetPrimPath() : input;
+  if (!prim_path.IsPrimPath() || !prim_path.HasPrefix(from)) {
+    return false;
+  }
+  const std::string suffix = prim_path.GetString().substr(from.GetString().size());
+  const freeusd::sdf::Path mapped_prim = freeusd::sdf::Path::FromString(to.GetString() + suffix);
+  if (!mapped_prim.IsPrimPath()) {
+    return false;
+  }
+  if (input.IsPropertyPath()) {
+    *out = freeusd::sdf::Path::FromString(mapped_prim.GetString() + "." + input.GetName());
+    return out->IsPropertyPath();
+  }
+  *out = mapped_prim;
+  return true;
+}
+
+freeusd::sdf::Path relocate_path_best_match(const std::vector<std::pair<freeusd::sdf::Path, freeusd::sdf::Path>>& pairs,
+                                            const freeusd::sdf::Path& input, bool reverse) {
+  freeusd::sdf::Path best = input;
+  std::size_t best_len = 0;
+  for (const auto& pr : pairs) {
+    const freeusd::sdf::Path& from = reverse ? pr.second : pr.first;
+    const freeusd::sdf::Path& to = reverse ? pr.first : pr.second;
+    freeusd::sdf::Path candidate;
+    if (!replace_path_prefix(input, from, to, &candidate)) {
+      continue;
+    }
+    const std::size_t cur_len = from.GetString().size();
+    if (cur_len >= best_len) {
+      best = candidate;
+      best_len = cur_len;
+    }
+  }
+  return best;
+}
+
+freeusd::sdf::Path map_authored_to_composed_path(const std::vector<std::shared_ptr<freeusd::sdf::Layer>>& compose,
+                                                 const freeusd::sdf::Path& authored) {
+  return relocate_path_best_match(list_composed_relocates(compose), authored, false);
+}
+
+freeusd::sdf::Path map_composed_to_authored_path(const std::vector<std::shared_ptr<freeusd::sdf::Layer>>& compose,
+                                                 const freeusd::sdf::Path& composed) {
+  return relocate_path_best_match(list_composed_relocates(compose), composed, true);
+}
+
+std::string apply_composed_prefix_substitutions(const std::vector<std::shared_ptr<freeusd::sdf::Layer>>& compose,
+                                                std::string asset_path) {
+  std::size_t best_len = 0;
+  std::string best_to;
+  for (const auto& pr : list_composed_prefix_substitutions(compose)) {
+    if (pr.first.empty() || asset_path.rfind(pr.first, 0) != 0) {
+      continue;
+    }
+    if (pr.first.size() >= best_len) {
+      best_len = pr.first.size();
+      best_to = pr.second;
+    }
+  }
+  if (best_len == 0) {
+    return asset_path;
+  }
+  return best_to + asset_path.substr(best_len);
+}
+
+std::vector<freeusd::sdf::Path> map_authored_targets_to_composed(
+    const std::vector<std::shared_ptr<freeusd::sdf::Layer>>& compose, std::vector<freeusd::sdf::Path> paths) {
+  for (auto& p : paths) {
+    p = map_authored_to_composed_path(compose, p);
+  }
+  return paths;
+}
+
+std::vector<freeusd::sdf::PrimReference> apply_composed_prefix_substitutions_to_refs(
+    const std::vector<std::shared_ptr<freeusd::sdf::Layer>>& compose, std::vector<freeusd::sdf::PrimReference> refs) {
+  for (auto& ref : refs) {
+    if (!ref.asset_path.empty()) {
+      ref.asset_path = apply_composed_prefix_substitutions(compose, std::move(ref.asset_path));
+    }
+  }
+  return refs;
+}
+
 bool ResolveAttributeConnectionStrongestFirst(const std::vector<std::shared_ptr<freeusd::sdf::Layer>>& strongest_first,
                                               const freeusd::sdf::Path& prim_path, const freeusd::tf::Token& name,
                                               freeusd::sdf::Path* target_prop_path) {
@@ -147,7 +277,10 @@ bool Stage::ReadFieldAtEvaluatedTime(const freeusd::sdf::Path& prim_path, const 
   if (!out || name.IsEmpty()) {
     return false;
   }
-  freeusd::sdf::Path cur_prim = prim_path;
+  freeusd::sdf::Path cur_prim = map_composed_to_authored_path(compose_, prim_path);
+  if (map_authored_to_composed_path(compose_, cur_prim) != prim_path) {
+    return false;
+  }
   freeusd::tf::Token cur_name = name;
   std::unordered_set<std::string> seen;
   for (int hops = 0; hops <= kAttrConnectionHopLimit; ++hops) {
@@ -172,11 +305,15 @@ bool Stage::ReadFieldAtEvaluatedTime(const freeusd::sdf::Path& prim_path, const 
 }
 
 bool Stage::HasFieldOpinion(const freeusd::sdf::Path& prim_path, const freeusd::tf::Token& name) const {
-  if (freeusd::pcp::HasFieldOpinionOnAnyLayer(compose_, prim_path, name)) {
+  const freeusd::sdf::Path authored = map_composed_to_authored_path(compose_, prim_path);
+  if (map_authored_to_composed_path(compose_, authored) != prim_path) {
+    return false;
+  }
+  if (freeusd::pcp::HasFieldOpinionOnAnyLayer(compose_, authored, name)) {
     return true;
   }
   for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
-    if (L && L->HasAttributeConnection(prim_path, name)) {
+    if (L && L->HasAttributeConnection(authored, name)) {
       return true;
     }
   }
@@ -187,8 +324,12 @@ bool Stage::HasAttributeConnection(const freeusd::sdf::Path& prim_path, const fr
   if (attr_name.IsEmpty()) {
     return false;
   }
+  const freeusd::sdf::Path authored = map_composed_to_authored_path(compose_, prim_path);
+  if (map_authored_to_composed_path(compose_, authored) != prim_path) {
+    return false;
+  }
   for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
-    if (L && L->HasAttributeConnection(prim_path, attr_name)) {
+    if (L && L->HasAttributeConnection(authored, attr_name)) {
       return true;
     }
   }
@@ -201,11 +342,24 @@ bool Stage::GetComposedAttributeConnectionTarget(const freeusd::sdf::Path& prim_
   if (!out_target || attr_name.IsEmpty()) {
     return false;
   }
-  return ResolveAttributeConnectionStrongestFirst(compose_, prim_path, attr_name, out_target);
+  const freeusd::sdf::Path authored = map_composed_to_authored_path(compose_, prim_path);
+  if (map_authored_to_composed_path(compose_, authored) != prim_path) {
+    return false;
+  }
+  freeusd::sdf::Path target;
+  if (!ResolveAttributeConnectionStrongestFirst(compose_, authored, attr_name, &target)) {
+    return false;
+  }
+  *out_target = map_authored_to_composed_path(compose_, target);
+  return true;
 }
 
 bool Stage::PrimPathInUse(const freeusd::sdf::Path& path) const {
   if (!path.IsPrimPath()) {
+    return false;
+  }
+  const freeusd::sdf::Path authored = map_composed_to_authored_path(compose_, path);
+  if (map_authored_to_composed_path(compose_, authored) != path) {
     return false;
   }
   for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
@@ -213,7 +367,7 @@ bool Stage::PrimPathInUse(const freeusd::sdf::Path& path) const {
       continue;
     }
     for (const auto& q : L->ListPrimPaths()) {
-      if (q == path) {
+      if (q == authored) {
         return true;
       }
     }
@@ -227,12 +381,16 @@ bool Stage::ReadRelationship(const freeusd::sdf::Path& prim_path, const freeusd:
     return false;
   }
   out_targets->clear();
+  const freeusd::sdf::Path authored = map_composed_to_authored_path(compose_, prim_path);
+  if (map_authored_to_composed_path(compose_, authored) != prim_path) {
+    return false;
+  }
   bool any = false;
   for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
-    if (!L || !L->HasRelationship(prim_path, rel_name)) {
+    if (!L || !L->HasRelationship(authored, rel_name)) {
       continue;
     }
-    const std::vector<freeusd::sdf::Path> part = L->GetRelationshipTargets(prim_path, rel_name);
+    const std::vector<freeusd::sdf::Path> part = map_authored_targets_to_composed(compose_, L->GetRelationshipTargets(authored, rel_name));
     out_targets->insert(out_targets->end(), part.begin(), part.end());
     any = true;
   }
@@ -243,8 +401,12 @@ bool Stage::HasRelationship(const freeusd::sdf::Path& prim_path, const freeusd::
   if (rel_name.IsEmpty()) {
     return false;
   }
+  const freeusd::sdf::Path authored = map_composed_to_authored_path(compose_, prim_path);
+  if (map_authored_to_composed_path(compose_, authored) != prim_path) {
+    return false;
+  }
   for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
-    if (L && L->HasRelationship(prim_path, rel_name)) {
+    if (L && L->HasRelationship(authored, rel_name)) {
       return true;
     }
   }
@@ -253,11 +415,16 @@ bool Stage::HasRelationship(const freeusd::sdf::Path& prim_path, const freeusd::
 
 std::vector<freeusd::sdf::PrimReference> Stage::ReadPrimReferences(const freeusd::sdf::Path& prim_path) const {
   std::vector<freeusd::sdf::PrimReference> out;
+  const freeusd::sdf::Path authored = map_composed_to_authored_path(compose_, prim_path);
+  if (map_authored_to_composed_path(compose_, authored) != prim_path) {
+    return out;
+  }
   for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
     if (!L) {
       continue;
     }
-    const std::vector<freeusd::sdf::PrimReference> part = L->ListPrimReferences(prim_path);
+    const std::vector<freeusd::sdf::PrimReference> part =
+        apply_composed_prefix_substitutions_to_refs(compose_, L->ListPrimReferences(authored));
     out.insert(out.end(), part.begin(), part.end());
   }
   return out;
@@ -269,11 +436,15 @@ bool Stage::HasPrimReferences(const freeusd::sdf::Path& prim_path) const {
 
 std::vector<freeusd::sdf::Path> Stage::ReadPrimInherits(const freeusd::sdf::Path& prim_path) const {
   std::vector<freeusd::sdf::Path> out;
+  const freeusd::sdf::Path authored = map_composed_to_authored_path(compose_, prim_path);
+  if (map_authored_to_composed_path(compose_, authored) != prim_path) {
+    return out;
+  }
   for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
     if (!L) {
       continue;
     }
-    const std::vector<freeusd::sdf::Path> part = L->ListPrimInherits(prim_path);
+    const std::vector<freeusd::sdf::Path> part = map_authored_targets_to_composed(compose_, L->ListPrimInherits(authored));
     out.insert(out.end(), part.begin(), part.end());
   }
   return out;
@@ -285,11 +456,16 @@ bool Stage::HasPrimInherits(const freeusd::sdf::Path& prim_path) const {
 
 std::vector<freeusd::sdf::Path> Stage::ReadPrimSpecializes(const freeusd::sdf::Path& prim_path) const {
   std::vector<freeusd::sdf::Path> out;
+  const freeusd::sdf::Path authored = map_composed_to_authored_path(compose_, prim_path);
+  if (map_authored_to_composed_path(compose_, authored) != prim_path) {
+    return out;
+  }
   for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
     if (!L) {
       continue;
     }
-    const std::vector<freeusd::sdf::Path> part = L->ListPrimSpecializes(prim_path);
+    const std::vector<freeusd::sdf::Path> part =
+        map_authored_targets_to_composed(compose_, L->ListPrimSpecializes(authored));
     out.insert(out.end(), part.begin(), part.end());
   }
   return out;
@@ -301,11 +477,16 @@ bool Stage::HasPrimSpecializes(const freeusd::sdf::Path& prim_path) const {
 
 std::vector<freeusd::sdf::PrimReference> Stage::ReadPrimPayloads(const freeusd::sdf::Path& prim_path) const {
   std::vector<freeusd::sdf::PrimReference> out;
+  const freeusd::sdf::Path authored = map_composed_to_authored_path(compose_, prim_path);
+  if (map_authored_to_composed_path(compose_, authored) != prim_path) {
+    return out;
+  }
   for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
     if (!L) {
       continue;
     }
-    const std::vector<freeusd::sdf::PrimReference> part = L->ListPrimPayloads(prim_path);
+    const std::vector<freeusd::sdf::PrimReference> part =
+        apply_composed_prefix_substitutions_to_refs(compose_, L->ListPrimPayloads(authored));
     out.insert(out.end(), part.begin(), part.end());
   }
   return out;
@@ -316,17 +497,25 @@ bool Stage::HasPrimPayloads(const freeusd::sdf::Path& prim_path) const {
 }
 
 freeusd::tf::Token Stage::ResolvePrimKind(const freeusd::sdf::Path& prim_path) const {
+  const freeusd::sdf::Path authored = map_composed_to_authored_path(compose_, prim_path);
+  if (map_authored_to_composed_path(compose_, authored) != prim_path) {
+    return {};
+  }
   for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
-    if (L && L->HasPrimKind(prim_path)) {
-      return L->GetPrimKind(prim_path);
+    if (L && L->HasPrimKind(authored)) {
+      return L->GetPrimKind(authored);
     }
   }
   return {};
 }
 
 bool Stage::ResolveHasPrimKind(const freeusd::sdf::Path& prim_path) const {
+  const freeusd::sdf::Path authored = map_composed_to_authored_path(compose_, prim_path);
+  if (map_authored_to_composed_path(compose_, authored) != prim_path) {
+    return false;
+  }
   for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
-    if (L && L->HasPrimKind(prim_path)) {
+    if (L && L->HasPrimKind(authored)) {
       return true;
     }
   }
@@ -334,26 +523,38 @@ bool Stage::ResolveHasPrimKind(const freeusd::sdf::Path& prim_path) const {
 }
 
 freeusd::sdf::Layer::PrimSpecifierKind Stage::ResolvePrimSpecifierKind(const freeusd::sdf::Path& prim_path) const {
+  const freeusd::sdf::Path authored = map_composed_to_authored_path(compose_, prim_path);
+  if (map_authored_to_composed_path(compose_, authored) != prim_path) {
+    return freeusd::sdf::Layer::PrimSpecifierKind::Default;
+  }
   for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
-    if (L && L->HasPrimSpecifierOpinion(prim_path)) {
-      return L->GetPrimSpecifier(prim_path);
+    if (L && L->HasPrimSpecifierOpinion(authored)) {
+      return L->GetPrimSpecifier(authored);
     }
   }
   return freeusd::sdf::Layer::PrimSpecifierKind::Default;
 }
 
 bool Stage::ResolvePrimActive(const freeusd::sdf::Path& prim_path) const {
+  const freeusd::sdf::Path authored = map_composed_to_authored_path(compose_, prim_path);
+  if (map_authored_to_composed_path(compose_, authored) != prim_path) {
+    return true;
+  }
   for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
-    if (L && L->HasPrimActiveOpinion(prim_path)) {
-      return L->IsPrimActive(prim_path);
+    if (L && L->HasPrimActiveOpinion(authored)) {
+      return L->IsPrimActive(authored);
     }
   }
   return true;
 }
 
 bool Stage::ResolveHasPrimActiveOpinion(const freeusd::sdf::Path& prim_path) const {
+  const freeusd::sdf::Path authored = map_composed_to_authored_path(compose_, prim_path);
+  if (map_authored_to_composed_path(compose_, authored) != prim_path) {
+    return false;
+  }
   for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
-    if (L && L->HasPrimActiveOpinion(prim_path)) {
+    if (L && L->HasPrimActiveOpinion(authored)) {
       return true;
     }
   }
@@ -365,9 +566,13 @@ bool Stage::GetComposedPrimCustomData(const freeusd::sdf::Path& prim_path, const
   if (!out || key.empty()) {
     return false;
   }
+  const freeusd::sdf::Path authored = map_composed_to_authored_path(compose_, prim_path);
+  if (map_authored_to_composed_path(compose_, authored) != prim_path) {
+    return false;
+  }
   for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
-    if (L && L->HasPrimCustomDataKey(prim_path, key)) {
-      return L->GetPrimCustomDataEntry(prim_path, key, out);
+    if (L && L->HasPrimCustomDataKey(authored, key)) {
+      return L->GetPrimCustomDataEntry(authored, key, out);
     }
   }
   return false;
@@ -377,8 +582,12 @@ bool Stage::PrimCustomDataKeyInAnyLayer(const freeusd::sdf::Path& prim_path, con
   if (key.empty()) {
     return false;
   }
+  const freeusd::sdf::Path authored = map_composed_to_authored_path(compose_, prim_path);
+  if (map_authored_to_composed_path(compose_, authored) != prim_path) {
+    return false;
+  }
   for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
-    if (L && L->HasPrimCustomDataKey(prim_path, key)) {
+    if (L && L->HasPrimCustomDataKey(authored, key)) {
       return true;
     }
   }
@@ -387,11 +596,15 @@ bool Stage::PrimCustomDataKeyInAnyLayer(const freeusd::sdf::Path& prim_path, con
 
 std::vector<std::string> Stage::ListComposedPrimCustomDataKeys(const freeusd::sdf::Path& prim_path) const {
   std::set<std::string> keys;
+  const freeusd::sdf::Path authored = map_composed_to_authored_path(compose_, prim_path);
+  if (map_authored_to_composed_path(compose_, authored) != prim_path) {
+    return {};
+  }
   for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
     if (!L) {
       continue;
     }
-    for (const std::string& k : L->ListPrimCustomDataKeys(prim_path)) {
+    for (const std::string& k : L->ListPrimCustomDataKeys(authored)) {
       keys.insert(k);
     }
   }
@@ -440,9 +653,13 @@ bool Stage::GetComposedPrimVariantSelection(const freeusd::sdf::Path& prim_path,
   if (!outName || variantSet.empty()) {
     return false;
   }
+  const freeusd::sdf::Path authored = map_composed_to_authored_path(compose_, prim_path);
+  if (map_authored_to_composed_path(compose_, authored) != prim_path) {
+    return false;
+  }
   for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
-    if (L && L->HasPrimVariantSelectionKey(prim_path, variantSet)) {
-      return L->GetPrimVariantSelectionEntry(prim_path, variantSet, outName);
+    if (L && L->HasPrimVariantSelectionKey(authored, variantSet)) {
+      return L->GetPrimVariantSelectionEntry(authored, variantSet, outName);
     }
   }
   return false;
@@ -453,8 +670,12 @@ bool Stage::PrimVariantSelectionSetInAnyLayer(const freeusd::sdf::Path& prim_pat
   if (variantSet.empty()) {
     return false;
   }
+  const freeusd::sdf::Path authored = map_composed_to_authored_path(compose_, prim_path);
+  if (map_authored_to_composed_path(compose_, authored) != prim_path) {
+    return false;
+  }
   for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
-    if (L && L->HasPrimVariantSelectionKey(prim_path, variantSet)) {
+    if (L && L->HasPrimVariantSelectionKey(authored, variantSet)) {
       return true;
     }
   }
@@ -463,11 +684,15 @@ bool Stage::PrimVariantSelectionSetInAnyLayer(const freeusd::sdf::Path& prim_pat
 
 std::vector<std::string> Stage::ListComposedPrimVariantSelectionSets(const freeusd::sdf::Path& prim_path) const {
   std::set<std::string> keys;
+  const freeusd::sdf::Path authored = map_composed_to_authored_path(compose_, prim_path);
+  if (map_authored_to_composed_path(compose_, authored) != prim_path) {
+    return {};
+  }
   for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
     if (!L) {
       continue;
     }
-    for (const std::string& k : L->ListPrimVariantSelectionSets(prim_path)) {
+    for (const std::string& k : L->ListPrimVariantSelectionSets(authored)) {
       keys.insert(k);
     }
   }
@@ -476,11 +701,15 @@ std::vector<std::string> Stage::ListComposedPrimVariantSelectionSets(const freeu
 
 std::vector<std::string> Stage::ListComposedPrimVariantSetNames(const freeusd::sdf::Path& prim_path) const {
   std::set<std::string> names;
+  const freeusd::sdf::Path authored = map_composed_to_authored_path(compose_, prim_path);
+  if (map_authored_to_composed_path(compose_, authored) != prim_path) {
+    return {};
+  }
   for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
     if (!L) {
       continue;
     }
-    for (const std::string& n : L->ListPrimVariantSetNames(prim_path)) {
+    for (const std::string& n : L->ListPrimVariantSetNames(authored)) {
       names.insert(n);
     }
   }
@@ -492,8 +721,12 @@ bool Stage::PrimVariantSetDeclaredInAnyLayer(const freeusd::sdf::Path& prim_path
   if (variantSetName.empty()) {
     return false;
   }
+  const freeusd::sdf::Path authored = map_composed_to_authored_path(compose_, prim_path);
+  if (map_authored_to_composed_path(compose_, authored) != prim_path) {
+    return false;
+  }
   for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
-    if (L && L->HasPrimVariantSet(prim_path, variantSetName)) {
+    if (L && L->HasPrimVariantSet(authored, variantSetName)) {
       return true;
     }
   }
@@ -505,9 +738,13 @@ std::vector<std::string> Stage::GetComposedPrimVariantNames(const freeusd::sdf::
   if (variantSetName.empty()) {
     return {};
   }
+  const freeusd::sdf::Path authored = map_composed_to_authored_path(compose_, prim_path);
+  if (map_authored_to_composed_path(compose_, authored) != prim_path) {
+    return {};
+  }
   for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
-    if (L && L->HasPrimVariantSet(prim_path, variantSetName)) {
-      return L->ListPrimVariantNames(prim_path, variantSetName);
+    if (L && L->HasPrimVariantSet(authored, variantSetName)) {
+      return L->ListPrimVariantNames(authored, variantSetName);
     }
   }
   return {};
@@ -515,11 +752,15 @@ std::vector<std::string> Stage::GetComposedPrimVariantNames(const freeusd::sdf::
 
 std::vector<std::string> Stage::ListComposedFieldNames(const freeusd::sdf::Path& prim_path) const {
   std::set<std::string> keys;
+  const freeusd::sdf::Path authored = map_composed_to_authored_path(compose_, prim_path);
+  if (map_authored_to_composed_path(compose_, authored) != prim_path) {
+    return {};
+  }
   for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
     if (!L) {
       continue;
     }
-    for (const std::string& k : L->ListFieldNames(prim_path)) {
+    for (const std::string& k : L->ListFieldNames(authored)) {
       keys.insert(k);
     }
   }
@@ -529,12 +770,16 @@ std::vector<std::string> Stage::ListComposedFieldNames(const freeusd::sdf::Path&
 std::vector<double> Stage::ListComposedFieldSampleTimes(const freeusd::sdf::Path& prim_path,
                                                          const freeusd::tf::Token& name) const {
   std::set<double> times;
+  const freeusd::sdf::Path authored = map_composed_to_authored_path(compose_, prim_path);
+  if (map_authored_to_composed_path(compose_, authored) != prim_path) {
+    return {};
+  }
   if (!name.IsEmpty()) {
     for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
       if (!L) {
         continue;
       }
-      for (const double t : L->ListSampleTimes(prim_path, name)) {
+      for (const double t : L->ListSampleTimes(authored, name)) {
         times.insert(t);
       }
     }
@@ -544,11 +789,15 @@ std::vector<double> Stage::ListComposedFieldSampleTimes(const freeusd::sdf::Path
 
 std::vector<std::string> Stage::ListComposedRelationshipNames(const freeusd::sdf::Path& prim_path) const {
   std::set<std::string> keys;
+  const freeusd::sdf::Path authored = map_composed_to_authored_path(compose_, prim_path);
+  if (map_authored_to_composed_path(compose_, authored) != prim_path) {
+    return {};
+  }
   for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
     if (!L) {
       continue;
     }
-    for (const std::string& k : L->ListRelationshipNames(prim_path)) {
+    for (const std::string& k : L->ListRelationshipNames(authored)) {
       keys.insert(k);
     }
   }
@@ -562,7 +811,7 @@ std::vector<freeusd::sdf::Path> Stage::ListComposedPrimPaths() const {
       continue;
     }
     for (const freeusd::sdf::Path& p : L->ListPrimPaths()) {
-      sorted.insert(p.GetString());
+      sorted.insert(map_authored_to_composed_path(compose_, p).GetString());
     }
   }
   std::vector<freeusd::sdf::Path> out;
@@ -598,24 +847,7 @@ bool Stage::RelocateSourceInAnyLayer(const freeusd::sdf::Path& fromPrimPath) con
 }
 
 std::vector<std::pair<freeusd::sdf::Path, freeusd::sdf::Path>> Stage::ListComposedRelocates() const {
-  std::unordered_set<std::string> seen_from;
-  std::vector<std::pair<freeusd::sdf::Path, freeusd::sdf::Path>> acc;
-  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
-    if (!L) {
-      continue;
-    }
-    for (const auto& pr : L->ListRelocates()) {
-      const std::string& fs = pr.first.GetString();
-      if (seen_from.insert(fs).second) {
-        acc.emplace_back(pr.first, pr.second);
-      }
-    }
-  }
-  std::sort(acc.begin(), acc.end(), [](const std::pair<freeusd::sdf::Path, freeusd::sdf::Path>& a,
-                                        const std::pair<freeusd::sdf::Path, freeusd::sdf::Path>& b) {
-    return a.first.GetString() < b.first.GetString();
-  });
-  return acc;
+  return list_composed_relocates(compose_);
 }
 
 bool Stage::GetComposedPrefixSubstitution(const std::string& fromPrefix, std::string* outToPrefix) const {
@@ -643,23 +875,7 @@ bool Stage::PrefixSubstitutionKeyInAnyLayer(const std::string& fromPrefix) const
 }
 
 std::vector<std::pair<std::string, std::string>> Stage::ListComposedPrefixSubstitutions() const {
-  std::unordered_set<std::string> seen_from;
-  std::vector<std::pair<std::string, std::string>> acc;
-  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
-    if (!L) {
-      continue;
-    }
-    for (const auto& pr : L->ListPrefixSubstitutions()) {
-      if (seen_from.insert(pr.first).second) {
-        acc.emplace_back(pr.first, pr.second);
-      }
-    }
-  }
-  std::sort(acc.begin(), acc.end(), [](const std::pair<std::string, std::string>& a,
-                                        const std::pair<std::string, std::string>& b) {
-    return a.first < b.first;
-  });
-  return acc;
+  return list_composed_prefix_substitutions(compose_);
 }
 
 bool Stage::HasDefaultPrim() const {
@@ -689,7 +905,7 @@ Prim Stage::GetDefaultPrim() const {
   }
   const freeusd::sdf::Path p =
       freeusd::sdf::Path::AbsoluteRootPath().AppendChild(freeusd::tf::Token(n));
-  return GetPrimAtPath(p);
+  return GetPrimAtPath(map_authored_to_composed_path(compose_, p));
 }
 
 std::optional<double> Stage::GetStartTimeCode() const {
@@ -833,17 +1049,12 @@ std::vector<Prim> Stage::GetChildren(const freeusd::sdf::Path& primPath) const {
     return out;
   }
   std::unordered_map<std::string, freeusd::sdf::Path> unique;
-  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
-    if (!L) {
+  for (const auto& p : ListComposedPrimPaths()) {
+    if (!p.IsPrimPath()) {
       continue;
     }
-    for (const auto& p : L->ListPrimPaths()) {
-      if (!p.IsPrimPath()) {
-        continue;
-      }
-      if (p.GetParentPath() == primPath) {
-        unique[p.GetString()] = p;
-      }
+    if (p.GetParentPath() == primPath) {
+      unique[p.GetString()] = p;
     }
   }
   out.reserve(unique.size());

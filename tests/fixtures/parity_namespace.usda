@@ -1,0 +1,21 @@
+#usda 1.0
+(
+    relocates = {
+        </Library/Source>: </Library/Published>,
+    }
+    prefixSubstitutions = {
+        "/Assets": "/ResolvedAssets",
+    }
+)
+
+def Xform "Library"
+{
+    def "Source"
+    (
+        prepend references = @/Assets/tree.usda@
+        prepend payload = @/Assets/tree_payload.usdc@
+    )
+    {
+        double radius = 2.0
+    }
+}
