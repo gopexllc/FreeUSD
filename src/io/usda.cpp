@@ -1071,7 +1071,8 @@ std::string flatten_newlines_inside_square_brackets(std::string_view in) {
   return out;
 }
 
-/// Turn newlines inside `{`…`}` into spaces so multi-line \c customData blocks can use comma separators.
+/// Turn newlines inside outer `{`…`}` blocks into spaces so line-based metadata parsing keeps each top-level
+/// assignment contiguous without destroying nested block bodies such as variant payloads.
 std::string flatten_newlines_inside_curly_braces(std::string_view in) {
   std::string out;
   out.reserve(in.size());
@@ -1101,7 +1102,7 @@ std::string flatten_newlines_inside_curly_braces(std::string_view in) {
         out.push_back(c);
         continue;
       }
-      if (c == '\n' && brace_depth > 0) {
+      if (c == '\n' && brace_depth == 1) {
         out.push_back(' ');
         continue;
       }
@@ -1183,6 +1184,53 @@ void split_custom_data_dictionary_entries(std::string_view inner, std::vector<st
         !at_end && !dq && !sq && depth_paren == 0 && depth_bracket == 0 && depth_brace == 0 && (c == ',' || c == ';');
     if (sep || at_end) {
       const std::string_view piece = trim(inner.substr(start, i - start));
+      if (!piece.empty()) {
+        parts->push_back(piece);
+      }
+      start = i + 1;
+    }
+  }
+}
+
+void split_metadata_blob_entries(std::string_view blob, std::vector<std::string_view>* parts) {
+  parts->clear();
+  int depth_paren = 0;
+  int depth_bracket = 0;
+  int depth_brace = 0;
+  bool dq = false;
+  bool sq = false;
+  std::size_t start = 0;
+  for (std::size_t i = 0; i <= blob.size(); ++i) {
+    char c{};
+    const bool at_end = (i >= blob.size());
+    if (!at_end) {
+      c = blob[i];
+    }
+    if (!at_end) {
+      if (!sq && c == '"' && (i == 0 || blob[i - 1] != '\\')) {
+        dq = !dq;
+      } else if (!dq && c == '\'' && (i == 0 || blob[i - 1] != '\\')) {
+        sq = !sq;
+      } else if (!dq && !sq) {
+        if (c == '(') {
+          ++depth_paren;
+        } else if (c == ')' && depth_paren > 0) {
+          --depth_paren;
+        } else if (c == '[') {
+          ++depth_bracket;
+        } else if (c == ']' && depth_bracket > 0) {
+          --depth_bracket;
+        } else if (c == '{') {
+          ++depth_brace;
+        } else if (c == '}' && depth_brace > 0) {
+          --depth_brace;
+        }
+      }
+    }
+    const bool sep = !at_end && !dq && !sq && depth_paren == 0 && depth_bracket == 0 && depth_brace == 0 &&
+                     (c == '\n' || c == ';');
+    if (sep || at_end) {
+      const std::string_view piece = trim(blob.substr(start, i - start));
       if (!piece.empty()) {
         parts->push_back(piece);
       }
@@ -1784,12 +1832,9 @@ bool apply_layer_sublayer_offsets_from_dictionary(freeusd::sdf::Layer* layer, st
 }
 
 void apply_layer_metadata_blob(const std::string& blob, freeusd::sdf::Layer* layer, ParseResult* err, std::size_t anchor_line) {
-  const std::string flat_sq = flatten_newlines_inside_square_brackets(blob);
-  const std::string flat = flatten_newlines_inside_curly_braces(flat_sq);
-  std::istringstream iss(flat);
-  std::string line;
-  while (std::getline(iss, line)) {
-    std::string_view s = trim(line);
+  std::vector<std::string_view> entries;
+  split_metadata_blob_entries(blob, &entries);
+  for (std::string_view s : entries) {
     if (s.empty() || s == ")" || s == "(") {
       continue;
     }
@@ -2010,12 +2055,9 @@ void apply_prim_metadata_blob(const std::string& blob,
                               const freeusd::sdf::Path& prim,
                               ParseResult* err,
                               std::size_t anchor_line) {
-  const std::string flat_sq = flatten_newlines_inside_square_brackets(blob);
-  const std::string flat = flatten_newlines_inside_curly_braces(flat_sq);
-  std::istringstream iss(flat);
-  std::string line;
-  while (std::getline(iss, line)) {
-    std::string_view s = trim(line);
+  std::vector<std::string_view> entries;
+  split_metadata_blob_entries(blob, &entries);
+  for (std::string_view s : entries) {
     if (s.empty()) {
       continue;
     }

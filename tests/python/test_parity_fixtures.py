@@ -78,5 +78,5 @@ def test_parity_imageable_fixture_is_primary_scene_anchor() -> None:
     assert cube.compute_purpose(1.0) == "render"
     assert cube.compute_visibility(1.0) is False
     world = Boundable(cube_prim).compute_world_bound(1.0)
-    assert world.min.as_array() == (0.0, 1.0, 2.0)
-    assert world.max.as_array() == (2.0, 3.0, 4.0)
+    assert world.min.as_array() == [0.0, 1.0, 2.0]
+    assert world.max.as_array() == [2.0, 3.0, 4.0]

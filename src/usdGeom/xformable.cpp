@@ -29,6 +29,14 @@ std::string trim(std::string s) {
   return s;
 }
 
+std::string trim_xform_order_token(std::string s) {
+  s = trim(std::move(s));
+  if (s.size() >= 2 && s.front() == '[' && s.back() == ']') {
+    s = trim(s.substr(1, s.size() - 2));
+  }
+  return s;
+}
+
 std::vector<std::string> parse_xform_op_order(const freeusd::usd::Prim& prim, double time) {
   std::vector<std::string> out;
   const freeusd::tf::Token kOrder("xformOpOrder");
@@ -51,7 +59,7 @@ std::vector<std::string> parse_xform_op_order(const freeusd::usd::Prim& prim, do
     std::stringstream ss(s);
     std::string part;
     while (std::getline(ss, part, ',')) {
-      const std::string t = trim(part);
+      const std::string t = trim_xform_order_token(part);
       if (!t.empty()) {
         out.push_back(t);
       }
@@ -60,7 +68,10 @@ std::vector<std::string> parse_xform_op_order(const freeusd::usd::Prim& prim, do
   }
   freeusd::tf::Token one;
   if (v.GetToken(&one) && !one.IsEmpty()) {
-    out.push_back(one.GetText());
+    const std::string t = trim_xform_order_token(one.GetText());
+    if (!t.empty()) {
+      out.push_back(t);
+    }
   }
   return out;
 }

@@ -19,6 +19,17 @@ add_subdirectory(src)
 if(FREEUSD_BUILD_TESTS)
   enable_testing()
 
+  function(freeusd_enable_test_asserts target_name)
+    if(NOT TARGET "${target_name}")
+      return()
+    endif()
+    if(MSVC)
+      target_compile_options("${target_name}" PRIVATE /UNDEBUG)
+    else()
+      target_compile_options("${target_name}" PRIVATE -UNDEBUG)
+    endif()
+  endfunction()
+
   add_executable(freeusd_selftest tests/selftest.cpp)
   target_link_libraries(freeusd_selftest PRIVATE freeusd::base)
 
@@ -183,6 +194,48 @@ if(FREEUSD_BUILD_TESTS)
     set_target_properties(freeusd_c_stage_layer_hints PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX)
     add_test(NAME freeusd_c_stage_layer_hints COMMAND freeusd_c_stage_layer_hints)
   endif()
+
+  set(
+    _freeusd_assert_enabled_test_targets
+    freeusd_selftest
+    freeusd_sdf_path_test
+    freeusd_usd_smoke_test
+    freeusd_usd_cross_language_test
+    freeusd_usda_roundtrip_test
+    freeusd_pcp_compose_test
+    freeusd_stage_compose_test
+    freeusd_stage_open_file_test
+    freeusd_parity_fixtures_test
+    freeusd_schema_tokens_bundle_test
+    freeusd_time_code_test
+    freeusd_edit_target_test
+    freeusd_sdf_layer_offset_test
+    freeusd_sdf_asset_path_test
+    freeusd_gf_range1d_test
+    freeusd_gf_quatd_test
+    freeusd_gf_bbox3d_test
+    freeusd_gf_matrix4d_test
+    freeusd_ar_resolved_path_test
+    freeusd_sdf_tokens_test
+    freeusd_usd_tokens_test)
+  if(FREEUSD_BUILD_C_ABI)
+    list(
+      APPEND
+      _freeusd_assert_enabled_test_targets
+      freeusd_c_smoke_test
+      freeusd_c_usd_cross_language
+      freeusd_c_stage_composition_arcs
+      freeusd_c_stage_open_from_file
+      freeusd_c_stage_relocate
+      freeusd_c_stage_prefix_substitution
+      freeusd_c_stage_custom_layer_data
+      freeusd_c_stage_variant
+      freeusd_c_stage_prim_specifier
+      freeusd_c_stage_layer_hints)
+  endif()
+  foreach(_freeusd_test_target IN LISTS _freeusd_assert_enabled_test_targets)
+    freeusd_enable_test_asserts("${_freeusd_test_target}")
+  endforeach()
 endif()
 
 if(FREEUSD_BUILD_TESTS AND FREEUSD_TEST_INSTALL_INTEGRATION)

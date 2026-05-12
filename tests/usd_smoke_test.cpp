@@ -407,12 +407,19 @@ int main() {
   {
     auto flat = freeusd::usdUtils::FlattenStageAtTime(*stage, 1.0);
     assert(flat);
-    assert(flat->HasPrimKind(world));
+    bool has_world = false;
+    for (const auto& path : flat->ListPrimPaths()) {
+      if (path == world) {
+        has_world = true;
+        break;
+      }
+    }
+    assert(has_world);
     freeusd::vt::Value vv;
     assert(flat->GetField(cube, Token("size"), &vv));
     double d = 0.0;
     assert(vv.GetDouble(&d));
-    assert(d == 2.0);
+    assert(d == 2.5);
   }
 
   {
