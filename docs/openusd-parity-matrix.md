@@ -28,14 +28,16 @@ Status vocabulary:
   Schema-facing `purpose` / `visibility` behavior for `usdGeom::Imageable` and cube-like bounds via `usdGeom::Boundable`.
 - `tests/fixtures/parity_tables.usdc`
   Shared binary crate fixture for bootstrap, TOC, raw section payloads, and validated `TOKENS` / `STRINGS` / `PATHS` table decode.
+- `tests/fixtures/parity_embedded_scene.usdc`
+  Narrow crate scene-open fallback through an embedded `USDA` section for controlled engine pipelines and fixtures.
 
 ## Current Matrix
 
 ### Formats And Data Model
 
 - `implemented`: USDA load/save, typed scalar/vector/quaternion/matrix values, layer metadata, references/payload/inherits/specializes storage, relationship targets, and time-sample evaluation.
-- `partial`: USDC bootstrap parsing, TOC parsing, raw section-payload reads, and validated `TOKENS` / `STRINGS` / `PATHS` table decode are available in C++, the C ABI, Python, Go, and Rust.
-- `planned`: spec-level `.usdc` payload decode beyond the validated table sections, plus binary stage opening from decoded scene data.
+- `partial`: USDC bootstrap parsing, TOC parsing, raw section-payload reads, validated `TOKENS` / `STRINGS` / `PATHS` table decode, and a narrow embedded-`USDA` stage-open fallback are available in C++; the C ABI follows the same validated open/query slice.
+- `planned`: spec-level `.usdc` payload decode beyond the validated table sections and embedded-`USDA` bridge.
 
 ### Composition Semantics
 
@@ -45,13 +47,13 @@ Status vocabulary:
 
 ### Schema And Runtime Helpers
 
-- `implemented`: `usdGeom::Xformable`, `usdGeom::Imageable`, `usdGeom::Boundable`, and `usdUtils::FlattenStageAtTime`.
+- `implemented`: `usdGeom::Xformable`, `usdGeom::Imageable`, `usdGeom::Boundable`, `usdUtils::FlattenStageAtTime`, and `usdUtils` engine-scene helpers for importer/editor/runtime subset inspection.
 - `partial`: flattening now preserves evaluated defaults plus composed sample times, but it does not yet reconstruct full authored layer provenance for every arc source.
 - `token-only`: most non-`usdGeom` schema packages remain generated token surfaces only.
 
 ### ABI And Bindings
 
-- `implemented`: the C ABI remains the stable FFI contract for stage queries, typed field reads, crate bootstrap/TOC helpers, and raw crate section payload access.
+- `implemented`: the C ABI remains the stable FFI contract for stage queries, typed field reads, crate bootstrap/TOC helpers, raw crate section payload access, and the validated `usdGeom` runtime subset (`transform`, `visibility`, `purpose`, `bounds`).
 - `partial`: Python remains the broadest wrapper; the C ABI, Go, and Rust now follow the validated crate bootstrap/TOC/raw-section/table subset, but broader runtime/schema helpers are still not fully mirrored outside Python/C++.
 - `planned`: milestone-by-milestone expansion for more composed query families and runtime helpers once the C ABI slice is stable.
 
@@ -59,6 +61,11 @@ Status vocabulary:
 
 - `implemented`: lightweight `plug`, `trace`, and `work` utilities exist for validation and smoke coverage.
 - `intentionally deferred`: Hydra/imaging, Ndr/Sdr, and broader runtime ecosystems.
+
+### Engine Integration Contract
+
+- `implemented`: `docs/engine-supported-subset.md`, `docs/engine-integration.md`, clean-room/fixture/claim policy docs, `usdUtils::engineScene`, and focused engine integration tests freeze the USDA-first engine path.
+- `partial`: shipping runtime remains intentionally narrow; arbitrary `.usdc` scene decode and broad live-stage runtime guarantees are still out of scope.
 
 ## Acceptance Criteria
 

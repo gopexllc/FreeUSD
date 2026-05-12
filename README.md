@@ -26,10 +26,12 @@ C++ libraries follow OpenUSD-style layering: `tf`, `gf`, `vt`, `ar`, `sdf`, `pcp
 | Parity baseline and fixture corpus | [docs/openusd-parity-matrix.md](docs/openusd-parity-matrix.md) |
 | Repo / CMake / out-of-scope | [docs/openusd-repo-alignment.md](docs/openusd-repo-alignment.md) |
 | Embedding, `find_package`, pkg-config | [docs/engine-integration.md](docs/engine-integration.md) |
+| Frozen engine contract | [docs/engine-supported-subset.md](docs/engine-supported-subset.md) |
+| Clean-room / fixture / claim rules | [CONTRIBUTING.md](CONTRIBUTING.md) |
 
 **USDA:** minimal ASCII load/save (`freeusd::io::usda`, Python `freeusd.io`), including `attr.timeSamples = { t: v, … }` blocks.
 
-**`.usdc` (crate):** Full binary decode is still **partial**. What exists today: `PXR-USDC` sniffing, USDA vs crate path classification, a fixed **bootstrap** read (version bytes + little-endian TOC offset), a **TOC section table** read (LE section count + 32-byte name/start/size rows), and raw **section payload** reads by TOC name. Surfaces in C++ (`freeusd::usd::crate`), Python (`freeusd.usd.crate`), the **C ABI**, and thin **Go** / **Rust** bindings under [`bindings/`](bindings/README.md).
+**`.usdc` (crate):** Full binary decode is still **partial**. What exists today: `PXR-USDC` sniffing, USDA vs crate path classification, a fixed **bootstrap** read (version bytes + little-endian TOC offset), a **TOC section table** read (LE section count + 32-byte name/start/size rows), raw **section payload** reads, validated **`TOKENS` / `STRINGS` / `PATHS`** table decode, and a narrow embedded-`USDA` stage-open fallback for controlled fixtures/pipelines. Surfaces in C++ (`freeusd::usd::crate`), Python (`freeusd.usd.crate`), the **C ABI**, and thin **Go** / **Rust** bindings under [`bindings/`](bindings/README.md).
 
 ## Building
 
@@ -44,7 +46,7 @@ ctest --test-dir build --output-on-failure
 **Continuous integration** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)):
 
 - **Linux / macOS / Windows** (VS 2022 Release): C++ tests, Python **off**, `FREEUSD_TEST_INSTALL_INTEGRATION=ON` for `find_package`.
-- **`tree-hygiene`:** fails if any `build-*` path is tracked in git.
+- **`tree-hygiene`:** fails if any `build-*` path is tracked in git and verifies the engine contract / clean-room docs remain present.
 - **`linux-python`:** Ninja build with Python **on**, **pytest ≥ 9.0.3** via pip (CVE-2025-71176), `ctest` including **`freeusd_pytest`**.
 - **`linux-bindings`:** C++ without Python; **`cargo test`** (`bindings/rust`) and **`go test`** (`bindings/go`, CGO).
 
@@ -56,7 +58,7 @@ Concurrency cancels superseded runs on the same branch. [`.github/dependabot.yml
 
 **Schema token headers** (`include/freeusd/<UsdLib>/tokens.hpp`, `include/freeusd/usd/schemaDataTokens.hpp`): regenerate with `python3 scripts/gen_schema_tokens.py`, then rebuild **`_native`**. **`tests/python/conftest.py`** avoids the skbuild editable hook during pytest so **`ctest`** and **`.venv`** runs both load the working-tree package.
 
-**C ABI** (on by default: `-DFREEUSD_BUILD_C_ABI=ON`): link **`freeusd_c`** and include [`include/freeusd/c/freeusd.h`](include/freeusd/c/freeusd.h). Stable entry points cover in-memory and on-disk **USDA** layers, **layer stacks**, **composed stages** (prim paths, fields, time samples, composition arcs, relocates, prefix substitutions, variants, layer hints, custom layer data, specifier kind, and related queries), plus **USDC** helpers (crate id string, path kind sniff, bootstrap struct, TOC sections, and raw section bytes with documented malloc/free). Typed field reads document which conversions are strict vs coercive (`float`, `int64`, `string`, `vec3f`, `quatf`), and missing prims / missing attributes / wrong-type reads currently share the same non-zero C ABI failure result. Full symbol list, ownership rules, and thread-local errors are documented in the header—prefer that over duplicating API names here.
+**C ABI** (on by default: `-DFREEUSD_BUILD_C_ABI=ON`): link **`freeusd_c`** and include [`include/freeusd/c/freeusd.h`](include/freeusd/c/freeusd.h). Stable entry points cover in-memory and on-disk **USDA** layers, **layer stacks**, **composed stages** (prim paths, fields, time samples, composition arcs, relocates, prefix substitutions, variants, layer hints, custom layer data, specifier kind, and related queries), the validated `usdGeom` runtime subset (transform, visibility, purpose, bounds), plus **USDC** helpers (crate id string, path kind sniff, bootstrap struct, TOC sections, raw section bytes, structured table reads, and the narrow embedded-`USDA` stage-open fallback). Full symbol list, ownership rules, and thread-local errors are documented in the header—prefer that over duplicating API names here.
 
 The extension is built as **`_native*.so`** under `build/`; CMake can copy it beside `freeusd/` (gitignored `*.so`) so `import freeusd._native` works with **`PYTHONPATH`** at the repo root.
 

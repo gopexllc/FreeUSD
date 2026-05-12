@@ -35,6 +35,7 @@
 #include "freeusd/usd/tokens.hpp"
 #include "freeusd/usd/stage.hpp"
 #include "freeusd/usd/timeCode.hpp"
+#include "freeusd/usdUtils/engineScene.hpp"
 #include "freeusd/usdUtils/pipeline.hpp"
 #include "freeusd/usdGeom/boundable.hpp"
 #include "freeusd/usdGeom/imageable.hpp"
@@ -2140,6 +2141,81 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
   {
     auto usdUtils = m.def_submodule("usdUtils");
     usdUtils.doc() = "UsdUtils-shaped utilities (clean-room; narrow stage flattening helper plus option flags).";
+    py::enum_<freeusd::usdUtils::EngineRuntimeMode>(usdUtils, "EngineRuntimeMode")
+        .value("pre_baked_assets_only", freeusd::usdUtils::EngineRuntimeMode::PreBakedAssetsOnly)
+        .value("hybrid_metadata", freeusd::usdUtils::EngineRuntimeMode::HybridMetadata)
+        .value("experimental_live_stage", freeusd::usdUtils::EngineRuntimeMode::ExperimentalLiveStage);
+    py::class_<freeusd::usdUtils::EngineSceneNode>(usdUtils, "EngineSceneNode")
+        .def(py::init<>())
+        .def_readwrite("path", &freeusd::usdUtils::EngineSceneNode::path)
+        .def_readwrite("name", &freeusd::usdUtils::EngineSceneNode::name)
+        .def_readwrite("prim_kind", &freeusd::usdUtils::EngineSceneNode::prim_kind)
+        .def_readwrite("active", &freeusd::usdUtils::EngineSceneNode::active)
+        .def_readwrite("visible", &freeusd::usdUtils::EngineSceneNode::visible)
+        .def_readwrite("has_references", &freeusd::usdUtils::EngineSceneNode::has_references)
+        .def_readwrite("has_payloads", &freeusd::usdUtils::EngineSceneNode::has_payloads)
+        .def_readwrite("has_inherits", &freeusd::usdUtils::EngineSceneNode::has_inherits)
+        .def_readwrite("has_specializes", &freeusd::usdUtils::EngineSceneNode::has_specializes)
+        .def_readwrite("has_variant_selections", &freeusd::usdUtils::EngineSceneNode::has_variant_selections)
+        .def_readwrite("has_variant_sets", &freeusd::usdUtils::EngineSceneNode::has_variant_sets)
+        .def_readwrite("has_time_samples", &freeusd::usdUtils::EngineSceneNode::has_time_samples)
+        .def_readwrite("local_transform", &freeusd::usdUtils::EngineSceneNode::local_transform)
+        .def_readwrite("local_to_world_transform", &freeusd::usdUtils::EngineSceneNode::local_to_world_transform)
+        .def_readwrite("local_bound", &freeusd::usdUtils::EngineSceneNode::local_bound)
+        .def_readwrite("world_bound", &freeusd::usdUtils::EngineSceneNode::world_bound)
+        .def_readwrite("purpose", &freeusd::usdUtils::EngineSceneNode::purpose)
+        .def_readwrite("composed_field_names", &freeusd::usdUtils::EngineSceneNode::composed_field_names)
+        .def_readwrite("composed_relationship_names",
+                       &freeusd::usdUtils::EngineSceneNode::composed_relationship_names)
+        .def_readwrite("custom_data_keys", &freeusd::usdUtils::EngineSceneNode::custom_data_keys)
+        .def_readwrite("variant_selection_sets", &freeusd::usdUtils::EngineSceneNode::variant_selection_sets)
+        .def_readwrite("variant_set_names", &freeusd::usdUtils::EngineSceneNode::variant_set_names)
+        .def_readwrite("child_paths", &freeusd::usdUtils::EngineSceneNode::child_paths);
+    py::class_<freeusd::usdUtils::EngineSceneSnapshot>(usdUtils, "EngineSceneSnapshot")
+        .def(py::init<>())
+        .def_readwrite("root_identifier", &freeusd::usdUtils::EngineSceneSnapshot::root_identifier)
+        .def_readwrite("pseudo_root_path", &freeusd::usdUtils::EngineSceneSnapshot::pseudo_root_path)
+        .def_readwrite("default_prim_name", &freeusd::usdUtils::EngineSceneSnapshot::default_prim_name)
+        .def_readwrite("start_time_code", &freeusd::usdUtils::EngineSceneSnapshot::start_time_code)
+        .def_readwrite("end_time_code", &freeusd::usdUtils::EngineSceneSnapshot::end_time_code)
+        .def_readwrite("time_codes_per_second", &freeusd::usdUtils::EngineSceneSnapshot::time_codes_per_second)
+        .def_readwrite("frames_per_second", &freeusd::usdUtils::EngineSceneSnapshot::frames_per_second)
+        .def_readwrite("frame_precision", &freeusd::usdUtils::EngineSceneSnapshot::frame_precision)
+        .def_readwrite("meters_per_unit", &freeusd::usdUtils::EngineSceneSnapshot::meters_per_unit)
+        .def_readwrite("up_axis", &freeusd::usdUtils::EngineSceneSnapshot::up_axis)
+        .def_readwrite("prim_order", &freeusd::usdUtils::EngineSceneSnapshot::prim_order)
+        .def_readwrite("nodes", &freeusd::usdUtils::EngineSceneSnapshot::nodes);
+    py::class_<freeusd::usdUtils::EnginePrimEditorView>(usdUtils, "EnginePrimEditorView")
+        .def(py::init<>())
+        .def_readwrite("path", &freeusd::usdUtils::EnginePrimEditorView::path)
+        .def_readwrite("composed_field_names", &freeusd::usdUtils::EnginePrimEditorView::composed_field_names)
+        .def_readwrite("attribute_sample_times", &freeusd::usdUtils::EnginePrimEditorView::attribute_sample_times)
+        .def_readwrite("composed_relationship_names",
+                       &freeusd::usdUtils::EnginePrimEditorView::composed_relationship_names)
+        .def_readwrite("relationship_targets", &freeusd::usdUtils::EnginePrimEditorView::relationship_targets)
+        .def_readwrite("custom_data_keys", &freeusd::usdUtils::EnginePrimEditorView::custom_data_keys)
+        .def_readwrite("variant_selection_sets", &freeusd::usdUtils::EnginePrimEditorView::variant_selection_sets)
+        .def_readwrite("variant_set_names", &freeusd::usdUtils::EnginePrimEditorView::variant_set_names);
+    py::class_<freeusd::usdUtils::EngineRuntimeSupportReport>(usdUtils, "EngineRuntimeSupportReport")
+        .def(py::init<>())
+        .def_readwrite("recommended_mode", &freeusd::usdUtils::EngineRuntimeSupportReport::recommended_mode)
+        .def_readwrite("uses_composed_layer_stack",
+                       &freeusd::usdUtils::EngineRuntimeSupportReport::uses_composed_layer_stack)
+        .def_readwrite("uses_references", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_references)
+        .def_readwrite("uses_payloads", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_payloads)
+        .def_readwrite("uses_inherits", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_inherits)
+        .def_readwrite("uses_specializes", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_specializes)
+        .def_readwrite("uses_variant_selection", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_variant_selection)
+        .def_readwrite("uses_variant_sets", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_variant_sets)
+        .def_readwrite("uses_relocates", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_relocates)
+        .def_readwrite("uses_prefix_substitutions",
+                       &freeusd::usdUtils::EngineRuntimeSupportReport::uses_prefix_substitutions)
+        .def_readwrite("uses_time_samples", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_time_samples)
+        .def_readwrite("uses_relationships", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_relationships)
+        .def_readwrite("uses_custom_data", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_custom_data)
+        .def_readwrite("uses_attribute_connections",
+                       &freeusd::usdUtils::EngineRuntimeSupportReport::uses_attribute_connections)
+        .def_readwrite("warnings", &freeusd::usdUtils::EngineRuntimeSupportReport::warnings);
     py::class_<freeusd::usdUtils::FlattenOptions>(usdUtils, "FlattenOptions")
         .def(py::init<>())
         .def_readwrite("merge_authored_layer_metadata",
@@ -2154,6 +2230,21 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         py::arg("stage"),
         py::arg("time") = 1.0,
         py::arg("options") = freeusd::usdUtils::FlattenOptions{});
+    usdUtils.def(
+        "engine_runtime_mode_name",
+        [](freeusd::usdUtils::EngineRuntimeMode mode) { return std::string(freeusd::usdUtils::EngineRuntimeModeName(mode)); },
+        py::arg("mode"));
+    usdUtils.def(
+        "build_engine_scene_snapshot",
+        &freeusd::usdUtils::BuildEngineSceneSnapshot,
+        py::arg("stage"),
+        py::arg("time") = 1.0);
+    usdUtils.def(
+        "build_engine_prim_editor_view",
+        &freeusd::usdUtils::BuildEnginePrimEditorView,
+        py::arg("prim"),
+        py::arg("time") = 1.0);
+    usdUtils.def("assess_engine_runtime_support", &freeusd::usdUtils::AssessEngineRuntimeSupport, py::arg("stage"));
   }
 
   {

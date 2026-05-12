@@ -13,7 +13,7 @@ REQUIRED_FILES = {
     "docs/clean-room-policy.md": ["Prohibited Inputs", "Contribution Rules"],
     "docs/fixture-policy.md": ["Binary Fixture Rules", "parity_*.usdc"],
     "docs/compatibility-claims.md": ["docs/openusd-parity-matrix.md", "pre_baked_assets_only"],
-    "docs/engine-integration.md": ["docs/engine-supported-subset.md", "freeusd_stage_compute_local_to_world_transform_matrix4d"],
+    "docs/engine-integration.md": ["engine-supported-subset.md", "freeusd_stage_compute_local_to_world_transform_matrix4d"],
     "docs/openusd-parity-matrix.md": ["tests/fixtures/parity_embedded_scene.usdc", "engineScene"],
 }
 
