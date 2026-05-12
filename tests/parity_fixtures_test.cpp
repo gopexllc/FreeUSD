@@ -114,6 +114,16 @@ int main() {
 
   {
     std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_embedded_scene.usdc"),
+                                         freeusd::usd::RootLayerSublayersPolicy::None, &err);
+    assert(stage && err.empty());
+    assert(stage->HasDefaultPrim());
+    assert(stage->GetDefaultPrimName() == "World");
+    assert(stage->PrimPathInUse(Path::FromString("/World/Cube")));
+  }
+
+  {
+    std::string err;
     auto stage = Stage::OpenFromRootFile(fixture("parity_imageable.usda"),
                                          freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
     assert(stage && err.empty());

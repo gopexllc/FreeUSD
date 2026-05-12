@@ -16,6 +16,7 @@
 #include "freeusd/sdf/layer.hpp"
 #include "freeusd/sdf/path.hpp"
 #include "freeusd/tf/token.hpp"
+#include "freeusd/usd/crateFile.hpp"
 #include "freeusd/vt/value.hpp"
 
 namespace freeusd::usd {
@@ -357,7 +358,22 @@ std::shared_ptr<Stage> Stage::OpenFromRootFile(const std::string& layer_path, Ro
 
   auto root = freeusd::sdf::Layer::NewAnonymous(lp.filename().string());
   root->SetIdentifier(lp.string());
-  const auto pr = freeusd::io::usda::LoadFromFile(lp.string(), root);
+  freeusd::io::usda::ParseResult pr{};
+  std::string embedded_usda;
+  const freeusd::usd::crate::UsdFileKind kind = freeusd::usd::crate::DetectUsdFileKindFromPath(lp.string(), nullptr);
+  if (kind == freeusd::usd::crate::UsdFileKind::UsdcCrate) {
+    std::string crate_err;
+    if (!freeusd::usd::crate::ReadUsdCrateUsdaSectionFromPath(lp.string(), embedded_usda, 8u * 1024u * 1024u, &crate_err)) {
+      if (err_detail) {
+        *err_detail = crate_err.empty() ? "USDC stage opening requires an embedded USDA section in this build"
+                                        : crate_err;
+      }
+      return {};
+    }
+    pr = freeusd::io::usda::LoadFromString(embedded_usda, root);
+  } else {
+    pr = freeusd::io::usda::LoadFromFile(lp.string(), root);
+  }
   if (!pr.ok) {
     if (err_detail) {
       *err_detail = "USDA parse error: " + pr.message + " (line " + std::to_string(pr.line) + ")";

@@ -424,6 +424,59 @@ FREEUSD_C_API int freeusd_stage_list_composed_relationship_names(const FreeusdSt
 FREEUSD_C_API int freeusd_stage_prim_is_valid(const FreeusdStage* stage, const char* prim_path_utf8);
 
 /**
+ * Compute the prim's local transform using the validated `usdGeom::Xformable` subset.
+ * On @ref FREEUSD_OK, @p out_row_major receives 16 doubles in row-major order.
+ * Returns @ref FREEUSD_ERR_NOT_FOUND for invalid prims.
+ */
+FREEUSD_C_API int freeusd_stage_compute_local_transform_matrix4d(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                                 double time, double* out_row_major);
+
+/**
+ * Compute the prim's local-to-world transform using the validated `usdGeom::Xformable` subset.
+ * On @ref FREEUSD_OK, @p out_row_major receives 16 doubles in row-major order.
+ * Returns @ref FREEUSD_ERR_NOT_FOUND for invalid prims.
+ */
+FREEUSD_C_API int freeusd_stage_compute_local_to_world_transform_matrix4d(const FreeusdStage* stage,
+                                                                          const char* prim_path_utf8, double time,
+                                                                          double* out_row_major);
+
+/**
+ * Compute inherited `visibility` using the validated `usdGeom::Imageable` subset.
+ * On @ref FREEUSD_OK, @p out_visible receives 0 or 1.
+ * Returns @ref FREEUSD_ERR_NOT_FOUND for invalid prims.
+ */
+FREEUSD_C_API int freeusd_stage_compute_imageable_visibility(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                             double time, int* out_visible);
+
+/**
+ * Compute inherited `purpose` using the validated `usdGeom::Imageable` subset.
+ * On @ref FREEUSD_OK, @p *out_purpose_utf8 is malloc'd UTF-8; free with @ref freeusd_string_free.
+ * Returns @ref FREEUSD_ERR_NOT_FOUND for invalid prims.
+ */
+FREEUSD_C_API int freeusd_stage_compute_imageable_purpose_utf8(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                               double time, char** out_purpose_utf8);
+
+/**
+ * Compute the prim's local-space bounds using the validated `usdGeom::Boundable` subset.
+ * On @ref FREEUSD_OK, @p out_min_* and @p out_max_* receive the box corners. Empty boxes are reported as
+ * @ref FREEUSD_ERR_NOT_FOUND.
+ */
+FREEUSD_C_API int freeusd_stage_compute_boundable_local_bounds(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                               double time, double* out_min_x, double* out_min_y,
+                                                               double* out_min_z, double* out_max_x, double* out_max_y,
+                                                               double* out_max_z);
+
+/**
+ * Compute the prim's world-space bounds using the validated `usdGeom::Boundable` subset.
+ * On @ref FREEUSD_OK, @p out_min_* and @p out_max_* receive the box corners. Empty boxes are reported as
+ * @ref FREEUSD_ERR_NOT_FOUND.
+ */
+FREEUSD_C_API int freeusd_stage_compute_boundable_world_bounds(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                               double time, double* out_min_x, double* out_min_y,
+                                                               double* out_min_z, double* out_max_x, double* out_max_y,
+                                                               double* out_max_z);
+
+/**
  * Read evaluated attribute as double at @p time (strongest opinion; follows
  * attribute connections where implemented).
  * Succeeds for @c double payloads, or @c float / @c int32 / @c int64 coerced to @c double.

@@ -1278,7 +1278,12 @@ PYBIND11_MODULE(_native, m) {
     auto pcp = m.def_submodule("pcp");
     py::class_<freeusd::pcp::LayerStack>(pcp, "LayerStack")
         .def(py::init<>())
-        .def("append", &freeusd::pcp::LayerStack::Append)
+        .def(
+            "append",
+            [](freeusd::pcp::LayerStack& stack, const std::shared_ptr<freeusd::sdf::Layer>& layer,
+               freeusd::sdf::LayerOffset offset) { stack.Append(layer, offset); },
+            py::arg("layer"),
+            py::arg("offset") = freeusd::sdf::LayerOffset())
         .def("clear", &freeusd::pcp::LayerStack::Clear)
         .def("is_empty", &freeusd::pcp::LayerStack::IsEmpty)
         .def(

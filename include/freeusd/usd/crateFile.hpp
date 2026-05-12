@@ -55,6 +55,11 @@ FREEUSD_API bool ReadUsdCrateSectionBytesFromPath(const std::string& path, std::
                                                   std::vector<std::uint8_t>& out_bytes, std::size_t max_section_bytes,
                                                   std::string* err_out = nullptr);
 
+/// Reads a fixture-oriented `USDA` section payload as UTF-8 layer text.
+/// This is a narrow bridge for USDA-first engine pipelines and not a full spec-level crate scene decode.
+FREEUSD_API bool ReadUsdCrateUsdaSectionFromPath(const std::string& path, std::string& out_text,
+                                                 std::size_t max_text_bytes, std::string* err_out = nullptr);
+
 /// Validated low-level table payload: little-endian ``uint64_t`` count, then repeated ``uint64_t`` byte length + bytes.
 struct UsdcCrateStringTable {
   std::vector<std::string> values;

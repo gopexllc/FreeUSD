@@ -29,6 +29,9 @@ jobs:
             exit 1
           fi
 
+      - name: Check engine contract docs
+        run: python3 scripts/check_engine_contract_docs.py
+
   linux:
     runs-on: ubuntu-latest
     timeout-minutes: 30

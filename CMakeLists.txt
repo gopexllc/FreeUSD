@@ -62,6 +62,11 @@ if(FREEUSD_BUILD_TESTS)
   target_compile_definitions(
     freeusd_parity_fixtures_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
 
+  add_executable(freeusd_engine_integration_test tests/engine_integration_test.cpp)
+  target_link_libraries(freeusd_engine_integration_test PRIVATE freeusd::usd freeusd::usdUtils freeusd::usdGeom)
+  target_compile_definitions(
+    freeusd_engine_integration_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+
   add_executable(freeusd_schema_tokens_bundle_test tests/schema_tokens_bundle_test.cpp)
   target_link_libraries(freeusd_schema_tokens_bundle_test PRIVATE freeusd::usd_schemas)
 
@@ -108,6 +113,7 @@ if(FREEUSD_BUILD_TESTS)
   add_test(NAME freeusd_stage_compose_test COMMAND freeusd_stage_compose_test)
   add_test(NAME freeusd_stage_open_file_test COMMAND freeusd_stage_open_file_test)
   add_test(NAME freeusd_parity_fixtures_test COMMAND freeusd_parity_fixtures_test)
+  add_test(NAME freeusd_engine_integration_test COMMAND freeusd_engine_integration_test)
   add_test(NAME freeusd_schema_tokens_bundle_test COMMAND freeusd_schema_tokens_bundle_test)
   add_test(NAME freeusd_time_code_test COMMAND freeusd_time_code_test)
   add_test(NAME freeusd_edit_target_test COMMAND freeusd_edit_target_test)
@@ -193,6 +199,14 @@ if(FREEUSD_BUILD_TESTS)
     target_link_libraries(freeusd_c_stage_layer_hints PRIVATE freeusd::c)
     set_target_properties(freeusd_c_stage_layer_hints PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX)
     add_test(NAME freeusd_c_stage_layer_hints COMMAND freeusd_c_stage_layer_hints)
+
+    add_executable(freeusd_c_engine_integration tests/c_engine_integration.c)
+    target_include_directories(freeusd_c_engine_integration PRIVATE "${PROJECT_SOURCE_DIR}/include")
+    target_link_libraries(freeusd_c_engine_integration PRIVATE freeusd::c)
+    target_compile_definitions(
+      freeusd_c_engine_integration PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+    set_target_properties(freeusd_c_engine_integration PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX)
+    add_test(NAME freeusd_c_engine_integration COMMAND freeusd_c_engine_integration)
   endif()
 
   set(
@@ -206,6 +220,7 @@ if(FREEUSD_BUILD_TESTS)
     freeusd_stage_compose_test
     freeusd_stage_open_file_test
     freeusd_parity_fixtures_test
+    freeusd_engine_integration_test
     freeusd_schema_tokens_bundle_test
     freeusd_time_code_test
     freeusd_edit_target_test
@@ -231,7 +246,8 @@ if(FREEUSD_BUILD_TESTS)
       freeusd_c_stage_custom_layer_data
       freeusd_c_stage_variant
       freeusd_c_stage_prim_specifier
-      freeusd_c_stage_layer_hints)
+      freeusd_c_stage_layer_hints
+      freeusd_c_engine_integration)
   endif()
   foreach(_freeusd_test_target IN LISTS _freeusd_assert_enabled_test_targets)
     freeusd_enable_test_asserts("${_freeusd_test_target}")

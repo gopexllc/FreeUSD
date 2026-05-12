@@ -317,6 +317,17 @@ bool ReadUsdCrateSectionBytesFromPath(const std::string& path, std::string_view 
   return true;
 }
 
+bool ReadUsdCrateUsdaSectionFromPath(const std::string& path, std::string& out_text, std::size_t max_text_bytes,
+                                     std::string* err_out) {
+  out_text.clear();
+  std::vector<std::uint8_t> bytes;
+  if (!ReadUsdCrateSectionBytesFromPath(path, "USDA", bytes, max_text_bytes, err_out)) {
+    return false;
+  }
+  out_text.assign(reinterpret_cast<const char*>(bytes.data()), bytes.size());
+  return true;
+}
+
 bool ReadUsdCrateStringTableFromPath(const std::string& path, UsdcCrateStringTable& out, std::size_t max_entries,
                                      std::size_t max_total_bytes, std::string* err_out) {
   out = UsdcCrateStringTable{};

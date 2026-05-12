@@ -25,6 +25,9 @@
 #include "freeusd/usd/crateFile.hpp"
 #include "freeusd/usd/prim.hpp"
 #include "freeusd/usd/stage.hpp"
+#include "freeusd/usdGeom/boundable.hpp"
+#include "freeusd/usdGeom/imageable.hpp"
+#include "freeusd/usdGeom/xformable.hpp"
 #include "freeusd/version.hpp"
 #include "freeusd/vt/value.hpp"
 
@@ -1726,6 +1729,212 @@ int freeusd_stage_prim_is_valid(const FreeusdStage* stage, const char* prim_path
     const bool ok = stage->inner->PrimPathInUse(p);
     clear_error();
     return ok ? 1 : 0;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_compute_local_transform_matrix4d(const FreeusdStage* stage, const char* prim_path_utf8, double time,
+                                                   double* out_row_major) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !out_row_major) {
+    set_error("freeusd_stage_compute_local_transform_matrix4d: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const freeusd::usd::Prim prim = stage->inner->GetPrimAtPath(p);
+    if (!prim.IsValid()) {
+      set_error("prim not found");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    const freeusd::gf::Matrix4d m = freeusd::usdGeom::Xformable(prim).ComputeLocalTransform(time);
+    std::memcpy(out_row_major, m.data(), 16u * sizeof(double));
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_compute_local_to_world_transform_matrix4d(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                            double time, double* out_row_major) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !out_row_major) {
+    set_error("freeusd_stage_compute_local_to_world_transform_matrix4d: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const freeusd::usd::Prim prim = stage->inner->GetPrimAtPath(p);
+    if (!prim.IsValid()) {
+      set_error("prim not found");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    const freeusd::gf::Matrix4d m = freeusd::usdGeom::Xformable(prim).ComputeLocalToWorldTransform(time);
+    std::memcpy(out_row_major, m.data(), 16u * sizeof(double));
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_compute_imageable_visibility(const FreeusdStage* stage, const char* prim_path_utf8, double time,
+                                               int* out_visible) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !out_visible) {
+    set_error("freeusd_stage_compute_imageable_visibility: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const freeusd::usd::Prim prim = stage->inner->GetPrimAtPath(p);
+    if (!prim.IsValid()) {
+      set_error("prim not found");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    *out_visible = freeusd::usdGeom::Imageable(prim).ComputeVisibility(time) ? 1 : 0;
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_compute_imageable_purpose_utf8(const FreeusdStage* stage, const char* prim_path_utf8, double time,
+                                                 char** out_purpose_utf8) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !out_purpose_utf8) {
+    set_error("freeusd_stage_compute_imageable_purpose_utf8: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_purpose_utf8 = nullptr;
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const freeusd::usd::Prim prim = stage->inner->GetPrimAtPath(p);
+    if (!prim.IsValid()) {
+      set_error("prim not found");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    const std::string purpose = freeusd::usdGeom::Imageable(prim).ComputePurpose(time);
+    *out_purpose_utf8 = dup_cstr(purpose);
+    if (!*out_purpose_utf8) {
+      set_error("out of memory");
+      return FREEUSD_ERR_INTERNAL;
+    }
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_compute_boundable_local_bounds(const FreeusdStage* stage, const char* prim_path_utf8, double time,
+                                                 double* out_min_x, double* out_min_y, double* out_min_z,
+                                                 double* out_max_x, double* out_max_y, double* out_max_z) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !out_min_x || !out_min_y || !out_min_z || !out_max_x || !out_max_y ||
+      !out_max_z) {
+    set_error("freeusd_stage_compute_boundable_local_bounds: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const freeusd::usd::Prim prim = stage->inner->GetPrimAtPath(p);
+    if (!prim.IsValid()) {
+      set_error("prim not found");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    const freeusd::gf::BBox3d bounds = freeusd::usdGeom::Boundable(prim).ComputeLocalBound(time);
+    if (bounds.IsEmpty()) {
+      set_error("boundable has no local bounds");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    *out_min_x = bounds.min.x();
+    *out_min_y = bounds.min.y();
+    *out_min_z = bounds.min.z();
+    *out_max_x = bounds.max.x();
+    *out_max_y = bounds.max.y();
+    *out_max_z = bounds.max.z();
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_compute_boundable_world_bounds(const FreeusdStage* stage, const char* prim_path_utf8, double time,
+                                                 double* out_min_x, double* out_min_y, double* out_min_z,
+                                                 double* out_max_x, double* out_max_y, double* out_max_z) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !out_min_x || !out_min_y || !out_min_z || !out_max_x || !out_max_y ||
+      !out_max_z) {
+    set_error("freeusd_stage_compute_boundable_world_bounds: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const freeusd::usd::Prim prim = stage->inner->GetPrimAtPath(p);
+    if (!prim.IsValid()) {
+      set_error("prim not found");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    const freeusd::gf::BBox3d bounds = freeusd::usdGeom::Boundable(prim).ComputeWorldBound(time);
+    if (bounds.IsEmpty()) {
+      set_error("boundable has no world bounds");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    *out_min_x = bounds.min.x();
+    *out_min_y = bounds.min.y();
+    *out_min_z = bounds.min.z();
+    *out_max_x = bounds.max.x();
+    *out_max_y = bounds.max.y();
+    *out_max_z = bounds.max.z();
+    clear_error();
+    return FREEUSD_OK;
   } catch (const std::exception& e) {
     set_error(e.what());
     return FREEUSD_ERR_INTERNAL;
