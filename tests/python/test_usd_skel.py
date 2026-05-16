@@ -6,7 +6,7 @@ from pathlib import Path
 
 from freeusd.sdf import Path as SdfPath
 from freeusd.usd import RootLayerSublayersPolicy, Stage
-from freeusd.usdSkel import SkelAnimation, Skeleton
+from freeusd.usdSkel import SkelAnimation, SkelBinding, SkelRoot, Skeleton
 from freeusd.usdSkel.gltf_mapping import build_joint_parent_indices
 
 
@@ -60,3 +60,38 @@ def test_parity_skel_gltf_fixture_matches_gltf_channel_shape() -> None:
     assert abs(rot_w - 0.7071068) < 1e-4
 
     assert build_joint_parent_indices(joints) == parents
+
+
+def test_parity_skel_binding_fixture_resolves_root_and_primvars() -> None:
+    stage = Stage.open_from_root_file(
+        str(FIXTURES / "parity_skel_binding.usda"), RootLayerSublayersPolicy.depth_first
+    )
+    assert stage is not None
+
+    root = SkelRoot.read_from_prim(stage, SdfPath.from_string("/World/SkelCharacter"))
+    assert root
+    skel_path = root.find_skeleton_path()
+    assert skel_path is not None
+    assert skel_path.text() == "/World/SkelCharacter/Skeleton"
+
+    anim_path = root.get_animation_source_path()
+    assert anim_path is not None
+    assert anim_path.text() == "/World/SkelCharacter/Anim"
+
+    skel = root.get_skeleton()
+    assert skel.get_joint_names() == ["Root", "Root/Hip"]
+    assert root.get_animation_source()
+
+    body = stage.prim_at(SdfPath.from_string("/World/SkelCharacter/Body"))
+    binding = SkelBinding.read_from_geom_prim(body)
+    assert binding
+    assert binding.skeleton_path.text() == "/World/SkelCharacter/Skeleton"
+
+    indices = SkelBinding.read_joint_indices(body)
+    weights = SkelBinding.read_joint_weights(body)
+    assert indices is not None and weights is not None
+    assert len(indices) == len(weights) == 8
+    assert SkelBinding.validate_influence_counts(indices, weights, 4)
+    assert indices[0] == 0 and indices[1] == 1
+    assert abs(weights[0] - 1.0) < 1e-5
+    assert abs(weights[4] - 0.5) < 1e-5

@@ -602,6 +602,13 @@ FREEUSD_C_API int freeusd_stage_read_field_token_array(const FreeusdStage* stage
                                                        size_t* out_count);
 
 /**
+ * Read ``joints`` token[] from a composed @c Skeleton prim.
+ * On @ref FREEUSD_OK, @p *out_strings / @p *out_count use @ref freeusd_path_list_free.
+ */
+FREEUSD_C_API int freeusd_stage_read_skel_joint_names(const FreeusdStage* stage, const char* skeleton_path_utf8,
+                                                      char*** out_strings, size_t* out_count);
+
+/**
  * Composed prim active flag (strongest opinion; default true if no opinion).
  * @p out_active receives 0 or 1.
  */

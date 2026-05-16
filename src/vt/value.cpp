@@ -24,6 +24,8 @@ Value Value::MakeVec3d(freeusd::gf::Vec3d v) { return Value{ValuePayload{v}}; }
 Value Value::MakeVec3f(freeusd::gf::Vec3f v) { return Value{ValuePayload{v}}; }
 Value Value::MakeVec3fArray(std::vector<freeusd::gf::Vec3f> v) { return Value{ValuePayload{std::move(v)}}; }
 Value Value::MakeQuatfArray(std::vector<freeusd::gf::Quatf> v) { return Value{ValuePayload{std::move(v)}}; }
+Value Value::MakeInt32Array(std::vector<std::int32_t> v) { return Value{ValuePayload{std::move(v)}}; }
+Value Value::MakeFloatArray(std::vector<float> v) { return Value{ValuePayload{std::move(v)}}; }
 
 bool Value::IsEmpty() const noexcept { return std::holds_alternative<std::monostate>(payload_); }
 
@@ -50,6 +52,12 @@ bool Value::HoldsVec3fArray() const noexcept {
 }
 bool Value::HoldsQuatfArray() const noexcept {
   return std::holds_alternative<std::vector<freeusd::gf::Quatf>>(payload_);
+}
+bool Value::HoldsInt32Array() const noexcept {
+  return std::holds_alternative<std::vector<std::int32_t>>(payload_);
+}
+bool Value::HoldsFloatArray() const noexcept {
+  return std::holds_alternative<std::vector<float>>(payload_);
 }
 
 bool Value::GetBool(bool* out) const noexcept {
@@ -195,6 +203,22 @@ bool Value::GetQuatfArray(std::vector<freeusd::gf::Quatf>* out) const {
   return true;
 }
 
+bool Value::GetInt32Array(std::vector<std::int32_t>* out) const {
+  if (!out || !HoldsInt32Array()) {
+    return false;
+  }
+  *out = std::get<std::vector<std::int32_t>>(payload_);
+  return true;
+}
+
+bool Value::GetFloatArray(std::vector<float>* out) const {
+  if (!out || !HoldsFloatArray()) {
+    return false;
+  }
+  *out = std::get<std::vector<float>>(payload_);
+  return true;
+}
+
 std::ostream& operator<<(std::ostream& os, const Value& v) {
   if (v.IsEmpty()) {
     return os << "<empty>";
@@ -260,6 +284,24 @@ std::ostream& operator<<(std::ostream& os, const Value& v) {
               os << ", ";
             }
             os << '(' << arg[i].real << "," << arg[i].i << "," << arg[i].j << "," << arg[i].k << ')';
+          }
+          os << ']';
+        } else if constexpr (std::is_same_v<T, std::vector<std::int32_t>>) {
+          os << '[';
+          for (std::size_t i = 0; i < arg.size(); ++i) {
+            if (i) {
+              os << ", ";
+            }
+            os << arg[i];
+          }
+          os << ']';
+        } else if constexpr (std::is_same_v<T, std::vector<float>>) {
+          os << '[';
+          for (std::size_t i = 0; i < arg.size(); ++i) {
+            if (i) {
+              os << ", ";
+            }
+            os << arg[i];
           }
           os << ']';
         } else if constexpr (std::is_same_v<T, freeusd::gf::Vec3d>) {

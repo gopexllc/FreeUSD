@@ -32,7 +32,9 @@ using ValuePayload = std::variant<std::monostate,
                                   freeusd::gf::Vec3d,
                                   freeusd::gf::Vec3f,
                                   std::vector<freeusd::gf::Vec3f>,
-                                  std::vector<freeusd::gf::Quatf>>;
+                                  std::vector<freeusd::gf::Quatf>,
+                                  std::vector<std::int32_t>,
+                                  std::vector<float>>;
 
 /// Typed value bag analogous in role to VtValue (clean-room).
 class FREEUSD_API Value {
@@ -56,6 +58,8 @@ class FREEUSD_API Value {
   static Value MakeVec3f(freeusd::gf::Vec3f v);
   static Value MakeVec3fArray(std::vector<freeusd::gf::Vec3f> v);
   static Value MakeQuatfArray(std::vector<freeusd::gf::Quatf> v);
+  static Value MakeInt32Array(std::vector<std::int32_t> v);
+  static Value MakeFloatArray(std::vector<float> v);
 
   bool IsEmpty() const noexcept;
   bool HoldsBool() const noexcept;
@@ -74,6 +78,8 @@ class FREEUSD_API Value {
   bool HoldsVec3f() const noexcept;
   bool HoldsVec3fArray() const noexcept;
   bool HoldsQuatfArray() const noexcept;
+  bool HoldsInt32Array() const noexcept;
+  bool HoldsFloatArray() const noexcept;
 
   bool GetBool(bool* out) const noexcept;
   bool GetInt32(std::int32_t* out) const noexcept;
@@ -91,6 +97,8 @@ class FREEUSD_API Value {
   bool GetVec3f(freeusd::gf::Vec3f* out) const noexcept;
   bool GetVec3fArray(std::vector<freeusd::gf::Vec3f>* out) const;
   bool GetQuatfArray(std::vector<freeusd::gf::Quatf>* out) const;
+  bool GetInt32Array(std::vector<std::int32_t>* out) const;
+  bool GetFloatArray(std::vector<float>* out) const;
 
   const ValuePayload& GetPayload() const noexcept { return payload_; }
   ValuePayload& GetPayload() noexcept { return payload_; }

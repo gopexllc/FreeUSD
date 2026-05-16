@@ -28,6 +28,7 @@
 #include "freeusd/usdGeom/boundable.hpp"
 #include "freeusd/usdGeom/imageable.hpp"
 #include "freeusd/usdGeom/xformable.hpp"
+#include "freeusd/usdSkel/skeleton.hpp"
 #include "freeusd/version.hpp"
 #include "freeusd/vt/value.hpp"
 
@@ -2551,6 +2552,45 @@ int freeusd_stage_read_field_token_array(const FreeusdStage* stage, const char* 
       strs.emplace_back(t.GetText());
     }
     const int ml = malloc_string_list(strs, out_strings, out_count);
+    if (ml != FREEUSD_OK) {
+      if (ml == FREEUSD_ERR_INTERNAL) {
+        set_error("out of memory");
+      }
+      return ml;
+    }
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_read_skel_joint_names(const FreeusdStage* stage, const char* skeleton_path_utf8, char*** out_strings,
+                                        size_t* out_count) {
+  if (!stage || !stage->inner || !skeleton_path_utf8 || !out_strings || !out_count) {
+    set_error("freeusd_stage_read_skel_joint_names: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_strings = nullptr;
+  *out_count = 0;
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(skeleton_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid skeleton path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const freeusd::usdSkel::Skeleton skel =
+        freeusd::usdSkel::Skeleton::ReadFromPrim(stage->inner, p);
+    if (!skel) {
+      set_error("skeleton prim not found or invalid");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    const std::vector<std::string> names = skel.GetJointNames();
+    const int ml = malloc_string_list(names, out_strings, out_count);
     if (ml != FREEUSD_OK) {
       if (ml == FREEUSD_ERR_INTERNAL) {
         set_error("out of memory");

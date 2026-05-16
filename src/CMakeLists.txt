@@ -69,7 +69,8 @@ target_include_directories(freeusd_usdGeom PUBLIC "$<BUILD_INTERFACE:${FREEUSD_I
 
 target_link_libraries(freeusd_usdGeom PUBLIC freeusd_usd freeusd_gf freeusd_build_settings)
 
-add_library(freeusd_usdSkel STATIC usdSkel/skeleton.cpp usdSkel/skelAnimation.cpp usdSkel/gltfMapping.cpp)
+add_library(freeusd_usdSkel STATIC usdSkel/skeleton.cpp usdSkel/skelAnimation.cpp usdSkel/gltfMapping.cpp
+    usdSkel/skelBinding.cpp usdSkel/skelRoot.cpp)
 add_library(freeusd::usdSkel ALIAS freeusd_usdSkel)
 target_include_directories(freeusd_usdSkel PUBLIC "$<BUILD_INTERFACE:${FREEUSD_INC}>" "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
 target_link_libraries(freeusd_usdSkel PUBLIC freeusd_usd freeusd_gf freeusd_vt freeusd_tf freeusd_build_settings)

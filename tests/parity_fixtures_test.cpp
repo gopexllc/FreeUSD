@@ -8,6 +8,8 @@
 #include "freeusd/usdGeom/boundable.hpp"
 #include "freeusd/usdGeom/imageable.hpp"
 #include "freeusd/usdSkel/skelAnimation.hpp"
+#include "freeusd/usdSkel/skelBinding.hpp"
+#include "freeusd/usdSkel/skelRoot.hpp"
 #include "freeusd/usdSkel/skeleton.hpp"
 #include "freeusd/usdUtils/pipeline.hpp"
 #include "freeusd/vt/value.hpp"
@@ -189,6 +191,24 @@ int main() {
     assert(anim.GetTranslations(&translations, 1.0));
     assert(translations.size() == 2u);
     assert(translations[1].y() == 2.0f);
+  }
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_skel_binding.usda"),
+                                         freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const freeusd::usdSkel::SkelRoot root(
+        freeusd::usdSkel::SkelRoot::ReadFromPrim(stage, Path::FromString("/World/SkelCharacter")));
+    assert(root);
+    const freeusd::usd::Prim body = stage->GetPrimAtPath(Path::FromString("/World/SkelCharacter/Body"));
+    const freeusd::usdSkel::SkelBinding binding = freeusd::usdSkel::SkelBinding::ReadFromGeomPrim(body);
+    assert(binding);
+    std::vector<int> indices{};
+    std::vector<float> weights{};
+    assert(freeusd::usdSkel::SkelBinding::ReadJointIndices(body, &indices));
+    assert(freeusd::usdSkel::SkelBinding::ReadJointWeights(body, &weights));
+    assert(freeusd::usdSkel::SkelBinding::ValidateInfluenceCounts(indices, weights));
   }
 
   return 0;

@@ -7,12 +7,15 @@
 
 #include <cassert>
 #include <cmath>
+#include <optional>
 #include <string>
 
 #include "freeusd/sdf/path.hpp"
 #include "freeusd/usd/stage.hpp"
 #include "freeusd/usdSkel/gltfMapping.hpp"
 #include "freeusd/usdSkel/skelAnimation.hpp"
+#include "freeusd/usdSkel/skelBinding.hpp"
+#include "freeusd/usdSkel/skelRoot.hpp"
 #include "freeusd/usdSkel/skeleton.hpp"
 
 #ifndef FREEUSD_TEST_FIXTURES_DIR
@@ -35,6 +38,8 @@ int main() {
   using freeusd::sdf::Path;
   using freeusd::usd::Stage;
   using freeusd::usdSkel::SkelAnimation;
+  using freeusd::usdSkel::SkelBinding;
+  using freeusd::usdSkel::SkelRoot;
   using freeusd::usdSkel::Skeleton;
 
   std::string err;
@@ -103,6 +108,52 @@ int main() {
   const Skeleton from_stage = Skeleton::ReadFromPrim(stage, skel_path);
   assert(from_stage);
   assert(from_stage.GetJointNames() == joints);
+
+  {
+    auto bind_stage = Stage::OpenFromRootFile(fixture("parity_skel_binding.usda"),
+                                              freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(bind_stage && err.empty());
+
+    const Path root_path = Path::FromString("/World/SkelCharacter");
+    const SkelRoot skel_root(SkelRoot::ReadFromPrim(bind_stage, root_path));
+    assert(skel_root);
+
+    const std::optional<Path> found_skel = skel_root.FindSkeletonPath();
+    assert(found_skel.has_value());
+    assert(*found_skel == Path::FromString("/World/SkelCharacter/Skeleton"));
+
+    const std::optional<Path> anim_path_opt = skel_root.GetAnimationSourcePath();
+    assert(anim_path_opt.has_value());
+    assert(*anim_path_opt == Path::FromString("/World/SkelCharacter/Anim"));
+
+    const Skeleton root_skel = skel_root.GetSkeleton();
+    assert(root_skel);
+    assert(root_skel.GetJointNames() == joints);
+
+    const SkelAnimation root_anim = skel_root.GetAnimationSource();
+    assert(root_anim);
+
+    const Path body_path = Path::FromString("/World/SkelCharacter/Body");
+    const freeusd::usd::Prim body_prim = bind_stage->GetPrimAtPath(body_path);
+    const SkelBinding binding = SkelBinding::ReadFromGeomPrim(body_prim);
+    assert(binding);
+    assert(binding.skeleton_path == *found_skel);
+
+    const std::optional<Path> resolved = SkelBinding::ResolveSkeletonPath(body_prim);
+    assert(resolved == *found_skel);
+
+    std::vector<int> indices{};
+    std::vector<float> weights{};
+    assert(SkelBinding::ReadJointIndices(body_prim, &indices));
+    assert(SkelBinding::ReadJointWeights(body_prim, &weights));
+    assert(indices.size() == 8u);
+    assert(weights.size() == 8u);
+    assert(SkelBinding::ValidateInfluenceCounts(indices, weights, 4));
+    assert(indices[0] == 0 && indices[1] == 1);
+    assert(near(weights[0], 1.0f));
+    assert(near(weights[4], 0.5f));
+    assert(near(weights[5], 0.5f));
+  }
 
   return 0;
 }

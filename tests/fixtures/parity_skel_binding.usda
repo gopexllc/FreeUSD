@@ -1,0 +1,41 @@
+#usda 1.0
+(
+    defaultPrim = "World"
+)
+
+# SkelRoot + SkelBinding parity (parity_skel_binding.usda):
+# SkelRoot                       -> scope with skeleton + animation + bound geom
+# rel skel:skeleton              -> mesh -> Skeleton
+# primvars:skel:jointIndices     -> per-point joint indices (4 influences)
+# primvars:skel:jointWeights     -> per-point joint weights
+# rel skel:animationSource       -> SkelRoot -> SkelAnimation clip
+
+def Xform "World"
+{
+    def SkelRoot "SkelCharacter"
+    {
+        rel skel:animationSource = </World/SkelCharacter/Anim>
+
+        def Skeleton "Skeleton"
+        {
+            token[] joints = [@Root, @Root/Hip]
+            matrix4d[] bindTransforms = [((1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1)), ((1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 1, 0, 1))]
+            matrix4d[] restTransforms = [((1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1)), ((1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 1, 0, 1))]
+        }
+
+        def SkelAnimation "Anim"
+        {
+            token[] joints = [@Root, @Root/Hip]
+            float3[] translations = [(0, 0, 0), (0, 1, 0)]
+            quatf[] rotations = [(1, 0, 0, 0), (1, 0, 0, 0)]
+            float3[] scales = [(1, 1, 1), (1, 1, 1)]
+        }
+
+        def Xform "Body"
+        {
+            rel skel:skeleton = </World/SkelCharacter/Skeleton>
+            int[] primvars:skel:jointIndices = [0, 1, 0, 0, 0, 1, 0, 0]
+            float[] primvars:skel:jointWeights = [1.0, 0.0, 0.0, 0.0, 0.5, 0.5, 0.0, 0.0]
+        }
+    }
+}

@@ -465,6 +465,48 @@ freeusd::vt::Value parse_value(std::string_view t, ParseResult* err, std::size_t
         }
         return freeusd::vt::Value::MakeVec3fArray(std::move(vs));
       }
+      if (elem_type == "int" || elem_type == "int64") {
+        std::vector<std::int32_t> ints;
+        ints.reserve(pieces.size());
+        for (std::string_view piece : pieces) {
+          const freeusd::vt::Value ev = parse_value(piece, err, line, "int");
+          if (err && !err->ok) {
+            return {};
+          }
+          std::int32_t i32{};
+          std::int64_t i64{};
+          if (ev.GetInt32(&i32)) {
+            ints.push_back(i32);
+          } else if (ev.GetInt64(&i64)) {
+            ints.push_back(static_cast<std::int32_t>(i64));
+          } else {
+            set_err(err, line, "int[] element is not an integer");
+            return {};
+          }
+        }
+        return freeusd::vt::Value::MakeInt32Array(std::move(ints));
+      }
+      if (elem_type == "float" || elem_type == "half" || elem_type == "double") {
+        std::vector<float> fs;
+        fs.reserve(pieces.size());
+        for (std::string_view piece : pieces) {
+          const freeusd::vt::Value ev = parse_value(piece, err, line, "float");
+          if (err && !err->ok) {
+            return {};
+          }
+          float f{};
+          double d{};
+          if (ev.GetFloat(&f)) {
+            fs.push_back(f);
+          } else if (ev.GetDouble(&d)) {
+            fs.push_back(static_cast<float>(d));
+          } else {
+            set_err(err, line, "float[] element is not a float");
+            return {};
+          }
+        }
+        return freeusd::vt::Value::MakeFloatArray(std::move(fs));
+      }
     }
   }
   if (!t.empty() && t.front() == '@') {
@@ -894,6 +936,33 @@ std::string value_to_usda(const freeusd::vt::Value& v) {
     o += ']';
     return o;
   }
+  if (v.HoldsInt32Array()) {
+    std::vector<std::int32_t> ints;
+    v.GetInt32Array(&ints);
+    std::string o = "[";
+    for (std::size_t i = 0; i < ints.size(); ++i) {
+      if (i) {
+        o += ", ";
+      }
+      o += std::to_string(ints[i]);
+    }
+    o += ']';
+    return o;
+  }
+  if (v.HoldsFloatArray()) {
+    std::vector<float> fs;
+    v.GetFloatArray(&fs);
+    std::ostringstream oss;
+    oss << '[';
+    for (std::size_t i = 0; i < fs.size(); ++i) {
+      if (i) {
+        oss << ", ";
+      }
+      oss << std::setprecision(9) << fs[i];
+    }
+    oss << ']';
+    return oss.str();
+  }
   if (v.HoldsVec3f()) {
     freeusd::gf::Vec3f vec;
     v.GetVec3f(&vec);
@@ -972,6 +1041,12 @@ std::string field_type_hint(const freeusd::vt::Value& v) {
   }
   if (v.HoldsVec3fArray()) {
     return "float3[]";
+  }
+  if (v.HoldsInt32Array()) {
+    return "int[]";
+  }
+  if (v.HoldsFloatArray()) {
+    return "float[]";
   }
   if (v.HoldsVec3d()) {
     return "double3";

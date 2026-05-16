@@ -43,6 +43,8 @@
 #include "freeusd/usdGeom/xformable.hpp"
 #include "freeusd/usdSkel/gltfMapping.hpp"
 #include "freeusd/usdSkel/skelAnimation.hpp"
+#include "freeusd/usdSkel/skelBinding.hpp"
+#include "freeusd/usdSkel/skelRoot.hpp"
 #include "freeusd/usdSkel/skeleton.hpp"
 #include "freeusd/usdHydra/tokens.hpp"
 #include "freeusd/usdLux/tokens.hpp"
@@ -2238,6 +2240,57 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
             py::arg("anim_path"),
             py::arg("joint_index"),
             py::arg("time"));
+
+    py::class_<freeusd::usdSkel::SkelBinding>(usdSkel, "SkelBinding")
+        .def(py::init<>())
+        .def(py::init<const freeusd::usd::Prim&>(), py::arg("geom_prim"))
+        .def_readonly("geom_prim", &freeusd::usdSkel::SkelBinding::geom_prim)
+        .def_readwrite("skeleton_path", &freeusd::usdSkel::SkelBinding::skeleton_path)
+        .def("__bool__", [](const freeusd::usdSkel::SkelBinding& b) { return static_cast<bool>(b); })
+        .def_static("resolve_skeleton_path", &freeusd::usdSkel::SkelBinding::ResolveSkeletonPath, py::arg("geom"))
+        .def_static(
+            "read_joint_indices",
+            [](const freeusd::usd::Prim& geom, double time) -> py::object {
+              std::vector<int> out;
+              if (!freeusd::usdSkel::SkelBinding::ReadJointIndices(geom, &out, time)) {
+                return py::none();
+              }
+              return py::cast(out);
+            },
+            py::arg("geom"),
+            py::arg("time") = 1.0)
+        .def_static(
+            "read_joint_weights",
+            [](const freeusd::usd::Prim& geom, double time) -> py::object {
+              std::vector<float> out;
+              if (!freeusd::usdSkel::SkelBinding::ReadJointWeights(geom, &out, time)) {
+                return py::none();
+              }
+              return py::cast(out);
+            },
+            py::arg("geom"),
+            py::arg("time") = 1.0)
+        .def_static("validate_influence_counts", &freeusd::usdSkel::SkelBinding::ValidateInfluenceCounts,
+                    py::arg("indices"), py::arg("weights"), py::arg("influences_per_point") = 4)
+        .def_static("read_from_geom_prim", &freeusd::usdSkel::SkelBinding::ReadFromGeomPrim, py::arg("geom"),
+                    py::arg("time") = 1.0);
+
+    py::class_<freeusd::usdSkel::SkelRoot>(usdSkel, "SkelRoot")
+        .def(py::init<>())
+        .def(py::init<const freeusd::usd::Prim&>(), py::arg("prim"))
+        .def_readonly("prim", &freeusd::usdSkel::SkelRoot::prim)
+        .def_static(
+            "read_from_prim",
+            [](const std::shared_ptr<const freeusd::usd::Stage>& stage, const freeusd::sdf::Path& path) {
+              return freeusd::usdSkel::SkelRoot::ReadFromPrim(stage, path);
+            },
+            py::arg("stage"),
+            py::arg("path"))
+        .def("__bool__", [](const freeusd::usdSkel::SkelRoot& r) { return static_cast<bool>(r); })
+        .def("find_skeleton_path", &freeusd::usdSkel::SkelRoot::FindSkeletonPath)
+        .def("get_animation_source_path", &freeusd::usdSkel::SkelRoot::GetAnimationSourcePath)
+        .def("get_skeleton", &freeusd::usdSkel::SkelRoot::GetSkeleton)
+        .def("get_animation_source", &freeusd::usdSkel::SkelRoot::GetAnimationSource);
   }
 
   {
