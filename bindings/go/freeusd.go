@@ -10,8 +10,8 @@ package freeusd
 
 /*
 #cgo CFLAGS: -I${SRCDIR}/../../include
-#cgo linux LDFLAGS: -L${SRCDIR}/../../build/src -lfreeusd_c -lfreeusd_base -lfreeusd_usdUtils -lfreeusd_usdGeom -lfreeusd_usd -lfreeusd_ar -lfreeusd_io -lfreeusd_pcp -lfreeusd_sdf -lfreeusd_vt -lfreeusd_tf -lfreeusd_gf -lfreeusd_plug -lstdc++ -lm
-#cgo darwin LDFLAGS: -L${SRCDIR}/../../build/src -lfreeusd_c -lfreeusd_base -lfreeusd_usdUtils -lfreeusd_usdGeom -lfreeusd_usd -lfreeusd_ar -lfreeusd_io -lfreeusd_pcp -lfreeusd_sdf -lfreeusd_vt -lfreeusd_tf -lfreeusd_gf -lfreeusd_plug -lc++ -lm
+#cgo linux LDFLAGS: -L${SRCDIR}/../../build/src -lfreeusd_c -lfreeusd_base -lfreeusd_usdUtils -lfreeusd_usdSkel -lfreeusd_usdGeom -lfreeusd_usd -lfreeusd_ar -lfreeusd_io -lfreeusd_pcp -lfreeusd_sdf -lfreeusd_vt -lfreeusd_tf -lfreeusd_gf -lfreeusd_plug -lstdc++ -lm
+#cgo darwin LDFLAGS: -L${SRCDIR}/../../build/src -lfreeusd_c -lfreeusd_base -lfreeusd_usdUtils -lfreeusd_usdSkel -lfreeusd_usdGeom -lfreeusd_usd -lfreeusd_ar -lfreeusd_io -lfreeusd_pcp -lfreeusd_sdf -lfreeusd_vt -lfreeusd_tf -lfreeusd_gf -lfreeusd_plug -lc++ -lm
 #include <stdlib.h>
 #include <freeusd/c/freeusd.h>
 */
@@ -1218,4 +1218,165 @@ func (s *Stage) ListComposedPrimCustomDataKeys(primPath string) (keys []string, 
 		}
 	}
 	return keys, 0
+}
+
+// EngineRuntimeMode matches C FreeusdEngineRuntimeMode.
+type EngineRuntimeMode int
+
+const (
+	EngineRuntimePreBaked EngineRuntimeMode = 0
+	EngineRuntimeHybrid   EngineRuntimeMode = 1
+	EngineRuntimeExperimentalLive EngineRuntimeMode = 2
+)
+
+// EngineRuntimeSupport mirrors C FreeusdEngineRuntimeSupport.
+type EngineRuntimeSupport struct {
+	RecommendedMode            EngineRuntimeMode
+	UsesComposedLayerStack     bool
+	UsesReferences             bool
+	UsesPayloads               bool
+	UsesInherits               bool
+	UsesSpecializes            bool
+	UsesVariantSelection       bool
+	UsesVariantSets            bool
+	UsesRelocates              bool
+	UsesPrefixSubstitutions    bool
+	UsesTimeSamples            bool
+	UsesRelationships          bool
+	UsesCustomData             bool
+	UsesAttributeConnections   bool
+	UsesSkelBoundMeshes        bool
+	UsesBlendShapes            bool
+	UsesSkelAnimation          bool
+}
+
+// AssessEngineRuntimeSupport reports which engine integration mode fits the composed stage.
+func (s *Stage) AssessEngineRuntimeSupport() (report EngineRuntimeSupport, rc int) {
+	if s == nil || s.ptr == nil {
+		return report, 1
+	}
+	var raw C.FreeusdEngineRuntimeSupport
+	rc = int(C.freeusd_usdutils_assess_engine_runtime_support(s.ptr, &raw))
+	if rc != 0 {
+		return report, rc
+	}
+	report.RecommendedMode = EngineRuntimeMode(raw.recommended_mode)
+	report.UsesComposedLayerStack = raw.uses_composed_layer_stack != 0
+	report.UsesReferences = raw.uses_references != 0
+	report.UsesPayloads = raw.uses_payloads != 0
+	report.UsesInherits = raw.uses_inherits != 0
+	report.UsesSpecializes = raw.uses_specializes != 0
+	report.UsesVariantSelection = raw.uses_variant_selection != 0
+	report.UsesVariantSets = raw.uses_variant_sets != 0
+	report.UsesRelocates = raw.uses_relocates != 0
+	report.UsesPrefixSubstitutions = raw.uses_prefix_substitutions != 0
+	report.UsesTimeSamples = raw.uses_time_samples != 0
+	report.UsesRelationships = raw.uses_relationships != 0
+	report.UsesCustomData = raw.uses_custom_data != 0
+	report.UsesAttributeConnections = raw.uses_attribute_connections != 0
+	report.UsesSkelBoundMeshes = raw.uses_skel_bound_meshes != 0
+	report.UsesBlendShapes = raw.uses_blend_shapes != 0
+	report.UsesSkelAnimation = raw.uses_skel_animation != 0
+	return report, 0
+}
+
+// ReadSkelJointNames returns skeleton joint names (rc 0 ok).
+func (s *Stage) ReadSkelJointNames(skeletonPath string) (names []string, rc int) {
+	if s == nil || s.ptr == nil {
+		return nil, 1
+	}
+	sp := C.CString(skeletonPath)
+	defer C.free(unsafe.Pointer(sp))
+	var arr **C.char
+	var n C.size_t
+	rc = int(C.freeusd_stage_read_skel_joint_names(s.ptr, sp, &arr, &n))
+	if rc != 0 {
+		return nil, rc
+	}
+	if n == 0 || arr == nil {
+		return []string{}, 0
+	}
+	defer C.freeusd_path_list_free(arr, n)
+	slice := unsafe.Slice(arr, int(n))
+	for _, p := range slice {
+		if p != nil {
+			names = append(names, C.GoString(p))
+		}
+	}
+	return names, 0
+}
+
+// DeformPointsWithSkeleton runs CPU LBS using skeleton bind transforms and animation TRS at time.
+func (s *Stage) DeformPointsWithSkeleton(skeletonPath, animationPath string, time float64, points [][3]float32, indices []int32, weights []float32, influencesPerPoint int) (out [][3]float32, rc int) {
+	if s == nil || s.ptr == nil || len(points) == 0 {
+		return nil, 1
+	}
+	sp := C.CString(skeletonPath)
+	defer C.free(unsafe.Pointer(sp))
+	ap := C.CString(animationPath)
+	defer C.free(unsafe.Pointer(ap))
+	inXYZ := make([]C.float, len(points)*3)
+	outXYZ := make([]C.float, len(points)*3)
+	for i, p := range points {
+		inXYZ[i*3+0] = C.float(p[0])
+		inXYZ[i*3+1] = C.float(p[1])
+		inXYZ[i*3+2] = C.float(p[2])
+	}
+	idx := make([]C.int, len(indices))
+	for i, v := range indices {
+		idx[i] = C.int(v)
+	}
+	wts := make([]C.float, len(weights))
+	for i, v := range weights {
+		wts[i] = C.float(v)
+	}
+	rc = int(C.freeusd_stage_deform_points_with_skeleton(
+		s.ptr, sp, ap, C.double(time), C.size_t(len(points)),
+		(*C.float)(unsafe.Pointer(&inXYZ[0])),
+		(*C.int)(unsafe.Pointer(&idx[0])),
+		(*C.float)(unsafe.Pointer(&wts[0])),
+		C.size_t(influencesPerPoint),
+		(*C.float)(unsafe.Pointer(&outXYZ[0])),
+	))
+	if rc != 0 {
+		return nil, rc
+	}
+	out = make([][3]float32, len(points))
+	for i := range out {
+		out[i] = [3]float32{float32(outXYZ[i*3+0]), float32(outXYZ[i*3+1]), float32(outXYZ[i*3+2])}
+	}
+	return out, 0
+}
+
+// ComputeSkinningMatrices builds joint palette matrices (row-major 16 doubles each).
+func ComputeSkinningMatrices(jointWorld, inverseBind [][16]float64) (palette [][16]float64, rc int) {
+	if len(jointWorld) == 0 || len(jointWorld) != len(inverseBind) {
+		return nil, 1
+	}
+	n := len(jointWorld)
+	worldFlat := make([]C.double, n*16)
+	bindFlat := make([]C.double, n*16)
+	outFlat := make([]C.double, n*16)
+	for i := 0; i < n; i++ {
+		for k := 0; k < 16; k++ {
+			worldFlat[i*16+k] = C.double(jointWorld[i][k])
+			bindFlat[i*16+k] = C.double(inverseBind[i][k])
+		}
+	}
+	rc = int(C.freeusd_usdskel_compute_skinning_matrices(
+		C.size_t(n),
+		(*C.double)(unsafe.Pointer(&worldFlat[0])),
+		(*C.double)(unsafe.Pointer(&bindFlat[0])),
+		(*C.double)(unsafe.Pointer(&outFlat[0])),
+	))
+	if rc != 0 {
+		return nil, rc
+	}
+	palette = make([][16]float64, n)
+	for i := 0; i < n; i++ {
+		for k := 0; k < 16; k++ {
+			palette[i][k] = float64(outFlat[i*16+k])
+		}
+	}
+	return palette, 0
 }

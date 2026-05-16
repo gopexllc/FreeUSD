@@ -28,8 +28,11 @@
 #include "freeusd/usdGeom/boundable.hpp"
 #include "freeusd/usdGeom/imageable.hpp"
 #include "freeusd/usdGeom/xformable.hpp"
-#include "freeusd/usdSkel/skeleton.hpp"
+#include "freeusd/usdSkel/skelAnimation.hpp"
 #include "freeusd/usdSkel/skelBlendShapes.hpp"
+#include "freeusd/usdSkel/skinning.hpp"
+#include "freeusd/usdSkel/skeleton.hpp"
+#include "freeusd/usdUtils/engineScene.hpp"
 #include "freeusd/version.hpp"
 #include "freeusd/vt/value.hpp"
 
@@ -2630,6 +2633,155 @@ int freeusd_stage_read_geom_blend_shape_weight(const FreeusdStage* stage, const 
       return FREEUSD_ERR_NOT_FOUND;
     }
     *out_weight = weights[target_index];
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_usdskel_compute_skinning_matrices(size_t joint_count, const double* joint_world_row_major,
+                                              const double* inverse_bind_row_major, double* out_palette_row_major) {
+  if (joint_count == 0 || !joint_world_row_major || !inverse_bind_row_major || !out_palette_row_major) {
+    set_error("freeusd_usdskel_compute_skinning_matrices: null argument or zero joint_count");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    std::vector<freeusd::gf::Matrix4d> world;
+    std::vector<freeusd::gf::Matrix4d> bind;
+    world.reserve(joint_count);
+    bind.reserve(joint_count);
+    for (std::size_t i = 0; i < joint_count; ++i) {
+      freeusd::gf::Matrix4d w{};
+      freeusd::gf::Matrix4d b{};
+      const double* wsrc = joint_world_row_major + i * 16;
+      const double* bsrc = inverse_bind_row_major + i * 16;
+      for (std::size_t k = 0; k < 16; ++k) {
+        w.m[k] = wsrc[k];
+        b.m[k] = bsrc[k];
+      }
+      world.push_back(w);
+      bind.push_back(b);
+    }
+    std::vector<freeusd::gf::Matrix4d> palette;
+    if (!freeusd::usdSkel::ComputeSkinningMatrices(world, bind, &palette)) {
+      set_error("compute skinning matrices failed");
+      return FREEUSD_ERR_INTERNAL;
+    }
+    for (std::size_t i = 0; i < palette.size(); ++i) {
+      double* dst = out_palette_row_major + i * 16;
+      for (std::size_t k = 0; k < 16; ++k) {
+        dst[k] = palette[i].m[k];
+      }
+    }
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_deform_points_with_skeleton(const FreeusdStage* stage, const char* skeleton_path_utf8,
+                                              const char* animation_path_utf8, double time, size_t point_count,
+                                              const float* in_points_xyz, const int* joint_indices,
+                                              const float* joint_weights, size_t influences_per_point,
+                                              float* out_points_xyz) {
+  if (!stage || !stage->inner || !skeleton_path_utf8 || !animation_path_utf8 || point_count == 0 ||
+      !in_points_xyz || !joint_indices || !joint_weights || !out_points_xyz) {
+    set_error("freeusd_stage_deform_points_with_skeleton: null argument or zero point_count");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  if (point_count > 1'000'000) {
+    set_error("point_count exceeds limit");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const freeusd::sdf::Path skel_path = freeusd::sdf::Path::FromString(skeleton_path_utf8);
+    const freeusd::sdf::Path anim_path = freeusd::sdf::Path::FromString(animation_path_utf8);
+    if (skel_path.IsEmpty() || anim_path.IsEmpty()) {
+      set_error("invalid skeleton or animation path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const freeusd::usdSkel::Skeleton skel = freeusd::usdSkel::Skeleton::ReadFromPrim(stage->inner, skel_path);
+    const freeusd::usdSkel::SkelAnimation anim(stage->inner->GetPrimAtPath(anim_path));
+    if (!skel || !anim) {
+      set_error("skeleton or animation prim not found");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    std::vector<freeusd::gf::Matrix4d> bind{};
+    if (!skel.GetBindTransforms(&bind, time)) {
+      set_error("skeleton bind transforms unavailable");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    std::vector<freeusd::gf::Matrix4d> joint_world{};
+    if (!freeusd::usdSkel::BuildJointWorldMatricesFromAnimation(skel, anim, time, &joint_world)) {
+      set_error("joint world matrices unavailable");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    std::vector<freeusd::gf::Vec3f> points;
+    points.reserve(point_count);
+    for (std::size_t i = 0; i < point_count; ++i) {
+      freeusd::gf::Vec3f v{};
+      v.set(in_points_xyz[i * 3 + 0], in_points_xyz[i * 3 + 1], in_points_xyz[i * 3 + 2]);
+      points.push_back(v);
+    }
+    const std::vector<int> indices(joint_indices, joint_indices + point_count * influences_per_point);
+    const std::vector<float> weights(joint_weights, joint_weights + point_count * influences_per_point);
+    std::vector<freeusd::gf::Vec3f> deformed;
+    if (!freeusd::usdSkel::DeformPointsWithSkeleton(points, indices, weights, influences_per_point, joint_world, bind,
+                                                    nullptr, &deformed)) {
+      set_error("deform points with skeleton failed");
+      return FREEUSD_ERR_INTERNAL;
+    }
+    for (std::size_t i = 0; i < deformed.size(); ++i) {
+      out_points_xyz[i * 3 + 0] = deformed[i].x();
+      out_points_xyz[i * 3 + 1] = deformed[i].y();
+      out_points_xyz[i * 3 + 2] = deformed[i].z();
+    }
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_usdutils_assess_engine_runtime_support(const FreeusdStage* stage, FreeusdEngineRuntimeSupport* out) {
+  if (!stage || !stage->inner || !out) {
+    set_error("freeusd_usdutils_assess_engine_runtime_support: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const freeusd::usdUtils::EngineRuntimeSupportReport report =
+        freeusd::usdUtils::AssessEngineRuntimeSupport(*stage->inner);
+    out->recommended_mode = static_cast<int>(report.recommended_mode);
+    out->uses_composed_layer_stack = report.uses_composed_layer_stack ? 1 : 0;
+    out->uses_references = report.uses_references ? 1 : 0;
+    out->uses_payloads = report.uses_payloads ? 1 : 0;
+    out->uses_inherits = report.uses_inherits ? 1 : 0;
+    out->uses_specializes = report.uses_specializes ? 1 : 0;
+    out->uses_variant_selection = report.uses_variant_selection ? 1 : 0;
+    out->uses_variant_sets = report.uses_variant_sets ? 1 : 0;
+    out->uses_relocates = report.uses_relocates ? 1 : 0;
+    out->uses_prefix_substitutions = report.uses_prefix_substitutions ? 1 : 0;
+    out->uses_time_samples = report.uses_time_samples ? 1 : 0;
+    out->uses_relationships = report.uses_relationships ? 1 : 0;
+    out->uses_custom_data = report.uses_custom_data ? 1 : 0;
+    out->uses_attribute_connections = report.uses_attribute_connections ? 1 : 0;
+    out->uses_skel_bound_meshes = report.uses_skel_bound_meshes ? 1 : 0;
+    out->uses_blend_shapes = report.uses_blend_shapes ? 1 : 0;
+    out->uses_skel_animation = report.uses_skel_animation ? 1 : 0;
     clear_error();
     return FREEUSD_OK;
   } catch (const std::exception& e) {

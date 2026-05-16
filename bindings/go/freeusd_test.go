@@ -1012,3 +1012,46 @@ func TestUsdGeomEngineSubsetParityImageable(t *testing.T) {
 		t.Fatal("expected NOT_FOUND for non-boundable /World")
 	}
 }
+
+func TestSkelCrossLanguageContract(t *testing.T) {
+	fixture := filepath.Join("..", "..", "tests", "fixtures", "parity_skel_skinning.usda")
+	st, rc := OpenStageFromRootFile(fixture, 2)
+	if rc != 0 {
+		t.Fatalf("OpenStageFromRootFile rc=%d %s", rc, LastErrorMessage())
+	}
+	defer st.Free()
+
+	names, rc := st.ReadSkelJointNames("/World/SkelCharacter/Skeleton")
+	if rc != 0 || len(names) != 2 || names[0] != "Root" || names[1] != "Root/Hip" {
+		t.Fatalf("joint names %v rc=%d", names, rc)
+	}
+
+	report, rc := st.AssessEngineRuntimeSupport()
+	if rc != 0 || !report.UsesSkelBoundMeshes || !report.UsesSkelAnimation {
+		t.Fatalf("runtime report %+v rc=%d", report, rc)
+	}
+
+	points := [][3]float32{{0, 1, 0}}
+	out, rc := st.DeformPointsWithSkeleton("/World/SkelCharacter/Skeleton", "/World/SkelCharacter/Anim", 1.0, points, []int32{1}, []float32{1}, 1)
+	if rc != 0 || len(out) != 1 || out[0][1] <= points[0][1] {
+		t.Fatalf("deform out=%v rc=%d", out, rc)
+	}
+
+	world := [][16]float64{}
+	bind := [][16]float64{}
+	for i := 0; i < 2; i++ {
+		var w, b [16]float64
+		w[0], w[5], w[10], w[15] = 1, 1, 1, 1
+		b[0], b[5], b[10], b[15] = 1, 1, 1, 1
+		if i == 1 {
+			w[13] = 2
+			b[13] = 1
+		}
+		world = append(world, w)
+		bind = append(bind, b)
+	}
+	palette, rc := ComputeSkinningMatrices(world, bind)
+	if rc != 0 || len(palette) != 2 || palette[1][13] != 3.0 {
+		t.Fatalf("palette %v rc=%d", palette, rc)
+	}
+}

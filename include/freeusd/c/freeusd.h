@@ -623,6 +623,61 @@ FREEUSD_C_API int freeusd_stage_read_geom_blend_shape_weight(const FreeusdStage*
                                                             size_t target_index, double time, float* out_weight);
 
 /**
+ * Build a joint skinning palette: ``out_palette[i] = joint_world[i] * inverse_bind[i]`` (row-major 4x4).
+ * @p joint_count must be positive; each input/output matrix is 16 consecutive doubles.
+ */
+FREEUSD_C_API int freeusd_usdskel_compute_skinning_matrices(size_t joint_count, const double* joint_world_row_major,
+                                                          const double* inverse_bind_row_major,
+                                                          double* out_palette_row_major);
+
+/**
+ * CPU LBS using composed skeleton bind transforms and animation TRS at @p time.
+ * @p in_points_xyz / @p out_points_xyz are @c 3 * @p point_count floats (xyz interleaved).
+ * @p joint_indices / @p joint_weights length is @p point_count * @p influences_per_point.
+ */
+FREEUSD_C_API int freeusd_stage_deform_points_with_skeleton(const FreeusdStage* stage,
+                                                            const char* skeleton_path_utf8,
+                                                            const char* animation_path_utf8, double time,
+                                                            size_t point_count, const float* in_points_xyz,
+                                                            const int* joint_indices, const float* joint_weights,
+                                                            size_t influences_per_point, float* out_points_xyz);
+
+/** Recommended engine runtime mode (matches @c freeusd::usdUtils::EngineRuntimeMode). */
+enum FreeusdEngineRuntimeMode {
+  FREEUSD_ENGINE_RUNTIME_PREBAKED = 0,
+  FREEUSD_ENGINE_RUNTIME_HYBRID = 1,
+  FREEUSD_ENGINE_RUNTIME_EXPERIMENTAL_LIVE = 2,
+};
+
+/** Feature flags from @c freeusd::usdUtils::AssessEngineRuntimeSupport (0/1 fields). */
+typedef struct FreeusdEngineRuntimeSupport {
+  int recommended_mode;
+  int uses_composed_layer_stack;
+  int uses_references;
+  int uses_payloads;
+  int uses_inherits;
+  int uses_specializes;
+  int uses_variant_selection;
+  int uses_variant_sets;
+  int uses_relocates;
+  int uses_prefix_substitutions;
+  int uses_time_samples;
+  int uses_relationships;
+  int uses_custom_data;
+  int uses_attribute_connections;
+  int uses_skel_bound_meshes;
+  int uses_blend_shapes;
+  int uses_skel_animation;
+} FreeusdEngineRuntimeSupport;
+
+/**
+ * Assess which engine runtime integration mode fits the composed stage.
+ * @p out must be non-NULL.
+ */
+FREEUSD_C_API int freeusd_usdutils_assess_engine_runtime_support(const FreeusdStage* stage,
+                                                                 FreeusdEngineRuntimeSupport* out);
+
+/**
  * Composed prim active flag (strongest opinion; default true if no opinion).
  * @p out_active receives 0 or 1.
  */

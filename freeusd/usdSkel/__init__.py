@@ -19,6 +19,7 @@ MorphTargetBinding = _skel.MorphTargetBinding
 MorphTargets = _skel.MorphTargets
 JointTransform = _skel.JointTransform
 apply_morph_targets_to_points = _skel.apply_morph_targets_to_points
+compute_skinning_matrices = _skel.compute_skinning_matrices
 deform_points_with_skeleton = _skel.deform_points_with_skeleton
 build_joint_world_matrices_from_animation = _skel.build_joint_world_matrices_from_animation
 
@@ -29,6 +30,7 @@ __all__ = [
     "MorphTargets",
     "apply_morph_targets_to_points",
     "build_joint_world_matrices_from_animation",
+    "compute_skinning_matrices",
     "deform_points_with_skeleton",
     "Skeleton",
     "SkelAnimation",

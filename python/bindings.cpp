@@ -2473,6 +2473,23 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
     };
 
     usdSkel.def(
+        "compute_skinning_matrices",
+        [](const py::list& joint_world, const py::list& inverse_bind) -> py::object {
+          const std::vector<freeusd::gf::Matrix4d> world = matrix4d_from_py_rows(joint_world);
+          const std::vector<freeusd::gf::Matrix4d> bind = matrix4d_from_py_rows(inverse_bind);
+          std::vector<freeusd::gf::Matrix4d> palette;
+          if (!freeusd::usdSkel::ComputeSkinningMatrices(world, bind, &palette)) {
+            return py::none();
+          }
+          py::list rows;
+          for (const freeusd::gf::Matrix4d& m : palette) {
+            rows.append(py::cast(m.m));
+          }
+          return rows;
+        },
+        py::arg("joint_world_matrices"), py::arg("inverse_bind_matrices"));
+
+    usdSkel.def(
         "deform_points_with_skeleton",
         [&](const std::vector<freeusd::gf::Vec3f>& points, const std::vector<int>& joint_indices,
             const std::vector<float>& joint_weights, std::size_t influences_per_point, const py::list& joint_world,

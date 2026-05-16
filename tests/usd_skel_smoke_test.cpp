@@ -182,7 +182,21 @@ int main() {
   }
 
   {
-    // glTF LBS: point' = sum(weight * (point * inverseBind * jointWorld))
+    std::vector<freeusd::gf::Matrix4d> world_mats(2);
+    std::vector<freeusd::gf::Matrix4d> bind_mats(2);
+    world_mats[0] = freeusd::gf::Matrix4d::Identity();
+    bind_mats[0] = freeusd::gf::Matrix4d::Identity();
+    world_mats[1] = freeusd::gf::Matrix4d::Translate(0.0, 2.0, 0.0);
+    bind_mats[1] = freeusd::gf::Matrix4d::Translate(0.0, 1.0, 0.0);
+    std::vector<freeusd::gf::Matrix4d> palette{};
+    assert(freeusd::usdSkel::ComputeSkinningMatrices(world_mats, bind_mats, &palette));
+    assert(palette.size() == 2u);
+    assert(near(palette[0].m[13], 0.0));
+    assert(near(palette[1].m[13], 3.0));
+  }
+
+  {
+    // glTF LBS: point' = sum(weight * (point * jointWorld * inverseBind))
     auto skin_stage = Stage::OpenFromRootFile(fixture("parity_skel_skinning.usda"),
                                              freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
     assert(skin_stage && err.empty());

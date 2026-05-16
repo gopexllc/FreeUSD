@@ -403,7 +403,59 @@ extern "C" {
         out_max_y: *mut c_double,
         out_max_z: *mut c_double,
     ) -> c_int;
+    fn freeusd_stage_read_skel_joint_names(
+        stage: *const FreeusdStage,
+        skeleton_path: *const c_char,
+        out_strings: *mut *mut *mut c_char,
+        out_count: *mut usize,
+    ) -> c_int;
+    fn freeusd_usdskel_compute_skinning_matrices(
+        joint_count: usize,
+        joint_world_row_major: *const c_double,
+        inverse_bind_row_major: *const c_double,
+        out_palette_row_major: *mut c_double,
+    ) -> c_int;
+    fn freeusd_stage_deform_points_with_skeleton(
+        stage: *const FreeusdStage,
+        skeleton_path: *const c_char,
+        animation_path: *const c_char,
+        time: c_double,
+        point_count: usize,
+        in_points_xyz: *const f32,
+        joint_indices: *const c_int,
+        joint_weights: *const f32,
+        influences_per_point: usize,
+        out_points_xyz: *mut f32,
+    ) -> c_int;
+    fn freeusd_usdutils_assess_engine_runtime_support(
+        stage: *const FreeusdStage,
+        out: *mut FreeusdEngineRuntimeSupport,
+    ) -> c_int;
 }
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default)]
+pub struct FreeusdEngineRuntimeSupport {
+    pub recommended_mode: c_int,
+    pub uses_composed_layer_stack: c_int,
+    pub uses_references: c_int,
+    pub uses_payloads: c_int,
+    pub uses_inherits: c_int,
+    pub uses_specializes: c_int,
+    pub uses_variant_selection: c_int,
+    pub uses_variant_sets: c_int,
+    pub uses_relocates: c_int,
+    pub uses_prefix_substitutions: c_int,
+    pub uses_time_samples: c_int,
+    pub uses_relationships: c_int,
+    pub uses_custom_data: c_int,
+    pub uses_attribute_connections: c_int,
+    pub uses_skel_bound_meshes: c_int,
+    pub uses_blend_shapes: c_int,
+    pub uses_skel_animation: c_int,
+}
+
+pub type EngineRuntimeSupport = FreeusdEngineRuntimeSupport;
 
 /// C API `FREEUSD_ERR_NOT_FOUND` (e.g. unmapped relocate / prefix substitution / customLayerData string read).
 pub const ERR_NOT_FOUND: i32 = 3;
@@ -1483,6 +1535,94 @@ impl Stage {
         Ok((min_x, min_y, min_z, max_x, max_y, max_z))
     }
 
+    pub fn read_skel_joint_names(&self, skeleton_path: &str) -> Result<Vec<String>, i32> {
+        let sp = CString::new(skeleton_path).map_err(|_| 1)?;
+        let mut arr: *mut *mut c_char = ptr::null_mut();
+        let mut n: usize = 0;
+        let rc = unsafe {
+            freeusd_stage_read_skel_joint_names(
+                self.ptr as *const FreeusdStage,
+                sp.as_ptr(),
+                &mut arr,
+                &mut n,
+            )
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        if n == 0 || arr.is_null() {
+            return Ok(Vec::new());
+        }
+        let slice = unsafe { std::slice::from_raw_parts(arr, n) };
+        let mut out = Vec::with_capacity(n);
+        for &p in slice {
+            if !p.is_null() {
+                out.push(unsafe { CStr::from_ptr(p).to_string_lossy().into_owned() });
+            }
+        }
+        unsafe {
+            freeusd_path_list_free(arr, n);
+        }
+        Ok(out)
+    }
+
+    pub fn assess_engine_runtime_support(&self) -> Result<EngineRuntimeSupport, i32> {
+        let mut raw = FreeusdEngineRuntimeSupport::default();
+        let rc = unsafe {
+            freeusd_usdutils_assess_engine_runtime_support(self.ptr as *const FreeusdStage, &mut raw)
+        };
+        if rc != 0 {
+            Err(rc as i32)
+        } else {
+            Ok(raw)
+        }
+    }
+
+    pub fn deform_points_with_skeleton(
+        &self,
+        skeleton_path: &str,
+        animation_path: &str,
+        time: f64,
+        points: &[[f32; 3]],
+        indices: &[i32],
+        weights: &[f32],
+        influences_per_point: usize,
+    ) -> Result<Vec<[f32; 3]>, i32> {
+        let sp = CString::new(skeleton_path).map_err(|_| 1)?;
+        let ap = CString::new(animation_path).map_err(|_| 1)?;
+        let mut in_xyz = Vec::with_capacity(points.len() * 3);
+        for p in points {
+            in_xyz.extend_from_slice(p);
+        }
+        let mut out_xyz = vec![0.0f32; points.len() * 3];
+        let rc = unsafe {
+            freeusd_stage_deform_points_with_skeleton(
+                self.ptr as *const FreeusdStage,
+                sp.as_ptr(),
+                ap.as_ptr(),
+                time as c_double,
+                points.len(),
+                in_xyz.as_ptr(),
+                indices.as_ptr(),
+                weights.as_ptr(),
+                influences_per_point,
+                out_xyz.as_mut_ptr(),
+            )
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        let mut out = Vec::with_capacity(points.len());
+        for i in 0..points.len() {
+            out.push([
+                out_xyz[i * 3],
+                out_xyz[i * 3 + 1],
+                out_xyz[i * 3 + 2],
+            ]);
+        }
+        Ok(out)
+    }
+
     /// True if any composed layer authors `relocates` with this source prim path.
     pub fn relocate_source_in_any_layer(&self, from_prim: &str) -> Result<bool, i32> {
         let pp = CString::new(from_prim).map_err(|_| 1)?;
@@ -2508,4 +2648,89 @@ def Xform "Root"
             ERR_NOT_FOUND
         );
     }
+
+    #[test]
+    fn skel_cross_language_contract() {
+        let path = fixture_path("parity_skel_skinning.usda");
+        let stage = Stage::open_from_root_file(&path.to_string_lossy(), 2).expect("open skel fixture");
+        let names = stage
+            .read_skel_joint_names("/World/SkelCharacter/Skeleton")
+            .expect("joint names");
+        assert_eq!(names, vec!["Root".to_string(), "Root/Hip".to_string()]);
+
+        let report = stage.assess_engine_runtime_support().expect("runtime report");
+        assert_eq!(report.uses_skel_bound_meshes, 1);
+        assert_eq!(report.uses_skel_animation, 1);
+
+        let deformed = stage
+            .deform_points_with_skeleton(
+                "/World/SkelCharacter/Skeleton",
+                "/World/SkelCharacter/Anim",
+                1.0,
+                &[[0.0, 1.0, 0.0]],
+                &[1],
+                &[1.0],
+                1,
+            )
+            .expect("deform");
+        assert_eq!(deformed.len(), 1);
+        assert!(deformed[0][1] > 1.0);
+
+        let mut world = [[0.0f64; 16]; 2];
+        let mut bind = [[0.0f64; 16]; 2];
+        for m in &mut world {
+            m[0] = 1.0;
+            m[5] = 1.0;
+            m[10] = 1.0;
+            m[15] = 1.0;
+        }
+        for m in &mut bind {
+            m[0] = 1.0;
+            m[5] = 1.0;
+            m[10] = 1.0;
+            m[15] = 1.0;
+        }
+        world[1][13] = 2.0;
+        bind[1][13] = 1.0;
+        let palette = compute_skinning_matrices(&world, &bind).expect("palette");
+        assert!((palette[1][13] - 3.0).abs() < 1e-9);
+    }
+}
+
+/// Build joint skinning palette: `palette[i] = joint_world[i] * inverse_bind[i]` (row-major).
+pub fn compute_skinning_matrices(
+    joint_world: &[[f64; 16]],
+    inverse_bind: &[[f64; 16]],
+) -> Result<Vec<[f64; 16]>, i32> {
+    if joint_world.is_empty() || joint_world.len() != inverse_bind.len() {
+        return Err(1);
+    }
+    let n = joint_world.len();
+    let mut world_flat = vec![0.0f64; n * 16];
+    let mut bind_flat = vec![0.0f64; n * 16];
+    let mut out_flat = vec![0.0f64; n * 16];
+    for (i, m) in joint_world.iter().enumerate() {
+        world_flat[i * 16..(i + 1) * 16].copy_from_slice(m);
+    }
+    for (i, m) in inverse_bind.iter().enumerate() {
+        bind_flat[i * 16..(i + 1) * 16].copy_from_slice(m);
+    }
+    let rc = unsafe {
+        freeusd_usdskel_compute_skinning_matrices(
+            n,
+            world_flat.as_ptr(),
+            bind_flat.as_ptr(),
+            out_flat.as_mut_ptr(),
+        )
+    };
+    if rc != 0 {
+        return Err(rc as i32);
+    }
+    let mut palette = Vec::with_capacity(n);
+    for i in 0..n {
+        let mut m = [0.0f64; 16];
+        m.copy_from_slice(&out_flat[i * 16..(i + 1) * 16]);
+        palette.push(m);
+    }
+    Ok(palette)
 }

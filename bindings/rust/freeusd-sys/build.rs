@@ -36,6 +36,8 @@ fn main() {
         "freeusd_c",
         "freeusd_base",
         "freeusd_usdUtils",
+        "freeusd_usdSkel",
+        "freeusd_usdShade",
         "freeusd_usdGeom",
         "freeusd_usd",
         "freeusd_ar",

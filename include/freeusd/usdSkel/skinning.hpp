@@ -12,6 +12,14 @@ namespace freeusd::usdSkel {
 class SkelAnimation;
 class Skeleton;
 
+/// Joint palette for GPU skinning (glTF ``skin.jointMatrices`` family).
+///
+/// For each joint @c i: ``palette[i] = jointWorld[i] * inverseBind[i]`` with row vectors ``[x y z 1] * M``.
+/// @p inverse_bind_matrices are skeleton ``bindTransforms`` (inverse bind / rest-to-joint).
+FREEUSD_API bool ComputeSkinningMatrices(const std::vector<freeusd::gf::Matrix4d>& joint_world_matrices,
+                                         const std::vector<freeusd::gf::Matrix4d>& inverse_bind_matrices,
+                                         std::vector<freeusd::gf::Matrix4d>* out_palette);
+
 /// Linear blend skinning (LBS) on CPU.
 ///
 /// glTF mapping (per influence @c i):

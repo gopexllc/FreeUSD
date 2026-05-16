@@ -48,6 +48,8 @@ cargo test --manifest-path bindings/rust/Cargo.toml
 
 Shared fixture: **`tests/fixtures/usd_cross_language.usda`**. Tests: **`tests/c_usd_cross_language.c`**, **`tests/python/test_usd_cross_language.py`**, **`bindings/go/freeusd_test.go`** (`TestCrossLanguageFieldReadContract`), **`bindings/rust`** (`cross_language_field_read_contract`).
 
+Skel fixture: **`tests/fixtures/parity_skel_skinning.usda`**. Tests: **`tests/c_usd_skel.c`**, **`tests/usd_skel_smoke_test.cpp`**, **`bindings/go/freeusd_test.go`** (`TestSkelCrossLanguageContract`), **`bindings/rust`** (`skel_cross_language_contract`).
+
 | Capability | C ABI | C++ / Python | Go | Rust |
 |------------|:-----:|:------------:|:--:|:----:|
 | Typed field reads (double/float/bool/int/string/vec/matrix/quat/token) | yes | yes | yes | yes |
@@ -57,7 +59,9 @@ Shared fixture: **`tests/fixtures/usd_cross_language.usda`**. Tests: **`tests/c_
 | Composed prim customData (string/token + int64) | yes | yes (typed `Value`) | yes | yes |
 | Composed prim customData key list / layer presence | yes | yes | yes | yes |
 | `usdGeom` imageable/boundable (C ABI) | yes | yes | yes | yes |
-| `usdUtils` flatten / engine assess | C++ only | yes | n/a | n/a |
+| `usdSkel` joint names / skinning palette / CPU deform | yes | yes | yes | yes |
+| `usdUtils` engine runtime assess (skel flags) | yes | yes | yes | yes |
+| `usdUtils` flatten | C++ only | yes | n/a | n/a |
 
 ## Adding more bindings
 

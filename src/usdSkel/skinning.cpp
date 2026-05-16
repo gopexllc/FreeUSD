@@ -85,6 +85,21 @@ bool BuildJointWorldMatricesFromAnimation(const Skeleton& skeleton, const SkelAn
   return !out_world->empty();
 }
 
+bool ComputeSkinningMatrices(const std::vector<freeusd::gf::Matrix4d>& joint_world_matrices,
+                             const std::vector<freeusd::gf::Matrix4d>& inverse_bind_matrices,
+                             std::vector<freeusd::gf::Matrix4d>* out_palette) {
+  if (!out_palette || joint_world_matrices.empty() ||
+      joint_world_matrices.size() != inverse_bind_matrices.size()) {
+    return false;
+  }
+  out_palette->resize(joint_world_matrices.size());
+  for (std::size_t i = 0; i < joint_world_matrices.size(); ++i) {
+    (*out_palette)[i] =
+        freeusd::gf::Matrix4d::Multiply(joint_world_matrices[i], inverse_bind_matrices[i]);
+  }
+  return true;
+}
+
 bool DeformPointsWithSkeleton(const std::vector<freeusd::gf::Vec3f>& points, const std::vector<int>& joint_indices,
                               const std::vector<float>& joint_weights, std::size_t influences_per_point,
                               const std::vector<freeusd::gf::Matrix4d>& joint_world_matrices,
@@ -105,6 +120,11 @@ bool DeformPointsWithSkeleton(const std::vector<freeusd::gf::Vec3f>& points, con
     return false;
   }
 
+  std::vector<freeusd::gf::Matrix4d> palette;
+  if (!ComputeSkinningMatrices(joint_world_matrices, inverse_bind_matrices, &palette)) {
+    return false;
+  }
+
   out->resize(point_count);
   for (std::size_t vtx = 0; vtx < point_count; ++vtx) {
     freeusd::gf::Vec3d bind_point{static_cast<double>(points[vtx].x()), static_cast<double>(points[vtx].y()),
@@ -122,14 +142,11 @@ bool DeformPointsWithSkeleton(const std::vector<freeusd::gf::Vec3f>& points, con
         continue;
       }
       const int joint = joint_indices[base + inf];
-      if (joint < 0 || static_cast<std::size_t>(joint) >= joint_world_matrices.size() ||
-          static_cast<std::size_t>(joint) >= inverse_bind_matrices.size()) {
+      if (joint < 0 || static_cast<std::size_t>(joint) >= palette.size()) {
         continue;
       }
-      const freeusd::gf::Matrix4d skin =
-          freeusd::gf::Matrix4d::Multiply(inverse_bind_matrices[static_cast<std::size_t>(joint)],
-                                          joint_world_matrices[static_cast<std::size_t>(joint)]);
-      const freeusd::gf::Vec3d influenced = transform_point(skin, bind_point);
+      const freeusd::gf::Vec3d influenced =
+          transform_point(palette[static_cast<std::size_t>(joint)], bind_point);
       deformed.set(deformed.x() + static_cast<double>(weight) * influenced.x(),
                    deformed.y() + static_cast<double>(weight) * influenced.y(),
                    deformed.z() + static_cast<double>(weight) * influenced.z());
