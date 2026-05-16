@@ -150,6 +150,59 @@ bool try_interpolate_samples(const freeusd::vt::Value& a, const freeusd::vt::Val
                                                           static_cast<float>(dr.j), static_cast<float>(dr.k)});
     return true;
   }
+  if (a.HoldsVec3fArray()) {
+    std::vector<freeusd::gf::Vec3f> x0{};
+    std::vector<freeusd::gf::Vec3f> x1{};
+    if (!a.GetVec3fArray(&x0) || !b.GetVec3fArray(&x1) || x0.size() != x1.size()) {
+      return false;
+    }
+    const float u = static_cast<float>(1.0 - alpha);
+    const float t = static_cast<float>(alpha);
+    std::vector<freeusd::gf::Vec3f> r;
+    r.resize(x0.size());
+    for (std::size_t i = 0; i < x0.size(); ++i) {
+      r[i].set(x0[i].x() * u + x1[i].x() * t, x0[i].y() * u + x1[i].y() * t, x0[i].z() * u + x1[i].z() * t);
+    }
+    *out = freeusd::vt::Value::MakeVec3fArray(std::move(r));
+    return true;
+  }
+  if (a.HoldsQuatfArray()) {
+    std::vector<freeusd::gf::Quatf> x0{};
+    std::vector<freeusd::gf::Quatf> x1{};
+    if (!a.GetQuatfArray(&x0) || !b.GetQuatfArray(&x1) || x0.size() != x1.size()) {
+      return false;
+    }
+    std::vector<freeusd::gf::Quatf> r;
+    r.resize(x0.size());
+    for (std::size_t i = 0; i < x0.size(); ++i) {
+      const freeusd::gf::Quatd d0{static_cast<double>(x0[i].real), static_cast<double>(x0[i].i),
+                                  static_cast<double>(x0[i].j), static_cast<double>(x0[i].k)};
+      const freeusd::gf::Quatd d1{static_cast<double>(x1[i].real), static_cast<double>(x1[i].i),
+                                  static_cast<double>(x1[i].j), static_cast<double>(x1[i].k)};
+      const freeusd::gf::Quatd dr = slerp_quatd(d0, d1, alpha);
+      r[i] = freeusd::gf::Quatf{static_cast<float>(dr.real), static_cast<float>(dr.i), static_cast<float>(dr.j),
+                                static_cast<float>(dr.k)};
+    }
+    *out = freeusd::vt::Value::MakeQuatfArray(std::move(r));
+    return true;
+  }
+  if (a.HoldsMatrix4dArray()) {
+    std::vector<freeusd::gf::Matrix4d> x0{};
+    std::vector<freeusd::gf::Matrix4d> x1{};
+    if (!a.GetMatrix4dArray(&x0) || !b.GetMatrix4dArray(&x1) || x0.size() != x1.size()) {
+      return false;
+    }
+    std::vector<freeusd::gf::Matrix4d> r;
+    r.resize(x0.size());
+    const double u = 1.0 - alpha;
+    for (std::size_t i = 0; i < x0.size(); ++i) {
+      for (std::size_t k = 0; k < 16; ++k) {
+        r[i].m[k] = x0[i].m[k] * u + x1[i].m[k] * alpha;
+      }
+    }
+    *out = freeusd::vt::Value::MakeMatrix4dArray(std::move(r));
+    return true;
+  }
   // bool, string, token, token[]: bracketing uses lower sample (OpenUSD-style non-interpolable).
   return false;
 }

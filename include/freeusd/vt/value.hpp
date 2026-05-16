@@ -28,8 +28,11 @@ using ValuePayload = std::variant<std::monostate,
                                   freeusd::gf::Quatd,
                                   freeusd::gf::Quatf,
                                   freeusd::gf::Matrix4d,
+                                  std::vector<freeusd::gf::Matrix4d>,
                                   freeusd::gf::Vec3d,
-                                  freeusd::gf::Vec3f>;
+                                  freeusd::gf::Vec3f,
+                                  std::vector<freeusd::gf::Vec3f>,
+                                  std::vector<freeusd::gf::Quatf>>;
 
 /// Typed value bag analogous in role to VtValue (clean-room).
 class FREEUSD_API Value {
@@ -48,8 +51,11 @@ class FREEUSD_API Value {
   static Value MakeQuatd(freeusd::gf::Quatd v);
   static Value MakeQuatf(freeusd::gf::Quatf v);
   static Value MakeMatrix4d(freeusd::gf::Matrix4d v);
+  static Value MakeMatrix4dArray(std::vector<freeusd::gf::Matrix4d> v);
   static Value MakeVec3d(freeusd::gf::Vec3d v);
   static Value MakeVec3f(freeusd::gf::Vec3f v);
+  static Value MakeVec3fArray(std::vector<freeusd::gf::Vec3f> v);
+  static Value MakeQuatfArray(std::vector<freeusd::gf::Quatf> v);
 
   bool IsEmpty() const noexcept;
   bool HoldsBool() const noexcept;
@@ -63,8 +69,11 @@ class FREEUSD_API Value {
   bool HoldsQuatd() const noexcept;
   bool HoldsQuatf() const noexcept;
   bool HoldsMatrix4d() const noexcept;
+  bool HoldsMatrix4dArray() const noexcept;
   bool HoldsVec3d() const noexcept;
   bool HoldsVec3f() const noexcept;
+  bool HoldsVec3fArray() const noexcept;
+  bool HoldsQuatfArray() const noexcept;
 
   bool GetBool(bool* out) const noexcept;
   bool GetInt32(std::int32_t* out) const noexcept;
@@ -77,8 +86,11 @@ class FREEUSD_API Value {
   bool GetQuatd(freeusd::gf::Quatd* out) const noexcept;
   bool GetQuatf(freeusd::gf::Quatf* out) const noexcept;
   bool GetMatrix4d(freeusd::gf::Matrix4d* out) const noexcept;
+  bool GetMatrix4dArray(std::vector<freeusd::gf::Matrix4d>* out) const;
   bool GetVec3d(freeusd::gf::Vec3d* out) const noexcept;
   bool GetVec3f(freeusd::gf::Vec3f* out) const noexcept;
+  bool GetVec3fArray(std::vector<freeusd::gf::Vec3f>* out) const;
+  bool GetQuatfArray(std::vector<freeusd::gf::Quatf>* out) const;
 
   const ValuePayload& GetPayload() const noexcept { return payload_; }
   ValuePayload& GetPayload() noexcept { return payload_; }

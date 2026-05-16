@@ -7,6 +7,8 @@
 #include "freeusd/usd/stage.hpp"
 #include "freeusd/usdGeom/boundable.hpp"
 #include "freeusd/usdGeom/imageable.hpp"
+#include "freeusd/usdSkel/skelAnimation.hpp"
+#include "freeusd/usdSkel/skeleton.hpp"
 #include "freeusd/usdUtils/pipeline.hpp"
 #include "freeusd/vt/value.hpp"
 
@@ -170,6 +172,23 @@ int main() {
     assert(!world.IsEmpty());
     assert(world.min.x() == 0.0 && world.min.y() == 1.0 && world.min.z() == 2.0);
     assert(world.max.x() == 2.0 && world.max.y() == 3.0 && world.max.z() == 4.0);
+  }
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_skel_gltf.usda"),
+                                         freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const freeusd::usdSkel::Skeleton skel(stage->GetPrimAtPath(Path::FromString("/World/Character/Skeleton")));
+    assert(skel);
+    const std::vector<std::string> joints = skel.GetJointNames();
+    assert(joints.size() == 2u && joints[0] == "Root" && joints[1] == "Root/Hip");
+    const freeusd::usdSkel::SkelAnimation anim(stage->GetPrimAtPath(Path::FromString("/World/Character/Anim")));
+    assert(anim);
+    std::vector<freeusd::gf::Vec3f> translations{};
+    assert(anim.GetTranslations(&translations, 1.0));
+    assert(translations.size() == 2u);
+    assert(translations[1].y() == 2.0f);
   }
 
   return 0;

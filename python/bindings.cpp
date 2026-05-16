@@ -41,6 +41,9 @@
 #include "freeusd/usdGeom/imageable.hpp"
 #include "freeusd/usdGeom/tokens.hpp"
 #include "freeusd/usdGeom/xformable.hpp"
+#include "freeusd/usdSkel/gltfMapping.hpp"
+#include "freeusd/usdSkel/skelAnimation.hpp"
+#include "freeusd/usdSkel/skeleton.hpp"
 #include "freeusd/usdHydra/tokens.hpp"
 #include "freeusd/usdLux/tokens.hpp"
 #include "freeusd/usdMedia/tokens.hpp"
@@ -2088,6 +2091,153 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
     auto usdSkel = m.def_submodule("usdSkel");
     auto skel_tokens = usdSkel.def_submodule("tokens");
 #include "generated/usdSkel_tokens.inc"
+
+    auto gltf_mapping = usdSkel.def_submodule("gltf_mapping");
+    gltf_mapping.def("build_joint_parent_indices", &freeusd::usdSkel::BuildJointParentIndices, py::arg("joint_names"));
+    gltf_mapping.def(
+        "accumulate_world_transforms",
+        [](const std::vector<int>& parents, const std::vector<freeusd::gf::Matrix4d>& locals) -> py::list {
+          py::list rows;
+          for (const freeusd::gf::Matrix4d& m : freeusd::usdSkel::AccumulateWorldTransforms(parents, locals)) {
+            rows.append(py::cast(std::vector<double>(m.m.begin(), m.m.end())));
+          }
+          return rows;
+        },
+        py::arg("parent_indices"),
+        py::arg("local_transforms"));
+    gltf_mapping.def(
+        "compute_world_bind_matrices",
+        [](const std::vector<int>& parents, const std::vector<freeusd::gf::Matrix4d>& locals) -> py::list {
+          py::list rows;
+          for (const freeusd::gf::Matrix4d& m : freeusd::usdSkel::ComputeWorldBindMatrices(parents, locals)) {
+            rows.append(py::cast(std::vector<double>(m.m.begin(), m.m.end())));
+          }
+          return rows;
+        },
+        py::arg("parent_indices"),
+        py::arg("local_bind_transforms"));
+
+    auto matrix4d_rows = [](const std::vector<freeusd::gf::Matrix4d>& mats) -> py::list {
+      py::list rows;
+      for (const freeusd::gf::Matrix4d& m : mats) {
+        rows.append(py::cast(std::vector<double>(m.m.begin(), m.m.end())));
+      }
+      return rows;
+    };
+
+    py::class_<freeusd::usdSkel::Skeleton>(usdSkel, "Skeleton")
+        .def(py::init<>())
+        .def(py::init<const freeusd::usd::Prim&>(), py::arg("prim"))
+        .def_readonly("prim", &freeusd::usdSkel::Skeleton::prim)
+        .def_static(
+            "read_from_prim",
+            [](const std::shared_ptr<const freeusd::usd::Stage>& stage, const freeusd::sdf::Path& path) {
+              return freeusd::usdSkel::Skeleton::ReadFromPrim(stage, path);
+            },
+            py::arg("stage"),
+            py::arg("path"))
+        .def("__bool__", [](const freeusd::usdSkel::Skeleton& s) { return static_cast<bool>(s); })
+        .def("get_joint_names", &freeusd::usdSkel::Skeleton::GetJointNames)
+        .def("get_joint_parent_indices", &freeusd::usdSkel::Skeleton::GetJointParentIndices)
+        .def(
+            "get_bind_transforms",
+            [&](const freeusd::usdSkel::Skeleton& skel, double time) -> py::object {
+              std::vector<freeusd::gf::Matrix4d> out;
+              if (!skel.GetBindTransforms(&out, time)) {
+                return py::none();
+              }
+              return matrix4d_rows(out);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_rest_transforms",
+            [&](const freeusd::usdSkel::Skeleton& skel, double time) -> py::object {
+              std::vector<freeusd::gf::Matrix4d> out;
+              if (!skel.GetRestTransforms(&out, time)) {
+                return py::none();
+              }
+              return matrix4d_rows(out);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "compute_world_bind_matrices",
+            [&](const freeusd::usdSkel::Skeleton& skel, double time) { return matrix4d_rows(skel.ComputeWorldBindMatrices(time)); },
+            py::arg("time") = 1.0);
+
+    py::class_<freeusd::usdSkel::JointTransform>(usdSkel, "JointTransform")
+        .def(py::init<>())
+        .def_readwrite("translation", &freeusd::usdSkel::JointTransform::translation)
+        .def_readwrite("rotation", &freeusd::usdSkel::JointTransform::rotation)
+        .def_readwrite("scale", &freeusd::usdSkel::JointTransform::scale)
+        .def_readwrite("has_translation", &freeusd::usdSkel::JointTransform::has_translation)
+        .def_readwrite("has_rotation", &freeusd::usdSkel::JointTransform::has_rotation)
+        .def_readwrite("has_scale", &freeusd::usdSkel::JointTransform::has_scale);
+
+    py::class_<freeusd::usdSkel::SkelAnimation>(usdSkel, "SkelAnimation")
+        .def(py::init<>())
+        .def(py::init<const freeusd::usd::Prim&>(), py::arg("prim"))
+        .def_readonly("prim", &freeusd::usdSkel::SkelAnimation::prim)
+        .def("__bool__", [](const freeusd::usdSkel::SkelAnimation& a) { return static_cast<bool>(a); })
+        .def("get_joint_names", &freeusd::usdSkel::SkelAnimation::GetJointNames)
+        .def(
+            "get_translations",
+            [](const freeusd::usdSkel::SkelAnimation& anim, double time) -> py::object {
+              std::vector<freeusd::gf::Vec3f> out;
+              if (!anim.GetTranslations(&out, time)) {
+                return py::none();
+              }
+              py::list rows;
+              for (const freeusd::gf::Vec3f& v : out) {
+                rows.append(py::make_tuple(v.x(), v.y(), v.z()));
+              }
+              return rows;
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_rotations",
+            [](const freeusd::usdSkel::SkelAnimation& anim, double time) -> py::object {
+              std::vector<freeusd::gf::Quatf> out;
+              if (!anim.GetRotations(&out, time)) {
+                return py::none();
+              }
+              py::list rows;
+              for (const freeusd::gf::Quatf& q : out) {
+                rows.append(py::make_tuple(q.real, q.i, q.j, q.k));
+              }
+              return rows;
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_scales",
+            [](const freeusd::usdSkel::SkelAnimation& anim, double time) -> py::object {
+              std::vector<freeusd::gf::Vec3f> out;
+              if (!anim.GetScales(&out, time)) {
+                return py::none();
+              }
+              py::list rows;
+              for (const freeusd::gf::Vec3f& v : out) {
+                rows.append(py::make_tuple(v.x(), v.y(), v.z()));
+              }
+              return rows;
+            },
+            py::arg("time") = 1.0)
+        .def("list_translation_sample_times", &freeusd::usdSkel::SkelAnimation::ListTranslationSampleTimes)
+        .def("list_rotation_sample_times", &freeusd::usdSkel::SkelAnimation::ListRotationSampleTimes)
+        .def("list_scale_sample_times", &freeusd::usdSkel::SkelAnimation::ListScaleSampleTimes)
+        .def_static(
+            "sample_joint_transform",
+            [](const std::shared_ptr<const freeusd::usd::Stage>& stage, const freeusd::sdf::Path& anim_path,
+               std::size_t joint_index, double time) -> py::object {
+              freeusd::usdSkel::JointTransform sample{};
+              if (!freeusd::usdSkel::SkelAnimation::SampleJointTransform(stage, anim_path, joint_index, time, &sample)) {
+                return py::none();
+              }
+              return py::cast(sample);
+            },
+            py::arg("stage"),
+            py::arg("anim_path"),
+            py::arg("joint_index"),
+            py::arg("time"));
   }
 
   {

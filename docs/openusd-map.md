@@ -19,7 +19,7 @@ For **repository layout**, CMake target naming, and which upstream trees are out
 | `usdLux` | `freeusd::usdLux` | **Generated** schema **tokens**; no light schema logic |
 | `usdPhysics` | `freeusd::usdPhysics` | **Generated** schema **tokens**; no simulation |
 | `usdVol` | `freeusd::usdVol` | **Generated** schema **tokens**; no volume engine |
-| `usdSkel` | `freeusd::usdSkel` | **Generated** schema **tokens**; no skinning |
+| `usdSkel` | `freeusd::usdSkel` | **Generated** **`tokens.hpp`**; **`Skeleton`** / **`SkelAnimation`** read joints, bind/rest matrices, sampled TRS; **`gltfMapping`** parent indices + world bind helpers |
 | `usdMedia` | `freeusd::usdMedia` | **Generated** schema **tokens** |
 | `usdRender` | `freeusd::usdRender` | **Generated** schema **tokens** |
 | `usdRi` | `freeusd::usdRi` | **Generated** schema **tokens** |

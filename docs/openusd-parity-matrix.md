@@ -32,6 +32,10 @@ Status vocabulary:
   Shared binary crate fixture for bootstrap, TOC, raw section payloads, and validated `TOKENS` / `STRINGS` / `PATHS` table decode.
 - `tests/fixtures/parity_embedded_scene.usdc`
   Narrow crate scene-open fallback through an embedded `USDA` section for controlled engine pipelines and fixtures.
+- `tests/fixtures/parity_skel_gltf.usda`
+  Two-joint skeleton plus `SkelAnimation` TRS time samples for glTF skin/animation channel mapping.
+- `tests/fixtures/parity_skel_gltf.usda`
+  glTF-shaped skeleton + two-key `SkelAnimation` TRS channels via `usdSkel::Skeleton` and `usdSkel::SkelAnimation`.
 
 ## Current Matrix
 
@@ -51,7 +55,8 @@ Status vocabulary:
 
 - `implemented`: `usdGeom::Xformable`, `usdGeom::Imageable`, `usdGeom::Boundable`, `usdUtils::FlattenStageAtTime`, and `usdUtils` engine-scene helpers for importer/editor/runtime subset inspection.
 - `partial`: flattening now preserves evaluated defaults plus composed sample times, but it does not yet reconstruct full authored layer provenance for every arc source.
-- `token-only`: most non-`usdGeom` schema packages remain generated token surfaces only.
+- `partial`: `usdSkel::Skeleton` and `usdSkel::SkelAnimation` read joints, bind/rest matrices, and sampled TRS arrays from USDA; glTF mapping helpers build parent indices and world bind matrices.
+- `token-only`: most other non-`usdGeom` schema packages remain generated token surfaces only.
 
 ### ABI And Bindings
 

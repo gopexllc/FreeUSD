@@ -207,34 +207,103 @@ void set_err(ParseResult* err, std::size_t line, const char* msg) {
   err->message = msg;
 }
 
-/// Bracketed list of ``@``-prefixed tokens (subset of USDA ``token[]`` / ``token`` list literals).
+void split_bracket_list_elements(std::string_view inner, std::vector<std::string_view>* parts) {
+  parts->clear();
+  inner = trim(inner);
+  if (inner.empty()) {
+    return;
+  }
+  int depth_paren = 0;
+  int depth_bracket = 0;
+  int depth_brace = 0;
+  bool dq = false;
+  bool sq = false;
+  std::size_t start = 0;
+  for (std::size_t i = 0; i <= inner.size(); ++i) {
+    char c{};
+    const bool at_end = (i >= inner.size());
+    if (!at_end) {
+      c = inner[i];
+    }
+    if (!at_end) {
+      if (!sq && c == '"' && (i == 0 || inner[i - 1] != '\\')) {
+        dq = !dq;
+      } else if (!dq && c == '\'' && (i == 0 || inner[i - 1] != '\\')) {
+        sq = !sq;
+      } else if (!dq && !sq) {
+        if (c == '(') {
+          ++depth_paren;
+        } else if (c == ')') {
+          --depth_paren;
+        } else if (c == '[') {
+          ++depth_bracket;
+        } else if (c == ']') {
+          --depth_bracket;
+        } else if (c == '{') {
+          ++depth_brace;
+        } else if (c == '}') {
+          --depth_brace;
+        } else if (c == ',' && depth_paren == 0 && depth_bracket == 0 && depth_brace == 0) {
+          parts->push_back(trim(inner.substr(start, i - start)));
+          start = i + 1;
+          continue;
+        }
+      }
+    } else if (start < inner.size()) {
+      parts->push_back(trim(inner.substr(start)));
+    }
+  }
+}
+
+bool parse_usda_token_element(std::string_view p, freeusd::tf::Token* out, ParseResult* err, std::size_t line) {
+  p = trim(p);
+  if (p.empty()) {
+    set_err(err, line, "empty token[] element");
+    return false;
+  }
+  if (p.front() == '@') {
+    std::string_view body = trim(p.substr(1));
+    if (!body.empty() && body.back() == '@') {
+      body = trim(body.substr(0, body.size() - 1));
+    }
+    *out = freeusd::tf::Token{std::string{body}};
+    return true;
+  }
+  if (p.front() == '"' || p.front() == '\'') {
+    std::string name;
+    std::size_t idx = 0;
+    std::string tmp{std::string{p}};
+    if (!read_quoted_name(tmp, &idx, &name)) {
+      set_err(err, line, "bad quoted token[] element");
+      return false;
+    }
+    *out = freeusd::tf::Token{std::move(name)};
+    return true;
+  }
+  *out = freeusd::tf::Token{std::string{p}};
+  return true;
+}
+
+/// Bracketed ``token[]`` list: ``@``-prefixed tokens, bare identifiers, or quoted strings.
 bool parse_usda_token_array_literal(std::string_view t, ParseResult* err, std::size_t line,
                                   std::vector<freeusd::tf::Token>* out) {
   out->clear();
   if (t.size() < 2 || t.front() != '[' || t.back() != ']') {
     return false;
   }
-  std::string_view inner = trim(t.substr(1, t.size() - 2));
+  const std::string_view inner = trim(t.substr(1, t.size() - 2));
   if (inner.empty()) {
     return true;
   }
-  std::string buf{inner};
-  std::stringstream ss(buf);
-  std::string part;
-  while (std::getline(ss, part, ',')) {
-    const std::string_view p = trim(std::string_view{part});
-    if (p.empty()) {
-      continue;
-    }
-    if (p.front() != '@' || p.size() < 2) {
-      set_err(err, line, "token[] literal elements must be @-prefixed tokens");
+  std::vector<std::string_view> pieces;
+  split_bracket_list_elements(inner, &pieces);
+  out->reserve(pieces.size());
+  for (std::string_view piece : pieces) {
+    freeusd::tf::Token tok;
+    if (!parse_usda_token_element(piece, &tok, err, line)) {
       return false;
     }
-    std::string_view body = trim(p.substr(1));
-    if (!body.empty() && body.back() == '@') {
-      body = trim(body.substr(0, body.size() - 1));
-    }
-    out->emplace_back(freeusd::tf::Token{std::string{body}});
+    out->push_back(std::move(tok));
   }
   return true;
 }
@@ -329,12 +398,73 @@ freeusd::vt::Value parse_value(std::string_view t, ParseResult* err, std::size_t
   }
   if (!t.empty() && t.front() == '[' && t.back() == ']') {
     const std::string_view bracket_inner = trim(t.substr(1, t.size() - 2));
-    if (!bracket_inner.empty() && bracket_inner.front() == '@') {
+    const std::string type_l_br = sdf_type.empty() ? std::string{} : ascii_lower(sdf_type);
+    std::string_view elem_type = type_l_br;
+    if (type_l_br.size() >= 2 && type_l_br.substr(type_l_br.size() - 2) == "[]") {
+      elem_type = std::string_view{type_l_br}.substr(0, type_l_br.size() - 2);
+    }
+    if (elem_type == "token" || type_l_br == "token[]" ||
+        (!bracket_inner.empty() && bracket_inner.front() == '@' && elem_type.empty())) {
       std::vector<freeusd::tf::Token> elems;
       if (!parse_usda_token_array_literal(t, err, line, &elems)) {
         return {};
       }
       return freeusd::vt::Value::MakeTokenArray(std::move(elems));
+    }
+    if (!elem_type.empty()) {
+      std::vector<std::string_view> pieces;
+      split_bracket_list_elements(bracket_inner, &pieces);
+      if (elem_type == "matrix4d") {
+        std::vector<freeusd::gf::Matrix4d> mats;
+        mats.reserve(pieces.size());
+        for (std::string_view piece : pieces) {
+          const freeusd::vt::Value ev = parse_value(piece, err, line, "matrix4d");
+          if (err && !err->ok) {
+            return {};
+          }
+          freeusd::gf::Matrix4d m{};
+          if (!ev.GetMatrix4d(&m)) {
+            set_err(err, line, "matrix4d[] element is not a matrix4d");
+            return {};
+          }
+          mats.push_back(m);
+        }
+        return freeusd::vt::Value::MakeMatrix4dArray(std::move(mats));
+      }
+      if (elem_type == "quatf") {
+        std::vector<freeusd::gf::Quatf> qs;
+        qs.reserve(pieces.size());
+        for (std::string_view piece : pieces) {
+          const freeusd::vt::Value ev = parse_value(piece, err, line, "quatf");
+          if (err && !err->ok) {
+            return {};
+          }
+          freeusd::gf::Quatf q{};
+          if (!ev.GetQuatf(&q)) {
+            set_err(err, line, "quatf[] element is not a quatf");
+            return {};
+          }
+          qs.push_back(q);
+        }
+        return freeusd::vt::Value::MakeQuatfArray(std::move(qs));
+      }
+      if (sdf_type_is_float3_tuple_family(elem_type) || elem_type == "vec3f") {
+        std::vector<freeusd::gf::Vec3f> vs;
+        vs.reserve(pieces.size());
+        for (std::string_view piece : pieces) {
+          const freeusd::vt::Value ev = parse_value(piece, err, line, "float3");
+          if (err && !err->ok) {
+            return {};
+          }
+          freeusd::gf::Vec3f v{};
+          if (!ev.GetVec3f(&v)) {
+            set_err(err, line, "vec3f[] element is not a float3 tuple");
+            return {};
+          }
+          vs.push_back(v);
+        }
+        return freeusd::vt::Value::MakeVec3fArray(std::move(vs));
+      }
     }
   }
   if (!t.empty() && t.front() == '@') {
@@ -725,6 +855,45 @@ std::string value_to_usda(const freeusd::vt::Value& v) {
     oss << "))";
     return oss.str();
   }
+  if (v.HoldsMatrix4dArray()) {
+    std::vector<freeusd::gf::Matrix4d> mats;
+    v.GetMatrix4dArray(&mats);
+    std::string o = "[";
+    for (std::size_t i = 0; i < mats.size(); ++i) {
+      if (i) {
+        o += ", ";
+      }
+      o += value_to_usda(freeusd::vt::Value::MakeMatrix4d(mats[i]));
+    }
+    o += ']';
+    return o;
+  }
+  if (v.HoldsQuatfArray()) {
+    std::vector<freeusd::gf::Quatf> qs;
+    v.GetQuatfArray(&qs);
+    std::string o = "[";
+    for (std::size_t i = 0; i < qs.size(); ++i) {
+      if (i) {
+        o += ", ";
+      }
+      o += value_to_usda(freeusd::vt::Value::MakeQuatf(qs[i]));
+    }
+    o += ']';
+    return o;
+  }
+  if (v.HoldsVec3fArray()) {
+    std::vector<freeusd::gf::Vec3f> vs;
+    v.GetVec3fArray(&vs);
+    std::string o = "[";
+    for (std::size_t i = 0; i < vs.size(); ++i) {
+      if (i) {
+        o += ", ";
+      }
+      o += value_to_usda(freeusd::vt::Value::MakeVec3f(vs[i]));
+    }
+    o += ']';
+    return o;
+  }
   if (v.HoldsVec3f()) {
     freeusd::gf::Vec3f vec;
     v.GetVec3f(&vec);
@@ -792,8 +961,17 @@ std::string field_type_hint(const freeusd::vt::Value& v) {
   if (v.HoldsMatrix4d()) {
     return "matrix4d";
   }
+  if (v.HoldsMatrix4dArray()) {
+    return "matrix4d[]";
+  }
+  if (v.HoldsQuatfArray()) {
+    return "quatf[]";
+  }
   if (v.HoldsVec3f()) {
     return "float3";
+  }
+  if (v.HoldsVec3fArray()) {
+    return "float3[]";
   }
   if (v.HoldsVec3d()) {
     return "double3";

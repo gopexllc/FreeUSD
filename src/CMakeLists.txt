@@ -66,7 +66,14 @@ target_link_libraries(freeusd_usdUtils PUBLIC freeusd_usd freeusd_sdf freeusd_bu
 add_library(freeusd_usdGeom STATIC usdGeom/xformable.cpp usdGeom/imageable.cpp usdGeom/boundable.cpp)
 add_library(freeusd::usdGeom ALIAS freeusd_usdGeom)
 target_include_directories(freeusd_usdGeom PUBLIC "$<BUILD_INTERFACE:${FREEUSD_INC}>" "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
+
 target_link_libraries(freeusd_usdGeom PUBLIC freeusd_usd freeusd_gf freeusd_build_settings)
+
+add_library(freeusd_usdSkel STATIC usdSkel/skeleton.cpp usdSkel/skelAnimation.cpp usdSkel/gltfMapping.cpp)
+add_library(freeusd::usdSkel ALIAS freeusd_usdSkel)
+target_include_directories(freeusd_usdSkel PUBLIC "$<BUILD_INTERFACE:${FREEUSD_INC}>" "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
+target_link_libraries(freeusd_usdSkel PUBLIC freeusd_usd freeusd_gf freeusd_vt freeusd_tf freeusd_build_settings)
+target_link_libraries(freeusd_usdSkel INTERFACE freeusd_usdGeom)
 
 # Header-only schema stubs (OpenUSD-shaped package names; clean-room tokens only).
 foreach(
@@ -77,7 +84,6 @@ foreach(
   usdLux
   usdPhysics
   usdVol
-  usdSkel
   usdMedia
   usdRender
   usdRi
@@ -95,7 +101,6 @@ endforeach()
 target_link_libraries(freeusd_usdLux INTERFACE freeusd_usdGeom)
 target_link_libraries(freeusd_usdPhysics INTERFACE freeusd_usdGeom)
 target_link_libraries(freeusd_usdVol INTERFACE freeusd_usdGeom)
-target_link_libraries(freeusd_usdSkel INTERFACE freeusd_usdGeom)
 
 add_library(freeusd_usd_schemas INTERFACE)
 add_library(freeusd::usd_schemas ALIAS freeusd_usd_schemas)
@@ -146,6 +151,7 @@ target_link_libraries(
     freeusd_usd
     freeusd_usdUtils
     freeusd_usdGeom
+    freeusd_usdSkel
     freeusd_plug
     freeusd_trace
     freeusd_work
@@ -175,6 +181,7 @@ set_target_properties(freeusd_pcp PROPERTIES EXPORT_NAME pcp)
 set_target_properties(freeusd_usd PROPERTIES EXPORT_NAME usd)
 set_target_properties(freeusd_usdUtils PROPERTIES EXPORT_NAME usdUtils)
 set_target_properties(freeusd_usdGeom PROPERTIES EXPORT_NAME usdGeom)
+set_target_properties(freeusd_usdSkel PROPERTIES EXPORT_NAME usdSkel)
 set_target_properties(freeusd_usd_schemas PROPERTIES EXPORT_NAME usd_schemas)
 set_target_properties(freeusd_plug PROPERTIES EXPORT_NAME plug)
 set_target_properties(freeusd_trace PROPERTIES EXPORT_NAME trace)
