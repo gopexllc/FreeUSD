@@ -33,7 +33,7 @@ add_library(freeusd::vt ALIAS freeusd_vt)
 target_include_directories(freeusd_vt PUBLIC "$<BUILD_INTERFACE:${FREEUSD_INC}>" "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
 target_link_libraries(freeusd_vt PUBLIC freeusd_tf freeusd_gf freeusd_build_settings)
 
-add_library(freeusd_ar STATIC ar/defaultResolver.cpp)
+add_library(freeusd_ar STATIC ar/defaultResolver.cpp ar/pathSecurity.cpp)
 add_library(freeusd::ar ALIAS freeusd_ar)
 target_include_directories(freeusd_ar PUBLIC "$<BUILD_INTERFACE:${FREEUSD_INC}>" "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
 target_link_libraries(freeusd_ar PUBLIC freeusd_build_settings)
@@ -46,7 +46,7 @@ target_link_libraries(freeusd_sdf PUBLIC freeusd_tf freeusd_vt freeusd_build_set
 add_library(freeusd_io STATIC io/usda.cpp)
 add_library(freeusd::io ALIAS freeusd_io)
 target_include_directories(freeusd_io PUBLIC "$<BUILD_INTERFACE:${FREEUSD_INC}>" "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
-target_link_libraries(freeusd_io PUBLIC freeusd_sdf freeusd_build_settings)
+target_link_libraries(freeusd_io PUBLIC freeusd_sdf freeusd_ar freeusd_build_settings)
 
 add_library(freeusd_pcp STATIC pcp/layerStack.cpp pcp/compose.cpp pcp/resolve.cpp)
 add_library(freeusd::pcp ALIAS freeusd_pcp)

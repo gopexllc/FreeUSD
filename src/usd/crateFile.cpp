@@ -1,5 +1,7 @@
 #include "freeusd/usd/crateFile.hpp"
 
+#include "freeusd/ar/pathSecurity.hpp"
+
 #include <cstring>
 #include <fstream>
 #include <limits>
@@ -38,6 +40,18 @@ std::uint64_t readLeU64(const unsigned char* p) noexcept {
 
 constexpr std::size_t kTocSectionRecordBytes = 16u + sizeof(std::int64_t) + sizeof(std::int64_t);
 static_assert(kTocSectionRecordBytes == 32u, "USDC TOC section record size");
+
+bool crate_file_size_ok(std::int64_t file_bytes, std::string* err_out) {
+  if (file_bytes < 0) {
+    set_detail(err_out, "invalid USDC file size");
+    return false;
+  }
+  if (static_cast<std::uint64_t>(file_bytes) > freeusd::ar::kMaxUsdcCrateFileBytes) {
+    set_detail(err_out, "USDC file exceeds maximum allowed size");
+    return false;
+  }
+  return true;
+}
 
 /// ``[start, start+size)`` must lie in ``[0, file_bytes)``; rejects negative fields and ``int64`` overflow on ``+``.
 bool toc_section_range_valid(std::int64_t file_bytes, std::int64_t start, std::int64_t size, std::string* err_out) {
@@ -138,6 +152,9 @@ bool ReadUsdCrateBootstrapFromPath(const std::string& path, UsdcCrateBootstrap& 
   }
   const auto end_pos = in.tellg();
   const std::int64_t file_bytes = static_cast<std::int64_t>(end_pos);
+  if (!crate_file_size_ok(file_bytes, err_out)) {
+    return false;
+  }
   if (file_bytes < static_cast<std::int64_t>(kCrateBootStrapBytes)) {
     set_detail(err_out, "file too small for USDC bootstrap");
     return false;
@@ -191,6 +208,9 @@ bool ReadUsdCrateTocFromPath(const std::string& path, UsdcCrateToc& out, std::si
   }
   const auto end_pos = in.tellg();
   const std::int64_t file_bytes = static_cast<std::int64_t>(end_pos);
+  if (!crate_file_size_ok(file_bytes, err_out)) {
+    return false;
+  }
   const std::int64_t toc_off = boot.toc_byte_offset;
   if (toc_off < 0 || toc_off > file_bytes) {
     set_detail(err_out, "invalid TOC offset");

@@ -23,6 +23,7 @@
 #include "freeusd/sdf/layerOffset.hpp"
 #include "freeusd/sdf/path.hpp"
 #include "freeusd/tf/token.hpp"
+#include "freeusd/ar/pathSecurity.hpp"
 #include "freeusd/vt/value.hpp"
 
 namespace freeusd::io::usda {
@@ -2952,7 +2953,7 @@ std::string SaveToString(const freeusd::sdf::Layer& layer) {
 }
 
 ParseResult LoadFromFile(const std::string& path, const std::shared_ptr<freeusd::sdf::Layer>& layer) {
-  std::ifstream in(path, std::ios::binary);
+  std::ifstream in(path, std::ios::binary | std::ios::ate);
   if (!in) {
     ParseResult r;
     r.ok = false;
@@ -2960,6 +2961,15 @@ ParseResult LoadFromFile(const std::string& path, const std::shared_ptr<freeusd:
     r.message = "failed to open file";
     return r;
   }
+  const auto end_pos = in.tellg();
+  if (end_pos < 0 || static_cast<std::uint64_t>(end_pos) > freeusd::ar::kMaxUsdaLayerFileBytes) {
+    ParseResult r;
+    r.ok = false;
+    r.line = 0;
+    r.message = "USDA file exceeds maximum allowed size";
+    return r;
+  }
+  in.seekg(0, std::ios::beg);
   std::ostringstream oss;
   oss << in.rdbuf();
   return LoadFromString(oss.str(), layer);
