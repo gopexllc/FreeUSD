@@ -3,7 +3,12 @@
 #include <cstddef>
 #include <vector>
 
+#include "freeusd/gf/quatd.hpp"
 #include "freeusd/gf/vec3d.hpp"
+#include "freeusd/usd/stage.hpp"
+#include "freeusd/usdSkel/gltfMapping.hpp"
+#include "freeusd/usdSkel/skelAnimation.hpp"
+#include "freeusd/usdSkel/skeleton.hpp"
 
 namespace freeusd::usdSkel {
 namespace {
@@ -29,7 +34,56 @@ freeusd::gf::Vec3f to_vec3f(const freeusd::gf::Vec3d& p) {
   return out;
 }
 
+freeusd::gf::Matrix4d local_from_joint_transform(const JointTransform& jt) {
+  freeusd::gf::Matrix4d local = freeusd::gf::Matrix4d::Identity();
+  if (jt.has_translation) {
+    local = freeusd::gf::Matrix4d::Multiply(
+        local, freeusd::gf::Matrix4d::Translate(static_cast<double>(jt.translation.x()),
+                                                  static_cast<double>(jt.translation.y()),
+                                                  static_cast<double>(jt.translation.z())));
+  }
+  if (jt.has_rotation) {
+    const freeusd::gf::Quatd q(jt.rotation.real, jt.rotation.i, jt.rotation.j, jt.rotation.k);
+    local = freeusd::gf::Matrix4d::Multiply(local, freeusd::gf::Matrix4d::FromUnitQuaternion(q));
+  }
+  if (jt.has_scale) {
+    local = freeusd::gf::Matrix4d::Multiply(
+        local, freeusd::gf::Matrix4d::Scale(static_cast<double>(jt.scale.x()), static_cast<double>(jt.scale.y()),
+                                            static_cast<double>(jt.scale.z())));
+  }
+  return local;
+}
+
 }  // namespace
+
+bool BuildJointWorldMatricesFromAnimation(const Skeleton& skeleton, const SkelAnimation& animation, double time,
+                                          std::vector<freeusd::gf::Matrix4d>* out_world) {
+  if (!out_world || !skeleton || !animation) {
+    return false;
+  }
+  const std::vector<std::string> joints = skeleton.GetJointNames();
+  if (joints.empty()) {
+    return false;
+  }
+  const std::shared_ptr<const freeusd::usd::Stage> stage = skeleton.GetPrim().GetStage();
+  if (!stage) {
+    return false;
+  }
+  const freeusd::sdf::Path anim_path = animation.GetPrim().GetPath();
+
+  std::vector<freeusd::gf::Matrix4d> locals;
+  locals.reserve(joints.size());
+  for (std::size_t i = 0; i < joints.size(); ++i) {
+    JointTransform sample{};
+    if (SkelAnimation::SampleJointTransform(stage, anim_path, i, time, &sample)) {
+      locals.push_back(local_from_joint_transform(sample));
+    } else {
+      locals.push_back(freeusd::gf::Matrix4d::Identity());
+    }
+  }
+  *out_world = AccumulateWorldTransforms(skeleton.GetJointParentIndices(), locals);
+  return !out_world->empty();
+}
 
 bool DeformPointsWithSkeleton(const std::vector<freeusd::gf::Vec3f>& points, const std::vector<int>& joint_indices,
                               const std::vector<float>& joint_weights, std::size_t influences_per_point,

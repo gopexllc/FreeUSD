@@ -9,6 +9,9 @@
 
 namespace freeusd::usdSkel {
 
+class SkelAnimation;
+class Skeleton;
+
 /// Linear blend skinning (LBS) on CPU.
 ///
 /// glTF mapping (per influence @c i):
@@ -25,5 +28,9 @@ FREEUSD_API bool DeformPointsWithSkeleton(const std::vector<freeusd::gf::Vec3f>&
                                           const std::vector<freeusd::gf::Matrix4d>& inverse_bind_matrices,
                                           const freeusd::gf::Matrix4d* geom_bind,
                                           std::vector<freeusd::gf::Vec3f>* out);
+
+/// Build per-joint world matrices from sampled TRS (uses skeleton joint order / parents).
+FREEUSD_API bool BuildJointWorldMatricesFromAnimation(const Skeleton& skeleton, const SkelAnimation& animation,
+                                                      double time, std::vector<freeusd::gf::Matrix4d>* out_world);
 
 }  // namespace freeusd::usdSkel

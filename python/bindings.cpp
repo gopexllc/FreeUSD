@@ -2454,15 +2454,34 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         py::arg("weights"),
         py::arg("time") = 1.0);
 
+    auto matrix4d_from_py_rows = [](const py::list& rows) -> std::vector<freeusd::gf::Matrix4d> {
+      std::vector<freeusd::gf::Matrix4d> mats;
+      mats.reserve(rows.size());
+      for (py::handle h : rows) {
+        freeusd::gf::Matrix4d m{};
+        if (py::isinstance<freeusd::gf::Matrix4d>(h)) {
+          m = h.cast<freeusd::gf::Matrix4d>();
+        } else {
+          const std::vector<double> vals = py::cast<std::vector<double>>(h);
+          for (std::size_t i = 0; i < 16 && i < vals.size(); ++i) {
+            m.m[i] = vals[i];
+          }
+        }
+        mats.push_back(m);
+      }
+      return mats;
+    };
+
     usdSkel.def(
         "deform_points_with_skeleton",
-        [](const std::vector<freeusd::gf::Vec3f>& points, const std::vector<int>& joint_indices,
-           const std::vector<float>& joint_weights, std::size_t influences_per_point,
-           const std::vector<freeusd::gf::Matrix4d>& joint_world,
-           const std::vector<freeusd::gf::Matrix4d>& inverse_bind) -> py::object {
+        [&](const std::vector<freeusd::gf::Vec3f>& points, const std::vector<int>& joint_indices,
+            const std::vector<float>& joint_weights, std::size_t influences_per_point, const py::list& joint_world,
+            const py::list& inverse_bind) -> py::object {
+          const std::vector<freeusd::gf::Matrix4d> world = matrix4d_from_py_rows(joint_world);
+          const std::vector<freeusd::gf::Matrix4d> bind = matrix4d_from_py_rows(inverse_bind);
           std::vector<freeusd::gf::Vec3f> out;
           if (!freeusd::usdSkel::DeformPointsWithSkeleton(points, joint_indices, joint_weights, influences_per_point,
-                                                          joint_world, inverse_bind, nullptr, &out)) {
+                                                          world, bind, nullptr, &out)) {
             return py::none();
           }
           py::list rows;

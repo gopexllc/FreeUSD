@@ -1,0 +1,45 @@
+#usda 1.0
+(
+    defaultPrim = "World"
+)
+
+# glTF LBS (parity_skel_skinning.usda):
+# skin.joints + inverseBindMatrices -> Skeleton bindTransforms
+# accessors.weights/indices         -> primvars:skel:joint*
+# animation TRS                     -> SkelAnimation at time
+
+def Xform "World"
+{
+    def SkelRoot "SkelCharacter"
+    {
+        rel skel:animationSource = </World/SkelCharacter/Anim>
+
+        def Skeleton "Skeleton"
+        {
+            token[] joints = [@Root, @Root/Hip]
+            matrix4d[] bindTransforms = [((1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1)), ((1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 1, 0, 1))]
+            matrix4d[] restTransforms = [((1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1)), ((1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 1, 0, 1))]
+        }
+
+        def SkelAnimation "Anim"
+        {
+            token[] joints = [@Root, @Root/Hip]
+            float3[] translations = [(0, 0, 0), (0, 1, 0)]
+            quatf[] rotations = [(1, 0, 0, 0), (1, 0, 0, 0)]
+            float3[] scales = [(1, 1, 1), (1, 1, 1)]
+
+            float3[] translations.timeSamples = {
+                0: [(0, 0, 0), (0, 1, 0)],
+                1: [(0, 0, 0), (0, 2, 0)],
+            }
+        }
+
+        def Mesh "Body"
+        {
+            rel skel:skeleton = </World/SkelCharacter/Skeleton>
+            point3f[] points = [(0, 1, 0)]
+            int[] primvars:skel:jointIndices = [1]
+            float[] primvars:skel:jointWeights = [1.0]
+        }
+    }
+}

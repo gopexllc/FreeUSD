@@ -157,20 +157,8 @@ def test_parity_skel_skinning_fixture_deforms_point() -> None:
     weights = SkelBinding.read_joint_weights(body, 1.0)
     assert indices is not None and weights is not None
 
-    bind_raw = skel.get_bind_transforms(1.0)
-    assert bind_raw is not None
-
-    def to_matrix4d(m: object) -> Matrix4d:
-        if hasattr(m, "as_list"):
-            data = list(m.as_list())  # type: ignore[attr-defined]
-        else:
-            data = list(m)  # type: ignore[arg-type]
-        out = Matrix4d()
-        for i, v in enumerate(data[:16]):
-            out.as_list()[i] = float(v)
-        return out
-
-    bind = [to_matrix4d(m) for m in bind_raw]
+    bind = skel.get_bind_transforms(1.0)
+    assert bind is not None
     joint_world = build_joint_world_matrices_from_animation(skel, anim, 1.0)
     assert len(joint_world) == 2
 
