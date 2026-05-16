@@ -2585,7 +2585,11 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def_readwrite("custom_data_keys", &freeusd::usdUtils::EngineSceneNode::custom_data_keys)
         .def_readwrite("variant_selection_sets", &freeusd::usdUtils::EngineSceneNode::variant_selection_sets)
         .def_readwrite("variant_set_names", &freeusd::usdUtils::EngineSceneNode::variant_set_names)
-        .def_readwrite("child_paths", &freeusd::usdUtils::EngineSceneNode::child_paths);
+        .def_readwrite("child_paths", &freeusd::usdUtils::EngineSceneNode::child_paths)
+        .def_readwrite("has_skel_binding", &freeusd::usdUtils::EngineSceneNode::has_skel_binding)
+        .def_readwrite("skel_skeleton_path", &freeusd::usdUtils::EngineSceneNode::skel_skeleton_path)
+        .def_readwrite("has_blend_shapes", &freeusd::usdUtils::EngineSceneNode::has_blend_shapes)
+        .def_readwrite("blend_shape_tokens", &freeusd::usdUtils::EngineSceneNode::blend_shape_tokens);
     py::class_<freeusd::usdUtils::EngineSceneSnapshot>(usdUtils, "EngineSceneSnapshot")
         .def(py::init<>())
         .def_readwrite("root_identifier", &freeusd::usdUtils::EngineSceneSnapshot::root_identifier)
@@ -2599,7 +2603,11 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def_readwrite("meters_per_unit", &freeusd::usdUtils::EngineSceneSnapshot::meters_per_unit)
         .def_readwrite("up_axis", &freeusd::usdUtils::EngineSceneSnapshot::up_axis)
         .def_readwrite("prim_order", &freeusd::usdUtils::EngineSceneSnapshot::prim_order)
-        .def_readwrite("nodes", &freeusd::usdUtils::EngineSceneSnapshot::nodes);
+        .def_readwrite("nodes", &freeusd::usdUtils::EngineSceneSnapshot::nodes)
+        .def_readwrite("skel_bound_geom_paths", &freeusd::usdUtils::EngineSceneSnapshot::skel_bound_geom_paths)
+        .def_readwrite("blend_shape_geom_paths", &freeusd::usdUtils::EngineSceneSnapshot::blend_shape_geom_paths)
+        .def_readwrite("skel_root_paths", &freeusd::usdUtils::EngineSceneSnapshot::skel_root_paths)
+        .def_readwrite("skel_animation_paths", &freeusd::usdUtils::EngineSceneSnapshot::skel_animation_paths);
     py::class_<freeusd::usdUtils::EnginePrimEditorView>(usdUtils, "EnginePrimEditorView")
         .def(py::init<>())
         .def_readwrite("path", &freeusd::usdUtils::EnginePrimEditorView::path)
@@ -2630,6 +2638,10 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def_readwrite("uses_custom_data", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_custom_data)
         .def_readwrite("uses_attribute_connections",
                        &freeusd::usdUtils::EngineRuntimeSupportReport::uses_attribute_connections)
+        .def_readwrite("uses_skel_bound_meshes",
+                       &freeusd::usdUtils::EngineRuntimeSupportReport::uses_skel_bound_meshes)
+        .def_readwrite("uses_blend_shapes", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_blend_shapes)
+        .def_readwrite("uses_skel_animation", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_skel_animation)
         .def_readwrite("warnings", &freeusd::usdUtils::EngineRuntimeSupportReport::warnings);
     py::class_<freeusd::usdUtils::FlattenOptions>(usdUtils, "FlattenOptions")
         .def(py::init<>())

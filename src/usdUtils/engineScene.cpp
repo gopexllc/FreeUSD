@@ -7,6 +7,9 @@
 #include "freeusd/usdGeom/boundable.hpp"
 #include "freeusd/usdGeom/imageable.hpp"
 #include "freeusd/usdGeom/xformable.hpp"
+#include "freeusd/usdSkel/skelBinding.hpp"
+#include "freeusd/usdSkel/skelBlendShapes.hpp"
+#include "freeusd/usdSkel/tokens.hpp"
 
 namespace freeusd::usdUtils {
 namespace {
@@ -59,6 +62,15 @@ EngineSceneNode build_scene_node(const freeusd::usd::Prim& prim, double time) {
       node.child_paths.push_back(child.GetPath());
     }
   }
+  if (const std::optional<freeusd::sdf::Path> skeleton_path = freeusd::usdSkel::SkelBinding::ResolveSkeletonPath(prim)) {
+    node.has_skel_binding = true;
+    node.skel_skeleton_path = *skeleton_path;
+  }
+  const freeusd::usdSkel::SkelBlendShapes blend_shapes = freeusd::usdSkel::SkelBlendShapes::ReadFromGeomPrim(prim);
+  if (blend_shapes) {
+    node.has_blend_shapes = true;
+    node.blend_shape_tokens = blend_shapes.blend_shape_tokens;
+  }
   return node;
 }
 
@@ -92,7 +104,20 @@ EngineSceneSnapshot BuildEngineSceneSnapshot(const freeusd::usd::Stage& stage, d
   snapshot.up_axis = stage.GetUpAxis();
   snapshot.prim_order = stage.GetPrimOrder();
   stage.TraversePreorder([&snapshot, time](const freeusd::usd::Prim& prim) {
-    snapshot.nodes.push_back(build_scene_node(prim, time));
+    EngineSceneNode node = build_scene_node(prim, time);
+    if (node.has_skel_binding) {
+      snapshot.skel_bound_geom_paths.push_back(node.path);
+    }
+    if (node.has_blend_shapes) {
+      snapshot.blend_shape_geom_paths.push_back(node.path);
+    }
+    if (prim.HasPrimKind() && prim.GetPrimKind() == freeusd::usdSkel::tokens::SkelRoot()) {
+      snapshot.skel_root_paths.push_back(node.path);
+    }
+    if (prim.HasPrimKind() && prim.GetPrimKind() == freeusd::usdSkel::tokens::SkelAnimation()) {
+      snapshot.skel_animation_paths.push_back(node.path);
+    }
+    snapshot.nodes.push_back(std::move(node));
     return true;
   });
   return snapshot;
@@ -155,6 +180,18 @@ EngineRuntimeSupportReport AssessEngineRuntimeSupport(const freeusd::usd::Stage&
     report.uses_variant_sets = report.uses_variant_sets || !prim.ListVariantSetNames().empty();
     report.uses_relationships = report.uses_relationships || !prim.ListRelationshipNames().empty();
     report.uses_custom_data = report.uses_custom_data || !prim.ListCustomDataKeys().empty();
+    report.uses_skel_bound_meshes =
+        report.uses_skel_bound_meshes || freeusd::usdSkel::SkelBinding::ResolveSkeletonPath(prim).has_value();
+    const freeusd::usdSkel::SkelBlendShapes blend_shapes = freeusd::usdSkel::SkelBlendShapes::ReadFromGeomPrim(prim);
+    report.uses_blend_shapes = report.uses_blend_shapes || static_cast<bool>(blend_shapes);
+    if (prim.HasPrimKind() && prim.GetPrimKind() == freeusd::usdSkel::tokens::SkelAnimation()) {
+      report.uses_skel_animation = true;
+    }
+    if (prim.HasPrimKind() && prim.GetPrimKind() == freeusd::usdSkel::tokens::SkelRoot()) {
+      const std::vector<freeusd::sdf::Path> anim_targets =
+          prim.GetRelationshipTargets(freeusd::usdSkel::tokens::skel_animationSource());
+      report.uses_skel_animation = report.uses_skel_animation || !anim_targets.empty();
+    }
     for (const std::string& field_name : prim.ListAttributeNames()) {
       const freeusd::tf::Token token(field_name);
       report.uses_attribute_connections =
@@ -183,6 +220,18 @@ EngineRuntimeSupportReport AssessEngineRuntimeSupport(const freeusd::usd::Stage&
   if (report.uses_time_samples) {
     append_warning(&report.warnings, &seen_warnings,
                    "Scene uses time samples; pre-bake sampled values or stream them through a controlled runtime path.");
+  }
+  if (report.uses_skel_bound_meshes) {
+    append_warning(&report.warnings, &seen_warnings,
+                   "Scene uses skeletal skinning; bake deformations or evaluate through a controlled skinning path.");
+  }
+  if (report.uses_blend_shapes) {
+    append_warning(&report.warnings, &seen_warnings,
+                   "Scene uses blend shapes; bake morph targets or stream weights through a controlled runtime path.");
+  }
+  if (report.uses_skel_animation) {
+    append_warning(&report.warnings, &seen_warnings,
+                   "Scene uses skeletal animation clips; pre-bake joint samples for shipping runtime.");
   }
 
   const bool requires_prebake = report.uses_composed_layer_stack || report.uses_references || report.uses_payloads ||

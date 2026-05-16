@@ -53,6 +53,12 @@ struct FREEUSD_API EngineSceneNode {
   std::vector<std::string> variant_selection_sets;
   std::vector<std::string> variant_set_names;
   std::vector<freeusd::sdf::Path> child_paths;
+  /// True when ``skel:skeleton`` resolves for this geom prim.
+  bool has_skel_binding{false};
+  freeusd::sdf::Path skel_skeleton_path{};
+  /// True when ``skel:blendShapes`` and ``skel:blendShapeTargets`` are authored.
+  bool has_blend_shapes{false};
+  std::vector<std::string> blend_shape_tokens;
 };
 
 /// Stage-level snapshot for USDA-first import and engine/editor cache generation.
@@ -69,6 +75,14 @@ struct FREEUSD_API EngineSceneSnapshot {
   std::optional<std::string> up_axis;
   std::vector<freeusd::sdf::Path> prim_order;
   std::vector<EngineSceneNode> nodes;
+  /// Geom prims with a resolved ``skel:skeleton`` binding.
+  std::vector<freeusd::sdf::Path> skel_bound_geom_paths;
+  /// Geom prims with authored blend-shape bindings.
+  std::vector<freeusd::sdf::Path> blend_shape_geom_paths;
+  /// ``SkelRoot`` prims discovered during traversal.
+  std::vector<freeusd::sdf::Path> skel_root_paths;
+  /// ``SkelAnimation`` prims discovered during traversal.
+  std::vector<freeusd::sdf::Path> skel_animation_paths;
 };
 
 /// Editor-facing inspection view for one prim in the validated subset.
@@ -99,6 +113,9 @@ struct FREEUSD_API EngineRuntimeSupportReport {
   bool uses_relationships{false};
   bool uses_custom_data{false};
   bool uses_attribute_connections{false};
+  bool uses_skel_bound_meshes{false};
+  bool uses_blend_shapes{false};
+  bool uses_skel_animation{false};
   std::vector<std::string> warnings;
 };
 

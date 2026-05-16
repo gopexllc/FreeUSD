@@ -116,5 +116,56 @@ int main() {
     assert(report.recommended_mode == EngineRuntimeMode::PreBakedAssetsOnly);
   }
 
+  {
+    std::string err;
+    auto stage =
+        Stage::OpenFromRootFile(fixture("parity_skel_skinning.usda"), RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const auto snapshot = BuildEngineSceneSnapshot(*stage, 1.0);
+    assert(snapshot.skel_root_paths.size() == 1u);
+    assert(snapshot.skel_root_paths[0] == Path::FromString("/World/SkelCharacter"));
+    assert(snapshot.skel_animation_paths.size() == 1u);
+    assert(snapshot.skel_animation_paths[0] == Path::FromString("/World/SkelCharacter/Anim"));
+    assert(snapshot.skel_bound_geom_paths.size() == 1u);
+    assert(snapshot.skel_bound_geom_paths[0] == Path::FromString("/World/SkelCharacter/Body"));
+    const auto* body = find_node(snapshot, Path::FromString("/World/SkelCharacter/Body"));
+    assert(body != nullptr);
+    assert(body->has_skel_binding);
+    assert(body->skel_skeleton_path == Path::FromString("/World/SkelCharacter/Skeleton"));
+    assert(!body->has_blend_shapes);
+
+    const auto report = AssessEngineRuntimeSupport(*stage);
+    assert(report.uses_skel_bound_meshes);
+    assert(report.uses_skel_animation);
+    assert(!report.uses_blend_shapes);
+    assert(report.uses_time_samples);
+    assert(report.recommended_mode == EngineRuntimeMode::PreBakedAssetsOnly);
+  }
+
+  {
+    std::string err;
+    auto stage =
+        Stage::OpenFromRootFile(fixture("parity_skel_blend_shapes.usda"), RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const auto snapshot = BuildEngineSceneSnapshot(*stage, 1.0);
+    assert(snapshot.blend_shape_geom_paths.size() == 1u);
+    assert(snapshot.blend_shape_geom_paths[0] == Path::FromString("/World/Face"));
+    assert(snapshot.skel_bound_geom_paths.empty());
+    assert(snapshot.skel_animation_paths.empty());
+    const auto* face = find_node(snapshot, Path::FromString("/World/Face"));
+    assert(face != nullptr);
+    assert(face->has_blend_shapes);
+    assert(face->blend_shape_tokens.size() == 2u);
+    assert(face->blend_shape_tokens[0] == "Smile");
+    assert(face->blend_shape_tokens[1] == "Blink");
+
+    const auto report = AssessEngineRuntimeSupport(*stage);
+    assert(report.uses_blend_shapes);
+    assert(!report.uses_skel_bound_meshes);
+    assert(!report.uses_skel_animation);
+    assert(report.uses_time_samples);
+    assert(report.recommended_mode == EngineRuntimeMode::PreBakedAssetsOnly);
+  }
+
   return 0;
 }

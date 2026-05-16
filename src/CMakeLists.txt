@@ -76,6 +76,7 @@ add_library(freeusd::usdSkel ALIAS freeusd_usdSkel)
 target_include_directories(freeusd_usdSkel PUBLIC "$<BUILD_INTERFACE:${FREEUSD_INC}>" "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
 target_link_libraries(freeusd_usdSkel PUBLIC freeusd_usd freeusd_gf freeusd_vt freeusd_tf freeusd_build_settings)
 target_link_libraries(freeusd_usdSkel INTERFACE freeusd_usdGeom)
+target_link_libraries(freeusd_usdUtils PUBLIC freeusd_usdSkel)
 
 # Header-only schema stubs (OpenUSD-shaped package names; clean-room tokens only).
 foreach(

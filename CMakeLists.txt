@@ -73,7 +73,7 @@ if(FREEUSD_BUILD_TESTS)
     freeusd_usd_skel_blend_shapes_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
 
   add_executable(freeusd_engine_integration_test tests/engine_integration_test.cpp)
-  target_link_libraries(freeusd_engine_integration_test PRIVATE freeusd::usd freeusd::usdUtils freeusd::usdGeom)
+  target_link_libraries(freeusd_engine_integration_test PRIVATE freeusd::usd freeusd::usdUtils freeusd::usdGeom freeusd::usdSkel)
   target_compile_definitions(
     freeusd_engine_integration_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
 
