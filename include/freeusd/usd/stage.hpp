@@ -93,13 +93,13 @@ class FREEUSD_API Stage : public std::enable_shared_from_this<Stage> {
   freeusd::tf::Token ResolvePrimKind(const freeusd::sdf::Path& prim_path) const;
   bool ResolveHasPrimKind(const freeusd::sdf::Path& prim_path) const;
 
-  /// Composed USDA \c class / \c over specifier: strongest layer with an authored non-\c def marker wins.
+  /// Composed USDA \c class / \c over specifier: strongest local opinion wins; else via `inherits` / `specializes`.
   freeusd::sdf::Layer::PrimSpecifierKind ResolvePrimSpecifierKind(const freeusd::sdf::Path& prim_path) const;
 
   bool ResolvePrimActive(const freeusd::sdf::Path& prim_path) const;
   bool ResolveHasPrimActiveOpinion(const freeusd::sdf::Path& prim_path) const;
 
-  /// Composed `customData` entry: strongest layer with an opinion wins.
+  /// Composed `customData` entry: strongest local layer opinion wins; else inherited via `inherits` / `specializes`.
   bool GetComposedPrimCustomData(const freeusd::sdf::Path& prim_path, const std::string& key,
                                  freeusd::vt::Value* out) const;
   /// True iff any composed layer carries \p key in `customData` for \p prim_path.
@@ -183,6 +183,10 @@ class FREEUSD_API Stage : public std::enable_shared_from_this<Stage> {
  private:
   explicit Stage(std::vector<std::shared_ptr<freeusd::sdf::Layer>> compose,
                  std::vector<freeusd::sdf::LayerOffset> compose_offsets = {});
+
+  /// Maps \p authored through composed \c inherits / \c specializes arcs; stops when \p visitor returns true.
+  bool VisitInternalArcMappedPrimPaths(const freeusd::sdf::Path& authored,
+                                      const std::function<bool(const freeusd::sdf::Path& mapped_composed)>& visitor) const;
 
   std::vector<std::shared_ptr<freeusd::sdf::Layer>> compose_;
   std::vector<freeusd::sdf::LayerOffset> compose_offsets_;

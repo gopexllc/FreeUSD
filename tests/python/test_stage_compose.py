@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import os
+
 import freeusd.pcp as pcp
 import freeusd.usd as usd
-from freeusd.sdf import Layer, Path
+from freeusd.sdf import Layer, Path, PrimSpecifierKind
 from freeusd.tf import Token
 from freeusd.vt import Value
+
+_FIXTURES = os.path.join(os.path.dirname(__file__), "..", "fixtures")
 
 
 def test_stage_layer_stack_strongest_attribute_wins() -> None:
@@ -74,3 +78,17 @@ def test_stage_resolve_prim_defaults_without_opinion() -> None:
     assert st.resolve_has_prim_active_opinion(q) is False
     assert pq.has_prim_kind() is False
     assert not st.resolve_has_prim_kind(q)
+
+
+def test_parity_custom_data_and_specifier_through_inherits() -> None:
+    path = os.path.normpath(os.path.join(_FIXTURES, "parity_custom_data_inherit.usda"))
+    st = usd.Stage.open_from_root_file(path)
+    assert st is not None
+    host = Path.from_string("/World/Host")
+    prim = st.prim_at(host)
+    assert prim.get_custom_data("role").as_string() == "base"
+    assert prim.get_custom_data("priority").as_int32() == 9
+    assert prim.has_custom_data_key("role")
+    assert set(st.list_composed_prim_custom_data_keys(host)) == {"priority", "role"}
+    assert st.resolve_prim_specifier_kind(host) == PrimSpecifierKind.class_
+    assert prim.is_abstract()

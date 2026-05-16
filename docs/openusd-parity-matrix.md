@@ -26,6 +26,8 @@ Status vocabulary:
   `variantSets` declarations, selected-variant payload execution, and variant child expansion.
 - `tests/fixtures/parity_imageable.usda`
   Schema-facing `purpose` / `visibility` behavior for `usdGeom::Imageable` and cube-like bounds via `usdGeom::Boundable`.
+- `tests/fixtures/parity_custom_data_inherit.usda`
+  Composed prim `customData` through `inherits` arcs (local strongest-wins override plus inherited keys).
 - `tests/fixtures/parity_tables.usdc`
   Shared binary crate fixture for bootstrap, TOC, raw section payloads, and validated `TOKENS` / `STRINGS` / `PATHS` table decode.
 - `tests/fixtures/parity_embedded_scene.usdc`
@@ -42,7 +44,7 @@ Status vocabulary:
 ### Composition Semantics
 
 - `implemented`: strongest-wins field reads, concatenated relationship lists, composed field/relationship/prim-path unions, relocated prim-path query behavior, and prefix-substituted reference/payload asset paths.
-- `partial`: `subLayerOffsets` now remap composed sample times and file-backed reads; selected variants plus reference/payload/inherit/specialize arcs now affect file-backed field and prim-path queries, but deeper schema/custom-data/specifier propagation through every arc type remains incomplete.
+- `partial`: `subLayerOffsets` now remap composed sample times and file-backed reads; selected variants plus reference/payload/inherit/specialize arcs now affect file-backed field and prim-path queries; composed prim `customData` and USDA `class` / `over` specifier resolution follow `inherits` / `specializes` (local layer stack still wins when authored), but other metadata propagation through every arc type remains incomplete.
 - `planned`: broader resolver-aware arc expansion for the remaining composed query families.
 
 ### Schema And Runtime Helpers

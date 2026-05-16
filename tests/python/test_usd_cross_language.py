@@ -128,3 +128,8 @@ def test_usd_cross_language_composition_helpers() -> None:
     assert stage.has_prim_inherits(arc_host)
     assert stage.read_prim_inherits(arc_host) == [SdfPath.from_string("/Scene/Child")]
     assert not stage.has_prim_inherits(child)
+
+    assert stage.get_composed_prim_custom_data(arc_host, "tag").as_int32() == 99
+    assert stage.prim_custom_data_key_in_any_layer(arc_host, "tag")
+    assert stage.prim_at(arc_host).has_custom_data_key("tag")
+    assert "tag" in stage.list_composed_prim_custom_data_keys(arc_host)

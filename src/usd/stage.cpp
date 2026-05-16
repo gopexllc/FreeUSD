@@ -10,6 +10,7 @@
 #include <unordered_set>
 
 #include "freeusd/ar/defaultResolver.hpp"
+#include "freeusd/ar/pathSecurity.hpp"
 #include "freeusd/io/usda.hpp"
 #include "freeusd/pcp/compose.hpp"
 #include "freeusd/pcp/resolve.hpp"
@@ -241,17 +242,17 @@ std::string resolve_asset_relative_to_layer_identifier(const std::string& layer_
     return {};
   }
   namespace fs = std::filesystem;
-  std::error_code ec;
-  fs::path authored(asset_path);
-  if (authored.is_absolute()) {
-    return fs::weakly_canonical(authored, ec).string();
-  }
+  std::string anchor;
   if (!layer_identifier.empty()) {
     const fs::path base(layer_identifier);
-    const fs::path anchored = base.has_parent_path() ? base.parent_path() / authored : authored;
-    return fs::weakly_canonical(anchored, ec).string();
+    if (base.has_parent_path()) {
+      anchor = base.parent_path().string();
+    }
   }
-  return fs::weakly_canonical(fs::absolute(authored), ec).string();
+  if (anchor.empty()) {
+    anchor = fs::current_path().string();
+  }
+  return freeusd::ar::ResolvePathUnderAnchor(anchor, asset_path);
 }
 
 std::shared_ptr<freeusd::usd::Stage> open_asset_stage_from_reference(
@@ -283,7 +284,40 @@ freeusd::sdf::Path reference_target_root(const freeusd::usd::Stage& target_stage
   return freeusd::sdf::Path::AbsoluteRootPath();
 }
 
+/// Variant payloads are embedded inside a synthetic Scope; reject ``}`` that would close it early (USDA injection).
+bool variant_payload_stays_within_wrapper(std::string_view body) {
+  int depth = 1;
+  bool in_double = false;
+  bool in_single = false;
+  for (std::size_t i = 0; i < body.size(); ++i) {
+    const char c = body[i];
+    if (!in_single && c == '"' && (i == 0 || body[i - 1] != '\\')) {
+      in_double = !in_double;
+      continue;
+    }
+    if (!in_double && c == '\'' && (i == 0 || body[i - 1] != '\\')) {
+      in_single = !in_single;
+      continue;
+    }
+    if (in_double || in_single) {
+      continue;
+    }
+    if (c == '{') {
+      ++depth;
+    } else if (c == '}') {
+      --depth;
+      if (depth < 1) {
+        return false;
+      }
+    }
+  }
+  return depth == 1;
+}
+
 std::shared_ptr<freeusd::usd::Stage> build_variant_stage_from_payload(const std::string& payload_body) {
+  if (!variant_payload_stays_within_wrapper(payload_body)) {
+    return {};
+  }
   auto layer = freeusd::sdf::Layer::NewAnonymous("__variant__.usda");
   const std::string wrapped = "#usda 1.0\n(\n)\ndef Scope \"__VariantRoot\"\n{\n" + payload_body + "\n}\n";
   const auto parsed = freeusd::io::usda::LoadFromString(wrapped, layer);
@@ -392,10 +426,12 @@ std::shared_ptr<Stage> Stage::OpenFromRootFile(const std::string& layer_path, Ro
     return AttachRootLayer(std::move(root));
   }
 
-  freeusd::ar::DefaultResolver resolver(anchor);
-  auto resolve = [resolver](const std::string& authored) mutable -> std::shared_ptr<freeusd::sdf::Layer> {
+  const std::string anchor_canon = freeusd::ar::CanonicalizeFilesystemPath(anchor);
+  freeusd::ar::DefaultResolver resolver(anchor_canon);
+  auto resolve = [resolver, anchor_canon](const std::string& authored) mutable -> std::shared_ptr<freeusd::sdf::Layer> {
     const std::string abs = resolver.Resolve(std::string_view{authored});
-    if (abs.empty()) {
+    if (abs.empty() || anchor_canon.empty() ||
+        !freeusd::ar::PathIsWithinRootDirectory(abs, anchor_canon)) {
       return {};
     }
     std::error_code e2;
@@ -404,7 +440,7 @@ std::shared_ptr<Stage> Stage::OpenFromRootFile(const std::string& layer_path, Ro
       return {};
     }
     const fs::path canon = fs::weakly_canonical(ap, e2);
-    if (e2) {
+    if (e2 || !freeusd::ar::PathIsWithinRootDirectory(canon.string(), anchor_canon)) {
       return {};
     }
     auto L = freeusd::sdf::Layer::NewAnonymous(canon.filename().string());
@@ -907,7 +943,16 @@ freeusd::sdf::Layer::PrimSpecifierKind Stage::ResolvePrimSpecifierKind(const fre
       return L->GetPrimSpecifier(authored);
     }
   }
-  return freeusd::sdf::Layer::PrimSpecifierKind::Default;
+  freeusd::sdf::Layer::PrimSpecifierKind inherited = freeusd::sdf::Layer::PrimSpecifierKind::Default;
+  VisitInternalArcMappedPrimPaths(authored, [&](const freeusd::sdf::Path& mapped_composed) {
+    const freeusd::sdf::Layer::PrimSpecifierKind kind = ResolvePrimSpecifierKind(mapped_composed);
+    if (kind != freeusd::sdf::Layer::PrimSpecifierKind::Default) {
+      inherited = kind;
+      return true;
+    }
+    return false;
+  });
+  return inherited;
 }
 
 bool Stage::ResolvePrimActive(const freeusd::sdf::Path& prim_path) const {
@@ -936,6 +981,46 @@ bool Stage::ResolveHasPrimActiveOpinion(const freeusd::sdf::Path& prim_path) con
   return false;
 }
 
+bool Stage::VisitInternalArcMappedPrimPaths(
+    const freeusd::sdf::Path& authored,
+    const std::function<bool(const freeusd::sdf::Path& mapped_composed)>& visitor) const {
+  if (!visitor) {
+    return false;
+  }
+  static thread_local std::unordered_set<std::string> active_queries;
+  const std::string active_key =
+      std::to_string(reinterpret_cast<std::uintptr_t>(this)) + "|customDataArc|" + authored.GetString();
+  if (!active_queries.insert(active_key).second) {
+    return false;
+  }
+  ActiveQueryGuard active_guard{&active_queries, active_key};
+  for (const std::shared_ptr<freeusd::sdf::Layer>& layer : compose_) {
+    if (!layer) {
+      continue;
+    }
+    for (const freeusd::sdf::Path& ancestor : prim_ancestors_deepest_first(authored)) {
+      freeusd::sdf::Path mapped_query;
+      const auto try_internal_arcs = [&](const std::vector<freeusd::sdf::Path>& targets) -> bool {
+        for (const freeusd::sdf::Path& target_root : targets) {
+          if (!map_subtree_query_path(authored, ancestor, target_root, &mapped_query)) {
+            continue;
+          }
+          const freeusd::sdf::Path mapped_composed = map_authored_to_composed_path(compose_, mapped_query);
+          if (visitor(mapped_composed)) {
+            return true;
+          }
+        }
+        return false;
+      };
+      if (try_internal_arcs(layer->ListPrimInherits(ancestor)) ||
+          try_internal_arcs(layer->ListPrimSpecializes(ancestor))) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 bool Stage::GetComposedPrimCustomData(const freeusd::sdf::Path& prim_path, const std::string& key,
                                       freeusd::vt::Value* out) const {
   if (!out || key.empty()) {
@@ -950,7 +1035,14 @@ bool Stage::GetComposedPrimCustomData(const freeusd::sdf::Path& prim_path, const
       return L->GetPrimCustomDataEntry(authored, key, out);
     }
   }
-  return false;
+  freeusd::vt::Value tmp;
+  const bool found = VisitInternalArcMappedPrimPaths(authored, [&](const freeusd::sdf::Path& mapped_composed) {
+    return GetComposedPrimCustomData(mapped_composed, key, &tmp);
+  });
+  if (found) {
+    *out = std::move(tmp);
+  }
+  return found;
 }
 
 bool Stage::PrimCustomDataKeyInAnyLayer(const freeusd::sdf::Path& prim_path, const std::string& key) const {
@@ -966,7 +1058,9 @@ bool Stage::PrimCustomDataKeyInAnyLayer(const freeusd::sdf::Path& prim_path, con
       return true;
     }
   }
-  return false;
+  return VisitInternalArcMappedPrimPaths(authored, [&](const freeusd::sdf::Path& mapped_composed) {
+    return PrimCustomDataKeyInAnyLayer(mapped_composed, key);
+  });
 }
 
 std::vector<std::string> Stage::ListComposedPrimCustomDataKeys(const freeusd::sdf::Path& prim_path) const {
@@ -983,6 +1077,12 @@ std::vector<std::string> Stage::ListComposedPrimCustomDataKeys(const freeusd::sd
       keys.insert(k);
     }
   }
+  VisitInternalArcMappedPrimPaths(authored, [&](const freeusd::sdf::Path& mapped_composed) {
+    for (const std::string& k : ListComposedPrimCustomDataKeys(mapped_composed)) {
+      keys.insert(k);
+    }
+    return false;
+  });
   return std::vector<std::string>(keys.begin(), keys.end());
 }
 

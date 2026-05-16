@@ -124,6 +124,40 @@ int main() {
 
   {
     std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_custom_data_inherit.usda"),
+                                         freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const Path host = Path::FromString("/World/Host");
+    const auto host_prim = stage->GetPrimAtPath(host);
+    assert(host_prim.IsValid());
+    freeusd::vt::Value v;
+    std::string role;
+    assert(stage->GetComposedPrimCustomData(host, "role", &v));
+    assert(v.GetString(&role) && role == "base");
+    assert(stage->PrimCustomDataKeyInAnyLayer(host, "role"));
+    assert(host_prim.HasCustomDataKey("role"));
+    std::int32_t priority = 0;
+    assert(stage->GetComposedPrimCustomData(host, "priority", &v));
+    assert(v.GetInt32(&priority) && priority == 9);
+    const auto keys = stage->ListComposedPrimCustomDataKeys(host);
+    assert(keys.size() == 2u);
+    bool has_role = false;
+    bool has_priority = false;
+    for (const std::string& k : keys) {
+      if (k == "role") {
+        has_role = true;
+      }
+      if (k == "priority") {
+        has_priority = true;
+      }
+    }
+    assert(has_role && has_priority);
+    assert(stage->ResolvePrimSpecifierKind(host) == freeusd::sdf::Layer::PrimSpecifierKind::Class);
+    assert(host_prim.IsAbstract());
+  }
+
+  {
+    std::string err;
     auto stage = Stage::OpenFromRootFile(fixture("parity_imageable.usda"),
                                          freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
     assert(stage && err.empty());
