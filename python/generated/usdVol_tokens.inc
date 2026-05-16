@@ -1,4 +1,4 @@
-// GENERATED — included from bindings.cpp for usdVol
+// GENERATED - included from bindings.cpp for usdVol
 vol_tokens.def("Field3DAsset", []{ return freeusd::usdVol::tokens::Field3DAsset(); });
 vol_tokens.def("FieldAsset", []{ return freeusd::usdVol::tokens::FieldAsset(); });
 vol_tokens.def("FieldBase", []{ return freeusd::usdVol::tokens::FieldBase(); });

@@ -18,7 +18,7 @@ fn main() {
     let lib_c = lib_dir.join("libfreeusd_c.a");
     if !lib_c.exists() {
         println!(
-            "cargo:warning=freeusd static libs not found at {} — build the C++ project first (e.g. cmake -B build && cmake --build build)",
+            "cargo:warning=freeusd static libs not found at {} - build the C++ project first (e.g. cmake -B build && cmake --build build)",
             lib_dir.display()
         );
     } else {

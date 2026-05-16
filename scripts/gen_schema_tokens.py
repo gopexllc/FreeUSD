@@ -164,7 +164,7 @@ def emit_header(ns_cpp: str, names: list[str]) -> str:
     lines = [
         "#pragma once",
         "",
-        "// GENERATED FILE — do not edit by hand. Regenerate with: python3 scripts/gen_schema_tokens.py",
+        "// GENERATED FILE - do not edit by hand. Regenerate with: python3 scripts/gen_schema_tokens.py",
         f"// Token strings derived from OpenUSD published schema data ({OPENUSD_SCHEMA_REF}/.../generatedSchema.usda).",
         "",
         '#include "freeusd/tf/token.hpp"',
@@ -237,7 +237,7 @@ def main() -> int:
 
 def emit_pyinc_lines(pybind_var: str, cpp_ns: str, names: list[str], label: str) -> str:
     """C++ lines registering each token on a pybind submodule handle `pybind_var`."""
-    lines = [f"// GENERATED — included from bindings.cpp for {label}"]
+    lines = [f"// GENERATED - included from bindings.cpp for {label}"]
     for n in names:
         ident = cpp_ident(n)
         lines.append(f'{pybind_var}.def("{n}", []{{ return {cpp_ns}::{ident}(); }});')

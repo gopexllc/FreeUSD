@@ -57,7 +57,7 @@ Shared fixture: **`tests/fixtures/usd_cross_language.usda`**. Tests: **`tests/c_
 | Composed prim customData (string/token + int64) | yes | yes (typed `Value`) | yes | yes |
 | Composed prim customData key list / layer presence | yes | yes | yes | yes |
 | `usdGeom` imageable/boundable (C ABI) | yes | yes | yes | yes |
-| `usdUtils` flatten / engine assess | C++ only | yes | — | — |
+| `usdUtils` flatten / engine assess | C++ only | yes | n/a | n/a |
 
 ## Adding more bindings
 

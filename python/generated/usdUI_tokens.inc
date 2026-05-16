@@ -1,4 +1,4 @@
-// GENERATED — included from bindings.cpp for usdUI
+// GENERATED - included from bindings.cpp for usdUI
 ui_tokens.def("AccessibilityAPI", []{ return freeusd::usdUI::tokens::AccessibilityAPI(); });
 ui_tokens.def("Backdrop", []{ return freeusd::usdUI::tokens::Backdrop(); });
 ui_tokens.def("NodeGraphNodeAPI", []{ return freeusd::usdUI::tokens::NodeGraphNodeAPI(); });

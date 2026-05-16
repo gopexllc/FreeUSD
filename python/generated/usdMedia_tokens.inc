@@ -1,4 +1,4 @@
-// GENERATED — included from bindings.cpp for usdMedia
+// GENERATED - included from bindings.cpp for usdMedia
 media_tokens.def("AssetPreviewsAPI", []{ return freeusd::usdMedia::tokens::AssetPreviewsAPI(); });
 media_tokens.def("SpatialAudio", []{ return freeusd::usdMedia::tokens::SpatialAudio(); });
 media_tokens.def("auralMode", []{ return freeusd::usdMedia::tokens::auralMode(); });

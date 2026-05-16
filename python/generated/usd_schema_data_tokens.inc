@@ -1,4 +1,4 @@
-// GENERATED — included from bindings.cpp for usd.schema_data_tokens
+// GENERATED - included from bindings.cpp for usd.schema_data_tokens
 usd_schema_data_tokens.def("APISchemaBase", []{ return freeusd::usd::schemaDataTokens::APISchemaBase(); });
 usd_schema_data_tokens.def("ClipsAPI", []{ return freeusd::usd::schemaDataTokens::ClipsAPI(); });
 usd_schema_data_tokens.def("CollectionAPI", []{ return freeusd::usd::schemaDataTokens::CollectionAPI(); });

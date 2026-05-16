@@ -1,4 +1,4 @@
-// GENERATED — included from bindings.cpp for usdPhysics
+// GENERATED - included from bindings.cpp for usdPhysics
 physics_tokens.def("PhysicsArticulationRootAPI", []{ return freeusd::usdPhysics::tokens::PhysicsArticulationRootAPI(); });
 physics_tokens.def("PhysicsCollisionAPI", []{ return freeusd::usdPhysics::tokens::PhysicsCollisionAPI(); });
 physics_tokens.def("PhysicsCollisionGroup", []{ return freeusd::usdPhysics::tokens::PhysicsCollisionGroup(); });

@@ -1,4 +1,4 @@
-// GENERATED — included from bindings.cpp for usdShade
+// GENERATED - included from bindings.cpp for usdShade
 shade_tokens.def("ConnectableAPI", []{ return freeusd::usdShade::tokens::ConnectableAPI(); });
 shade_tokens.def("CoordSysAPI", []{ return freeusd::usdShade::tokens::CoordSysAPI(); });
 shade_tokens.def("Material", []{ return freeusd::usdShade::tokens::Material(); });

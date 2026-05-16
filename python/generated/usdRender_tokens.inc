@@ -1,4 +1,4 @@
-// GENERATED — included from bindings.cpp for usdRender
+// GENERATED - included from bindings.cpp for usdRender
 render_tokens.def("RenderPass", []{ return freeusd::usdRender::tokens::RenderPass(); });
 render_tokens.def("RenderProduct", []{ return freeusd::usdRender::tokens::RenderProduct(); });
 render_tokens.def("RenderSettings", []{ return freeusd::usdRender::tokens::RenderSettings(); });

@@ -622,7 +622,7 @@ enum FreeusdPrimSpecifierKind {
 
 /**
  * Composed prim specifier kind for @p prim_path_utf8 (see @ref FreeusdPrimSpecifierKind).
- * On success returns @c 0–@c 3. On error returns the negation of a @ref FreeusdResult code (e.g. @c -1 invalid argument).
+ * On success returns @c 0-@c 3. On error returns the negation of a @ref FreeusdResult code (e.g. @c -1 invalid argument).
  */
 FREEUSD_C_API int freeusd_stage_resolve_prim_specifier_kind(const FreeusdStage* stage, const char* prim_path_utf8);
 

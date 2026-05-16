@@ -1,4 +1,4 @@
-"""USDA (ASCII) I/O — minimal subset."""
+"""USDA (ASCII) I/O - minimal subset."""
 
 from __future__ import annotations
 

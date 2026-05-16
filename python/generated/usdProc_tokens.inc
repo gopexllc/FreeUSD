@@ -1,4 +1,4 @@
-// GENERATED — included from bindings.cpp for usdProc
+// GENERATED - included from bindings.cpp for usdProc
 proc_tokens.def("GenerativeProcedural", []{ return freeusd::usdProc::tokens::GenerativeProcedural(); });
 proc_tokens.def("extent", []{ return freeusd::usdProc::tokens::extent(); });
 proc_tokens.def("proceduralSystem", []{ return freeusd::usdProc::tokens::proceduralSystem(); });

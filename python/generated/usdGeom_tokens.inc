@@ -1,4 +1,4 @@
-// GENERATED — included from bindings.cpp for usdGeom
+// GENERATED - included from bindings.cpp for usdGeom
 geom_tokens.def("BasisCurves", []{ return freeusd::usdGeom::tokens::BasisCurves(); });
 geom_tokens.def("Boundable", []{ return freeusd::usdGeom::tokens::Boundable(); });
 geom_tokens.def("Camera", []{ return freeusd::usdGeom::tokens::Camera(); });

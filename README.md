@@ -2,7 +2,7 @@
 
 A **GPL-3.0-or-later** licensed, independent implementation of the OpenUSD (Universal Scene Description) file formats and core data model.
 
-It is intended for **GPL-3-compatible** stacks—for example a **GPL-3 game engine**—that want USD-style authoring and composition under the **same license family** as the engine, rather than depending on upstream OpenUSD’s license for that layer.
+It is intended for **GPL-3-compatible** stacks (for example a **GPL-3 game engine**) that want USD-style authoring and composition under the **same license family** as the engine, rather than depending on upstream OpenUSD’s license for that layer.
 
 ---
 
@@ -12,7 +12,7 @@ FreeUSD is an independent project and is not endorsed by or affiliated with Pixa
 
 All **FreeUSD** library and tool sources in this repository are licensed under the **GNU General Public License v3.0 or later**; see [`LICENSE`](LICENSE).
 
-Implementation is **clean-room** relative to Pixar’s OpenUSD sources: **do not copy upstream OpenUSD/AOUSD code** into this repository—only independent implementations. See [docs/openusd-repo-alignment.md](docs/openusd-repo-alignment.md). Compatibility targets **published formats and behavior**, not upstream source.
+Implementation is **clean-room** relative to Pixar’s OpenUSD sources: **do not copy upstream OpenUSD/AOUSD code** into this repository; only independent implementations. See [docs/openusd-repo-alignment.md](docs/openusd-repo-alignment.md). Compatibility targets **published formats and behavior**, not upstream source.
 
 **Third-party components** used at build or test time remain under their own licenses (for example **pybind11**, fetched by CMake when the Python module is enabled, is BSD-style and commonly paired with GPLv3 software). You are responsible for satisfying the license terms of any dependency you ship alongside FreeUSD.
 
@@ -58,7 +58,7 @@ Concurrency cancels superseded runs on the same branch. [`.github/dependabot.yml
 
 **Schema token headers** (`include/freeusd/<UsdLib>/tokens.hpp`, `include/freeusd/usd/schemaDataTokens.hpp`): regenerate with `python3 scripts/gen_schema_tokens.py`, then rebuild **`_native`**. **`tests/python/conftest.py`** avoids the skbuild editable hook during pytest so **`ctest`** and **`.venv`** runs both load the working-tree package.
 
-**C ABI** (on by default: `-DFREEUSD_BUILD_C_ABI=ON`): link **`freeusd_c`** and include [`include/freeusd/c/freeusd.h`](include/freeusd/c/freeusd.h). Stable entry points cover in-memory and on-disk **USDA** layers, **layer stacks**, **composed stages** (prim paths, fields, time samples, composition arcs, relocates, prefix substitutions, variants, layer hints, custom layer data, specifier kind, and related queries), the validated `usdGeom` runtime subset (transform, visibility, purpose, bounds), plus **USDC** helpers (crate id string, path kind sniff, bootstrap struct, TOC sections, raw section bytes, structured table reads, and the narrow embedded-`USDA` stage-open fallback). Full symbol list, ownership rules, and thread-local errors are documented in the header—prefer that over duplicating API names here.
+**C ABI** (on by default: `-DFREEUSD_BUILD_C_ABI=ON`): link **`freeusd_c`** and include [`include/freeusd/c/freeusd.h`](include/freeusd/c/freeusd.h). Stable entry points cover in-memory and on-disk **USDA** layers, **layer stacks**, **composed stages** (prim paths, fields, time samples, composition arcs, relocates, prefix substitutions, variants, layer hints, custom layer data, specifier kind, and related queries), the validated `usdGeom` runtime subset (transform, visibility, purpose, bounds), plus **USDC** helpers (crate id string, path kind sniff, bootstrap struct, TOC sections, raw section bytes, structured table reads, and the narrow embedded-`USDA` stage-open fallback). Full symbol list, ownership rules, and thread-local errors are documented in the header; prefer that over duplicating API names here.
 
 The extension is built as **`_native*.so`** under `build/`; CMake can copy it beside `freeusd/` (gitignored `*.so`) so `import freeusd._native` works with **`PYTHONPATH`** at the repo root.
 

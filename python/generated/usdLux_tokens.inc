@@ -1,4 +1,4 @@
-// GENERATED — included from bindings.cpp for usdLux
+// GENERATED - included from bindings.cpp for usdLux
 lux_tokens.def("BoundableLightBase", []{ return freeusd::usdLux::tokens::BoundableLightBase(); });
 lux_tokens.def("CylinderLight", []{ return freeusd::usdLux::tokens::CylinderLight(); });
 lux_tokens.def("DiskLight", []{ return freeusd::usdLux::tokens::DiskLight(); });

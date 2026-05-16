@@ -265,7 +265,7 @@ bool parse_tuple4_strict(std::string_view row_inner, std::array<double, 4>* out,
   return true;
 }
 
-/// Nested ``((r0), (r1), (r2), (r3))`` with each row ``(a, b, c, d)`` — row-major ``gf::Matrix4d::m`` (``[x y z 1] * M``).
+/// Nested ``((r0), (r1), (r2), (r3))`` with each row ``(a, b, c, d)`` - row-major ``gf::Matrix4d::m`` (``[x y z 1] * M``).
 bool parse_matrix4d_rows(std::string_view s, freeusd::gf::Matrix4d* mat, ParseResult* err, std::size_t line) {
   if (!mat) {
     return false;

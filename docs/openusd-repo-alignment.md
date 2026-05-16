@@ -1,6 +1,6 @@
 # Aligning FreeUSD with the OpenUSD repository (clean-room)
 
-This project tracks the **shape** of the [OpenUSD](https://github.com/PixarAnimationStudios/OpenUSD) monorepo—library boundaries, public concepts, and where extensions live—so contributors and integrators can navigate FreeUSD with familiar mental models. **Do not copy code from OpenUSD (Pixar) or other upstream USD implementations** into this tree: no Pixar / AOUSD **source** is incorporated. Parity work uses **published specs**, file-format documentation, and **observed behavior** only; implementations are written clean-room under the `freeusd::` namespace and `include/freeusd/` tree. The FreeUSD codebase is distributed under the **GNU GPL v3.0 or later** (see the repository `LICENSE`); that choice is independent of upstream OpenUSD’s license.
+This project tracks the **shape** of the [OpenUSD](https://github.com/PixarAnimationStudios/OpenUSD) monorepo (library boundaries, public concepts, and where extensions live) so contributors and integrators can navigate FreeUSD with familiar mental models. **Do not copy code from OpenUSD (Pixar) or other upstream USD implementations** into this tree: no Pixar / AOUSD **source** is incorporated. Parity work uses **published specs**, file-format documentation, and **observed behavior** only; implementations are written clean-room under the `freeusd::` namespace and `include/freeusd/` tree. The FreeUSD codebase is distributed under the **GNU GPL v3.0 or later** (see the repository `LICENSE`); that choice is independent of upstream OpenUSD’s license.
 
 ## Namespaces and headers
 
@@ -55,10 +55,10 @@ Aggregate (optional dependency): `freeusd::usd_schemas` → pulls **all** librar
 
 Typical OpenUSD trees that **do not** have FreeUSD counterparts yet (documented so expectations stay clear):
 
-- **Imaging / Hydra / Hgi / Hd*** — render delegate stack; **UsdImaging** scene adapters.
-- **Hydra integration** — FreeUSD exposes **UsdHydra-shaped schema token strings** only (`freeusd::usdHydra::tokens`); there is no Hd render index, scene delegate, or imaging bridge.
-- **MaterialX / UI / procedural semantics logic** — **`usdMtlx`**, **`usdUI`**, **`usdProc`**, **`usdSemantics`** supply **token names** from published schema data only; there is no MaterialX graph compiler, UI layout engine, or procedural execution.
-- **Ndr / Sdr** — shader discovery and parsing.
+- **Imaging / Hydra / Hgi / Hd***: render delegate stack; **UsdImaging** scene adapters.
+- **Hydra integration**: FreeUSD exposes **UsdHydra-shaped schema token strings** only (`freeusd::usdHydra::tokens`); there is no Hd render index, scene delegate, or imaging bridge.
+- **MaterialX / UI / procedural semantics logic**: **`usdMtlx`**, **`usdUI`**, **`usdProc`**, **`usdSemantics`** supply **token names** from published schema data only; there is no MaterialX graph compiler, UI layout engine, or procedural execution.
+- **Ndr / Sdr**: shader discovery and parsing.
 - **exec** and full **trace** implementations beyond the current lightweight stubs.
 
 When work starts in an area, prefer **new files under the matching `include/freeusd/<UsdPackage>/` name** rather than inventing parallel naming.
@@ -76,7 +76,7 @@ When work starts in an area, prefer **new files under the matching `include/free
 - **`freeusd.sdf.builtin_tokens`** exposes common **layer / prim metadata** field names as **`tf.Token`** helpers (SdfTokens-shaped layout; not generated from upstream).
 - **`freeusd.usd.builtin_tokens`** exposes common **composition / variant / relocate** field names as **`tf.Token`** helpers (UsdTokens-shaped layout; clean-room).
 - **`freeusd.usd.schema_data_tokens`** re-exports **`_native.usd.schema_data_tokens`**: strings from **`pxr/usd/usd/generatedSchema.usda`** (ModelAPI, CollectionAPI, collection/colorSpace fields, etc.); regenerate with **`scripts/gen_schema_tokens.py`**.
-- **`freeusd.usd.crate`** — **`usdc_crate_identifier()`**, **`detect_usd_file_kind_from_path`**, **`read_usdc_bootstrap_from_path`**, **`read_usdc_toc_from_path`**, **`read_usdc_section_bytes_from_path`**, **`read_usdc_token_table_from_path`**, **`read_usdc_string_table_from_path`**, **`read_usdc_path_table_from_path`**, **`UsdFileKind`**: magic + path sniff + **bootstrap** + **TOC section list** + raw section payload bytes + validated table reads in Python/C++; full `.usdc` payload decode is still future work, and the C ABI plus Go / Rust expose the same validated low-level slice.
+- **`freeusd.usd.crate`**: **`usdc_crate_identifier()`**, **`detect_usd_file_kind_from_path`**, **`read_usdc_bootstrap_from_path`**, **`read_usdc_toc_from_path`**, **`read_usdc_section_bytes_from_path`**, **`read_usdc_token_table_from_path`**, **`read_usdc_string_table_from_path`**, **`read_usdc_path_table_from_path`**, **`UsdFileKind`**: magic + path sniff + **bootstrap** + **TOC section list** + raw section payload bytes + validated table reads in Python/C++; full `.usdc` payload decode is still future work, and the C ABI plus Go / Rust expose the same validated low-level slice.
 - Model **`kind`** metadata: **`freeusd.usd.kind_tokens`** → **`freeusd._native.usd.kind_tokens`** (aligned with **`UsdKindTokens`**-style naming, not prim schema type tokens).
 - **`freeusd.usd.TimeCode`** mirrors **`UsdTimeCode`**-style default / earliest / numeric authoring; **`freeusd.usdUtils`** now exposes **`FlattenOptions`** plus **`flatten_stage_at_time`** for a narrow composed single-time flatten helper.
 - **`freeusd.gf`** wraps **`_native.gf`** (`Vec3d`, `Matrix4d`, **`BBox3d`**, **`Quatd`**, **`Range1d`**) for the same **Gf**-shaped role as `pxr.Gf` in OpenUSD stacks.
@@ -86,17 +86,17 @@ When work starts in an area, prefer **new files under the matching `include/free
 
 ## Parity strategy (clean-room, no upstream sources)
 
-Reaching a **similar feature set** to OpenUSD for authoring and interchange means growing FreeUSD against **published** USD/USDC descriptions, **real-world files**, and **tests written here**—not by translating Pixar’s C++ line-by-line (which would be copying) or matching every private helper. A practical order of work:
+Reaching a **similar feature set** to OpenUSD for authoring and interchange means growing FreeUSD against **published** USD/USDC descriptions, **real-world files**, and **tests written here**, not by translating Pixar’s C++ line-by-line (which would be copying) or matching every private helper. A practical order of work:
 
-1. **Formats and data model** — Strengthen `sdf` / `vt` / `gf` value shapes, USDA coverage, and (eventually) **USDC payload decode** using the public crate layout, until common layers round-trip reliably.
-2. **Composition** — Deepen `pcp` / `usd` so layer stacks, arcs, variants, and attribute resolution behave like the spec and like reference scenes, before investing in imaging.
-3. **Schema-facing APIs** — Expand typed helpers (e.g. `usdGeom::Xformable`, then mesh/bound roles) behind the same **token headers** you already ship, still without importing upstream schema logic.
-4. **Out-of-core items stay explicit** — Hydra, Ndr/Sdr, exec, and full `trace` remain **documented gaps** until a dedicated clean-room effort starts; see *Not in scope* above.
+1. **Formats and data model**: Strengthen `sdf` / `vt` / `gf` value shapes, USDA coverage, and (eventually) **USDC payload decode** using the public crate layout, until common layers round-trip reliably.
+2. **Composition**: Deepen `pcp` / `usd` so layer stacks, arcs, variants, and attribute resolution behave like the spec and like reference scenes, before investing in imaging.
+3. **Schema-facing APIs**: Expand typed helpers (e.g. `usdGeom::Xformable`, then mesh/bound roles) behind the same **token headers** you already ship, still without importing upstream schema logic.
+4. **Out-of-core items stay explicit**: Hydra, Ndr/Sdr, exec, and full `trace` remain **documented gaps** until a dedicated clean-room effort starts; see *Not in scope* above.
 
 API **names and module boundaries** track OpenUSD so integrators can navigate; **ABI and exhaustive method parity** are not goals.
 
 ## References
 
-- [openusd-map.md](openusd-map.md) — feature-level parity notes.
-- [bindings/README.md](../bindings/README.md) — FFI layout (Go / Rust) over the C ABI.
-- [engine-supported-subset.md](engine-supported-subset.md) — frozen engine contract for tools, editor, and runtime.
+- [openusd-map.md](openusd-map.md): feature-level parity notes.
+- [bindings/README.md](../bindings/README.md): FFI layout (Go / Rust) over the C ABI.
+- [engine-supported-subset.md](engine-supported-subset.md): frozen engine contract for tools, editor, and runtime.

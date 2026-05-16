@@ -179,7 +179,7 @@ class FREEUSD_API Layer : public std::enable_shared_from_this<Layer> {
   bool GetCustomLayerDataEntry(const std::string& key, freeusd::vt::Value* out) const;
   std::vector<std::string> ListCustomLayerDataKeys() const;
 
-  /// Reference arcs on prim (@asset@ with optional </Prim> tail), ordering preserved—minimal Pcp precursor.
+  /// Reference arcs on prim (@asset@ with optional </Prim> tail), ordering preserved (minimal Pcp precursor).
   void AddPrimReference(const Path& primPath, PrimReference ref);
   void AddReference(const Path& primPath, std::string authoredFragment);
   void SetPrimReferences(const Path& primPath, std::vector<PrimReference> refs);

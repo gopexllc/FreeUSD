@@ -1,4 +1,4 @@
-// GENERATED — included from bindings.cpp for usdSkel
+// GENERATED - included from bindings.cpp for usdSkel
 skel_tokens.def("BlendShape", []{ return freeusd::usdSkel::tokens::BlendShape(); });
 skel_tokens.def("SkelAnimation", []{ return freeusd::usdSkel::tokens::SkelAnimation(); });
 skel_tokens.def("SkelBindingAPI", []{ return freeusd::usdSkel::tokens::SkelBindingAPI(); });

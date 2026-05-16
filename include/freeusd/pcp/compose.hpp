@@ -13,7 +13,7 @@ namespace freeusd::pcp {
 /// (first sublayer is stronger than subsequent ones; matches typical USD authoring).
 ///
 /// Missing layers (callable returns null) are skipped. Does **not** recurse into sublayers of
-/// resolved layers—that needs a fuller Pcp graph walk.
+/// resolved layers; that needs a fuller Pcp graph walk.
 FREEUSD_API LayerStack ComposeSublayers(
     const std::shared_ptr<freeusd::sdf::Layer>& root,
     const std::function<std::shared_ptr<freeusd::sdf::Layer>(const std::string& authored_path_or_id)>&
