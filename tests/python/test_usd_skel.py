@@ -7,7 +7,7 @@ from pathlib import Path
 from freeusd.sdf import Path as SdfPath
 from freeusd.usd import RootLayerSublayersPolicy, Stage
 from freeusd.usdSkel import SkelAnimation, Skeleton
-from freeusd.usdSkel.gltf_mapping import accumulate_world_transforms, build_joint_parent_indices
+from freeusd.usdSkel.gltf_mapping import build_joint_parent_indices
 
 
 # glTF mapping: joints -> skin.joints; translations/rotations/scales -> animation TRS channels
