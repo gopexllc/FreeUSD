@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from freeusd.gf import Matrix4d, Vec3f
+from freeusd.gf import Vec3f
 from freeusd.sdf import Path as SdfPath
 from freeusd.usd import RootLayerSublayersPolicy, Stage
 from freeusd.usdSkel import (
