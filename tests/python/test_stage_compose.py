@@ -80,6 +80,25 @@ def test_stage_resolve_prim_defaults_without_opinion() -> None:
     assert not st.resolve_has_prim_kind(q)
 
 
+def test_parity_kind_and_active_through_refs_payloads_inherits() -> None:
+    path = os.path.normpath(os.path.join(_FIXTURES, "parity_kind_active_refs.usda"))
+    st = usd.Stage.open_from_root_file(path)
+    assert st is not None
+    ref_host = Path.from_string("/World/RefHost")
+    payload_host = Path.from_string("/World/PayloadHost")
+    inherit_host = Path.from_string("/World/InheritHost")
+    assert st.resolve_has_prim_kind(ref_host)
+    assert st.resolve_prim_kind(ref_host).text() == "component"
+    assert st.prim_at(ref_host).get_prim_kind().text() == "component"
+    assert st.resolve_has_prim_active_opinion(ref_host)
+    assert st.resolve_prim_active(ref_host) is False
+    assert st.prim_at(ref_host).is_active() is False
+    assert st.resolve_prim_kind(payload_host).text() == "group"
+    assert st.resolve_prim_kind(inherit_host).text() == "assembly"
+    assert st.resolve_prim_active(inherit_host) is True
+    assert st.resolve_has_prim_active_opinion(inherit_host) is False
+
+
 def test_parity_custom_data_and_specifier_through_inherits() -> None:
     path = os.path.normpath(os.path.join(_FIXTURES, "parity_custom_data_inherit.usda"))
     st = usd.Stage.open_from_root_file(path)

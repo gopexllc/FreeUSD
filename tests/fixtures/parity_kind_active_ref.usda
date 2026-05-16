@@ -1,0 +1,11 @@
+#usda 1.0
+(
+    defaultPrim = "RefRoot"
+)
+
+def "RefRoot" (
+    kind = "component"
+    active = false
+)
+{
+}

@@ -163,6 +163,30 @@ int main() {
 
   {
     std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_kind_active_refs.usda"),
+                                         freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const Path ref_host = Path::FromString("/World/RefHost");
+    const Path payload_host = Path::FromString("/World/PayloadHost");
+    const Path inherit_host = Path::FromString("/World/InheritHost");
+    assert(stage->PrimPathInUse(ref_host));
+    assert(stage->PrimPathInUse(payload_host));
+    assert(stage->ResolveHasPrimKind(ref_host));
+    assert(stage->ResolvePrimKind(ref_host).GetText() == std::string("component"));
+    assert(stage->GetPrimAtPath(ref_host).GetPrimKind().GetText() == std::string("component"));
+    assert(stage->ResolveHasPrimActiveOpinion(ref_host));
+    assert(!stage->ResolvePrimActive(ref_host));
+    assert(!stage->GetPrimAtPath(ref_host).IsActive());
+    assert(stage->ResolveHasPrimKind(payload_host));
+    assert(stage->ResolvePrimKind(payload_host).GetText() == std::string("group"));
+    assert(stage->ResolveHasPrimKind(inherit_host));
+    assert(stage->ResolvePrimKind(inherit_host).GetText() == std::string("assembly"));
+    assert(stage->ResolvePrimActive(inherit_host));
+    assert(!stage->ResolveHasPrimActiveOpinion(inherit_host));
+  }
+
+  {
+    std::string err;
     auto stage = Stage::OpenFromRootFile(fixture("parity_imageable.usda"),
                                          freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
     assert(stage && err.empty());

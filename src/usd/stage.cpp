@@ -337,6 +337,64 @@ struct ActiveQueryGuard {
   }
 };
 
+bool visit_composition_arc_prim_paths(
+    const freeusd::usd::Stage& self, const std::vector<std::shared_ptr<freeusd::sdf::Layer>>& compose,
+    const freeusd::sdf::Path& authored,
+    const std::function<bool(const freeusd::usd::Stage& stage, const freeusd::sdf::Path& prim_path)>& visitor) {
+  if (!visitor) {
+    return false;
+  }
+  static thread_local std::unordered_set<std::string> active_queries;
+  const std::string active_key =
+      std::to_string(reinterpret_cast<std::uintptr_t>(&self)) + "|primMetaArc|" + authored.GetString();
+  if (!active_queries.insert(active_key).second) {
+    return false;
+  }
+  ActiveQueryGuard active_guard{&active_queries, active_key};
+  for (const std::shared_ptr<freeusd::sdf::Layer>& layer : compose) {
+    if (!layer) {
+      continue;
+    }
+    for (const freeusd::sdf::Path& ancestor : prim_ancestors_deepest_first(authored)) {
+      freeusd::sdf::Path mapped_query;
+      const auto try_reference_list = [&](const std::vector<freeusd::sdf::PrimReference>& refs) -> bool {
+        for (const freeusd::sdf::PrimReference& ref : refs) {
+          std::shared_ptr<freeusd::usd::Stage> target_stage = open_asset_stage_from_reference(*layer, compose, ref);
+          if (!target_stage) {
+            continue;
+          }
+          if (!map_subtree_query_path(authored, ancestor, reference_target_root(*target_stage, ref), &mapped_query)) {
+            continue;
+          }
+          if (visitor(*target_stage, mapped_query)) {
+            return true;
+          }
+        }
+        return false;
+      };
+      const auto try_internal_arcs = [&](const std::vector<freeusd::sdf::Path>& targets) -> bool {
+        for (const freeusd::sdf::Path& target_root : targets) {
+          if (!map_subtree_query_path(authored, ancestor, target_root, &mapped_query)) {
+            continue;
+          }
+          const freeusd::sdf::Path mapped_composed = map_authored_to_composed_path(compose, mapped_query);
+          if (visitor(self, mapped_composed)) {
+            return true;
+          }
+        }
+        return false;
+      };
+      if (try_reference_list(layer->ListPrimReferences(ancestor)) ||
+          try_reference_list(layer->ListPrimPayloads(ancestor)) ||
+          try_internal_arcs(layer->ListPrimInherits(ancestor)) ||
+          try_internal_arcs(layer->ListPrimSpecializes(ancestor))) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 }  // namespace
 
 Stage::Stage(std::vector<std::shared_ptr<freeusd::sdf::Layer>> compose,
@@ -913,11 +971,34 @@ freeusd::tf::Token Stage::ResolvePrimKind(const freeusd::sdf::Path& prim_path) c
     return {};
   }
   for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
-    if (L && L->HasPrimKind(authored)) {
+    if (!L) {
+      continue;
+    }
+    if (L->HasPrimKind(authored)) {
       return L->GetPrimKind(authored);
     }
+    freeusd::vt::Value kv;
+    if (L->GetField(authored, freeusd::tf::Token{"kind"}, &kv)) {
+      freeusd::tf::Token t;
+      if (kv.GetToken(&t) && !t.IsEmpty()) {
+        return t;
+      }
+      std::string s;
+      if (kv.GetString(&s) && !s.empty()) {
+        return freeusd::tf::Token{s};
+      }
+    }
   }
-  return {};
+  freeusd::tf::Token arc_kind;
+  visit_composition_arc_prim_paths(*this, compose_, authored, [&](const Stage& stage, const freeusd::sdf::Path& p) {
+    const freeusd::tf::Token k = stage.ResolvePrimKind(p);
+    if (!k.IsEmpty()) {
+      arc_kind = k;
+      return true;
+    }
+    return false;
+  });
+  return arc_kind;
 }
 
 bool Stage::ResolveHasPrimKind(const freeusd::sdf::Path& prim_path) const {
@@ -926,11 +1007,27 @@ bool Stage::ResolveHasPrimKind(const freeusd::sdf::Path& prim_path) const {
     return false;
   }
   for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
-    if (L && L->HasPrimKind(authored)) {
+    if (!L) {
+      continue;
+    }
+    if (L->HasPrimKind(authored)) {
       return true;
     }
+    freeusd::vt::Value kv;
+    if (L->GetField(authored, freeusd::tf::Token{"kind"}, &kv)) {
+      freeusd::tf::Token t;
+      if (kv.GetToken(&t) && !t.IsEmpty()) {
+        return true;
+      }
+      std::string s;
+      if (kv.GetString(&s) && !s.empty()) {
+        return true;
+      }
+    }
   }
-  return false;
+  return visit_composition_arc_prim_paths(*this, compose_, authored, [&](const Stage& stage, const freeusd::sdf::Path& p) {
+    return stage.ResolveHasPrimKind(p);
+  });
 }
 
 freeusd::sdf::Layer::PrimSpecifierKind Stage::ResolvePrimSpecifierKind(const freeusd::sdf::Path& prim_path) const {
@@ -965,6 +1062,16 @@ bool Stage::ResolvePrimActive(const freeusd::sdf::Path& prim_path) const {
       return L->IsPrimActive(authored);
     }
   }
+  bool arc_active = true;
+  if (visit_composition_arc_prim_paths(*this, compose_, authored, [&](const Stage& stage, const freeusd::sdf::Path& p) {
+        if (stage.ResolveHasPrimActiveOpinion(p)) {
+          arc_active = stage.ResolvePrimActive(p);
+          return true;
+        }
+        return false;
+      })) {
+    return arc_active;
+  }
   return true;
 }
 
@@ -978,7 +1085,9 @@ bool Stage::ResolveHasPrimActiveOpinion(const freeusd::sdf::Path& prim_path) con
       return true;
     }
   }
-  return false;
+  return visit_composition_arc_prim_paths(*this, compose_, authored, [&](const Stage& stage, const freeusd::sdf::Path& p) {
+    return stage.ResolveHasPrimActiveOpinion(p);
+  });
 }
 
 bool Stage::VisitInternalArcMappedPrimPaths(

@@ -90,12 +90,14 @@ class FREEUSD_API Stage : public std::enable_shared_from_this<Stage> {
   std::vector<freeusd::sdf::PrimReference> ReadPrimPayloads(const freeusd::sdf::Path& prim_path) const;
   bool HasPrimPayloads(const freeusd::sdf::Path& prim_path) const;
 
+  /// Strongest local @c kind opinion, else via references, payloads, @c inherits, and @c specializes.
   freeusd::tf::Token ResolvePrimKind(const freeusd::sdf::Path& prim_path) const;
   bool ResolveHasPrimKind(const freeusd::sdf::Path& prim_path) const;
 
   /// Composed USDA \c class / \c over specifier: strongest local opinion wins; else via `inherits` / `specializes`.
   freeusd::sdf::Layer::PrimSpecifierKind ResolvePrimSpecifierKind(const freeusd::sdf::Path& prim_path) const;
 
+  /// Strongest local @c active opinion, else via references, payloads, @c inherits, and @c specializes (default @c true).
   bool ResolvePrimActive(const freeusd::sdf::Path& prim_path) const;
   bool ResolveHasPrimActiveOpinion(const freeusd::sdf::Path& prim_path) const;
 
