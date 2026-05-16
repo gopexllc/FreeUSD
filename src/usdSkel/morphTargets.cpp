@@ -4,6 +4,8 @@
 #include <vector>
 
 #include "freeusd/usd/stage.hpp"
+#include "freeusd/usdGeom/tokens.hpp"
+#include "freeusd/usdSkel/skelBlendShapes.hpp"
 #include "freeusd/usdSkel/tokens.hpp"
 #include "freeusd/vt/value.hpp"
 
@@ -96,10 +98,38 @@ std::vector<freeusd::sdf::Path> MorphTargets::GetBlendShapeTargetPaths() const {
 }
 
 bool MorphTargets::GetWeights(std::vector<float>* out, double time) const {
+  return SkelBlendShapes::ReadFromGeomPrim(geom_prim).GetWeights(out, time);
+}
+
+bool MorphTargets::GetBasePoints(std::vector<freeusd::gf::Vec3f>* out, double time) const {
   if (!out || !geom_prim.IsValid()) {
     return false;
   }
-  return read_float_array(geom_prim.GetAttribute(tokens::blendShapeWeights(), time), out);
+  const freeusd::vt::Value v = geom_prim.GetAttribute(freeusd::usdGeom::tokens::points(), time);
+  if (!v.GetVec3fArray(out) || out->empty()) {
+    freeusd::gf::Vec3f single{};
+    if (v.GetVec3f(&single)) {
+      out->assign(1, single);
+      return true;
+    }
+    return false;
+  }
+  return true;
+}
+
+bool MorphTargets::EvaluatePoints(std::vector<freeusd::gf::Vec3f>* out, double time) const {
+  if (!out || !geom_prim.IsValid()) {
+    return false;
+  }
+  const std::shared_ptr<const freeusd::usd::Stage> stage = geom_prim.GetStage();
+  if (!stage) {
+    return false;
+  }
+  std::vector<freeusd::gf::Vec3f> base;
+  if (!GetBasePoints(&base, time)) {
+    return false;
+  }
+  return ApplyToPoints(stage, base, out, time);
 }
 
 std::vector<MorphTargetBinding> MorphTargets::ResolveBindings(const std::shared_ptr<const freeusd::usd::Stage>& stage,

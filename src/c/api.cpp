@@ -29,6 +29,7 @@
 #include "freeusd/usdGeom/imageable.hpp"
 #include "freeusd/usdGeom/xformable.hpp"
 #include "freeusd/usdSkel/skeleton.hpp"
+#include "freeusd/usdSkel/skelBlendShapes.hpp"
 #include "freeusd/version.hpp"
 #include "freeusd/vt/value.hpp"
 
@@ -2558,6 +2559,77 @@ int freeusd_stage_read_field_token_array(const FreeusdStage* stage, const char* 
       }
       return ml;
     }
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_read_geom_blend_shape_target_count(const FreeusdStage* stage, const char* geom_path_utf8,
+                                                     size_t* out_count) {
+  if (!stage || !stage->inner || !geom_path_utf8 || !out_count) {
+    set_error("freeusd_stage_read_geom_blend_shape_target_count: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_count = 0;
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(geom_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid geom path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const freeusd::usdSkel::SkelBlendShapes binding =
+        freeusd::usdSkel::SkelBlendShapes::ReadFromGeomPrim(stage->inner->GetPrimAtPath(p));
+    if (!binding) {
+      set_error("geom prim has no blend shape binding");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    *out_count = binding.blend_shape_tokens.size();
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_read_geom_blend_shape_weight(const FreeusdStage* stage, const char* geom_path_utf8,
+                                               size_t target_index, double time, float* out_weight) {
+  if (!stage || !stage->inner || !geom_path_utf8 || !out_weight) {
+    set_error("freeusd_stage_read_geom_blend_shape_weight: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_weight = 0.0f;
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(geom_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid geom path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const freeusd::usdSkel::SkelBlendShapes binding =
+        freeusd::usdSkel::SkelBlendShapes::ReadFromGeomPrim(stage->inner->GetPrimAtPath(p));
+    if (!binding) {
+      set_error("geom prim has no blend shape binding");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    std::vector<float> weights;
+    if (!binding.GetWeights(&weights, time)) {
+      set_error("blend shape weights not available");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    if (target_index >= weights.size()) {
+      set_error("blend shape target index out of range");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    *out_weight = weights[target_index];
     clear_error();
     return FREEUSD_OK;
   } catch (const std::exception& e) {

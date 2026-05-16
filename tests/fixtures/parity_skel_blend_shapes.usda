@@ -3,19 +3,25 @@
     defaultPrim = "World"
 )
 
-# Blend shapes / morph targets (parity_skel_blend_shapes.usda):
-# skel:blendShapes + skel:blendShapeTargets  -> mesh morph slots (glTF mesh.weights)
-# blendShapeWeights                          -> per-target weights on geom
-# BlendShape.offsets                         -> POSITION deltas (dense or via pointIndices)
+# glTF mapping (parity_skel_blend_shapes.usda):
+# morph target POSITION deltas  -> BlendShape offsets
+# mesh.weights                  -> blendShapeWeights on geom
+# skel:blendShapes + skel:blendShapeTargets -> token map + BlendShape prims
 
 def Xform "World"
 {
     def Mesh "Face"
     {
         point3f[] points = [(0, 0, 0), (1, 0, 0)]
-        uniform token[] skel:blendShapes = ["Smile", "Wink"]
-        rel skel:blendShapeTargets = </World/BlendShapes/Smile>, </World/BlendShapes/Wink>
-        float[] blendShapeWeights = [1.0, 0.0]
+
+        token[] skel:blendShapes = ["Smile", "Blink"]
+        rel skel:blendShapeTargets = [</World/BlendShapes/Smile>, </World/BlendShapes/Blink>]
+
+        float[] blendShapeWeights = [0, 0]
+        float[] blendShapeWeights.timeSamples = {
+            0: [0, 0],
+            1: [1, 0.5]
+        }
     }
 
     def Scope "BlendShapes"
@@ -25,10 +31,9 @@ def Xform "World"
             point3f[] offsets = [(0, 1, 0), (0, 1, 0)]
         }
 
-        def BlendShape "Wink"
+        def BlendShape "Blink"
         {
-            int[] pointIndices = [1]
-            point3f[] offsets = [(0, 0.5, 0)]
+            point3f[] offsets = [(0, 0, 1), (0, 0, 0)]
         }
     }
 }

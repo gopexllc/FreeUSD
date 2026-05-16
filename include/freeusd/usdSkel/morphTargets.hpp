@@ -43,8 +43,14 @@ struct FREEUSD_API MorphTargets {
   /// ``skel:blendShapeTargets`` relationship paths (parallel to tokens; entries may be empty).
   std::vector<freeusd::sdf::Path> GetBlendShapeTargetPaths() const;
 
-  /// Weights at @p time from ``blendShapeWeights`` on the geom prim.
+  /// Weights at @p time (local ``blendShapeWeights`` or remapped from ``skel:animationSource``).
   bool GetWeights(std::vector<float>* out, double time = 1.0) const;
+
+  /// Mesh ``points`` at @p time.
+  bool GetBasePoints(std::vector<freeusd::gf::Vec3f>* out, double time = 1.0) const;
+
+  /// Read base points and apply morphs at @p time.
+  bool EvaluatePoints(std::vector<freeusd::gf::Vec3f>* out, double time = 1.0) const;
 
   /// Tokens, target paths, and weights together (skips targets with empty paths).
   std::vector<MorphTargetBinding> ResolveBindings(const std::shared_ptr<const freeusd::usd::Stage>& stage,

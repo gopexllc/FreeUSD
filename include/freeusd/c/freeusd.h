@@ -609,6 +609,20 @@ FREEUSD_C_API int freeusd_stage_read_skel_joint_names(const FreeusdStage* stage,
                                                       char*** out_strings, size_t* out_count);
 
 /**
+ * Count of bound blend-shape targets on a geom prim (``skel:blendShapes`` token count).
+ * Missing geom or unbound prim reports @ref FREEUSD_ERR_NOT_FOUND.
+ */
+FREEUSD_C_API int freeusd_stage_read_geom_blend_shape_target_count(const FreeusdStage* stage,
+                                                                 const char* geom_path_utf8, size_t* out_count);
+
+/**
+ * Blend-shape weight at @p target_index for @p geom_path_utf8 at @p time (local or animation-remapped).
+ * @p out_weight must be non-NULL. Index out of range reports @ref FREEUSD_ERR_NOT_FOUND.
+ */
+FREEUSD_C_API int freeusd_stage_read_geom_blend_shape_weight(const FreeusdStage* stage, const char* geom_path_utf8,
+                                                            size_t target_index, double time, float* out_weight);
+
+/**
  * Composed prim active flag (strongest opinion; default true if no opinion).
  * @p out_active receives 0 or 1.
  */

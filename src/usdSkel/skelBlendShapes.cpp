@@ -3,6 +3,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "freeusd/usd/stage.hpp"
 #include "freeusd/usdSkel/skelAnimation.hpp"
 #include "freeusd/usdSkel/skelRoot.hpp"
 #include "freeusd/usdSkel/tokens.hpp"

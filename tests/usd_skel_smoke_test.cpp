@@ -15,8 +15,12 @@
 #include "freeusd/usdSkel/gltfMapping.hpp"
 #include "freeusd/usdSkel/skelAnimation.hpp"
 #include "freeusd/usdSkel/skelBinding.hpp"
+#include "freeusd/usdSkel/morphTargets.hpp"
 #include "freeusd/usdSkel/skelRoot.hpp"
+#include "freeusd/usdSkel/skinning.hpp"
 #include "freeusd/usdSkel/skeleton.hpp"
+#include "freeusd/usdGeom/tokens.hpp"
+#include "freeusd/vt/value.hpp"
 
 #ifndef FREEUSD_TEST_FIXTURES_DIR
 #error "FREEUSD_TEST_FIXTURES_DIR must be set by CMake for usd_skel_smoke_test"
@@ -153,6 +157,64 @@ int main() {
     assert(near(weights[0], 1.0f));
     assert(near(weights[4], 0.5f));
     assert(near(weights[5], 0.5f));
+  }
+
+  {
+    auto morph_stage = Stage::OpenFromRootFile(fixture("parity_skel_blend_shapes.usda"),
+                                               freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(morph_stage && err.empty());
+    const freeusd::usd::Prim face = morph_stage->GetPrimAtPath(Path::FromString("/World/Face"));
+    const freeusd::usdSkel::MorphTargets morphs = freeusd::usdSkel::MorphTargets::ReadFromGeomPrim(face);
+    assert(morphs);
+    std::vector<freeusd::gf::Vec3f> base{};
+    assert(morphs.GetBasePoints(&base, 1.0));
+    assert(base.size() == 2u);
+    std::vector<float> weights{};
+    assert(morphs.GetWeights(&weights, 1.0));
+    assert(weights.size() == 2u && near(weights[0], 1.0f));
+    const std::vector<freeusd::usdSkel::BlendShape> targets = morphs.LoadBlendShapes(morph_stage, 1.0);
+    assert(targets.size() == 2u);
+    std::vector<freeusd::gf::Vec3f> morphed{};
+    assert(freeusd::usdSkel::ApplyMorphTargetsToPoints(base, targets, weights, &morphed, 1.0));
+    assert(morphed[0].y() == 1.0f);
+    assert(near(morphed[0].z(), 0.5f));
+    assert(morphed[1].y() == 1.0f);
+  }
+
+  {
+    // glTF LBS: point' = sum(weight * (point * inverseBind * jointWorld))
+    auto skin_stage = Stage::OpenFromRootFile(fixture("parity_skel_skinning.usda"),
+                                             freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(skin_stage && err.empty());
+
+    const Path body_path = Path::FromString("/World/SkelCharacter/Body");
+    const freeusd::usd::Prim body = skin_stage->GetPrimAtPath(body_path);
+    const Skeleton skel(skin_stage->GetPrimAtPath(Path::FromString("/World/SkelCharacter/Skeleton")));
+    const SkelAnimation anim(skin_stage->GetPrimAtPath(Path::FromString("/World/SkelCharacter/Anim")));
+    assert(skel && anim);
+
+    std::vector<freeusd::gf::Vec3f> points{};
+    const freeusd::vt::Value pv = body.GetAttribute(freeusd::usdGeom::tokens::points(), 1.0);
+    assert(pv.GetVec3fArray(&points));
+    assert(points.size() == 1u);
+
+    std::vector<int> indices{};
+    std::vector<float> jweights{};
+    assert(SkelBinding::ReadJointIndices(body, &indices, 1.0));
+    assert(SkelBinding::ReadJointWeights(body, &jweights, 1.0));
+
+    std::vector<freeusd::gf::Matrix4d> bind{};
+    assert(skel.GetBindTransforms(&bind, 1.0));
+
+    std::vector<freeusd::gf::Matrix4d> joint_world{};
+    assert(freeusd::usdSkel::BuildJointWorldMatricesFromAnimation(skel, anim, 1.0, &joint_world));
+    assert(joint_world.size() == 2u);
+
+    std::vector<freeusd::gf::Vec3f> deformed{};
+    assert(freeusd::usdSkel::DeformPointsWithSkeleton(points, indices, jweights, 1, joint_world, bind, nullptr,
+                                                      &deformed));
+    assert(deformed.size() == 1u);
+    assert(deformed[0].y() > points[0].y());
   }
 
   return 0;

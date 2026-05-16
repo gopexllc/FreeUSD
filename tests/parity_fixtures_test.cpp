@@ -9,6 +9,7 @@
 #include "freeusd/usdGeom/imageable.hpp"
 #include "freeusd/usdSkel/skelAnimation.hpp"
 #include "freeusd/usdSkel/skelBinding.hpp"
+#include "freeusd/usdSkel/morphTargets.hpp"
 #include "freeusd/usdSkel/skelRoot.hpp"
 #include "freeusd/usdSkel/skeleton.hpp"
 #include "freeusd/usdUtils/pipeline.hpp"
@@ -209,6 +210,22 @@ int main() {
     assert(freeusd::usdSkel::SkelBinding::ReadJointIndices(body, &indices));
     assert(freeusd::usdSkel::SkelBinding::ReadJointWeights(body, &weights));
     assert(freeusd::usdSkel::SkelBinding::ValidateInfluenceCounts(indices, weights));
+  }
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_skel_blend_shapes.usda"),
+                                         freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const freeusd::usd::Prim face = stage->GetPrimAtPath(Path::FromString("/World/Face"));
+    const freeusd::usdSkel::MorphTargets morphs = freeusd::usdSkel::MorphTargets::ReadFromGeomPrim(face);
+    assert(morphs);
+    assert(morphs.GetBlendShapeTokens().size() == 2u);
+    std::vector<freeusd::gf::Vec3f> morphed{};
+    assert(morphs.EvaluatePoints(&morphed, 1.0));
+    assert(morphed.size() == 2u);
+    assert(morphed[0].y() == 1.0f);
+    assert(morphed[0].z() == 0.5f);
   }
 
   return 0;

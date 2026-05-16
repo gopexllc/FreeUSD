@@ -48,6 +48,7 @@
 #include "freeusd/usdSkel/skelBinding.hpp"
 #include "freeusd/usdSkel/skelBlendShapes.hpp"
 #include "freeusd/usdSkel/skelRoot.hpp"
+#include "freeusd/usdSkel/skinning.hpp"
 #include "freeusd/usdSkel/skeleton.hpp"
 #include "freeusd/usdHydra/tokens.hpp"
 #include "freeusd/usdLux/tokens.hpp"
@@ -2352,14 +2353,20 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
             py::arg("time") = 1.0)
         .def("resolve_targets", &freeusd::usdSkel::SkelBlendShapes::ResolveTargets);
 
+    py::class_<freeusd::usdSkel::MorphTargetBinding>(usdSkel, "MorphTargetBinding")
+        .def(py::init<>())
+        .def_readwrite("token", &freeusd::usdSkel::MorphTargetBinding::token)
+        .def_readwrite("target_path", &freeusd::usdSkel::MorphTargetBinding::target_path)
+        .def_readwrite("weight", &freeusd::usdSkel::MorphTargetBinding::weight);
+
     py::class_<freeusd::usdSkel::MorphTargets>(usdSkel, "MorphTargets")
         .def(py::init<>())
-        .def(py::init<freeusd::usdSkel::SkelBlendShapes>(), py::arg("binding"))
-        .def_readonly("binding", &freeusd::usdSkel::MorphTargets::binding)
+        .def(py::init<const freeusd::usd::Prim&>(), py::arg("geom_prim"))
+        .def_readonly("geom_prim", &freeusd::usdSkel::MorphTargets::geom_prim)
         .def_static("read_from_geom_prim", &freeusd::usdSkel::MorphTargets::ReadFromGeomPrim, py::arg("geom"))
         .def("__bool__", [](const freeusd::usdSkel::MorphTargets& m) { return static_cast<bool>(m); })
-        .def("get_target_paths", &freeusd::usdSkel::MorphTargets::GetTargetPaths)
         .def("get_blend_shape_tokens", &freeusd::usdSkel::MorphTargets::GetBlendShapeTokens)
+        .def("get_blend_shape_target_paths", &freeusd::usdSkel::MorphTargets::GetBlendShapeTargetPaths)
         .def(
             "get_weights",
             [](const freeusd::usdSkel::MorphTargets& morphs, double time) -> py::object {
@@ -2384,12 +2391,24 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
               return rows;
             },
             py::arg("time") = 1.0)
-        .def_static(
-            "apply_morphs",
-            [](const std::vector<freeusd::gf::Vec3f>& base_points, const std::vector<freeusd::usdSkel::BlendShape>& targets,
-               const std::vector<float>& weights) -> py::object {
+        .def(
+            "resolve_bindings",
+            [](const freeusd::usdSkel::MorphTargets& morphs, const std::shared_ptr<const freeusd::usd::Stage>& stage,
+               double time) { return morphs.ResolveBindings(stage, time); },
+            py::arg("stage"),
+            py::arg("time") = 1.0)
+        .def(
+            "load_blend_shapes",
+            [](const freeusd::usdSkel::MorphTargets& morphs, const std::shared_ptr<const freeusd::usd::Stage>& stage,
+               double time) { return morphs.LoadBlendShapes(stage, time); },
+            py::arg("stage"),
+            py::arg("time") = 1.0)
+        .def(
+            "apply_to_points",
+            [](const freeusd::usdSkel::MorphTargets& morphs, const std::shared_ptr<const freeusd::usd::Stage>& stage,
+               const std::vector<freeusd::gf::Vec3f>& base_points, double time) -> py::object {
               std::vector<freeusd::gf::Vec3f> out;
-              if (!freeusd::usdSkel::MorphTargets::ApplyMorphs(base_points, targets, weights, &out)) {
+              if (!morphs.ApplyToPoints(stage, base_points, &out, time)) {
                 return py::none();
               }
               py::list rows;
@@ -2398,9 +2417,9 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
               }
               return rows;
             },
+            py::arg("stage"),
             py::arg("base_points"),
-            py::arg("targets"),
-            py::arg("weights"))
+            py::arg("time") = 1.0)
         .def(
             "evaluate_points",
             [](const freeusd::usdSkel::MorphTargets& morphs, double time) -> py::object {
@@ -2415,6 +2434,56 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
               return rows;
             },
             py::arg("time") = 1.0);
+
+    usdSkel.def(
+        "apply_morph_targets_to_points",
+        [](const std::vector<freeusd::gf::Vec3f>& base_points, const std::vector<freeusd::usdSkel::BlendShape>& shapes,
+           const std::vector<float>& weights, double time) -> py::object {
+          std::vector<freeusd::gf::Vec3f> out;
+          if (!freeusd::usdSkel::ApplyMorphTargetsToPoints(base_points, shapes, weights, &out, time)) {
+            return py::none();
+          }
+          py::list rows;
+          for (const freeusd::gf::Vec3f& v : out) {
+            rows.append(py::make_tuple(v.x(), v.y(), v.z()));
+          }
+          return rows;
+        },
+        py::arg("base_points"),
+        py::arg("blend_shapes"),
+        py::arg("weights"),
+        py::arg("time") = 1.0);
+
+    usdSkel.def(
+        "deform_points_with_skeleton",
+        [](const std::vector<freeusd::gf::Vec3f>& points, const std::vector<int>& joint_indices,
+           const std::vector<float>& joint_weights, std::size_t influences_per_point,
+           const std::vector<freeusd::gf::Matrix4d>& joint_world,
+           const std::vector<freeusd::gf::Matrix4d>& inverse_bind) -> py::object {
+          std::vector<freeusd::gf::Vec3f> out;
+          if (!freeusd::usdSkel::DeformPointsWithSkeleton(points, joint_indices, joint_weights, influences_per_point,
+                                                          joint_world, inverse_bind, nullptr, &out)) {
+            return py::none();
+          }
+          py::list rows;
+          for (const freeusd::gf::Vec3f& v : out) {
+            rows.append(py::make_tuple(v.x(), v.y(), v.z()));
+          }
+          return rows;
+        },
+        py::arg("points"), py::arg("joint_indices"), py::arg("joint_weights"), py::arg("influences_per_point"),
+        py::arg("joint_world_matrices"), py::arg("inverse_bind_matrices"));
+
+    usdSkel.def(
+        "build_joint_world_matrices_from_animation",
+        [](const freeusd::usdSkel::Skeleton& skeleton, const freeusd::usdSkel::SkelAnimation& animation, double time) {
+          std::vector<freeusd::gf::Matrix4d> world;
+          if (!freeusd::usdSkel::BuildJointWorldMatricesFromAnimation(skeleton, animation, time, &world)) {
+            return std::vector<freeusd::gf::Matrix4d>{};
+          }
+          return world;
+        },
+        py::arg("skeleton"), py::arg("animation"), py::arg("time"));
   }
 
   {

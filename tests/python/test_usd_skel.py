@@ -4,9 +4,18 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from freeusd.gf import Matrix4d, Vec3f
 from freeusd.sdf import Path as SdfPath
 from freeusd.usd import RootLayerSublayersPolicy, Stage
-from freeusd.usdSkel import SkelAnimation, SkelBinding, SkelRoot, Skeleton
+from freeusd.usdSkel import (
+    MorphTargets,
+    SkelAnimation,
+    SkelBinding,
+    SkelRoot,
+    Skeleton,
+    build_joint_world_matrices_from_animation,
+    deform_points_with_skeleton,
+)
 from freeusd.usdSkel.gltf_mapping import build_joint_parent_indices
 
 
@@ -95,3 +104,76 @@ def test_parity_skel_binding_fixture_resolves_root_and_primvars() -> None:
     assert indices[0] == 0 and indices[1] == 1
     assert abs(weights[0] - 1.0) < 1e-5
     assert abs(weights[4] - 0.5) < 1e-5
+
+
+def test_parity_skel_blend_shapes_fixture_applies_morph_weights() -> None:
+    stage = Stage.open_from_root_file(
+        str(FIXTURES / "parity_skel_blend_shapes.usda"), RootLayerSublayersPolicy.depth_first
+    )
+    assert stage is not None
+
+    face = stage.prim_at(SdfPath.from_string("/World/Face"))
+    morphs = MorphTargets.read_from_geom_prim(face)
+    assert morphs
+    assert morphs.get_blend_shape_tokens() == ["Smile", "Blink"]
+
+    weights = morphs.get_weights(1.0)
+    assert weights is not None
+    assert len(weights) == 2
+    assert abs(weights[0] - 1.0) < 1e-5
+    assert abs(weights[1] - 0.5) < 1e-5
+
+    def vec3_y(v: object) -> float:
+        if hasattr(v, "y"):
+            return float(v.y())  # type: ignore[attr-defined]
+        return float(v[1])  # type: ignore[index]
+
+    def vec3_z(v: object) -> float:
+        if hasattr(v, "z"):
+            return float(v.z())  # type: ignore[attr-defined]
+        return float(v[2])  # type: ignore[index]
+
+    morphed = morphs.evaluate_points(1.0)
+    assert morphed is not None
+    assert len(morphed) == 2
+    assert abs(vec3_y(morphed[0]) - 1.0) < 1e-5
+    assert abs(vec3_z(morphed[0]) - 0.5) < 1e-5
+    assert abs(vec3_y(morphed[1]) - 1.0) < 1e-5
+
+
+def test_parity_skel_skinning_fixture_deforms_point() -> None:
+    stage = Stage.open_from_root_file(
+        str(FIXTURES / "parity_skel_skinning.usda"), RootLayerSublayersPolicy.depth_first
+    )
+    assert stage is not None
+
+    body = stage.prim_at(SdfPath.from_string("/World/SkelCharacter/Body"))
+    skel = Skeleton(stage.prim_at(SdfPath.from_string("/World/SkelCharacter/Skeleton")))
+    anim = SkelAnimation(stage.prim_at(SdfPath.from_string("/World/SkelCharacter/Anim")))
+
+    points = [Vec3f(0.0, 1.0, 0.0)]
+
+    indices = SkelBinding.read_joint_indices(body, 1.0)
+    weights = SkelBinding.read_joint_weights(body, 1.0)
+    assert indices is not None and weights is not None
+
+    bind_raw = skel.get_bind_transforms(1.0)
+    assert bind_raw is not None
+
+    def to_matrix4d(m: object) -> Matrix4d:
+        if hasattr(m, "as_list"):
+            data = list(m.as_list())  # type: ignore[attr-defined]
+        else:
+            data = list(m)  # type: ignore[arg-type]
+        out = Matrix4d()
+        for i, v in enumerate(data[:16]):
+            out.as_list()[i] = float(v)
+        return out
+
+    bind = [to_matrix4d(m) for m in bind_raw]
+    joint_world = build_joint_world_matrices_from_animation(skel, anim, 1.0)
+    assert len(joint_world) == 2
+
+    deformed = deform_points_with_skeleton(points, indices, weights, 1, joint_world, bind)
+    assert deformed is not None
+    assert deformed[0][1] > points[0].y()
