@@ -67,6 +67,11 @@ if(FREEUSD_BUILD_TESTS)
   target_compile_definitions(
     freeusd_usd_skel_smoke_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
 
+  add_executable(freeusd_usd_skel_blend_shapes_test tests/usd_skel_blend_shapes_test.cpp)
+  target_link_libraries(freeusd_usd_skel_blend_shapes_test PRIVATE freeusd::usd freeusd::usdSkel)
+  target_compile_definitions(
+    freeusd_usd_skel_blend_shapes_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+
   add_executable(freeusd_engine_integration_test tests/engine_integration_test.cpp)
   target_link_libraries(freeusd_engine_integration_test PRIVATE freeusd::usd freeusd::usdUtils freeusd::usdGeom)
   target_compile_definitions(
@@ -119,6 +124,7 @@ if(FREEUSD_BUILD_TESTS)
   add_test(NAME freeusd_stage_open_file_test COMMAND freeusd_stage_open_file_test)
   add_test(NAME freeusd_parity_fixtures_test COMMAND freeusd_parity_fixtures_test)
   add_test(NAME freeusd_usd_skel_smoke_test COMMAND freeusd_usd_skel_smoke_test)
+  add_test(NAME freeusd_usd_skel_blend_shapes_test COMMAND freeusd_usd_skel_blend_shapes_test)
   add_test(NAME freeusd_engine_integration_test COMMAND freeusd_engine_integration_test)
   add_test(NAME freeusd_schema_tokens_bundle_test COMMAND freeusd_schema_tokens_bundle_test)
   add_test(NAME freeusd_time_code_test COMMAND freeusd_time_code_test)

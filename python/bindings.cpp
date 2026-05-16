@@ -43,7 +43,10 @@
 #include "freeusd/usdGeom/xformable.hpp"
 #include "freeusd/usdSkel/gltfMapping.hpp"
 #include "freeusd/usdSkel/skelAnimation.hpp"
+#include "freeusd/usdSkel/blendShape.hpp"
+#include "freeusd/usdSkel/morphTargets.hpp"
 #include "freeusd/usdSkel/skelBinding.hpp"
+#include "freeusd/usdSkel/skelBlendShapes.hpp"
 #include "freeusd/usdSkel/skelRoot.hpp"
 #include "freeusd/usdSkel/skeleton.hpp"
 #include "freeusd/usdHydra/tokens.hpp"
@@ -2291,6 +2294,127 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def("get_animation_source_path", &freeusd::usdSkel::SkelRoot::GetAnimationSourcePath)
         .def("get_skeleton", &freeusd::usdSkel::SkelRoot::GetSkeleton)
         .def("get_animation_source", &freeusd::usdSkel::SkelRoot::GetAnimationSource);
+
+    py::class_<freeusd::usdSkel::BlendShape>(usdSkel, "BlendShape")
+        .def(py::init<>())
+        .def(py::init<const freeusd::usd::Prim&>(), py::arg("prim"))
+        .def_readonly("prim", &freeusd::usdSkel::BlendShape::prim)
+        .def_static(
+            "read_from_prim",
+            [](const std::shared_ptr<const freeusd::usd::Stage>& stage, const freeusd::sdf::Path& path) {
+              return freeusd::usdSkel::BlendShape::ReadFromPrim(stage, path);
+            },
+            py::arg("stage"),
+            py::arg("path"))
+        .def("__bool__", [](const freeusd::usdSkel::BlendShape& s) { return static_cast<bool>(s); })
+        .def(
+            "get_offsets",
+            [](const freeusd::usdSkel::BlendShape& shape, double time) -> py::object {
+              std::vector<freeusd::gf::Vec3f> out;
+              if (!shape.GetOffsets(&out, time)) {
+                return py::none();
+              }
+              py::list rows;
+              for (const freeusd::gf::Vec3f& v : out) {
+                rows.append(py::make_tuple(v.x(), v.y(), v.z()));
+              }
+              return rows;
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_point_indices",
+            [](const freeusd::usdSkel::BlendShape& shape, double time) -> py::object {
+              std::vector<int> out;
+              if (!shape.GetPointIndices(&out, time)) {
+                return py::none();
+              }
+              return py::cast(out);
+            },
+            py::arg("time") = 1.0);
+
+    py::class_<freeusd::usdSkel::SkelBlendShapes>(usdSkel, "SkelBlendShapes")
+        .def(py::init<>())
+        .def(py::init<const freeusd::usd::Prim&>(), py::arg("geom_prim"))
+        .def_readonly("geom_prim", &freeusd::usdSkel::SkelBlendShapes::geom_prim)
+        .def_readonly("blend_shape_tokens", &freeusd::usdSkel::SkelBlendShapes::blend_shape_tokens)
+        .def_readonly("target_paths", &freeusd::usdSkel::SkelBlendShapes::target_paths)
+        .def_static("read_from_geom_prim", &freeusd::usdSkel::SkelBlendShapes::ReadFromGeomPrim, py::arg("geom"))
+        .def("__bool__", [](const freeusd::usdSkel::SkelBlendShapes& b) { return static_cast<bool>(b); })
+        .def(
+            "get_weights",
+            [](const freeusd::usdSkel::SkelBlendShapes& binding, double time) -> py::object {
+              std::vector<float> out;
+              if (!binding.GetWeights(&out, time)) {
+                return py::none();
+              }
+              return py::cast(out);
+            },
+            py::arg("time") = 1.0)
+        .def("resolve_targets", &freeusd::usdSkel::SkelBlendShapes::ResolveTargets);
+
+    py::class_<freeusd::usdSkel::MorphTargets>(usdSkel, "MorphTargets")
+        .def(py::init<>())
+        .def(py::init<freeusd::usdSkel::SkelBlendShapes>(), py::arg("binding"))
+        .def_readonly("binding", &freeusd::usdSkel::MorphTargets::binding)
+        .def_static("read_from_geom_prim", &freeusd::usdSkel::MorphTargets::ReadFromGeomPrim, py::arg("geom"))
+        .def("__bool__", [](const freeusd::usdSkel::MorphTargets& m) { return static_cast<bool>(m); })
+        .def("get_target_paths", &freeusd::usdSkel::MorphTargets::GetTargetPaths)
+        .def("get_blend_shape_tokens", &freeusd::usdSkel::MorphTargets::GetBlendShapeTokens)
+        .def(
+            "get_weights",
+            [](const freeusd::usdSkel::MorphTargets& morphs, double time) -> py::object {
+              std::vector<float> out;
+              if (!morphs.GetWeights(&out, time)) {
+                return py::none();
+              }
+              return py::cast(out);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_base_points",
+            [](const freeusd::usdSkel::MorphTargets& morphs, double time) -> py::object {
+              std::vector<freeusd::gf::Vec3f> out;
+              if (!morphs.GetBasePoints(&out, time)) {
+                return py::none();
+              }
+              py::list rows;
+              for (const freeusd::gf::Vec3f& v : out) {
+                rows.append(py::make_tuple(v.x(), v.y(), v.z()));
+              }
+              return rows;
+            },
+            py::arg("time") = 1.0)
+        .def_static(
+            "apply_morphs",
+            [](const std::vector<freeusd::gf::Vec3f>& base_points, const std::vector<freeusd::usdSkel::BlendShape>& targets,
+               const std::vector<float>& weights) -> py::object {
+              std::vector<freeusd::gf::Vec3f> out;
+              if (!freeusd::usdSkel::MorphTargets::ApplyMorphs(base_points, targets, weights, &out)) {
+                return py::none();
+              }
+              py::list rows;
+              for (const freeusd::gf::Vec3f& v : out) {
+                rows.append(py::make_tuple(v.x(), v.y(), v.z()));
+              }
+              return rows;
+            },
+            py::arg("base_points"),
+            py::arg("targets"),
+            py::arg("weights"))
+        .def(
+            "evaluate_points",
+            [](const freeusd::usdSkel::MorphTargets& morphs, double time) -> py::object {
+              std::vector<freeusd::gf::Vec3f> out;
+              if (!morphs.EvaluatePoints(&out, time)) {
+                return py::none();
+              }
+              py::list rows;
+              for (const freeusd::gf::Vec3f& v : out) {
+                rows.append(py::make_tuple(v.x(), v.y(), v.z()));
+              }
+              return rows;
+            },
+            py::arg("time") = 1.0);
   }
 
   {
