@@ -184,12 +184,19 @@ bool ResolveAttributeConnectionStrongestFirst(const std::vector<std::shared_ptr<
   if (!target_prop_path || name.IsEmpty()) {
     return false;
   }
-  for (const std::shared_ptr<freeusd::sdf::Layer>& L : strongest_first) {
-    if (!L) {
-      continue;
+  const freeusd::sdf::Path relocated =
+      map_composed_to_authored_path(strongest_first, prim_path);
+  for (const freeusd::sdf::Path& candidate : {prim_path, relocated}) {
+    for (const std::shared_ptr<freeusd::sdf::Layer>& L : strongest_first) {
+      if (!L) {
+        continue;
+      }
+      if (L->HasAttributeConnection(candidate, name)) {
+        return L->GetAttributeConnectionTarget(candidate, name, target_prop_path);
+      }
     }
-    if (L->HasAttributeConnection(prim_path, name)) {
-      return L->GetAttributeConnectionTarget(prim_path, name, target_prop_path);
+    if (candidate == relocated) {
+      break;
     }
   }
   return false;
@@ -423,10 +430,12 @@ bool Stage::ReadFieldAtEvaluatedTime(const freeusd::sdf::Path& prim_path, const 
   if (!out || name.IsEmpty()) {
     return false;
   }
-  freeusd::sdf::Path cur_prim = map_composed_to_authored_path(compose_, prim_path);
-  if (map_authored_to_composed_path(compose_, cur_prim) != prim_path) {
+  const freeusd::sdf::Path relocated_authored = map_composed_to_authored_path(compose_, prim_path);
+  if (map_authored_to_composed_path(compose_, prim_path) != prim_path &&
+      map_authored_to_composed_path(compose_, relocated_authored) != prim_path) {
     return false;
   }
+  freeusd::sdf::Path cur_prim = prim_path;
   freeusd::tf::Token cur_name = name;
   std::unordered_set<std::string> seen;
   for (int hops = 0; hops <= kAttrConnectionHopLimit; ++hops) {
@@ -436,18 +445,27 @@ bool Stage::ReadFieldAtEvaluatedTime(const freeusd::sdf::Path& prim_path, const 
     }
     freeusd::sdf::Path conn_to;
     if (!ResolveAttributeConnectionStrongestFirst(compose_, cur_prim, cur_name, &conn_to)) {
-      for (std::size_t i = 0; i < compose_.size(); ++i) {
-        const std::shared_ptr<freeusd::sdf::Layer>& layer = compose_[i];
-        if (!layer) {
-          continue;
+      const auto try_field_on_prim = [&](const freeusd::sdf::Path& query_prim) -> bool {
+        for (std::size_t i = 0; i < compose_.size(); ++i) {
+          const std::shared_ptr<freeusd::sdf::Layer>& layer = compose_[i];
+          if (!layer) {
+            continue;
+          }
+          double layer_time = time;
+          if (!map_composed_time_to_layer_time(layer_offset_for_index(compose_offsets_, i), time, &layer_time)) {
+            continue;
+          }
+          if (layer->GetFieldAtTime(query_prim, cur_name, layer_time, out)) {
+            return true;
+          }
         }
-        double layer_time = time;
-        if (!map_composed_time_to_layer_time(layer_offset_for_index(compose_offsets_, i), time, &layer_time)) {
-          continue;
-        }
-        if (layer->GetFieldAtTime(cur_prim, cur_name, layer_time, out)) {
-          return true;
-        }
+        return false;
+      };
+      if (try_field_on_prim(cur_prim)) {
+        return true;
+      }
+      if (relocated_authored != cur_prim && try_field_on_prim(relocated_authored)) {
+        return true;
       }
       static thread_local std::unordered_set<std::string> active_queries;
       const std::string active_key = std::to_string(reinterpret_cast<std::uintptr_t>(this)) + "|" + cur_prim.GetString() +
@@ -457,11 +475,18 @@ bool Stage::ReadFieldAtEvaluatedTime(const freeusd::sdf::Path& prim_path, const 
       }
       ActiveQueryGuard active_guard{&active_queries, active_key};
       const freeusd::sdf::Path variant_root = freeusd::sdf::Path::FromString("/__VariantRoot");
+      freeusd::sdf::Path arc_query = cur_prim;
+      {
+        const freeusd::sdf::Path mapped = map_composed_to_authored_path(compose_, cur_prim);
+        if (map_authored_to_composed_path(compose_, mapped) == cur_prim) {
+          arc_query = mapped;
+        }
+      }
       for (const std::shared_ptr<freeusd::sdf::Layer>& layer : compose_) {
         if (!layer) {
           continue;
         }
-        for (const freeusd::sdf::Path& ancestor : prim_ancestors_deepest_first(cur_prim)) {
+        for (const freeusd::sdf::Path& ancestor : prim_ancestors_deepest_first(arc_query)) {
           freeusd::sdf::Path mapped_query;
           const auto try_reference_list = [&](const std::vector<freeusd::sdf::PrimReference>& refs) -> bool {
             for (const freeusd::sdf::PrimReference& ref : refs) {
@@ -469,7 +494,7 @@ bool Stage::ReadFieldAtEvaluatedTime(const freeusd::sdf::Path& prim_path, const 
               if (!target_stage) {
                 continue;
               }
-              if (!map_subtree_query_path(cur_prim, ancestor, reference_target_root(*target_stage, ref), &mapped_query)) {
+              if (!map_subtree_query_path(arc_query, ancestor, reference_target_root(*target_stage, ref), &mapped_query)) {
                 continue;
               }
               freeusd::vt::Value tmp;
@@ -482,7 +507,7 @@ bool Stage::ReadFieldAtEvaluatedTime(const freeusd::sdf::Path& prim_path, const 
           };
           const auto try_internal_arcs = [&](const std::vector<freeusd::sdf::Path>& targets) -> bool {
             for (const freeusd::sdf::Path& target_root : targets) {
-              if (!map_subtree_query_path(cur_prim, ancestor, target_root, &mapped_query)) {
+              if (!map_subtree_query_path(arc_query, ancestor, target_root, &mapped_query)) {
                 continue;
               }
               freeusd::vt::Value tmp;
@@ -503,7 +528,7 @@ bool Stage::ReadFieldAtEvaluatedTime(const freeusd::sdf::Path& prim_path, const 
               continue;
             }
             std::shared_ptr<Stage> variant_stage = build_variant_stage_from_payload(payload_body);
-            if (!variant_stage || !map_subtree_query_path(cur_prim, ancestor, variant_root, &mapped_query)) {
+            if (!variant_stage || !map_subtree_query_path(arc_query, ancestor, variant_root, &mapped_query)) {
               continue;
             }
             freeusd::vt::Value tmp;

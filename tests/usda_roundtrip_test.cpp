@@ -256,7 +256,7 @@ def Xform "World"
   assert(layer2->GetField(cube, Token("quatRound"), &v));
   assert(v.HoldsQuatd());
   assert(v.GetQuatd(&qr));
-  assert(qr.real == 0.0 && qr.i == 0.0 && qr.j == 0.0 && qr.k == 1.0);
+  assert(qr.real == 1.0 && qr.i == 0.0 && qr.j == 0.0 && qr.k == 0.0);
   assert(layer2->GetField(cube, Token("ident4"), &v));
   assert(v.HoldsMatrix4d());
   assert(v.GetMatrix4d(&mid));

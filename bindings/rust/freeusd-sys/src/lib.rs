@@ -282,6 +282,52 @@ extern "C" {
         out_strings: *mut *mut *mut c_char,
         out_count: *mut usize,
     ) -> c_int;
+    fn freeusd_stage_compute_local_transform_matrix4d(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        time: c_double,
+        out_row_major: *mut c_double,
+    ) -> c_int;
+    fn freeusd_stage_compute_local_to_world_transform_matrix4d(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        time: c_double,
+        out_row_major: *mut c_double,
+    ) -> c_int;
+    fn freeusd_stage_compute_imageable_visibility(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        time: c_double,
+        out_visible: *mut c_int,
+    ) -> c_int;
+    fn freeusd_stage_compute_imageable_purpose_utf8(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        time: c_double,
+        out_purpose: *mut *mut c_char,
+    ) -> c_int;
+    fn freeusd_stage_compute_boundable_local_bounds(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        time: c_double,
+        out_min_x: *mut c_double,
+        out_min_y: *mut c_double,
+        out_min_z: *mut c_double,
+        out_max_x: *mut c_double,
+        out_max_y: *mut c_double,
+        out_max_z: *mut c_double,
+    ) -> c_int;
+    fn freeusd_stage_compute_boundable_world_bounds(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        time: c_double,
+        out_min_x: *mut c_double,
+        out_min_y: *mut c_double,
+        out_min_z: *mut c_double,
+        out_max_x: *mut c_double,
+        out_max_y: *mut c_double,
+        out_max_z: *mut c_double,
+    ) -> c_int;
 }
 
 /// C API `FREEUSD_ERR_NOT_FOUND` (e.g. unmapped relocate / prefix substitution / customLayerData string read).
@@ -991,6 +1037,139 @@ impl Stage {
             freeusd_path_list_free(arr, n);
         }
         Ok(out)
+    }
+
+    /// Local transform matrix (row-major 16 doubles) via validated `usdGeom::Xformable`.
+    pub fn compute_local_transform_matrix4d(&self, prim_path: &str, time: f64) -> Result<[f64; 16], i32> {
+        let pp = CString::new(prim_path).map_err(|_| 1)?;
+        let mut m = [0.0f64; 16];
+        let rc = unsafe {
+            freeusd_stage_compute_local_transform_matrix4d(
+                self.ptr as *const FreeusdStage,
+                pp.as_ptr(),
+                time as c_double,
+                m.as_mut_ptr(),
+            )
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        Ok(m)
+    }
+
+    /// Local-to-world transform matrix (row-major 16 doubles) via validated `usdGeom::Xformable`.
+    pub fn compute_local_to_world_transform_matrix4d(&self, prim_path: &str, time: f64) -> Result<[f64; 16], i32> {
+        let pp = CString::new(prim_path).map_err(|_| 1)?;
+        let mut m = [0.0f64; 16];
+        let rc = unsafe {
+            freeusd_stage_compute_local_to_world_transform_matrix4d(
+                self.ptr as *const FreeusdStage,
+                pp.as_ptr(),
+                time as c_double,
+                m.as_mut_ptr(),
+            )
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        Ok(m)
+    }
+
+    /// Inherited visibility via validated `usdGeom::Imageable`.
+    pub fn compute_imageable_visibility(&self, prim_path: &str, time: f64) -> Result<bool, i32> {
+        let pp = CString::new(prim_path).map_err(|_| 1)?;
+        let mut vis: c_int = 0;
+        let rc = unsafe {
+            freeusd_stage_compute_imageable_visibility(
+                self.ptr as *const FreeusdStage,
+                pp.as_ptr(),
+                time as c_double,
+                &mut vis,
+            )
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        Ok(vis != 0)
+    }
+
+    /// Inherited purpose via validated `usdGeom::Imageable`.
+    pub fn compute_imageable_purpose(&self, prim_path: &str, time: f64) -> Result<String, i32> {
+        let pp = CString::new(prim_path).map_err(|_| 1)?;
+        let mut out: *mut c_char = ptr::null_mut();
+        let rc = unsafe {
+            freeusd_stage_compute_imageable_purpose_utf8(
+                self.ptr as *const FreeusdStage,
+                pp.as_ptr(),
+                time as c_double,
+                &mut out,
+            )
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        if out.is_null() {
+            return Ok(String::new());
+        }
+        let s = unsafe { CStr::from_ptr(out).to_string_lossy().into_owned() };
+        unsafe { freeusd_string_free(out) };
+        Ok(s)
+    }
+
+    /// Local-space bounds via validated `usdGeom::Boundable`.
+    pub fn compute_boundable_local_bounds(
+        &self,
+        prim_path: &str,
+        time: f64,
+    ) -> Result<(f64, f64, f64, f64, f64, f64), i32> {
+        let pp = CString::new(prim_path).map_err(|_| 1)?;
+        let (mut min_x, mut min_y, mut min_z, mut max_x, mut max_y, mut max_z) =
+            (0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        let rc = unsafe {
+            freeusd_stage_compute_boundable_local_bounds(
+                self.ptr as *const FreeusdStage,
+                pp.as_ptr(),
+                time as c_double,
+                &mut min_x,
+                &mut min_y,
+                &mut min_z,
+                &mut max_x,
+                &mut max_y,
+                &mut max_z,
+            )
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        Ok((min_x, min_y, min_z, max_x, max_y, max_z))
+    }
+
+    /// World-space bounds via validated `usdGeom::Boundable`.
+    pub fn compute_boundable_world_bounds(
+        &self,
+        prim_path: &str,
+        time: f64,
+    ) -> Result<(f64, f64, f64, f64, f64, f64), i32> {
+        let pp = CString::new(prim_path).map_err(|_| 1)?;
+        let (mut min_x, mut min_y, mut min_z, mut max_x, mut max_y, mut max_z) =
+            (0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        let rc = unsafe {
+            freeusd_stage_compute_boundable_world_bounds(
+                self.ptr as *const FreeusdStage,
+                pp.as_ptr(),
+                time as c_double,
+                &mut min_x,
+                &mut min_y,
+                &mut min_z,
+                &mut max_x,
+                &mut max_y,
+                &mut max_z,
+            )
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        Ok((min_x, min_y, min_z, max_x, max_y, max_z))
     }
 
     /// True if any composed layer authors `relocates` with this source prim path.
@@ -1955,6 +2134,42 @@ def Xform "Root"
         assert_eq!(
             stage.prim_order_paths().unwrap(),
             vec!["/Root/A".to_string(), "/Root".to_string()]
+        );
+    }
+
+    #[test]
+    fn usd_geom_engine_subset_parity_imageable() {
+        let path = fixture_path("parity_imageable.usda");
+        let stage = Stage::open_from_root_file(&path.to_string_lossy(), 2).expect("open parity_imageable");
+        let l2w = stage
+            .compute_local_to_world_transform_matrix4d("/World/Cube", 1.0)
+            .expect("l2w");
+        assert!((l2w[12] - 1.0).abs() < 1e-9);
+        assert!((l2w[13] - 2.0).abs() < 1e-9);
+        assert!((l2w[14] - 3.0).abs() < 1e-9);
+        assert!((l2w[15] - 1.0).abs() < 1e-9);
+
+        assert!(!stage
+            .compute_imageable_visibility("/World/Cube", 1.0)
+            .expect("visibility"));
+        assert_eq!(
+            stage
+                .compute_imageable_purpose("/World/Cube", 1.0)
+                .expect("purpose"),
+            "render"
+        );
+
+        let (min_x, min_y, min_z, max_x, max_y, max_z) = stage
+            .compute_boundable_world_bounds("/World/Cube", 1.0)
+            .expect("world bounds");
+        assert!((min_x - 0.0).abs() < 1e-9 && (min_y - 1.0).abs() < 1e-9 && (min_z - 2.0).abs() < 1e-9);
+        assert!((max_x - 2.0).abs() < 1e-9 && (max_y - 3.0).abs() < 1e-9 && (max_z - 4.0).abs() < 1e-9);
+
+        assert_eq!(
+            stage
+                .compute_boundable_world_bounds("/World", 1.0)
+                .unwrap_err(),
+            ERR_NOT_FOUND
         );
     }
 }

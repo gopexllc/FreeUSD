@@ -35,13 +35,16 @@ fn main() {
     for lib in [
         "freeusd_c",
         "freeusd_base",
-        "freeusd_io",
+        "freeusd_usdUtils",
+        "freeusd_usdGeom",
         "freeusd_usd",
         "freeusd_ar",
+        "freeusd_io",
         "freeusd_pcp",
         "freeusd_sdf",
         "freeusd_vt",
         "freeusd_tf",
+        "freeusd_gf",
         "freeusd_plug",
     ] {
         println!("cargo:rustc-link-lib=static={}", lib);

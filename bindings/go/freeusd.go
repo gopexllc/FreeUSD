@@ -10,8 +10,8 @@ package freeusd
 
 /*
 #cgo CFLAGS: -I${SRCDIR}/../../include
-#cgo linux LDFLAGS: -L${SRCDIR}/../../build/src -lfreeusd_c -lfreeusd_base -lfreeusd_io -lfreeusd_usd -lfreeusd_ar -lfreeusd_pcp -lfreeusd_sdf -lfreeusd_vt -lfreeusd_tf -lfreeusd_plug -lstdc++ -lm
-#cgo darwin LDFLAGS: -L${SRCDIR}/../../build/src -lfreeusd_c -lfreeusd_base -lfreeusd_io -lfreeusd_usd -lfreeusd_ar -lfreeusd_pcp -lfreeusd_sdf -lfreeusd_vt -lfreeusd_tf -lfreeusd_plug -lc++ -lm
+#cgo linux LDFLAGS: -L${SRCDIR}/../../build/src -lfreeusd_c -lfreeusd_base -lfreeusd_usdUtils -lfreeusd_usdGeom -lfreeusd_usd -lfreeusd_ar -lfreeusd_io -lfreeusd_pcp -lfreeusd_sdf -lfreeusd_vt -lfreeusd_tf -lfreeusd_gf -lfreeusd_plug -lstdc++ -lm
+#cgo darwin LDFLAGS: -L${SRCDIR}/../../build/src -lfreeusd_c -lfreeusd_base -lfreeusd_usdUtils -lfreeusd_usdGeom -lfreeusd_usd -lfreeusd_ar -lfreeusd_io -lfreeusd_pcp -lfreeusd_sdf -lfreeusd_vt -lfreeusd_tf -lfreeusd_gf -lfreeusd_plug -lc++ -lm
 #include <stdlib.h>
 #include <freeusd/c/freeusd.h>
 */
@@ -910,4 +910,81 @@ func (s *Stage) ReadFieldTokenArray(primPath, attrName string, time float64) (to
 		}
 	}
 	return tokens, 0
+}
+
+// ComputeLocalTransformMatrix4d returns the prim local transform (row-major 16 doubles) via usdGeom::Xformable.
+func (s *Stage) ComputeLocalTransformMatrix4d(primPath string, time float64) (m [16]float64, rc int) {
+	if s == nil || s.ptr == nil {
+		return m, 1
+	}
+	pp := C.CString(primPath)
+	defer C.free(unsafe.Pointer(pp))
+	rc = int(C.freeusd_stage_compute_local_transform_matrix4d(s.ptr, pp, C.double(time), (*C.double)(unsafe.Pointer(&m[0]))))
+	return m, rc
+}
+
+// ComputeLocalToWorldTransformMatrix4d returns the prim local-to-world transform (row-major 16 doubles).
+func (s *Stage) ComputeLocalToWorldTransformMatrix4d(primPath string, time float64) (m [16]float64, rc int) {
+	if s == nil || s.ptr == nil {
+		return m, 1
+	}
+	pp := C.CString(primPath)
+	defer C.free(unsafe.Pointer(pp))
+	rc = int(C.freeusd_stage_compute_local_to_world_transform_matrix4d(s.ptr, pp, C.double(time), (*C.double)(unsafe.Pointer(&m[0]))))
+	return m, rc
+}
+
+// ComputeImageableVisibility returns inherited visibility (true = visible) via usdGeom::Imageable.
+func (s *Stage) ComputeImageableVisibility(primPath string, time float64) (visible bool, rc int) {
+	if s == nil || s.ptr == nil {
+		return false, 1
+	}
+	pp := C.CString(primPath)
+	defer C.free(unsafe.Pointer(pp))
+	var out C.int
+	rc = int(C.freeusd_stage_compute_imageable_visibility(s.ptr, pp, C.double(time), &out))
+	return out != 0, rc
+}
+
+// ComputeImageablePurpose returns inherited purpose via usdGeom::Imageable. On success rc is 0.
+func (s *Stage) ComputeImageablePurpose(primPath string, time float64) (purpose string, rc int) {
+	if s == nil || s.ptr == nil {
+		return "", 1
+	}
+	pp := C.CString(primPath)
+	defer C.free(unsafe.Pointer(pp))
+	var out *C.char
+	rc = int(C.freeusd_stage_compute_imageable_purpose_utf8(s.ptr, pp, C.double(time), &out))
+	if rc != 0 {
+		return "", rc
+	}
+	if out == nil {
+		return "", 0
+	}
+	defer C.freeusd_string_free(out)
+	return C.GoString(out), 0
+}
+
+// ComputeBoundableWorldBounds returns world-space axis-aligned bounds via usdGeom::Boundable.
+func (s *Stage) ComputeBoundableWorldBounds(primPath string, time float64) (minX, minY, minZ, maxX, maxY, maxZ float64, rc int) {
+	if s == nil || s.ptr == nil {
+		return 0, 0, 0, 0, 0, 0, 1
+	}
+	pp := C.CString(primPath)
+	defer C.free(unsafe.Pointer(pp))
+	var mnX, mnY, mnZ, mxX, mxY, mxZ C.double
+	rc = int(C.freeusd_stage_compute_boundable_world_bounds(s.ptr, pp, C.double(time), &mnX, &mnY, &mnZ, &mxX, &mxY, &mxZ))
+	return float64(mnX), float64(mnY), float64(mnZ), float64(mxX), float64(mxY), float64(mxZ), rc
+}
+
+// ComputeBoundableLocalBounds returns local-space axis-aligned bounds via usdGeom::Boundable.
+func (s *Stage) ComputeBoundableLocalBounds(primPath string, time float64) (minX, minY, minZ, maxX, maxY, maxZ float64, rc int) {
+	if s == nil || s.ptr == nil {
+		return 0, 0, 0, 0, 0, 0, 1
+	}
+	pp := C.CString(primPath)
+	defer C.free(unsafe.Pointer(pp))
+	var mnX, mnY, mnZ, mxX, mxY, mxZ C.double
+	rc = int(C.freeusd_stage_compute_boundable_local_bounds(s.ptr, pp, C.double(time), &mnX, &mnY, &mnZ, &mxX, &mxY, &mxZ))
+	return float64(mnX), float64(mnY), float64(mnZ), float64(mxX), float64(mxY), float64(mxZ), rc
 }

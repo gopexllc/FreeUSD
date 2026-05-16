@@ -23,7 +23,7 @@ Default `cgo` flags assume the repo layout `../../include` and `../../build/src`
 
 ```bash
 export CGO_CFLAGS="-I/path/to/freeusd/include"
-export CGO_LDFLAGS="-L/path/to/freeusd/build/src -lfreeusd_c -lfreeusd_base -lfreeusd_io -lfreeusd_usd -lfreeusd_ar -lfreeusd_pcp -lfreeusd_sdf -lfreeusd_vt -lfreeusd_tf -lfreeusd_plug -lstdc++ -lm"
+export CGO_LDFLAGS="-L/path/to/freeusd/build/src -lfreeusd_c -lfreeusd_base -lfreeusd_usdUtils -lfreeusd_usdGeom -lfreeusd_usd -lfreeusd_ar -lfreeusd_io -lfreeusd_pcp -lfreeusd_sdf -lfreeusd_vt -lfreeusd_tf -lfreeusd_gf -lfreeusd_plug -lstdc++ -lm"
 cd bindings/go && go test -v ./...
 ```
 
@@ -46,4 +46,4 @@ cargo test --manifest-path bindings/rust/Cargo.toml
 
 ## Adding more bindings
 
-New wrappers should target the **C ABI** only (no C++ ABI stability guarantees). Keep surface area small and mirror existing tests (version string + one USDA round-trip or attribute read) before exposing larger APIs. The Go package also includes **`OpenStageFromRootFile`** / **`PrimPathInUse`**, relocate, **prefixSubstitution**, **`customLayerData`**, **raw USDC section bytes**, and **prim variant** helpers, plus the **`RelocatePairSep`** constant (U+001F pair encoding for both map kinds).
+New wrappers should target the **C ABI** only (no C++ ABI stability guarantees). Keep surface area small and mirror existing tests (version string + one USDA round-trip or attribute read) before exposing larger APIs. The Go package also includes **`OpenStageFromRootFile`** / **`PrimPathInUse`**, relocate, **prefixSubstitution**, **`customLayerData`**, **raw USDC section bytes**, **prim variant** helpers, and the validated **`usdGeom`** engine subset on **`Stage`**: **`ComputeLocalTransformMatrix4d`**, **`ComputeLocalToWorldTransformMatrix4d`**, **`ComputeImageableVisibility`**, **`ComputeImageablePurpose`**, **`ComputeBoundableLocalBounds`**, **`ComputeBoundableWorldBounds`** (mirroring the C ABI). Rust exposes the same six helpers on **`Stage`**. Cross-language checks use **`tests/fixtures/parity_imageable.usda`** (aligned with **`freeusd_c_engine_integration`**).

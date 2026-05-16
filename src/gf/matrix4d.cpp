@@ -239,20 +239,30 @@ Matrix4d Matrix4d::RotateDegreesZYX(double ax, double ay, double az) noexcept {
 
 Matrix4d Matrix4d::FromUnitQuaternion(const Quatd& q_in) noexcept {
   const Quatd q = q_in.Normalized();
-  const double r = q.real;
-  const double i0 = q.i;
-  const double i1 = q.j;
-  const double i2 = q.k;
+  const double w = q.real;
+  const double x = q.i;
+  const double y = q.j;
+  const double z = q.k;
+  // Column-vector rotation matrix (w, x, y, z), then store R^T for row-vector ``v' = v * M``.
+  const double c00 = 1.0 - 2.0 * (y * y + z * z);
+  const double c01 = 2.0 * (x * y - w * z);
+  const double c02 = 2.0 * (x * z + w * y);
+  const double c10 = 2.0 * (x * y + w * z);
+  const double c11 = 1.0 - 2.0 * (z * z + x * x);
+  const double c12 = 2.0 * (y * z - w * x);
+  const double c20 = 2.0 * (x * z - w * y);
+  const double c21 = 2.0 * (y * z + w * x);
+  const double c22 = 1.0 - 2.0 * (y * y + x * x);
   Matrix4d m = Identity();
-  m.m[0] = 1.0 - 2.0 * (i1 * i1 + i2 * i2);
-  m.m[1] = 2.0 * (i0 * i1 + i2 * r);
-  m.m[2] = 2.0 * (i2 * i0 - i1 * r);
-  m.m[4] = 2.0 * (i0 * i1 - i2 * r);
-  m.m[5] = 1.0 - 2.0 * (i2 * i2 + i0 * i0);
-  m.m[6] = 2.0 * (i1 * i2 + i0 * r);
-  m.m[8] = 2.0 * (i2 * i0 + i1 * r);
-  m.m[9] = 2.0 * (i1 * i2 - i0 * r);
-  m.m[10] = 1.0 - 2.0 * (i1 * i1 + i0 * i0);
+  m.m[0] = c00;
+  m.m[1] = c10;
+  m.m[2] = c20;
+  m.m[4] = c01;
+  m.m[5] = c11;
+  m.m[6] = c21;
+  m.m[8] = c02;
+  m.m[9] = c12;
+  m.m[10] = c22;
   return m;
 }
 

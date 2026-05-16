@@ -940,3 +940,43 @@ def Xform "Root"
 		t.Fatalf("primOrder %v rc=%d", paths, rc)
 	}
 }
+
+func TestUsdGeomEngineSubsetParityImageable(t *testing.T) {
+	fixture := filepath.Join("..", "..", "tests", "fixtures", "parity_imageable.usda")
+	st := OpenStageFromRootFile(fixture, RootSubDepthFirst)
+	if st == nil {
+		t.Fatal("OpenStageFromRootFile:", LastErrorMessage())
+	}
+	defer st.Free()
+
+	l2w, rc := st.ComputeLocalToWorldTransformMatrix4d("/World/Cube", 1.0)
+	if rc != 0 {
+		t.Fatalf("ComputeLocalToWorldTransformMatrix4d rc=%d %s", rc, LastErrorMessage())
+	}
+	if l2w[12] != 1.0 || l2w[13] != 2.0 || l2w[14] != 3.0 || l2w[15] != 1.0 {
+		t.Fatalf("unexpected l2w translation %v", l2w)
+	}
+
+	vis, rc := st.ComputeImageableVisibility("/World/Cube", 1.0)
+	if rc != 0 || vis {
+		t.Fatalf("visibility visible=%v rc=%d", vis, rc)
+	}
+
+	purpose, rc := st.ComputeImageablePurpose("/World/Cube", 1.0)
+	if rc != 0 || purpose != "render" {
+		t.Fatalf("purpose %q rc=%d", purpose, rc)
+	}
+
+	minX, minY, minZ, maxX, maxY, maxZ, rc := st.ComputeBoundableWorldBounds("/World/Cube", 1.0)
+	if rc != 0 {
+		t.Fatalf("world bounds rc=%d %s", rc, LastErrorMessage())
+	}
+	if minX != 0 || minY != 1 || minZ != 2 || maxX != 2 || maxY != 3 || maxZ != 4 {
+		t.Fatalf("world bounds (%g,%g,%g)-(%g,%g,%g)", minX, minY, minZ, maxX, maxY, maxZ)
+	}
+
+	_, _, _, _, _, _, rc = st.ComputeBoundableWorldBounds("/World", 1.0)
+	if rc == 0 {
+		t.Fatal("expected NOT_FOUND for non-boundable /World")
+	}
+}
