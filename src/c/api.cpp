@@ -2742,6 +2742,52 @@ int freeusd_stage_get_composed_prim_custom_data(const FreeusdStage* stage, const
   }
 }
 
+int freeusd_stage_get_composed_prim_custom_data_int64(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                      const char* key_utf8, int64_t* out_value) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !key_utf8 || !out_value) {
+    set_error("freeusd_stage_get_composed_prim_custom_data_int64: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    freeusd::vt::Value v;
+    if (!stage->inner->GetComposedPrimCustomData(p, std::string{key_utf8}, &v)) {
+      set_error("no customData key on composed prim");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    std::int64_t i64 = 0;
+    if (v.GetInt64(&i64)) {
+      *out_value = i64;
+      clear_error();
+      return FREEUSD_OK;
+    }
+    std::int32_t i32 = 0;
+    if (v.GetInt32(&i32)) {
+      *out_value = static_cast<int64_t>(i32);
+      clear_error();
+      return FREEUSD_OK;
+    }
+    bool b = false;
+    if (v.GetBool(&b)) {
+      *out_value = b ? 1 : 0;
+      clear_error();
+      return FREEUSD_OK;
+    }
+    set_error("customData value is not int or bool (use string API or C++ for other types)");
+    return FREEUSD_ERR_NOT_FOUND;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
 int freeusd_stage_prim_custom_data_key_in_any_layer(const FreeusdStage* stage, const char* prim_path_utf8,
                                                      const char* key_utf8) {
   if (!stage || !stage->inner || !prim_path_utf8 || !key_utf8) {

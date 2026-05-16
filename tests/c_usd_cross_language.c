@@ -176,6 +176,69 @@ int main(void) {
     return 13;
   }
 
+  {
+    double* sample_times = NULL;
+    size_t nst = 0;
+    if (freeusd_stage_list_field_sample_times(stage, "/Scene/Child", "mass", &sample_times, &nst) != FREEUSD_OK ||
+        nst != 1 || sample_times == NULL || !dbl_eq(sample_times[0], 2.0)) {
+      fprintf(stderr, "mass sample times\n");
+      if (sample_times) {
+        freeusd_double_array_free(sample_times);
+      }
+      freeusd_stage_free(stage);
+      freeusd_layer_free(layer);
+      return 37;
+    }
+    freeusd_double_array_free(sample_times);
+  }
+
+  {
+    int64_t tag_i = 0;
+    if (freeusd_stage_get_composed_prim_custom_data_int64(stage, "/Scene/Child", "tag", &tag_i) != FREEUSD_OK ||
+        tag_i != 99) {
+      fprintf(stderr, "customData int64 tag\n");
+      freeusd_stage_free(stage);
+      freeusd_layer_free(layer);
+      return 38;
+    }
+    char** ckeys = NULL;
+    size_t nck = 0;
+    if (freeusd_stage_list_composed_prim_custom_data_keys(stage, "/Scene/Child", &ckeys, &nck) != FREEUSD_OK ||
+        nck != 1 || strcmp(ckeys[0], "tag") != 0) {
+      fprintf(stderr, "customData keys\n");
+      if (ckeys) {
+        freeusd_path_list_free(ckeys, nck);
+      }
+      freeusd_stage_free(stage);
+      freeusd_layer_free(layer);
+      return 39;
+    }
+    freeusd_path_list_free(ckeys, nck);
+  }
+
+  {
+    char** inh = NULL;
+    size_t ninh = 0;
+    if (freeusd_stage_has_prim_inherits(stage, "/Scene/ArcHost") != 1 ||
+        freeusd_stage_list_prim_inherits(stage, "/Scene/ArcHost", &inh, &ninh) != FREEUSD_OK || ninh != 1 ||
+        strcmp(inh[0], "/Scene/Child") != 0) {
+      fprintf(stderr, "prim inherits ArcHost\n");
+      if (inh) {
+        freeusd_path_list_free(inh, ninh);
+      }
+      freeusd_stage_free(stage);
+      freeusd_layer_free(layer);
+      return 40;
+    }
+    freeusd_path_list_free(inh, ninh);
+    if (freeusd_stage_has_prim_inherits(stage, "/Scene/Child") != 0) {
+      fprintf(stderr, "Child should not list inherits\n");
+      freeusd_stage_free(stage);
+      freeusd_layer_free(layer);
+      return 41;
+    }
+  }
+
   float density = 0.0f;
   if (freeusd_stage_read_field_float(stage, "/Scene/Child", "density", 1.0, &density) != FREEUSD_OK ||
       !flt_eq(density, 1.25f)) {

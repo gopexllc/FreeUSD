@@ -988,3 +988,234 @@ func (s *Stage) ComputeBoundableLocalBounds(primPath string, time float64) (minX
 	rc = int(C.freeusd_stage_compute_boundable_local_bounds(s.ptr, pp, C.double(time), &mnX, &mnY, &mnZ, &mxX, &mxY, &mxZ))
 	return float64(mnX), float64(mnY), float64(mnZ), float64(mxX), float64(mxY), float64(mxZ), rc
 }
+
+// ListFieldSampleTimes returns sorted composed time-sample times for an attribute (rc 0 ok; empty slice valid).
+func (s *Stage) ListFieldSampleTimes(primPath, attrName string) (times []float64, rc int) {
+	if s == nil || s.ptr == nil {
+		return nil, 1
+	}
+	pp := C.CString(primPath)
+	defer C.free(unsafe.Pointer(pp))
+	an := C.CString(attrName)
+	defer C.free(unsafe.Pointer(an))
+	var raw *C.double
+	var n C.size_t
+	rc = int(C.freeusd_stage_list_field_sample_times(s.ptr, pp, an, &raw, &n))
+	if rc != 0 {
+		return nil, rc
+	}
+	if n == 0 || raw == nil {
+		return []float64{}, 0
+	}
+	defer C.freeusd_double_array_free(raw)
+	slice := unsafe.Slice(raw, int(n))
+	times = make([]float64, int(n))
+	for i, t := range slice {
+		times[i] = float64(t)
+	}
+	return times, 0
+}
+
+// HasFieldOpinion returns 1 if the attribute has a composed opinion, 0 if not, negative on error.
+func (s *Stage) HasFieldOpinion(primPath, attrName string) int {
+	if s == nil || s.ptr == nil {
+		return -1
+	}
+	pp := C.CString(primPath)
+	defer C.free(unsafe.Pointer(pp))
+	an := C.CString(attrName)
+	defer C.free(unsafe.Pointer(an))
+	return int(C.freeusd_stage_has_field_opinion(s.ptr, pp, an))
+}
+
+// HasAttributeConnection returns 1 if the attribute has a composed .connect, 0 if not, negative on error.
+func (s *Stage) HasAttributeConnection(primPath, attrName string) int {
+	if s == nil || s.ptr == nil {
+		return -1
+	}
+	pp := C.CString(primPath)
+	defer C.free(unsafe.Pointer(pp))
+	an := C.CString(attrName)
+	defer C.free(unsafe.Pointer(an))
+	return int(C.freeusd_stage_has_attribute_connection(s.ptr, pp, an))
+}
+
+// GetAttributeConnectionTarget returns the strongest composed connection target property path (rc 0 ok).
+func (s *Stage) GetAttributeConnectionTarget(primPath, attrName string) (target string, rc int) {
+	if s == nil || s.ptr == nil {
+		return "", 1
+	}
+	pp := C.CString(primPath)
+	defer C.free(unsafe.Pointer(pp))
+	an := C.CString(attrName)
+	defer C.free(unsafe.Pointer(an))
+	var out *C.char
+	rc = int(C.freeusd_stage_get_attribute_connection_target(s.ptr, pp, an, &out))
+	if rc != 0 {
+		return "", rc
+	}
+	if out == nil {
+		return "", 0
+	}
+	defer C.freeusd_string_free(out)
+	return C.GoString(out), 0
+}
+
+func (s *Stage) listPrimPathStrings(primPath string, listFn func(*C.FreeusdStage, *C.char, ***C.char, *C.size_t) C.int) ([]string, int) {
+	if s == nil || s.ptr == nil {
+		return nil, 1
+	}
+	pp := C.CString(primPath)
+	defer C.free(unsafe.Pointer(pp))
+	var arr **C.char
+	var n C.size_t
+	rc := int(listFn(s.ptr, pp, &arr, &n))
+	if rc != 0 {
+		return nil, rc
+	}
+	if n == 0 || arr == nil {
+		return []string{}, 0
+	}
+	defer C.freeusd_path_list_free(arr, n)
+	out := make([]string, 0, int(n))
+	slice := unsafe.Slice(arr, int(n))
+	for _, p := range slice {
+		if p != nil {
+			out = append(out, C.GoString(p))
+		}
+	}
+	return out, 0
+}
+
+// ListPrimReferences returns composed reference entries (USDA-authored encoding).
+func (s *Stage) ListPrimReferences(primPath string) ([]string, int) {
+	return s.listPrimPathStrings(primPath, C.freeusd_stage_list_prim_references)
+}
+
+// HasPrimReferences returns 1 if the prim has composed references, 0 if not, negative on error.
+func (s *Stage) HasPrimReferences(primPath string) int {
+	if s == nil || s.ptr == nil {
+		return -1
+	}
+	pp := C.CString(primPath)
+	defer C.free(unsafe.Pointer(pp))
+	return int(C.freeusd_stage_has_prim_references(s.ptr, pp))
+}
+
+// ListPrimInherits returns composed inherit target prim paths.
+func (s *Stage) ListPrimInherits(primPath string) ([]string, int) {
+	return s.listPrimPathStrings(primPath, C.freeusd_stage_list_prim_inherits)
+}
+
+// HasPrimInherits returns 1 if the prim has composed inherits, 0 if not, negative on error.
+func (s *Stage) HasPrimInherits(primPath string) int {
+	if s == nil || s.ptr == nil {
+		return -1
+	}
+	pp := C.CString(primPath)
+	defer C.free(unsafe.Pointer(pp))
+	return int(C.freeusd_stage_has_prim_inherits(s.ptr, pp))
+}
+
+// ListPrimSpecializes returns composed specialize target prim paths.
+func (s *Stage) ListPrimSpecializes(primPath string) ([]string, int) {
+	return s.listPrimPathStrings(primPath, C.freeusd_stage_list_prim_specializes)
+}
+
+// HasPrimSpecializes returns 1 if the prim has composed specializes, 0 if not, negative on error.
+func (s *Stage) HasPrimSpecializes(primPath string) int {
+	if s == nil || s.ptr == nil {
+		return -1
+	}
+	pp := C.CString(primPath)
+	defer C.free(unsafe.Pointer(pp))
+	return int(C.freeusd_stage_has_prim_specializes(s.ptr, pp))
+}
+
+// ListPrimPayloads returns composed payload entries (USDA-authored encoding).
+func (s *Stage) ListPrimPayloads(primPath string) ([]string, int) {
+	return s.listPrimPathStrings(primPath, C.freeusd_stage_list_prim_payloads)
+}
+
+// HasPrimPayloads returns 1 if the prim has composed payloads, 0 if not, negative on error.
+func (s *Stage) HasPrimPayloads(primPath string) int {
+	if s == nil || s.ptr == nil {
+		return -1
+	}
+	pp := C.CString(primPath)
+	defer C.free(unsafe.Pointer(pp))
+	return int(C.freeusd_stage_has_prim_payloads(s.ptr, pp))
+}
+
+// ComposedPrimCustomData returns string/token customData for key (rc 0 ok; 3 = not found).
+func (s *Stage) ComposedPrimCustomData(primPath, key string) (value string, rc int) {
+	if s == nil || s.ptr == nil {
+		return "", 1
+	}
+	pp := C.CString(primPath)
+	defer C.free(unsafe.Pointer(pp))
+	k := C.CString(key)
+	defer C.free(unsafe.Pointer(k))
+	var out *C.char
+	rc = int(C.freeusd_stage_get_composed_prim_custom_data(s.ptr, pp, k, &out))
+	if rc != 0 {
+		return "", rc
+	}
+	if out == nil {
+		return "", 0
+	}
+	defer C.freeusd_string_free(out)
+	return C.GoString(out), 0
+}
+
+// ComposedPrimCustomDataInt64 returns int/bool customData for key (rc 0 ok; 3 = not found).
+func (s *Stage) ComposedPrimCustomDataInt64(primPath, key string) (value int64, rc int) {
+	if s == nil || s.ptr == nil {
+		return 0, 1
+	}
+	pp := C.CString(primPath)
+	defer C.free(unsafe.Pointer(pp))
+	k := C.CString(key)
+	defer C.free(unsafe.Pointer(k))
+	var out C.int64_t
+	rc = int(C.freeusd_stage_get_composed_prim_custom_data_int64(s.ptr, pp, k, &out))
+	return int64(out), rc
+}
+
+// PrimCustomDataKeyInAnyLayer returns 1 if any layer authors the customData key on the prim.
+func (s *Stage) PrimCustomDataKeyInAnyLayer(primPath, key string) int {
+	if s == nil || s.ptr == nil {
+		return -1
+	}
+	pp := C.CString(primPath)
+	defer C.free(unsafe.Pointer(pp))
+	k := C.CString(key)
+	defer C.free(unsafe.Pointer(k))
+	return int(C.freeusd_stage_prim_custom_data_key_in_any_layer(s.ptr, pp, k))
+}
+
+// ListComposedPrimCustomDataKeys returns sorted customData keys for the prim (rc 0 ok).
+func (s *Stage) ListComposedPrimCustomDataKeys(primPath string) (keys []string, rc int) {
+	if s == nil || s.ptr == nil {
+		return nil, 1
+	}
+	pp := C.CString(primPath)
+	defer C.free(unsafe.Pointer(pp))
+	var arr **C.char
+	var n C.size_t
+	rc = int(C.freeusd_stage_list_composed_prim_custom_data_keys(s.ptr, pp, &arr, &n))
+	if rc != 0 {
+		return nil, rc
+	}
+	if n == 0 || arr == nil {
+		return []string{}, 0
+	}
+	defer C.freeusd_path_list_free(arr, n)
+	slice := unsafe.Slice(arr, int(n))
+	for _, p := range slice {
+		if p != nil {
+			keys = append(keys, C.GoString(p))
+		}
+	}
+	return keys, 0
+}

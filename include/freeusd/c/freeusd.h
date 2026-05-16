@@ -642,6 +642,14 @@ FREEUSD_C_API int freeusd_stage_resolve_has_prim_kind(const FreeusdStage* stage,
 FREEUSD_C_API int freeusd_stage_get_composed_prim_custom_data(const FreeusdStage* stage, const char* prim_path_utf8,
                                                                 const char* key_utf8, char** out_value);
 
+/**
+ * Composed @c customData entry as integer (@c int32 / @c int64 / @c bool coerced to @c int64).
+ * Missing keys and non-integer payloads report @ref FREEUSD_ERR_NOT_FOUND.
+ */
+FREEUSD_C_API int freeusd_stage_get_composed_prim_custom_data_int64(const FreeusdStage* stage,
+                                                                    const char* prim_path_utf8,
+                                                                    const char* key_utf8, int64_t* out_value);
+
 /** 1 if any composed layer authors @p key_utf8 in prim @c customData, 0 if not, negative @ref FreeusdResult on error. */
 FREEUSD_C_API int freeusd_stage_prim_custom_data_key_in_any_layer(const FreeusdStage* stage,
                                                                    const char* prim_path_utf8,

@@ -311,6 +311,38 @@ func TestCrossLanguageFieldReadContract(t *testing.T) {
 	if tags, rc := st.ReadFieldTokenArray("/Scene/Child", "kind", 1.0); rc == 0 || tags != nil {
 		t.Fatalf("wrong-type token array rc=%d tags=%v", rc, tags)
 	}
+
+	times, rc := st.ListFieldSampleTimes("/Scene/Child", "mass")
+	if rc != 0 || len(times) != 1 || times[0] != 2.0 {
+		t.Fatalf("ListFieldSampleTimes mass rc=%d times=%v %s", rc, times, LastErrorMessage())
+	}
+	if st.HasFieldOpinion("/Scene/Child", "mass") != 1 {
+		t.Fatalf("HasFieldOpinion mass %s", LastErrorMessage())
+	}
+	if st.HasFieldOpinion("/Scene/Child", "missingAttr") != 0 {
+		t.Fatalf("HasFieldOpinion missingAttr %s", LastErrorMessage())
+	}
+	tag, rc := st.ComposedPrimCustomDataInt64("/Scene/Child", "tag")
+	if rc != 0 || tag != 99 {
+		t.Fatalf("ComposedPrimCustomDataInt64 tag rc=%d tag=%d %s", rc, tag, LastErrorMessage())
+	}
+	if st.PrimCustomDataKeyInAnyLayer("/Scene/Child", "tag") != 1 {
+		t.Fatalf("PrimCustomDataKeyInAnyLayer tag %s", LastErrorMessage())
+	}
+	keys, rc := st.ListComposedPrimCustomDataKeys("/Scene/Child")
+	if rc != 0 || len(keys) != 1 || keys[0] != "tag" {
+		t.Fatalf("ListComposedPrimCustomDataKeys rc=%d keys=%v %s", rc, keys, LastErrorMessage())
+	}
+	if st.HasPrimInherits("/Scene/ArcHost") != 1 {
+		t.Fatalf("HasPrimInherits ArcHost %s", LastErrorMessage())
+	}
+	inh, rc := st.ListPrimInherits("/Scene/ArcHost")
+	if rc != 0 || len(inh) != 1 || inh[0] != "/Scene/Child" {
+		t.Fatalf("ListPrimInherits ArcHost rc=%d inh=%v %s", rc, inh, LastErrorMessage())
+	}
+	if st.HasPrimInherits("/Scene/Child") != 0 {
+		t.Fatalf("HasPrimInherits Child %s", LastErrorMessage())
+	}
 }
 
 // Regression: on C API failure, Go wrappers must not return uninitialized C out-parameters.

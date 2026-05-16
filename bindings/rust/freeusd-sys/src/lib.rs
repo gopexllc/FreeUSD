@@ -282,6 +282,81 @@ extern "C" {
         out_strings: *mut *mut *mut c_char,
         out_count: *mut usize,
     ) -> c_int;
+    fn freeusd_double_array_free(values: *mut c_double);
+    fn freeusd_stage_list_field_sample_times(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        attr_name: *const c_char,
+        out_times: *mut *mut c_double,
+        out_count: *mut usize,
+    ) -> c_int;
+    fn freeusd_stage_has_field_opinion(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        attr_name: *const c_char,
+    ) -> c_int;
+    fn freeusd_stage_has_attribute_connection(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        attr_name: *const c_char,
+    ) -> c_int;
+    fn freeusd_stage_get_attribute_connection_target(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        attr_name: *const c_char,
+        out_target: *mut *mut c_char,
+    ) -> c_int;
+    fn freeusd_stage_list_prim_references(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        out_strings: *mut *mut *mut c_char,
+        out_count: *mut usize,
+    ) -> c_int;
+    fn freeusd_stage_has_prim_references(stage: *const FreeusdStage, prim_path: *const c_char) -> c_int;
+    fn freeusd_stage_list_prim_inherits(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        out_paths: *mut *mut *mut c_char,
+        out_count: *mut usize,
+    ) -> c_int;
+    fn freeusd_stage_has_prim_inherits(stage: *const FreeusdStage, prim_path: *const c_char) -> c_int;
+    fn freeusd_stage_list_prim_specializes(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        out_paths: *mut *mut *mut c_char,
+        out_count: *mut usize,
+    ) -> c_int;
+    fn freeusd_stage_has_prim_specializes(stage: *const FreeusdStage, prim_path: *const c_char) -> c_int;
+    fn freeusd_stage_list_prim_payloads(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        out_strings: *mut *mut *mut c_char,
+        out_count: *mut usize,
+    ) -> c_int;
+    fn freeusd_stage_has_prim_payloads(stage: *const FreeusdStage, prim_path: *const c_char) -> c_int;
+    fn freeusd_stage_get_composed_prim_custom_data(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        key: *const c_char,
+        out_value: *mut *mut c_char,
+    ) -> c_int;
+    fn freeusd_stage_get_composed_prim_custom_data_int64(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        key: *const c_char,
+        out_value: *mut i64,
+    ) -> c_int;
+    fn freeusd_stage_prim_custom_data_key_in_any_layer(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        key: *const c_char,
+    ) -> c_int;
+    fn freeusd_stage_list_composed_prim_custom_data_keys(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        out_keys: *mut *mut *mut c_char,
+        out_count: *mut usize,
+    ) -> c_int;
     fn freeusd_stage_compute_local_transform_matrix4d(
         stage: *const FreeusdStage,
         prim_path: *const c_char,
@@ -1039,6 +1114,242 @@ impl Stage {
         Ok(out)
     }
 
+    fn stage_query_bool(&self, prim_path: &str, f: unsafe extern "C" fn(*const FreeusdStage, *const c_char) -> c_int) -> Result<bool, i32> {
+        let pp = CString::new(prim_path).map_err(|_| 1)?;
+        let rc = unsafe { f(self.ptr as *const FreeusdStage, pp.as_ptr()) };
+        if rc < 0 {
+            Err(rc as i32)
+        } else {
+            Ok(rc == 1)
+        }
+    }
+
+    fn stage_query_bool_attr(
+        &self,
+        prim_path: &str,
+        attr: &str,
+        f: unsafe extern "C" fn(*const FreeusdStage, *const c_char, *const c_char) -> c_int,
+    ) -> Result<bool, i32> {
+        let pp = CString::new(prim_path).map_err(|_| 1)?;
+        let an = CString::new(attr).map_err(|_| 1)?;
+        let rc = unsafe { f(self.ptr as *const FreeusdStage, pp.as_ptr(), an.as_ptr()) };
+        if rc < 0 {
+            Err(rc as i32)
+        } else {
+            Ok(rc == 1)
+        }
+    }
+
+    fn stage_list_prim_strings(
+        &self,
+        prim_path: &str,
+        f: unsafe extern "C" fn(*const FreeusdStage, *const c_char, *mut *mut *mut c_char, *mut usize) -> c_int,
+    ) -> Result<Vec<String>, i32> {
+        let pp = CString::new(prim_path).map_err(|_| 1)?;
+        let mut arr: *mut *mut c_char = ptr::null_mut();
+        let mut n: usize = 0;
+        let rc = unsafe { f(self.ptr as *const FreeusdStage, pp.as_ptr(), &mut arr, &mut n) };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        if n == 0 || arr.is_null() {
+            return Ok(Vec::new());
+        }
+        let slice = unsafe { std::slice::from_raw_parts(arr, n) };
+        let mut out = Vec::with_capacity(n);
+        for &p in slice {
+            if !p.is_null() {
+                out.push(unsafe { CStr::from_ptr(p).to_string_lossy().into_owned() });
+            }
+        }
+        unsafe {
+            freeusd_path_list_free(arr, n);
+        }
+        Ok(out)
+    }
+
+    /// Sorted composed time-sample times for an attribute.
+    pub fn list_field_sample_times(&self, prim_path: &str, attr: &str) -> Result<Vec<f64>, i32> {
+        let pp = CString::new(prim_path).map_err(|_| 1)?;
+        let an = CString::new(attr).map_err(|_| 1)?;
+        let mut raw: *mut c_double = ptr::null_mut();
+        let mut n: usize = 0;
+        let rc = unsafe {
+            freeusd_stage_list_field_sample_times(
+                self.ptr as *const FreeusdStage,
+                pp.as_ptr(),
+                an.as_ptr(),
+                &mut raw,
+                &mut n,
+            )
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        if n == 0 || raw.is_null() {
+            return Ok(Vec::new());
+        }
+        let slice = unsafe { std::slice::from_raw_parts(raw, n) };
+        let out: Vec<f64> = slice.iter().map(|&t| t as f64).collect();
+        unsafe {
+            freeusd_double_array_free(raw);
+        }
+        Ok(out)
+    }
+
+    pub fn has_field_opinion(&self, prim_path: &str, attr: &str) -> Result<bool, i32> {
+        self.stage_query_bool_attr(prim_path, attr, freeusd_stage_has_field_opinion)
+    }
+
+    pub fn has_attribute_connection(&self, prim_path: &str, attr: &str) -> Result<bool, i32> {
+        self.stage_query_bool_attr(prim_path, attr, freeusd_stage_has_attribute_connection)
+    }
+
+    pub fn attribute_connection_target(&self, prim_path: &str, attr: &str) -> Result<String, i32> {
+        let pp = CString::new(prim_path).map_err(|_| 1)?;
+        let an = CString::new(attr).map_err(|_| 1)?;
+        let mut out: *mut c_char = ptr::null_mut();
+        let rc = unsafe {
+            freeusd_stage_get_attribute_connection_target(
+                self.ptr as *const FreeusdStage,
+                pp.as_ptr(),
+                an.as_ptr(),
+                &mut out,
+            )
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        if out.is_null() {
+            return Ok(String::new());
+        }
+        let s = unsafe { CStr::from_ptr(out).to_string_lossy().into_owned() };
+        unsafe {
+            freeusd_string_free(out);
+        }
+        Ok(s)
+    }
+
+    pub fn list_prim_references(&self, prim_path: &str) -> Result<Vec<String>, i32> {
+        self.stage_list_prim_strings(prim_path, freeusd_stage_list_prim_references)
+    }
+
+    pub fn has_prim_references(&self, prim_path: &str) -> Result<bool, i32> {
+        self.stage_query_bool(prim_path, freeusd_stage_has_prim_references)
+    }
+
+    pub fn list_prim_inherits(&self, prim_path: &str) -> Result<Vec<String>, i32> {
+        self.stage_list_prim_strings(prim_path, freeusd_stage_list_prim_inherits)
+    }
+
+    pub fn has_prim_inherits(&self, prim_path: &str) -> Result<bool, i32> {
+        self.stage_query_bool(prim_path, freeusd_stage_has_prim_inherits)
+    }
+
+    pub fn list_prim_specializes(&self, prim_path: &str) -> Result<Vec<String>, i32> {
+        self.stage_list_prim_strings(prim_path, freeusd_stage_list_prim_specializes)
+    }
+
+    pub fn has_prim_specializes(&self, prim_path: &str) -> Result<bool, i32> {
+        self.stage_query_bool(prim_path, freeusd_stage_has_prim_specializes)
+    }
+
+    pub fn list_prim_payloads(&self, prim_path: &str) -> Result<Vec<String>, i32> {
+        self.stage_list_prim_strings(prim_path, freeusd_stage_list_prim_payloads)
+    }
+
+    pub fn has_prim_payloads(&self, prim_path: &str) -> Result<bool, i32> {
+        self.stage_query_bool(prim_path, freeusd_stage_has_prim_payloads)
+    }
+
+    pub fn composed_prim_custom_data_utf8(&self, prim_path: &str, key: &str) -> Result<String, i32> {
+        let pp = CString::new(prim_path).map_err(|_| 1)?;
+        let k = CString::new(key).map_err(|_| 1)?;
+        let mut out: *mut c_char = ptr::null_mut();
+        let rc = unsafe {
+            freeusd_stage_get_composed_prim_custom_data(
+                self.ptr as *const FreeusdStage,
+                pp.as_ptr(),
+                k.as_ptr(),
+                &mut out,
+            )
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        if out.is_null() {
+            return Ok(String::new());
+        }
+        let s = unsafe { CStr::from_ptr(out).to_string_lossy().into_owned() };
+        unsafe {
+            freeusd_string_free(out);
+        }
+        Ok(s)
+    }
+
+    pub fn composed_prim_custom_data_int64(&self, prim_path: &str, key: &str) -> Result<i64, i32> {
+        let pp = CString::new(prim_path).map_err(|_| 1)?;
+        let k = CString::new(key).map_err(|_| 1)?;
+        let mut out: i64 = 0;
+        let rc = unsafe {
+            freeusd_stage_get_composed_prim_custom_data_int64(
+                self.ptr as *const FreeusdStage,
+                pp.as_ptr(),
+                k.as_ptr(),
+                &mut out,
+            )
+        };
+        if rc != 0 {
+            Err(rc as i32)
+        } else {
+            Ok(out)
+        }
+    }
+
+    pub fn prim_custom_data_key_in_any_layer(&self, prim_path: &str, key: &str) -> Result<bool, i32> {
+        let pp = CString::new(prim_path).map_err(|_| 1)?;
+        let k = CString::new(key).map_err(|_| 1)?;
+        let rc = unsafe {
+            freeusd_stage_prim_custom_data_key_in_any_layer(self.ptr as *const FreeusdStage, pp.as_ptr(), k.as_ptr())
+        };
+        if rc < 0 {
+            Err(rc as i32)
+        } else {
+            Ok(rc == 1)
+        }
+    }
+
+    pub fn list_composed_prim_custom_data_keys(&self, prim_path: &str) -> Result<Vec<String>, i32> {
+        let pp = CString::new(prim_path).map_err(|_| 1)?;
+        let mut arr: *mut *mut c_char = ptr::null_mut();
+        let mut n: usize = 0;
+        let rc = unsafe {
+            freeusd_stage_list_composed_prim_custom_data_keys(
+                self.ptr as *const FreeusdStage,
+                pp.as_ptr(),
+                &mut arr,
+                &mut n,
+            )
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        if n == 0 || arr.is_null() {
+            return Ok(Vec::new());
+        }
+        let slice = unsafe { std::slice::from_raw_parts(arr, n) };
+        let mut out = Vec::with_capacity(n);
+        for &p in slice {
+            if !p.is_null() {
+                out.push(unsafe { CStr::from_ptr(p).to_string_lossy().into_owned() });
+            }
+        }
+        unsafe {
+            freeusd_path_list_free(arr, n);
+        }
+        Ok(out)
+    }
+
     /// Local transform matrix (row-major 16 doubles) via validated `usdGeom::Xformable`.
     pub fn compute_local_transform_matrix4d(&self, prim_path: &str, time: f64) -> Result<[f64; 16], i32> {
         let pp = CString::new(prim_path).map_err(|_| 1)?;
@@ -1729,6 +2040,31 @@ def Xform "W"
         assert!(stage.read_field_quatd("/Scene/Child", "qf", 1.0).is_err());
         assert!(stage.read_field_token("/Scene/Child", "label", 1.0).is_err());
         assert!(stage.read_field_token_array("/Scene/Child", "kind", 1.0).is_err());
+
+        assert_eq!(stage.list_field_sample_times("/Scene/Child", "mass").expect("mass times"), vec![2.0]);
+        assert!(stage.has_field_opinion("/Scene/Child", "mass").expect("mass opinion"));
+        assert!(!stage.has_field_opinion("/Scene/Child", "missingAttr").expect("missing opinion"));
+        assert_eq!(
+            stage
+                .composed_prim_custom_data_int64("/Scene/Child", "tag")
+                .expect("tag customData"),
+            99
+        );
+        assert!(stage
+            .prim_custom_data_key_in_any_layer("/Scene/Child", "tag")
+            .expect("tag in layer"));
+        assert_eq!(
+            stage
+                .list_composed_prim_custom_data_keys("/Scene/Child")
+                .expect("customData keys"),
+            vec!["tag".to_string()]
+        );
+        assert!(stage.has_prim_inherits("/Scene/ArcHost").expect("ArcHost inherits"));
+        assert_eq!(
+            stage.list_prim_inherits("/Scene/ArcHost").expect("inherit list"),
+            vec!["/Scene/Child".to_string()]
+        );
+        assert!(!stage.has_prim_inherits("/Scene/Child").expect("Child no inherits"));
     }
 
     #[test]

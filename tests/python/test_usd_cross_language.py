@@ -107,3 +107,24 @@ def test_usd_cross_language_field_read_contract() -> None:
     assert stage.read_field_quatd(child, Token("qf"), 1.0) is None
     assert stage.read_field_token(child, Token("label"), 1.0) is None
     assert stage.read_field_token_array(child, Token("kind"), 1.0) is None
+
+
+def test_usd_cross_language_composition_helpers() -> None:
+    text = FIXTURE.read_text(encoding="utf-8")
+    layer = Layer.new_anonymous("cross_lang_composition")
+    assert io.load_from_string(text, layer).ok
+
+    stage = Stage.attach_root_layer(layer)
+    assert stage is not None
+
+    child = SdfPath.from_string("/Scene/Child")
+    arc_host = SdfPath.from_string("/Scene/ArcHost")
+
+    assert stage.list_composed_field_sample_times(child, Token("mass")) == [2.0]
+    assert stage.get_composed_prim_custom_data(child, "tag").as_int32() == 99
+    assert stage.prim_custom_data_key_in_any_layer(child, "tag")
+    assert stage.list_composed_prim_custom_data_keys(child) == ["tag"]
+
+    assert stage.has_prim_inherits(arc_host)
+    assert stage.read_prim_inherits(arc_host) == [SdfPath.from_string("/Scene/Child")]
+    assert not stage.has_prim_inherits(child)

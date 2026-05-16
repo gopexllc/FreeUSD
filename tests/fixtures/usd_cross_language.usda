@@ -38,4 +38,12 @@ def Xform "Scene"
         double only = 9.0
         token justToken = partial
     }
+
+    def "ArcHost"
+    (
+        prepend inherits = </Scene/Child>
+    )
+    {
+        double arcOnly = 7.0
+    }
 }

@@ -44,6 +44,21 @@ export FREEUSD_REPO_ROOT=/absolute/path/to/freeusd
 cargo test --manifest-path bindings/rust/Cargo.toml
 ```
 
+## Cross-language coverage (composition + reads)
+
+Shared fixture: **`tests/fixtures/usd_cross_language.usda`**. Tests: **`tests/c_usd_cross_language.c`**, **`tests/python/test_usd_cross_language.py`**, **`bindings/go/freeusd_test.go`** (`TestCrossLanguageFieldReadContract`), **`bindings/rust`** (`cross_language_field_read_contract`).
+
+| Capability | C ABI | C++ / Python | Go | Rust |
+|------------|:-----:|:------------:|:--:|:----:|
+| Typed field reads (double/float/bool/int/string/vec/matrix/quat/token) | yes | yes | yes | yes |
+| Composed field sample times | yes | yes | yes | yes |
+| Field opinion / connection queries | yes | yes | yes | yes |
+| Prim arc lists (references, payloads, inherits, specializes) | yes | yes | yes | yes |
+| Composed prim customData (string/token + int64) | yes | yes (typed `Value`) | yes | yes |
+| Composed prim customData key list / layer presence | yes | yes | yes | yes |
+| `usdGeom` imageable/boundable (C ABI) | yes | yes | yes | yes |
+| `usdUtils` flatten / engine assess | C++ only | yes | — | — |
+
 ## Adding more bindings
 
-New wrappers should target the **C ABI** only (no C++ ABI stability guarantees). Keep surface area small and mirror existing tests (version string + one USDA round-trip or attribute read) before exposing larger APIs. The Go package also includes **`OpenStageFromRootFile`** / **`PrimPathInUse`**, relocate, **prefixSubstitution**, **`customLayerData`**, **raw USDC section bytes**, **prim variant** helpers, and the validated **`usdGeom`** engine subset on **`Stage`**: **`ComputeLocalTransformMatrix4d`**, **`ComputeLocalToWorldTransformMatrix4d`**, **`ComputeImageableVisibility`**, **`ComputeImageablePurpose`**, **`ComputeBoundableLocalBounds`**, **`ComputeBoundableWorldBounds`** (mirroring the C ABI). Rust exposes the same six helpers on **`Stage`**. Cross-language checks use **`tests/fixtures/parity_imageable.usda`** (aligned with **`freeusd_c_engine_integration`**).
+New wrappers should target the **C ABI** only (no C++ ABI stability guarantees). Keep surface area small and mirror existing tests (version string + one USDA round-trip or attribute read) before exposing larger APIs. The Go package also includes **`OpenStageFromRootFile`** / **`PrimPathInUse`**, relocate, **prefixSubstitution**, **`customLayerData`**, **raw USDC section bytes**, **prim variant** helpers, composition helpers (**`ListFieldSampleTimes`**, **`HasFieldOpinion`**, prim arc list/has, composed prim **`customData`**), and the validated **`usdGeom`** engine subset on **`Stage`**: **`ComputeLocalTransformMatrix4d`**, **`ComputeLocalToWorldTransformMatrix4d`**, **`ComputeImageableVisibility`**, **`ComputeImageablePurpose`**, **`ComputeBoundableLocalBounds`**, **`ComputeBoundableWorldBounds`** (mirroring the C ABI). Rust exposes the same surface on **`Stage`**. Cross-language checks use **`tests/fixtures/parity_imageable.usda`** (aligned with **`freeusd_c_engine_integration`**) and **`usd_cross_language.usda`** for composition parity.
