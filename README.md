@@ -28,6 +28,7 @@ C++ libraries follow OpenUSD-style layering: `tf`, `gf`, `vt`, `ar`, `sdf`, `pcp
 | Embedding, `find_package`, pkg-config | [docs/engine-integration.md](docs/engine-integration.md) |
 | Frozen engine contract | [docs/engine-supported-subset.md](docs/engine-supported-subset.md) |
 | Clean-room / fixture / claim rules | [CONTRIBUTING.md](CONTRIBUTING.md) |
+| Cursor agent onboarding / SDK CLI | [AGENTS.md](AGENTS.md), [tools/agent/](tools/agent/README.md) |
 
 **USDA:** minimal ASCII load/save (`freeusd::io::usda`, Python `freeusd.io`), including `attr.timeSamples = { t: v, … }` blocks.
 

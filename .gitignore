@@ -30,3 +30,6 @@ __pycache__/
 htmlcov/
 CMakeUserPresets.json
 compile_commands.json
+tools/agent/node_modules/
+tools/agent/dist/
+tools/agent/.env
