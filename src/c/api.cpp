@@ -32,6 +32,8 @@
 #include "freeusd/usdSkel/skelBlendShapes.hpp"
 #include "freeusd/usdSkel/skinning.hpp"
 #include "freeusd/usdSkel/skeleton.hpp"
+#include "freeusd/usdShade/material.hpp"
+#include "freeusd/usdShade/previewSurface.hpp"
 #include "freeusd/usdUtils/engineScene.hpp"
 #include "freeusd/version.hpp"
 #include "freeusd/vt/value.hpp"
@@ -2782,6 +2784,84 @@ int freeusd_usdutils_assess_engine_runtime_support(const FreeusdStage* stage, Fr
     out->uses_skel_bound_meshes = report.uses_skel_bound_meshes ? 1 : 0;
     out->uses_blend_shapes = report.uses_blend_shapes ? 1 : 0;
     out->uses_skel_animation = report.uses_skel_animation ? 1 : 0;
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_read_material_surface_shader_path(const FreeusdStage* stage, const char* material_path_utf8,
+                                                    char** out_shader_path_utf8) {
+  if (!stage || !stage->inner || !material_path_utf8 || !out_shader_path_utf8) {
+    set_error("freeusd_stage_read_material_surface_shader_path: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_shader_path_utf8 = nullptr;
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(material_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid material path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const freeusd::usdShade::Material mat = freeusd::usdShade::Material::ReadFromPrim(stage->inner, p);
+    if (!mat) {
+      set_error("material prim not found or invalid");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    const freeusd::sdf::Path shader = mat.GetSurfaceShaderPath();
+    if (shader.IsEmpty()) {
+      set_error("material has no outputs:surface connection");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    char* dup = dup_cstr(shader.GetString());
+    if (!dup) {
+      set_error("out of memory");
+      return FREEUSD_ERR_INTERNAL;
+    }
+    *out_shader_path_utf8 = dup;
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_read_preview_surface_diffuse_color(const FreeusdStage* stage, const char* shader_path_utf8,
+                                                     double time, float out_rgb[3]) {
+  if (!stage || !stage->inner || !shader_path_utf8 || !out_rgb) {
+    set_error("freeusd_stage_read_preview_surface_diffuse_color: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  out_rgb[0] = out_rgb[1] = out_rgb[2] = 0.0f;
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(shader_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid shader path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const freeusd::usdShade::PreviewSurface preview =
+        freeusd::usdShade::PreviewSurface::ReadFromPrim(stage->inner, p);
+    if (!preview || !preview.IsPreviewSurface()) {
+      set_error("shader prim is not UsdPreviewSurface");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    freeusd::gf::Vec3f diffuse{};
+    if (!preview.GetDiffuseColor(&diffuse, time)) {
+      set_error("inputs:diffuseColor not available");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    out_rgb[0] = diffuse.x();
+    out_rgb[1] = diffuse.y();
+    out_rgb[2] = diffuse.z();
     clear_error();
     return FREEUSD_OK;
   } catch (const std::exception& e) {

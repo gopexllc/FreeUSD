@@ -42,6 +42,8 @@ Status vocabulary:
   Mesh blend shapes (`BlendShape.offsets`, `skel:blendShapes` / `skel:blendShapeTargets`, time-sampled `blendShapeWeights`) for glTF morph-target mapping.
 - `tests/fixtures/parity_skel_skinning.usda`
   Single-point mesh with joint influences plus animated `SkelAnimation` for CPU linear blend skinning (`DeformPointsWithSkeleton`).
+- `tests/fixtures/parity_shade_preview.usda`
+  `Material` with `UsdPreviewSurface` shader, `outputs:surface` connection, and `material:binding` on a mesh.
 
 ## Current Matrix
 
@@ -62,7 +64,8 @@ Status vocabulary:
 - `implemented`: `usdGeom::Xformable`, `usdGeom::Imageable`, `usdGeom::Boundable`, `usdUtils::FlattenStageAtTime`, and `usdUtils` engine-scene helpers for importer/editor/runtime subset inspection.
 - `partial`: flattening now preserves evaluated defaults plus composed sample times, but it does not yet reconstruct full authored layer provenance for every arc source.
 - `partial`: `usdSkel::Skeleton` and `usdSkel::SkelAnimation` read joints, bind/rest matrices, and sampled TRS arrays from USDA; glTF mapping helpers build parent indices and world bind matrices; `SkelBinding` resolves `skel:skeleton` plus `primvars:skel:jointIndices` / `jointWeights`; `SkelRoot` finds skeleton and `skel:animationSource` under a scope (`parity_skel_binding.usda`); `BlendShape` / `SkelBlendShapes` / `MorphTargets` read morph offsets, remap animation weights, and apply CPU morph accumulation (`parity_skel_blend_shapes.usda`; glTF `mesh.weights` + morph target POSITION deltas); `DeformPointsWithSkeleton` performs CPU LBS from joint world matrices and inverse bind transforms (`parity_skel_skinning.usda`).
-- `token-only`: most other non-`usdGeom` schema packages remain generated token surfaces only.
+- `partial`: `usdShade::Material` resolves `outputs:surface` to a shader prim; `usdShade::Shader` / `PreviewSurface` read `info:id` and common `UsdPreviewSurface` inputs (`diffuseColor`, `metallic`, `roughness`, `opacity`) with connection following (`parity_shade_preview.usda`).
+- `token-only`: most other non-`usdGeom` / non-`usdSkel` / non-`usdShade` schema packages remain generated token surfaces only.
 
 ### ABI And Bindings
 

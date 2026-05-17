@@ -609,6 +609,22 @@ FREEUSD_C_API int freeusd_stage_read_skel_joint_names(const FreeusdStage* stage,
                                                       char*** out_strings, size_t* out_count);
 
 /**
+ * Resolve a Material ``outputs:surface`` connection to the connected shader prim path.
+ * On @ref FREEUSD_OK, @p *out_shader_path_utf8 is malloc'd; free with @ref freeusd_string_free.
+ */
+FREEUSD_C_API int freeusd_stage_read_material_surface_shader_path(const FreeusdStage* stage,
+                                                                  const char* material_path_utf8,
+                                                                  char** out_shader_path_utf8);
+
+/**
+ * Read ``UsdPreviewSurface`` ``inputs:diffuseColor`` (color3f) at @p time from a shader prim.
+ * @p out_rgb must point to three floats (r, g, b). Missing shader or input reports @ref FREEUSD_ERR_NOT_FOUND.
+ */
+FREEUSD_C_API int freeusd_stage_read_preview_surface_diffuse_color(const FreeusdStage* stage,
+                                                                 const char* shader_path_utf8, double time,
+                                                                 float out_rgb[3]);
+
+/**
  * Count of bound blend-shape targets on a geom prim (``skel:blendShapes`` token count).
  * Missing geom or unbound prim reports @ref FREEUSD_ERR_NOT_FOUND.
  */
