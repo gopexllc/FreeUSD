@@ -34,3 +34,4 @@ tools/agent/node_modules/
 tools/agent/dist/
 tools/agent/.env
 build-ci-py/
+build-py/
