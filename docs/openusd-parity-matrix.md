@@ -31,7 +31,7 @@ Status vocabulary:
 - `tests/fixtures/parity_kind_active_refs.usda`
   Composed prim `kind` and `active` through `references`, `payloads`, and `inherits` (`parity_kind_active_ref.usda`, `parity_kind_active_payload.usda`).
 - `tests/fixtures/parity_tables.usdc`
-  Shared binary crate fixture for bootstrap, TOC, raw section payloads, and validated `TOKENS` / `STRINGS` / `PATHS` table decode.
+  Shared binary crate fixture for bootstrap, TOC, raw section payloads, and validated `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` table decode.
 - `tests/fixtures/parity_embedded_scene.usdc`
   Narrow crate scene-open fallback through an embedded `USDA` section for controlled engine pipelines and fixtures.
 - `tests/fixtures/parity_skel_gltf.usda`
@@ -52,7 +52,7 @@ Status vocabulary:
 ### Formats And Data Model
 
 - `implemented`: USDA load/save, typed scalar/vector/quaternion/matrix values, layer metadata, references/payload/inherits/specializes storage, relationship targets, and time-sample evaluation.
-- `partial`: USDC bootstrap parsing, TOC parsing, raw section-payload reads, validated `TOKENS` / `STRINGS` / `PATHS` table decode, and a narrow embedded-`USDA` stage-open fallback are available in C++; the C ABI follows the same validated open/query slice.
+- `partial`: USDC bootstrap parsing, TOC parsing, raw section-payload reads, validated `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` table decode, and a narrow embedded-`USDA` stage-open fallback are available in C++; the C ABI follows the same validated open/query slice.
 - `planned`: spec-level `.usdc` payload decode beyond the validated table sections and embedded-`USDA` bridge.
 
 ### Composition Semantics

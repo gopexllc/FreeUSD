@@ -104,6 +104,7 @@ int main() {
     std::string err;
     freeusd::usd::crate::UsdcCrateStringTable tokens{};
     freeusd::usd::crate::UsdcCrateStringTable strings{};
+    freeusd::usd::crate::UsdcCrateFieldsTable fields{};
     freeusd::usd::crate::UsdcCratePathTable paths{};
     assert(freeusd::usd::crate::ReadUsdCrateTokenTableFromPath(fixture("parity_tables.usdc"), tokens, 8, 1024, &err));
     assert(tokens.values.size() == 2u);
@@ -113,6 +114,10 @@ int main() {
     assert(strings.values.size() == 2u);
     assert(strings.values[0] == "hello");
     assert(strings.values[1] == "world");
+    assert(freeusd::usd::crate::ReadUsdCrateFieldsTableFromPath(fixture("parity_tables.usdc"), fields, 8, 1024, &err));
+    assert(fields.entries.size() == 2u);
+    assert(fields.entries[0].token_index == 0u && fields.entries[0].value_type_token_index == 1u);
+    assert(fields.entries[1].token_index == 1u && fields.entries[1].value_type_token_index == 0u);
     assert(freeusd::usd::crate::ReadUsdCratePathTableFromPath(fixture("parity_tables.usdc"), paths, 8, 1024, &err));
     assert(paths.paths.size() == 2u);
     assert(paths.paths[0] == Path::FromString("/World"));

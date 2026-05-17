@@ -374,6 +374,49 @@ int freeusd_read_usdc_path_table_from_path_utf8(const char* path_utf8, uint64_t 
   }
 }
 
+int freeusd_read_usdc_fields_table_from_path_utf8(const char* path_utf8, uint64_t max_entries,
+                                                  uint64_t max_total_bytes, FreeusdUsdcFieldEntry** out_entries,
+                                                  size_t* out_count) {
+  if (!path_utf8 || !out_entries || !out_count || max_entries == 0u) {
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    clear_error();
+    freeusd::usd::crate::UsdcCrateFieldsTable table;
+    std::string err;
+    if (!freeusd::usd::crate::ReadUsdCrateFieldsTableFromPath(std::string{path_utf8}, table,
+                                                              static_cast<std::size_t>(max_entries),
+                                                              static_cast<std::size_t>(max_total_bytes), &err)) {
+      set_error(err.empty() ? "read usdc fields table failed" : err);
+      return FREEUSD_ERR_PARSE;
+    }
+    *out_count = table.entries.size();
+    if (table.entries.empty()) {
+      *out_entries = nullptr;
+      return FREEUSD_OK;
+    }
+    auto* arr = static_cast<FreeusdUsdcFieldEntry*>(std::malloc(table.entries.size() * sizeof(FreeusdUsdcFieldEntry)));
+    if (!arr) {
+      set_error("out of memory");
+      return FREEUSD_ERR_INTERNAL;
+    }
+    for (std::size_t i = 0; i < table.entries.size(); ++i) {
+      arr[i].token_index = table.entries[i].token_index;
+      arr[i].value_type_token_index = table.entries[i].value_type_token_index;
+    }
+    *out_entries = arr;
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown error");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+void freeusd_usdc_fields_entries_free(FreeusdUsdcFieldEntry* entries) { std::free(entries); }
+
 const char* freeusd_last_error_message(void) { return g_last_error.c_str(); }
 
 void freeusd_string_free(char* s) { std::free(s); }

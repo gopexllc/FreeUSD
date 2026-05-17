@@ -93,7 +93,7 @@ target_link_libraries(engine_runtime_bridge PRIVATE freeusd::c)
 ## Formats
 
 - **USDA:** supported and recommended.
-- **USDC low-level access:** bootstrap, TOC, raw section bytes, and validated `TOKENS` / `STRINGS` / `PATHS` table decode exist.
+- **USDC low-level access:** bootstrap, TOC, raw section bytes, and validated `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` table decode exist.
 - **USDC scene open:** only the narrow embedded-`USDA` section fallback is validated today. It advances controlled engine pipelines, but it is not general `.usdc` parity.
 
 ## Validation Anchors

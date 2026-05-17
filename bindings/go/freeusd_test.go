@@ -182,6 +182,14 @@ func TestReadStructuredUsdcTablesFromFixture(t *testing.T) {
 	if len(paths) != 2 || paths[0] != "/World" || paths[1] != "/World/Cube" {
 		t.Fatalf("unexpected paths %#v", paths)
 	}
+	fields, rc := ReadUsdcFieldsTableFromPath(p, 8, 1024)
+	if rc != 0 {
+		t.Fatalf("fields table rc=%d %s", rc, LastErrorMessage())
+	}
+	if len(fields) != 2 || fields[0].TokenIndex != 0 || fields[0].ValueTypeTokenIndex != 1 ||
+		fields[1].TokenIndex != 1 || fields[1].ValueTypeTokenIndex != 0 {
+		t.Fatalf("unexpected fields %#v", fields)
+	}
 }
 
 func TestLayerStageReadDouble(t *testing.T) {

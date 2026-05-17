@@ -31,6 +31,20 @@ const _: () = assert!(std::mem::size_of::<FreeusdUsdcBootstrap>() == 16);
 const _: () = assert!(std::mem::offset_of!(FreeusdUsdcBootstrap, toc_byte_offset) == 8);
 
 #[repr(C)]
+pub struct FreeusdUsdcFieldEntry {
+    pub token_index: u64,
+    pub value_type_token_index: u64,
+}
+
+const _: () = assert!(std::mem::size_of::<FreeusdUsdcFieldEntry>() == 16);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UsdcFieldEntry {
+    pub token_index: u64,
+    pub value_type_token_index: u64,
+}
+
+#[repr(C)]
 pub struct FreeusdLayer {
     _private: [u8; 0],
 }
@@ -85,6 +99,14 @@ extern "C" {
         out_paths: *mut *mut *mut c_char,
         out_count: *mut usize,
     ) -> c_int;
+    fn freeusd_read_usdc_fields_table_from_path_utf8(
+        path: *const c_char,
+        max_entries: u64,
+        max_total_bytes: u64,
+        out_entries: *mut *mut FreeusdUsdcFieldEntry,
+        out_count: *mut usize,
+    ) -> c_int;
+    fn freeusd_usdc_fields_entries_free(entries: *mut FreeusdUsdcFieldEntry);
     fn freeusd_bytes_free(bytes: *mut std::ffi::c_void);
     fn freeusd_last_error_message() -> *const c_char;
 
@@ -660,6 +682,37 @@ pub fn read_usdc_string_table_from_path(path: &str, max_entries: u64, max_total_
 
 pub fn read_usdc_path_table_from_path(path: &str, max_entries: u64, max_total_bytes: u64) -> Result<Vec<String>, i32> {
     read_usdc_string_list(path, max_entries, max_total_bytes, freeusd_read_usdc_path_table_from_path_utf8)
+}
+
+pub fn read_usdc_fields_table_from_path(path: &str, max_entries: u64, max_total_bytes: u64) -> Result<Vec<UsdcFieldEntry>, i32> {
+    let cpath = CString::new(path).map_err(|_| FREEUSD_ERR_INVALID_ARGUMENT)?;
+    let mut raw: *mut FreeusdUsdcFieldEntry = ptr::null_mut();
+    let mut count: usize = 0;
+    let rc = unsafe {
+        freeusd_read_usdc_fields_table_from_path_utf8(
+            cpath.as_ptr(),
+            max_entries,
+            max_total_bytes,
+            &mut raw,
+            &mut count,
+        )
+    };
+    if rc != FREEUSD_OK {
+        return Err(rc);
+    }
+    if raw.is_null() || count == 0 {
+        return Ok(Vec::new());
+    }
+    let slice = unsafe { std::slice::from_raw_parts(raw, count) };
+    let out = slice
+        .iter()
+        .map(|e| UsdcFieldEntry {
+            token_index: e.token_index,
+            value_type_token_index: e.value_type_token_index,
+        })
+        .collect();
+    unsafe { freeusd_usdc_fields_entries_free(raw) };
+    Ok(out)
 }
 
 /// Thread-local last error from the C API.
@@ -2056,6 +2109,20 @@ mod tests {
         assert_eq!(strings, vec!["hello".to_string(), "world".to_string()]);
         let paths = read_usdc_path_table_from_path(&p.to_string_lossy(), 8, 1024).expect("path table");
         assert_eq!(paths, vec!["/World".to_string(), "/World/Cube".to_string()]);
+        let fields = read_usdc_fields_table_from_path(&p.to_string_lossy(), 8, 1024).expect("fields table");
+        assert_eq!(
+            fields,
+            vec![
+                UsdcFieldEntry {
+                    token_index: 0,
+                    value_type_token_index: 1,
+                },
+                UsdcFieldEntry {
+                    token_index: 1,
+                    value_type_token_index: 0,
+                },
+            ]
+        );
     }
 
     #[test]

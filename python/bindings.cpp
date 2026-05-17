@@ -1492,6 +1492,26 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
           py::arg("path"),
           py::arg("max_entries") = static_cast<std::size_t>(65536u),
           py::arg("max_total_bytes") = static_cast<std::size_t>(16u * 1024u * 1024u));
+      crate.def(
+          "read_usdc_fields_table_from_path",
+          [](const std::string& path, std::size_t max_entries, std::size_t max_total_bytes) {
+            freeusd::usd::crate::UsdcCrateFieldsTable table{};
+            std::string err;
+            if (!freeusd::usd::crate::ReadUsdCrateFieldsTableFromPath(path, table, max_entries, max_total_bytes, &err)) {
+              return py::make_tuple(false, py::none(), err);
+            }
+            py::list items;
+            for (const freeusd::usd::crate::UsdcCrateFieldEntry& entry : table.entries) {
+              py::dict d;
+              d["token_index"] = entry.token_index;
+              d["value_type_token_index"] = entry.value_type_token_index;
+              items.append(d);
+            }
+            return py::make_tuple(true, items, std::string{});
+          },
+          py::arg("path"),
+          py::arg("max_entries") = static_cast<std::size_t>(65536u),
+          py::arg("max_total_bytes") = static_cast<std::size_t>(16u * 1024u * 1024u));
     }
 
     py::class_<freeusd::usd::EditTarget>(usd, "EditTarget")

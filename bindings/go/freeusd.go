@@ -193,6 +193,39 @@ func ReadUsdcPathTableFromPath(path string, maxEntries uint64, maxTotalBytes uin
 	return readUsdcStringList(path, maxEntries, maxTotalBytes, C.freeusd_read_usdc_path_table_from_path_utf8)
 }
 
+// UsdcFieldEntry is one row from the validated FIELDS table (matches C FreeusdUsdcFieldEntry).
+type UsdcFieldEntry struct {
+	TokenIndex          uint64
+	ValueTypeTokenIndex uint64
+}
+
+// ReadUsdcFieldsTableFromPath reads the validated FIELDS table from a shared crate fixture.
+func ReadUsdcFieldsTableFromPath(path string, maxEntries uint64, maxTotalBytes uint64) ([]UsdcFieldEntry, int) {
+	cs := C.CString(path)
+	defer C.free(unsafe.Pointer(cs))
+	var raw *C.FreeusdUsdcFieldEntry
+	var count C.size_t
+	rc := int(C.freeusd_read_usdc_fields_table_from_path_utf8(cs, C.uint64_t(maxEntries), C.uint64_t(maxTotalBytes), &raw, &count))
+	if rc != 0 {
+		return nil, rc
+	}
+	defer C.freeusd_usdc_fields_entries_free(raw)
+	if raw == nil || count == 0 {
+		return nil, 0
+	}
+	step := int(unsafe.Sizeof(C.FreeusdUsdcFieldEntry{}))
+	out := make([]UsdcFieldEntry, int(count))
+	base := unsafe.Pointer(raw)
+	for i := range out {
+		entry := (*C.FreeusdUsdcFieldEntry)(unsafe.Add(base, uintptr(i)*uintptr(step)))
+		out[i] = UsdcFieldEntry{
+			TokenIndex:          uint64(entry.token_index),
+			ValueTypeTokenIndex: uint64(entry.value_type_token_index),
+		}
+	}
+	return out, 0
+}
+
 // LastErrorMessage returns the thread-local C API error string (valid until the next C call on this thread).
 func LastErrorMessage() string {
 	return C.GoString(C.freeusd_last_error_message())

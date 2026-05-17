@@ -82,6 +82,22 @@ struct UsdcCratePathTable {
 FREEUSD_API bool ReadUsdCratePathTableFromPath(const std::string& path, UsdcCratePathTable& out, std::size_t max_entries,
                                                std::size_t max_total_bytes, std::string* err_out = nullptr);
 
+/// One decoded row from the fixture-oriented ``FIELDS`` table (indices into the ``TOKENS`` table).
+struct UsdcCrateFieldEntry {
+  std::uint64_t token_index = 0;
+  std::uint64_t value_type_token_index = 0;
+};
+
+/// Validated ``FIELDS`` table: little-endian ``uint64_t`` count, then repeated token / value-type index pairs.
+struct UsdcCrateFieldsTable {
+  std::vector<UsdcCrateFieldEntry> entries;
+};
+
+/// Reads the ``FIELDS`` section using the shared fixture-oriented table payload shape documented above.
+FREEUSD_API bool ReadUsdCrateFieldsTableFromPath(const std::string& path, UsdcCrateFieldsTable& out,
+                                               std::size_t max_entries, std::size_t max_total_bytes,
+                                               std::string* err_out = nullptr);
+
 enum class UsdFileKind {
   /// Could not read path or empty file.
   IoOrEmpty = 0,

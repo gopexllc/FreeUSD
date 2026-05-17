@@ -6,6 +6,7 @@ from freeusd.sdf import Path as SdfPath
 from freeusd.tf import Token
 from freeusd.usd import RootLayerSublayersPolicy, Stage
 from freeusd.usd.crate import (
+    read_usdc_fields_table_from_path,
     read_usdc_path_table_from_path,
     read_usdc_string_table_from_path,
     read_usdc_token_table_from_path,
@@ -68,6 +69,13 @@ def test_parity_tables_fixture_decodes_structured_usdc_tables() -> None:
     ok, paths, err = read_usdc_path_table_from_path(usdc, 8, 1024)
     assert ok and err == ""
     assert [p.text() for p in paths] == ["/World", "/World/Cube"]
+
+    ok, fields, err = read_usdc_fields_table_from_path(usdc, 8, 1024)
+    assert ok and err == ""
+    assert fields == [
+        {"token_index": 0, "value_type_token_index": 1},
+        {"token_index": 1, "value_type_token_index": 0},
+    ]
 
 
 def test_parity_imageable_fixture_is_primary_scene_anchor() -> None:
