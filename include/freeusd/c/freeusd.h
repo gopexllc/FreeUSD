@@ -684,6 +684,8 @@ typedef struct FreeusdEngineRuntimeSupport {
   int uses_skel_bound_meshes;
   int uses_blend_shapes;
   int uses_skel_animation;
+  int uses_material_bindings;
+  int uses_preview_surface;
 } FreeusdEngineRuntimeSupport;
 
 /**

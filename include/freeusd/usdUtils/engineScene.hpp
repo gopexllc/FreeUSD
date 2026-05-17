@@ -59,6 +59,9 @@ struct FREEUSD_API EngineSceneNode {
   /// True when ``skel:blendShapes`` and ``skel:blendShapeTargets`` are authored.
   bool has_blend_shapes{false};
   std::vector<std::string> blend_shape_tokens;
+  /// True when ``material:binding`` resolves to at least one target.
+  bool has_material_binding{false};
+  freeusd::sdf::Path material_path{};
 };
 
 /// Stage-level snapshot for USDA-first import and engine/editor cache generation.
@@ -83,6 +86,12 @@ struct FREEUSD_API EngineSceneSnapshot {
   std::vector<freeusd::sdf::Path> skel_root_paths;
   /// ``SkelAnimation`` prims discovered during traversal.
   std::vector<freeusd::sdf::Path> skel_animation_paths;
+  /// Geom prims with a resolved ``material:binding``.
+  std::vector<freeusd::sdf::Path> material_bound_geom_paths;
+  /// ``Material`` prims whose surface shader is ``UsdPreviewSurface``.
+  std::vector<freeusd::sdf::Path> material_paths;
+  /// Shader prims with ``info:id`` ``UsdPreviewSurface``.
+  std::vector<freeusd::sdf::Path> preview_surface_shader_paths;
 };
 
 /// Editor-facing inspection view for one prim in the validated subset.
@@ -116,6 +125,8 @@ struct FREEUSD_API EngineRuntimeSupportReport {
   bool uses_skel_bound_meshes{false};
   bool uses_blend_shapes{false};
   bool uses_skel_animation{false};
+  bool uses_material_bindings{false};
+  bool uses_preview_surface{false};
   std::vector<std::string> warnings;
 };
 

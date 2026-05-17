@@ -7,12 +7,29 @@
 #include "freeusd/usdGeom/boundable.hpp"
 #include "freeusd/usdGeom/imageable.hpp"
 #include "freeusd/usdGeom/xformable.hpp"
+#include "freeusd/usdShade/material.hpp"
+#include "freeusd/usdShade/previewSurface.hpp"
+#include "freeusd/usdShade/tokens.hpp"
 #include "freeusd/usdSkel/skelBinding.hpp"
 #include "freeusd/usdSkel/skelBlendShapes.hpp"
 #include "freeusd/usdSkel/tokens.hpp"
 
 namespace freeusd::usdUtils {
 namespace {
+
+const freeusd::tf::Token& material_binding_token() {
+  static const freeusd::tf::Token kMaterialBinding("material:binding");
+  return kMaterialBinding;
+}
+
+void append_unique_path(std::vector<freeusd::sdf::Path>* paths, const freeusd::sdf::Path& path) {
+  if (!paths || path.IsEmpty()) {
+    return;
+  }
+  if (std::find(paths->begin(), paths->end(), path) == paths->end()) {
+    paths->push_back(path);
+  }
+}
 
 void append_warning(std::vector<std::string>* warnings, std::unordered_set<std::string>* seen, std::string warning) {
   if (!warnings || !seen) {
@@ -71,6 +88,11 @@ EngineSceneNode build_scene_node(const freeusd::usd::Prim& prim, double time) {
     node.has_blend_shapes = true;
     node.blend_shape_tokens = blend_shapes.blend_shape_tokens;
   }
+  const std::vector<freeusd::sdf::Path> material_bindings = prim.GetRelationshipTargets(material_binding_token());
+  if (!material_bindings.empty()) {
+    node.has_material_binding = true;
+    node.material_path = material_bindings.front();
+  }
   return node;
 }
 
@@ -103,7 +125,7 @@ EngineSceneSnapshot BuildEngineSceneSnapshot(const freeusd::usd::Stage& stage, d
   snapshot.meters_per_unit = stage.GetMetersPerUnit();
   snapshot.up_axis = stage.GetUpAxis();
   snapshot.prim_order = stage.GetPrimOrder();
-  stage.TraversePreorder([&snapshot, time](const freeusd::usd::Prim& prim) {
+  stage.TraversePreorder([&snapshot, &stage, time](const freeusd::usd::Prim& prim) {
     EngineSceneNode node = build_scene_node(prim, time);
     if (node.has_skel_binding) {
       snapshot.skel_bound_geom_paths.push_back(node.path);
@@ -111,11 +133,29 @@ EngineSceneSnapshot BuildEngineSceneSnapshot(const freeusd::usd::Stage& stage, d
     if (node.has_blend_shapes) {
       snapshot.blend_shape_geom_paths.push_back(node.path);
     }
+    if (node.has_material_binding) {
+      snapshot.material_bound_geom_paths.push_back(node.path);
+    }
     if (prim.HasPrimKind() && prim.GetPrimKind() == freeusd::usdSkel::tokens::SkelRoot()) {
       snapshot.skel_root_paths.push_back(node.path);
     }
     if (prim.HasPrimKind() && prim.GetPrimKind() == freeusd::usdSkel::tokens::SkelAnimation()) {
       snapshot.skel_animation_paths.push_back(node.path);
+    }
+    const freeusd::usdShade::Material material(prim);
+    if (material) {
+      const freeusd::sdf::Path shader_path = material.GetSurfaceShaderPath();
+      if (!shader_path.IsEmpty()) {
+        const freeusd::usdShade::PreviewSurface preview(freeusd::usdShade::Shader(stage.GetPrimAtPath(shader_path)));
+        if (preview) {
+          append_unique_path(&snapshot.material_paths, prim.GetPath());
+          append_unique_path(&snapshot.preview_surface_shader_paths, shader_path);
+        }
+      }
+    }
+    const freeusd::usdShade::PreviewSurface preview_shader(freeusd::usdShade::Shader(prim));
+    if (preview_shader) {
+      append_unique_path(&snapshot.preview_surface_shader_paths, prim.GetPath());
     }
     snapshot.nodes.push_back(std::move(node));
     return true;
@@ -168,7 +208,7 @@ EngineRuntimeSupportReport AssessEngineRuntimeSupport(const freeusd::usd::Stage&
                    "Scene uses prefix substitutions; bake resolved asset paths into runtime assets.");
   }
 
-  stage.TraversePreorder([&](const freeusd::usd::Prim& prim) {
+  stage.TraversePreorder([&report, &stage](const freeusd::usd::Prim& prim) {
     if (!prim.IsValid()) {
       return true;
     }
@@ -192,6 +232,25 @@ EngineRuntimeSupportReport AssessEngineRuntimeSupport(const freeusd::usd::Stage&
           prim.GetRelationshipTargets(freeusd::usdSkel::tokens::skel_animationSource());
       report.uses_skel_animation = report.uses_skel_animation || !anim_targets.empty();
     }
+    const std::vector<freeusd::sdf::Path> material_bindings = prim.GetRelationshipTargets(material_binding_token());
+    if (!material_bindings.empty()) {
+      report.uses_material_bindings = true;
+      for (const freeusd::sdf::Path& material_path : material_bindings) {
+        const freeusd::usdShade::Material material(stage.GetPrimAtPath(material_path));
+        if (!material) {
+          continue;
+        }
+        const freeusd::sdf::Path shader_path = material.GetSurfaceShaderPath();
+        if (shader_path.IsEmpty()) {
+          continue;
+        }
+        const freeusd::usdShade::PreviewSurface preview(
+            freeusd::usdShade::Shader(stage.GetPrimAtPath(shader_path)));
+        report.uses_preview_surface = report.uses_preview_surface || static_cast<bool>(preview);
+      }
+    }
+    const freeusd::usdShade::PreviewSurface preview_shader(freeusd::usdShade::Shader(prim));
+    report.uses_preview_surface = report.uses_preview_surface || static_cast<bool>(preview_shader);
     for (const std::string& field_name : prim.ListAttributeNames()) {
       const freeusd::tf::Token token(field_name);
       report.uses_attribute_connections =

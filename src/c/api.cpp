@@ -2784,6 +2784,8 @@ int freeusd_usdutils_assess_engine_runtime_support(const FreeusdStage* stage, Fr
     out->uses_skel_bound_meshes = report.uses_skel_bound_meshes ? 1 : 0;
     out->uses_blend_shapes = report.uses_blend_shapes ? 1 : 0;
     out->uses_skel_animation = report.uses_skel_animation ? 1 : 0;
+    out->uses_material_bindings = report.uses_material_bindings ? 1 : 0;
+    out->uses_preview_surface = report.uses_preview_surface ? 1 : 0;
     clear_error();
     return FREEUSD_OK;
   } catch (const std::exception& e) {

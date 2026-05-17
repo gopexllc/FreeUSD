@@ -51,6 +51,7 @@
 #include "freeusd/usdSkel/skinning.hpp"
 #include "freeusd/usdSkel/skeleton.hpp"
 #include "freeusd/usdHydra/tokens.hpp"
+#include "freeusd/usdLux/distantLight.hpp"
 #include "freeusd/usdLux/tokens.hpp"
 #include "freeusd/usdMedia/tokens.hpp"
 #include "freeusd/usdMtlx/tokens.hpp"
@@ -2212,6 +2213,49 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
     auto usdLux = m.def_submodule("usdLux");
     auto lux_tokens = usdLux.def_submodule("tokens");
 #include "generated/usdLux_tokens.inc"
+
+    py::class_<freeusd::usdLux::DistantLight>(usdLux, "DistantLight")
+        .def(py::init<>())
+        .def(py::init<const freeusd::usd::Prim&>(), py::arg("prim"))
+        .def_readonly("prim", &freeusd::usdLux::DistantLight::prim)
+        .def_static(
+            "read_from_prim",
+            [](const std::shared_ptr<const freeusd::usd::Stage>& stage, const freeusd::sdf::Path& path) {
+              return freeusd::usdLux::DistantLight::ReadFromPrim(stage, path);
+            },
+            py::arg("stage"),
+            py::arg("path"))
+        .def("__bool__", [](const freeusd::usdLux::DistantLight& l) { return static_cast<bool>(l); })
+        .def(
+            "get_intensity",
+            [](const freeusd::usdLux::DistantLight& light, double time) -> py::object {
+              float v = 0.0f;
+              if (!light.GetIntensity(&v, time)) {
+                return py::none();
+              }
+              return py::cast(v);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_color",
+            [](const freeusd::usdLux::DistantLight& light, double time) -> py::object {
+              freeusd::gf::Vec3f c{};
+              if (!light.GetColor(&c, time)) {
+                return py::none();
+              }
+              return py::cast(c);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_angle",
+            [](const freeusd::usdLux::DistantLight& light, double time) -> py::object {
+              float v = 0.0f;
+              if (!light.GetAngle(&v, time)) {
+                return py::none();
+              }
+              return py::cast(v);
+            },
+            py::arg("time") = 1.0);
   }
 
   {
@@ -2739,7 +2783,9 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def_readwrite("has_skel_binding", &freeusd::usdUtils::EngineSceneNode::has_skel_binding)
         .def_readwrite("skel_skeleton_path", &freeusd::usdUtils::EngineSceneNode::skel_skeleton_path)
         .def_readwrite("has_blend_shapes", &freeusd::usdUtils::EngineSceneNode::has_blend_shapes)
-        .def_readwrite("blend_shape_tokens", &freeusd::usdUtils::EngineSceneNode::blend_shape_tokens);
+        .def_readwrite("blend_shape_tokens", &freeusd::usdUtils::EngineSceneNode::blend_shape_tokens)
+        .def_readwrite("has_material_binding", &freeusd::usdUtils::EngineSceneNode::has_material_binding)
+        .def_readwrite("material_path", &freeusd::usdUtils::EngineSceneNode::material_path);
     py::class_<freeusd::usdUtils::EngineSceneSnapshot>(usdUtils, "EngineSceneSnapshot")
         .def(py::init<>())
         .def_readwrite("root_identifier", &freeusd::usdUtils::EngineSceneSnapshot::root_identifier)
@@ -2757,7 +2803,12 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def_readwrite("skel_bound_geom_paths", &freeusd::usdUtils::EngineSceneSnapshot::skel_bound_geom_paths)
         .def_readwrite("blend_shape_geom_paths", &freeusd::usdUtils::EngineSceneSnapshot::blend_shape_geom_paths)
         .def_readwrite("skel_root_paths", &freeusd::usdUtils::EngineSceneSnapshot::skel_root_paths)
-        .def_readwrite("skel_animation_paths", &freeusd::usdUtils::EngineSceneSnapshot::skel_animation_paths);
+        .def_readwrite("skel_animation_paths", &freeusd::usdUtils::EngineSceneSnapshot::skel_animation_paths)
+        .def_readwrite("material_bound_geom_paths",
+                       &freeusd::usdUtils::EngineSceneSnapshot::material_bound_geom_paths)
+        .def_readwrite("material_paths", &freeusd::usdUtils::EngineSceneSnapshot::material_paths)
+        .def_readwrite("preview_surface_shader_paths",
+                       &freeusd::usdUtils::EngineSceneSnapshot::preview_surface_shader_paths);
     py::class_<freeusd::usdUtils::EnginePrimEditorView>(usdUtils, "EnginePrimEditorView")
         .def(py::init<>())
         .def_readwrite("path", &freeusd::usdUtils::EnginePrimEditorView::path)
@@ -2792,6 +2843,9 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
                        &freeusd::usdUtils::EngineRuntimeSupportReport::uses_skel_bound_meshes)
         .def_readwrite("uses_blend_shapes", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_blend_shapes)
         .def_readwrite("uses_skel_animation", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_skel_animation)
+        .def_readwrite("uses_material_bindings",
+                       &freeusd::usdUtils::EngineRuntimeSupportReport::uses_material_bindings)
+        .def_readwrite("uses_preview_surface", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_preview_surface)
         .def_readwrite("warnings", &freeusd::usdUtils::EngineRuntimeSupportReport::warnings);
     py::class_<freeusd::usdUtils::FlattenOptions>(usdUtils, "FlattenOptions")
         .def(py::init<>())
