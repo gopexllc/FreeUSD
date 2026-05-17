@@ -78,6 +78,22 @@ if(FREEUSD_BUILD_TESTS)
   target_compile_definitions(
     freeusd_usd_skel_blend_shapes_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
 
+  add_executable(freeusd_usd_skel_skinning_matrices_test tests/usd_skel_skinning_matrices_test.cpp)
+  target_link_libraries(freeusd_usd_skel_skinning_matrices_test PRIVATE freeusd::usdSkel freeusd::gf)
+
+  add_executable(freeusd_stage_kind_active_test tests/stage_kind_active_test.cpp)
+  target_link_libraries(freeusd_stage_kind_active_test PRIVATE freeusd::usd)
+  target_compile_definitions(
+    freeusd_stage_kind_active_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+
+  add_executable(freeusd_usd_lux_distant_light_test tests/usd_lux_distant_light_test.cpp)
+  target_link_libraries(freeusd_usd_lux_distant_light_test PRIVATE freeusd::usd freeusd::usdLux)
+  target_compile_definitions(
+    freeusd_usd_lux_distant_light_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+
+  add_executable(freeusd_ar_path_security_test tests/ar_path_security_test.cpp)
+  target_link_libraries(freeusd_ar_path_security_test PRIVATE freeusd::ar)
+
   add_executable(freeusd_engine_integration_test tests/engine_integration_test.cpp)
   target_link_libraries(freeusd_engine_integration_test PRIVATE freeusd::usd freeusd::usdUtils freeusd::usdGeom freeusd::usdSkel)
   target_compile_definitions(
@@ -132,6 +148,10 @@ if(FREEUSD_BUILD_TESTS)
   add_test(NAME freeusd_usd_skel_smoke_test COMMAND freeusd_usd_skel_smoke_test)
   add_test(NAME freeusd_usd_shade_smoke_test COMMAND freeusd_usd_shade_smoke_test)
   add_test(NAME freeusd_usd_skel_blend_shapes_test COMMAND freeusd_usd_skel_blend_shapes_test)
+  add_test(NAME freeusd_usd_skel_skinning_matrices_test COMMAND freeusd_usd_skel_skinning_matrices_test)
+  add_test(NAME freeusd_stage_kind_active_test COMMAND freeusd_stage_kind_active_test)
+  add_test(NAME freeusd_usd_lux_distant_light_test COMMAND freeusd_usd_lux_distant_light_test)
+  add_test(NAME freeusd_ar_path_security_test COMMAND freeusd_ar_path_security_test)
   add_test(NAME freeusd_engine_integration_test COMMAND freeusd_engine_integration_test)
   add_test(NAME freeusd_schema_tokens_bundle_test COMMAND freeusd_schema_tokens_bundle_test)
   add_test(NAME freeusd_time_code_test COMMAND freeusd_time_code_test)
@@ -254,7 +274,11 @@ if(FREEUSD_BUILD_TESTS)
     freeusd_stage_open_file_test
     freeusd_parity_fixtures_test
     freeusd_usd_skel_smoke_test
+    freeusd_usd_skel_skinning_matrices_test
     freeusd_usd_shade_smoke_test
+    freeusd_stage_kind_active_test
+    freeusd_usd_lux_distant_light_test
+    freeusd_ar_path_security_test
     freeusd_engine_integration_test
     freeusd_schema_tokens_bundle_test
     freeusd_time_code_test
