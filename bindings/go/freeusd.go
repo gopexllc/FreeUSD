@@ -1248,6 +1248,8 @@ type EngineRuntimeSupport struct {
 	UsesSkelBoundMeshes        bool
 	UsesBlendShapes            bool
 	UsesSkelAnimation          bool
+	UsesMaterialBindings       bool
+	UsesPreviewSurface         bool
 }
 
 // AssessEngineRuntimeSupport reports which engine integration mode fits the composed stage.
@@ -1277,6 +1279,8 @@ func (s *Stage) AssessEngineRuntimeSupport() (report EngineRuntimeSupport, rc in
 	report.UsesSkelBoundMeshes = raw.uses_skel_bound_meshes != 0
 	report.UsesBlendShapes = raw.uses_blend_shapes != 0
 	report.UsesSkelAnimation = raw.uses_skel_animation != 0
+	report.UsesMaterialBindings = raw.uses_material_bindings != 0
+	report.UsesPreviewSurface = raw.uses_preview_surface != 0
 	return report, 0
 }
 

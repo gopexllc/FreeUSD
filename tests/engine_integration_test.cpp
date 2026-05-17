@@ -167,5 +167,28 @@ int main() {
     assert(report.recommended_mode == EngineRuntimeMode::PreBakedAssetsOnly);
   }
 
+  {
+    std::string err;
+    auto stage =
+        Stage::OpenFromRootFile(fixture("parity_shade_preview.usda"), RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const auto snapshot = BuildEngineSceneSnapshot(*stage, 1.0);
+    assert(snapshot.material_bound_geom_paths.size() == 1u);
+    assert(snapshot.material_bound_geom_paths[0] == Path::FromString("/World/Cube"));
+    assert(snapshot.material_paths.size() == 1u);
+    assert(snapshot.material_paths[0] == Path::FromString("/World/Looks/Material"));
+    assert(snapshot.preview_surface_shader_paths.size() == 1u);
+    assert(snapshot.preview_surface_shader_paths[0] == Path::FromString("/World/Looks/Material/PreviewSurface"));
+    const auto* cube = find_node(snapshot, Path::FromString("/World/Cube"));
+    assert(cube != nullptr);
+    assert(cube->has_material_binding);
+    assert(cube->material_path == Path::FromString("/World/Looks/Material"));
+
+    const auto report = AssessEngineRuntimeSupport(*stage);
+    assert(report.uses_material_bindings);
+    assert(report.uses_preview_surface);
+    assert(report.recommended_mode == EngineRuntimeMode::HybridMetadata);
+  }
+
   return 0;
 }
