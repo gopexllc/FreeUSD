@@ -44,6 +44,8 @@ Status vocabulary:
   Single-point mesh with joint influences plus animated `SkelAnimation` for CPU linear blend skinning (`DeformPointsWithSkeleton`).
 - `tests/fixtures/parity_shade_preview.usda`
   `Material` with `UsdPreviewSurface` shader, `outputs:surface` connection, and `material:binding` on a mesh.
+- `tests/fixtures/parity_lux_distant.usda`
+  `DistantLight` with `inputs:intensity`, `inputs:color`, and `inputs:angle`.
 
 ## Current Matrix
 
@@ -65,7 +67,8 @@ Status vocabulary:
 - `partial`: flattening now preserves evaluated defaults plus composed sample times, but it does not yet reconstruct full authored layer provenance for every arc source.
 - `partial`: `usdSkel::Skeleton` and `usdSkel::SkelAnimation` read joints, bind/rest matrices, and sampled TRS arrays from USDA; glTF mapping helpers build parent indices and world bind matrices; `SkelBinding` resolves `skel:skeleton` plus `primvars:skel:jointIndices` / `jointWeights`; `SkelRoot` finds skeleton and `skel:animationSource` under a scope (`parity_skel_binding.usda`); `BlendShape` / `SkelBlendShapes` / `MorphTargets` read morph offsets, remap animation weights, and apply CPU morph accumulation (`parity_skel_blend_shapes.usda`; glTF `mesh.weights` + morph target POSITION deltas); `DeformPointsWithSkeleton` performs CPU LBS from joint world matrices and inverse bind transforms (`parity_skel_skinning.usda`).
 - `partial`: `usdShade::Material` resolves `outputs:surface` to a shader prim; `usdShade::Shader` / `PreviewSurface` read `info:id` and common `UsdPreviewSurface` inputs (`diffuseColor`, `metallic`, `roughness`, `opacity`) with connection following (`parity_shade_preview.usda`).
-- `token-only`: most other non-`usdGeom` / non-`usdSkel` / non-`usdShade` schema packages remain generated token surfaces only.
+- `partial`: `usdLux::DistantLight` reads `inputs:intensity`, `inputs:color`, and `inputs:angle` at a time code (`parity_lux_distant.usda`).
+- `token-only`: most other non-`usdGeom` / non-`usdSkel` / non-`usdShade` / non-`usdLux` schema packages remain generated token surfaces only.
 
 ### ABI And Bindings
 
@@ -81,7 +84,7 @@ Status vocabulary:
 ### Engine Integration Contract
 
 - `implemented`: `docs/engine-supported-subset.md`, `docs/engine-integration.md`, clean-room/fixture/claim policy docs, `usdUtils::engineScene`, and focused engine integration tests freeze the USDA-first engine path.
-- `partial`: shipping runtime remains intentionally narrow; arbitrary `.usdc` scene decode and broad live-stage runtime guarantees are still out of scope.
+- `partial`: shipping runtime remains intentionally narrow; engine snapshots now list material bindings, preview-surface materials, and distant lights; `AssessEngineRuntimeSupport` reports `uses_material_bindings` / `uses_preview_surface`; arbitrary `.usdc` scene decode and broad live-stage runtime guarantees are still out of scope.
 
 ## Acceptance Criteria
 
