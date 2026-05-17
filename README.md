@@ -44,7 +44,9 @@ cmake --build build -j
 ctest --test-dir build --output-on-failure
 ```
 
-**Continuous integration** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)):
+**Continuous integration** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml), [troubleshooting](docs/github-actions.md)):
+
+If Actions jobs fail instantly with a billing lock message, fix org billing or run [`scripts/run_ci_locally.sh`](scripts/run_ci_locally.sh) locally.
 
 - **Linux / macOS / Windows** (VS 2022 Release): C++ tests, Python **off**, `FREEUSD_TEST_INSTALL_INTEGRATION=ON` for `find_package`.
 - **`tree-hygiene`:** fails if any `build-*` path is tracked in git and verifies the engine contract / clean-room docs remain present.
