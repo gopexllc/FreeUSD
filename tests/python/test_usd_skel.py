@@ -7,6 +7,7 @@ from pathlib import Path
 from freeusd.gf import Vec3f
 from freeusd.sdf import Path as SdfPath
 from freeusd.usd import RootLayerSublayersPolicy, Stage
+from freeusd.gf import Matrix4d
 from freeusd.usdSkel import (
     MorphTargets,
     SkelAnimation,
@@ -14,6 +15,7 @@ from freeusd.usdSkel import (
     SkelRoot,
     Skeleton,
     build_joint_world_matrices_from_animation,
+    compute_skinning_matrices,
     deform_points_with_skeleton,
 )
 from freeusd.usdSkel.gltf_mapping import build_joint_parent_indices
@@ -21,6 +23,22 @@ from freeusd.usdSkel.gltf_mapping import build_joint_parent_indices
 
 # glTF mapping: joints -> skin.joints; translations/rotations/scales -> animation TRS channels
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
+
+
+def test_compute_skinning_matrices_single_joint_identity_bind() -> None:
+    world = [Matrix4d.Translate(0.0, 2.0, 0.0)]
+    bind = [Matrix4d.Identity()]
+    palette = compute_skinning_matrices(world, bind)
+    assert palette is not None
+    assert len(palette) == 1
+    row = palette[0]
+    assert abs(row[13] - 2.0) < 1e-5
+
+
+def test_compute_skinning_matrices_rejects_size_mismatch() -> None:
+    world = [Matrix4d.Identity(), Matrix4d.Identity()]
+    bind = [Matrix4d.Identity()]
+    assert compute_skinning_matrices(world, bind) is None
 
 
 def test_parity_skel_gltf_fixture_matches_gltf_channel_shape() -> None:
@@ -165,3 +183,13 @@ def test_parity_skel_skinning_fixture_deforms_point() -> None:
     deformed = deform_points_with_skeleton(points, indices, weights, 1, joint_world, bind)
     assert deformed is not None
     assert deformed[0][1] > points[0].y()
+
+
+def test_compute_skinning_matrices_palette() -> None:
+    world = [Matrix4d.Identity(), Matrix4d.Translate(0.0, 2.0, 0.0)]
+    bind = [Matrix4d.Identity(), Matrix4d.Translate(0.0, 1.0, 0.0)]
+    palette = compute_skinning_matrices(world, bind)
+    assert palette is not None
+    assert len(palette) == 2
+    assert abs(palette[0][13]) < 1e-5
+    assert abs(palette[1][13] - 3.0) < 1e-5

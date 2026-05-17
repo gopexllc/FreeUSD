@@ -95,7 +95,8 @@ if(FREEUSD_BUILD_TESTS)
   target_link_libraries(freeusd_ar_path_security_test PRIVATE freeusd::ar)
 
   add_executable(freeusd_engine_integration_test tests/engine_integration_test.cpp)
-  target_link_libraries(freeusd_engine_integration_test PRIVATE freeusd::usd freeusd::usdUtils freeusd::usdGeom freeusd::usdSkel)
+  target_link_libraries(freeusd_engine_integration_test PRIVATE freeusd::usd freeusd::usdUtils freeusd::usdGeom freeusd::usdSkel
+                                                                 freeusd::usdShade)
   target_compile_definitions(
     freeusd_engine_integration_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
 

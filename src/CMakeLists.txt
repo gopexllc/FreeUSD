@@ -76,19 +76,26 @@ add_library(freeusd::usdSkel ALIAS freeusd_usdSkel)
 target_include_directories(freeusd_usdSkel PUBLIC "$<BUILD_INTERFACE:${FREEUSD_INC}>" "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
 target_link_libraries(freeusd_usdSkel PUBLIC freeusd_usd freeusd_gf freeusd_vt freeusd_tf freeusd_build_settings)
 target_link_libraries(freeusd_usdSkel INTERFACE freeusd_usdGeom)
-target_link_libraries(freeusd_usdUtils PUBLIC freeusd_usdSkel)
 
 add_library(freeusd_usdShade STATIC usdShade/material.cpp usdShade/shader.cpp usdShade/previewSurface.cpp)
 add_library(freeusd::usdShade ALIAS freeusd_usdShade)
 target_include_directories(freeusd_usdShade PUBLIC "$<BUILD_INTERFACE:${FREEUSD_INC}>" "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
 target_link_libraries(freeusd_usdShade PUBLIC freeusd_usd freeusd_gf freeusd_vt freeusd_tf freeusd_build_settings)
 
+add_library(freeusd_usdLux STATIC usdLux/distantLight.cpp)
+add_library(freeusd::usdLux ALIAS freeusd_usdLux)
+target_include_directories(freeusd_usdLux PUBLIC "$<BUILD_INTERFACE:${FREEUSD_INC}>" "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
+target_link_libraries(freeusd_usdLux PUBLIC freeusd_usd freeusd_gf freeusd_vt freeusd_tf freeusd_build_settings)
+target_link_libraries(freeusd_usdLux INTERFACE freeusd_usdGeom)
+set_target_properties(freeusd_usdLux PROPERTIES EXPORT_NAME usdLux)
+
+target_link_libraries(freeusd_usdUtils PUBLIC freeusd_usdSkel freeusd_usdShade)
+
 # Header-only schema stubs (OpenUSD-shaped package names; clean-room tokens only).
 foreach(
   _pkg
   IN
   ITEMS
-  usdLux
   usdPhysics
   usdVol
   usdMedia
@@ -105,7 +112,6 @@ foreach(
   target_link_libraries(freeusd_${_pkg} INTERFACE freeusd_usd freeusd_tf)
   set_target_properties(freeusd_${_pkg} PROPERTIES EXPORT_NAME ${_pkg})
 endforeach()
-target_link_libraries(freeusd_usdLux INTERFACE freeusd_usdGeom)
 target_link_libraries(freeusd_usdPhysics INTERFACE freeusd_usdGeom)
 target_link_libraries(freeusd_usdVol INTERFACE freeusd_usdGeom)
 
@@ -160,6 +166,7 @@ target_link_libraries(
     freeusd_usdGeom
     freeusd_usdSkel
     freeusd_usdShade
+    freeusd_usdLux
     freeusd_plug
     freeusd_trace
     freeusd_work

@@ -103,5 +103,24 @@ int main(void) {
     return 11;
   }
 
+  {
+    double one_world[16];
+    double one_bind[16];
+    double one_palette[16];
+    memset(one_world, 0, sizeof one_world);
+    memset(one_bind, 0, sizeof one_bind);
+    one_world[0] = one_world[5] = one_world[10] = one_world[15] = 1.0;
+    one_world[13] = 2.0;
+    one_bind[0] = one_bind[5] = one_bind[10] = one_bind[15] = 1.0;
+    if (freeusd_usdskel_compute_skinning_matrices(1, one_world, one_bind, one_palette) != FREEUSD_OK) {
+      fprintf(stderr, "single-joint skinning failed: %s\n", freeusd_last_error_message());
+      return 12;
+    }
+    if (!nearly(one_palette[13], 2.0)) {
+      fprintf(stderr, "single-joint palette translation mismatch\n");
+      return 13;
+    }
+  }
+
   return 0;
 }
