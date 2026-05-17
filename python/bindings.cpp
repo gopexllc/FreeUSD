@@ -59,6 +59,9 @@
 #include "freeusd/usdRender/tokens.hpp"
 #include "freeusd/usdRi/tokens.hpp"
 #include "freeusd/usdSemantics/tokens.hpp"
+#include "freeusd/usdShade/material.hpp"
+#include "freeusd/usdShade/previewSurface.hpp"
+#include "freeusd/usdShade/shader.hpp"
 #include "freeusd/usdShade/tokens.hpp"
 #include "freeusd/usdSkel/tokens.hpp"
 #include "freeusd/usdUI/tokens.hpp"
@@ -2073,6 +2076,136 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
     auto usdShade = m.def_submodule("usdShade");
     auto shade_tokens = usdShade.def_submodule("tokens");
 #include "generated/usdShade_tokens.inc"
+
+    py::class_<freeusd::usdShade::Material>(usdShade, "Material")
+        .def(py::init<>())
+        .def(py::init<const freeusd::usd::Prim&>(), py::arg("prim"))
+        .def_readonly("prim", &freeusd::usdShade::Material::prim)
+        .def_static(
+            "read_from_prim",
+            [](const std::shared_ptr<const freeusd::usd::Stage>& stage, const freeusd::sdf::Path& path) {
+              return freeusd::usdShade::Material::ReadFromPrim(stage, path);
+            },
+            py::arg("stage"),
+            py::arg("path"))
+        .def("__bool__", [](const freeusd::usdShade::Material& m) { return static_cast<bool>(m); })
+        .def("get_surface_shader_path", &freeusd::usdShade::Material::GetSurfaceShaderPath)
+        .def("list_shader_prim_paths", &freeusd::usdShade::Material::ListShaderPrimPaths);
+
+    py::class_<freeusd::usdShade::Shader>(usdShade, "Shader")
+        .def(py::init<>())
+        .def(py::init<const freeusd::usd::Prim&>(), py::arg("prim"))
+        .def_readonly("prim", &freeusd::usdShade::Shader::prim)
+        .def_static(
+            "read_from_prim",
+            [](const std::shared_ptr<const freeusd::usd::Stage>& stage, const freeusd::sdf::Path& path) {
+              return freeusd::usdShade::Shader::ReadFromPrim(stage, path);
+            },
+            py::arg("stage"),
+            py::arg("path"))
+        .def("__bool__", [](const freeusd::usdShade::Shader& s) { return static_cast<bool>(s); })
+        .def("get_shader_id", &freeusd::usdShade::Shader::GetShaderId)
+        .def(
+            "get_input",
+            [](const freeusd::usdShade::Shader& shader, const freeusd::tf::Token& name, double time) {
+              return shader.GetInput(name, time);
+            },
+            py::arg("input_name"),
+            py::arg("time") = 1.0)
+        .def(
+            "get_diffuse_color",
+            [&](const freeusd::usdShade::Shader& shader, double time) -> py::object {
+              freeusd::gf::Vec3f c{};
+              if (!shader.GetDiffuseColor(&c, time)) {
+                return py::none();
+              }
+              return py::cast(c);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_metallic",
+            [&](const freeusd::usdShade::Shader& shader, double time) -> py::object {
+              float v = 0.0f;
+              if (!shader.GetMetallic(&v, time)) {
+                return py::none();
+              }
+              return py::cast(v);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_roughness",
+            [&](const freeusd::usdShade::Shader& shader, double time) -> py::object {
+              float v = 0.0f;
+              if (!shader.GetRoughness(&v, time)) {
+                return py::none();
+              }
+              return py::cast(v);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_opacity",
+            [&](const freeusd::usdShade::Shader& shader, double time) -> py::object {
+              float v = 0.0f;
+              if (!shader.GetOpacity(&v, time)) {
+                return py::none();
+              }
+              return py::cast(v);
+            },
+            py::arg("time") = 1.0);
+
+    py::class_<freeusd::usdShade::PreviewSurface>(usdShade, "PreviewSurface")
+        .def(py::init<>())
+        .def(py::init<const freeusd::usdShade::Shader&>(), py::arg("shader"))
+        .def_readonly("shader", &freeusd::usdShade::PreviewSurface::shader)
+        .def_static(
+            "read_from_prim",
+            [](const std::shared_ptr<const freeusd::usd::Stage>& stage, const freeusd::sdf::Path& path) {
+              return freeusd::usdShade::PreviewSurface::ReadFromPrim(stage, path);
+            },
+            py::arg("stage"),
+            py::arg("path"))
+        .def("__bool__", [](const freeusd::usdShade::PreviewSurface& p) { return static_cast<bool>(p); })
+        .def("is_preview_surface", &freeusd::usdShade::PreviewSurface::IsPreviewSurface)
+        .def(
+            "get_diffuse_color",
+            [&](const freeusd::usdShade::PreviewSurface& preview, double time) -> py::object {
+              freeusd::gf::Vec3f c{};
+              if (!preview.GetDiffuseColor(&c, time)) {
+                return py::none();
+              }
+              return py::cast(c);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_metallic",
+            [&](const freeusd::usdShade::PreviewSurface& preview, double time) -> py::object {
+              float v = 0.0f;
+              if (!preview.GetMetallic(&v, time)) {
+                return py::none();
+              }
+              return py::cast(v);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_roughness",
+            [&](const freeusd::usdShade::PreviewSurface& preview, double time) -> py::object {
+              float v = 0.0f;
+              if (!preview.GetRoughness(&v, time)) {
+                return py::none();
+              }
+              return py::cast(v);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_opacity",
+            [&](const freeusd::usdShade::PreviewSurface& preview, double time) -> py::object {
+              float v = 0.0f;
+              if (!preview.GetOpacity(&v, time)) {
+                return py::none();
+              }
+              return py::cast(v);
+            },
+            py::arg("time") = 1.0);
   }
 
   {
@@ -2474,7 +2607,7 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
 
     usdSkel.def(
         "compute_skinning_matrices",
-        [](const py::list& joint_world, const py::list& inverse_bind) -> py::object {
+        [matrix4d_from_py_rows](const py::list& joint_world, const py::list& inverse_bind) -> py::object {
           const std::vector<freeusd::gf::Matrix4d> world = matrix4d_from_py_rows(joint_world);
           const std::vector<freeusd::gf::Matrix4d> bind = matrix4d_from_py_rows(inverse_bind);
           std::vector<freeusd::gf::Matrix4d> palette;

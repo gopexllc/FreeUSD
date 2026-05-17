@@ -78,12 +78,16 @@ target_link_libraries(freeusd_usdSkel PUBLIC freeusd_usd freeusd_gf freeusd_vt f
 target_link_libraries(freeusd_usdSkel INTERFACE freeusd_usdGeom)
 target_link_libraries(freeusd_usdUtils PUBLIC freeusd_usdSkel)
 
+add_library(freeusd_usdShade STATIC usdShade/material.cpp usdShade/shader.cpp usdShade/previewSurface.cpp)
+add_library(freeusd::usdShade ALIAS freeusd_usdShade)
+target_include_directories(freeusd_usdShade PUBLIC "$<BUILD_INTERFACE:${FREEUSD_INC}>" "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
+target_link_libraries(freeusd_usdShade PUBLIC freeusd_usd freeusd_gf freeusd_vt freeusd_tf freeusd_build_settings)
+
 # Header-only schema stubs (OpenUSD-shaped package names; clean-room tokens only).
 foreach(
   _pkg
   IN
   ITEMS
-  usdShade
   usdLux
   usdPhysics
   usdVol
@@ -155,6 +159,7 @@ target_link_libraries(
     freeusd_usdUtils
     freeusd_usdGeom
     freeusd_usdSkel
+    freeusd_usdShade
     freeusd_plug
     freeusd_trace
     freeusd_work
@@ -185,6 +190,7 @@ set_target_properties(freeusd_usd PROPERTIES EXPORT_NAME usd)
 set_target_properties(freeusd_usdUtils PROPERTIES EXPORT_NAME usdUtils)
 set_target_properties(freeusd_usdGeom PROPERTIES EXPORT_NAME usdGeom)
 set_target_properties(freeusd_usdSkel PROPERTIES EXPORT_NAME usdSkel)
+set_target_properties(freeusd_usdShade PROPERTIES EXPORT_NAME usdShade)
 set_target_properties(freeusd_usd_schemas PROPERTIES EXPORT_NAME usd_schemas)
 set_target_properties(freeusd_plug PROPERTIES EXPORT_NAME plug)
 set_target_properties(freeusd_trace PROPERTIES EXPORT_NAME trace)

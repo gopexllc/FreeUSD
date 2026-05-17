@@ -12,6 +12,8 @@
 #include "freeusd/usdSkel/morphTargets.hpp"
 #include "freeusd/usdSkel/skelRoot.hpp"
 #include "freeusd/usdSkel/skeleton.hpp"
+#include "freeusd/usdShade/material.hpp"
+#include "freeusd/usdShade/previewSurface.hpp"
 #include "freeusd/usdUtils/pipeline.hpp"
 #include "freeusd/vt/value.hpp"
 
@@ -250,6 +252,23 @@ int main() {
     assert(morphed.size() == 2u);
     assert(morphed[0].y() == 1.0f);
     assert(morphed[0].z() == 0.5f);
+  }
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_shade_preview.usda"),
+                                         freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const freeusd::usdShade::Material mat(
+        freeusd::usdShade::Material::ReadFromPrim(stage, Path::FromString("/World/Looks/Material")));
+    assert(mat);
+    const Path shader_path = mat.GetSurfaceShaderPath();
+    assert(shader_path == Path::FromString("/World/Looks/Material/PreviewSurface"));
+    const freeusd::usdShade::PreviewSurface preview = freeusd::usdShade::PreviewSurface::ReadFromPrim(stage, shader_path);
+    assert(preview && preview.IsPreviewSurface());
+    freeusd::gf::Vec3f diffuse{};
+    assert(preview.GetDiffuseColor(&diffuse, 1.0));
+    assert(diffuse.x() == 0.8f && diffuse.y() == 0.2f && diffuse.z() == 0.1f);
   }
 
   return 0;
