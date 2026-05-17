@@ -685,7 +685,7 @@ pub fn read_usdc_path_table_from_path(path: &str, max_entries: u64, max_total_by
 }
 
 pub fn read_usdc_fields_table_from_path(path: &str, max_entries: u64, max_total_bytes: u64) -> Result<Vec<UsdcFieldEntry>, i32> {
-    let cpath = CString::new(path).map_err(|_| FREEUSD_ERR_INVALID_ARGUMENT)?;
+    let cpath = CString::new(path).map_err(|_| 1i32)?;
     let mut raw: *mut FreeusdUsdcFieldEntry = ptr::null_mut();
     let mut count: usize = 0;
     let rc = unsafe {
@@ -697,7 +697,7 @@ pub fn read_usdc_fields_table_from_path(path: &str, max_entries: u64, max_total_
             &mut count,
         )
     };
-    if rc != FREEUSD_OK {
+    if rc != 0 {
         return Err(rc);
     }
     if raw.is_null() || count == 0 {
