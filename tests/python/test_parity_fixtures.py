@@ -8,6 +8,7 @@ from freeusd.usd import RootLayerSublayersPolicy, Stage
 from freeusd.usd.crate import (
     read_usdc_fields_table_from_path,
     read_usdc_specs_table_from_path,
+    read_usdc_fieldsets_table_from_path,
     read_usdc_path_table_from_path,
     read_usdc_string_table_from_path,
     read_usdc_token_table_from_path,
@@ -85,6 +86,10 @@ def test_parity_tables_fixture_decodes_structured_usdc_tables() -> None:
         {"path_index": 1, "field_set_index": 1, "spec_type": 2},
     ]
 
+    ok, fieldsets, err = read_usdc_fieldsets_table_from_path(usdc, 8, 8, 1024)
+    assert ok and err == ""
+    assert fieldsets == [[0, 1], [1]]
+
 
 def test_parity_geom_mesh_fixture_reads_points() -> None:
     from freeusd import Stage
@@ -99,6 +104,106 @@ def test_parity_geom_mesh_fixture_reads_points() -> None:
     assert len(points) == 3
     counts = mesh.get_face_vertex_counts(1.0)
     assert counts == [3]
+    assert mesh.get_face_vertex_indices(1.0) == [0, 1, 2]
+    colors = mesh.get_display_color(1.0)
+    assert len(colors) == 3
+    normals = mesh.get_normals(1.0)
+    assert len(normals) == 3
+    assert all(abs(n.z() - 1.0) < 1e-5 for n in normals)
+    st = mesh.get_primvars_st(1.0)
+    assert len(st) == 3
+    assert abs(st[1].s - 1.0) < 1e-5
+    assert mesh.get_display_opacity(1.0) == 0.75
+
+
+def test_parity_shade_texture_fixture_reads_asset_path() -> None:
+    from freeusd import Stage
+    from freeusd.sdf import SdfPath
+    from freeusd.usd import RootLayerSublayersPolicy
+    from freeusd.usdShade import Material, PreviewSurface
+
+    stage = Stage.open_from_root_file(str(FIXTURES / "parity_shade_texture.usda"), RootLayerSublayersPolicy.none)
+    assert stage is not None
+    mat = Material.read_from_prim(stage, SdfPath.from_string("/World/Looks/Material"))
+    preview = PreviewSurface.read_from_prim(stage, mat.get_surface_shader_path())
+    assert preview.get_diffuse_texture_asset_path(1.0) == "textures/albedo.png"
+
+
+def test_parity_lux_sphere_fixture_reads_inputs() -> None:
+    from freeusd import Stage
+    from freeusd.sdf import SdfPath
+    from freeusd.usd import RootLayerSublayersPolicy
+    from freeusd.usdLux import SphereLight
+
+    stage = Stage.open_from_root_file(str(FIXTURES / "parity_lux_sphere.usda"), RootLayerSublayersPolicy.none)
+    assert stage is not None
+    light = SphereLight.read_from_prim(stage, SdfPath.from_string("/World/Bulb"))
+    assert light.get_radius(1.0) == 0.25
+
+
+def test_parity_shade_pbr_textures_fixture() -> None:
+    from freeusd import Stage
+    from freeusd.sdf import SdfPath
+    from freeusd.usd import RootLayerSublayersPolicy
+    from freeusd.usdShade import PreviewSurface
+
+    stage = Stage.open_from_root_file(
+        str(FIXTURES / "parity_shade_pbr_textures.usda"), RootLayerSublayersPolicy.none
+    )
+    assert stage is not None
+    preview = PreviewSurface.read_from_prim(stage, SdfPath.from_string("/World/Looks/Material/PreviewSurface"))
+    assert preview.get_normal_texture_asset_path(1.0) == "textures/normal.png"
+    assert preview.get_roughness_texture_asset_path(1.0) == "textures/roughness.png"
+
+
+def test_parity_lux_disk_fixture_reads_inputs() -> None:
+    from freeusd import Stage
+    from freeusd.sdf import SdfPath
+    from freeusd.usd import RootLayerSublayersPolicy
+    from freeusd.usdLux import DiskLight
+
+    stage = Stage.open_from_root_file(str(FIXTURES / "parity_lux_disk.usda"), RootLayerSublayersPolicy.none)
+    assert stage is not None
+    light = DiskLight.read_from_prim(stage, SdfPath.from_string("/World/Softbox"))
+    assert light.get_radius(1.0) == 0.75
+
+
+def test_parity_lux_dome_fixture_reads_inputs() -> None:
+    from freeusd import Stage
+    from freeusd.sdf import SdfPath
+    from freeusd.usd import RootLayerSublayersPolicy
+    from freeusd.usdLux import DomeLight
+
+    stage = Stage.open_from_root_file(str(FIXTURES / "parity_lux_dome.usda"), RootLayerSublayersPolicy.none)
+    assert stage is not None
+    light = DomeLight.read_from_prim(stage, SdfPath.from_string("/World/Sky"))
+    assert light.get_texture_file_asset_path(1.0) == "textures/sky.hdr"
+    assert light.get_texture_format(1.0) == "latlong"
+
+
+def test_parity_lux_cylinder_fixture_reads_inputs() -> None:
+    from freeusd import Stage
+    from freeusd.sdf import SdfPath
+    from freeusd.usd import RootLayerSublayersPolicy
+    from freeusd.usdLux import CylinderLight
+
+    stage = Stage.open_from_root_file(str(FIXTURES / "parity_lux_cylinder.usda"), RootLayerSublayersPolicy.none)
+    assert stage is not None
+    light = CylinderLight.read_from_prim(stage, SdfPath.from_string("/World/Tube"))
+    assert light.get_length(1.0) == 2.5
+
+
+def test_parity_lux_rect_fixture_reads_inputs() -> None:
+    from freeusd import Stage
+    from freeusd.sdf import SdfPath
+    from freeusd.usd import RootLayerSublayersPolicy
+    from freeusd.usdLux import RectLight
+
+    stage = Stage.open_from_root_file(str(FIXTURES / "parity_lux_rect.usda"), RootLayerSublayersPolicy.none)
+    assert stage is not None
+    light = RectLight.read_from_prim(stage, SdfPath.from_string("/World/Panel"))
+    assert light.get_width(1.0) == 2.0
+    assert light.get_height(1.0) == 1.0
 
 
 def test_parity_imageable_fixture_is_primary_scene_anchor() -> None:

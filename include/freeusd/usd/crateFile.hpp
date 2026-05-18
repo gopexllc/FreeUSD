@@ -115,6 +115,21 @@ FREEUSD_API bool ReadUsdCrateSpecsTableFromPath(const std::string& path, UsdcCra
                                                 std::size_t max_entries, std::size_t max_total_bytes,
                                                 std::string* err_out = nullptr);
 
+/// One decoded field set: indices into the ``FIELDS`` table rows.
+struct UsdcCrateFieldSet {
+  std::vector<std::uint64_t> field_indices;
+};
+
+/// Validated ``FIELDSETS`` table: ``uint64_t`` set count, then per set a field count and index list.
+struct UsdcCrateFieldSetsTable {
+  std::vector<UsdcCrateFieldSet> sets;
+};
+
+/// Reads the ``FIELDSETS`` section using the shared fixture-oriented table payload shape documented above.
+FREEUSD_API bool ReadUsdCrateFieldSetsTableFromPath(const std::string& path, UsdcCrateFieldSetsTable& out,
+                                                    std::size_t max_field_sets, std::size_t max_fields_per_set,
+                                                    std::size_t max_total_bytes, std::string* err_out = nullptr);
+
 enum class UsdFileKind {
   /// Could not read path or empty file.
   IoOrEmpty = 0,

@@ -233,6 +233,67 @@ bool readSpecsTableSection(const std::string& path, std::vector<UsdcCrateSpecEnt
   return true;
 }
 
+bool readFieldSetsTableSection(const std::string& path, std::vector<UsdcCrateFieldSet>* out, std::size_t max_field_sets,
+                               std::size_t max_fields_per_set, std::size_t max_total_bytes, std::string* err_out) {
+  if (!out) {
+    set_detail(err_out, "null output table");
+    return false;
+  }
+  out->clear();
+  if (max_field_sets == 0u || max_fields_per_set == 0u) {
+    set_detail(err_out, "max_field_sets and max_fields_per_set must be non-zero");
+    return false;
+  }
+  std::vector<std::uint8_t> bytes;
+  if (!ReadUsdCrateSectionBytesFromPath(path, "FIELDSETS", bytes, max_total_bytes, err_out)) {
+    return false;
+  }
+  if (bytes.size() < 8u) {
+    set_detail(err_out, "USDC FIELDSETS payload too small for count");
+    return false;
+  }
+  const std::uint64_t set_count = readLeU64(bytes.data());
+  if (set_count > max_field_sets) {
+    set_detail(err_out, "USDC FIELDSETS set count exceeds max_field_sets");
+    return false;
+  }
+  std::size_t cursor = 8u;
+  out->reserve(static_cast<std::size_t>(set_count));
+  for (std::uint64_t s = 0; s < set_count; ++s) {
+    if (cursor + 8u > bytes.size()) {
+      out->clear();
+      set_detail(err_out, "USDC FIELDSETS payload ended before field count");
+      return false;
+    }
+    const std::uint64_t field_count = readLeU64(bytes.data() + cursor);
+    cursor += 8u;
+    if (field_count > max_fields_per_set) {
+      out->clear();
+      set_detail(err_out, "USDC FIELDSETS field count exceeds max_fields_per_set");
+      return false;
+    }
+    const std::uint64_t need = field_count * 8u;
+    if (cursor + need > bytes.size()) {
+      out->clear();
+      set_detail(err_out, "USDC FIELDSETS payload too small for field indices");
+      return false;
+    }
+    UsdcCrateFieldSet set;
+    set.field_indices.reserve(static_cast<std::size_t>(field_count));
+    for (std::uint64_t f = 0; f < field_count; ++f) {
+      set.field_indices.push_back(readLeU64(bytes.data() + cursor));
+      cursor += 8u;
+    }
+    out->push_back(std::move(set));
+  }
+  if (cursor != bytes.size()) {
+    out->clear();
+    set_detail(err_out, "USDC FIELDSETS payload has trailing bytes");
+    return false;
+  }
+  return true;
+}
+
 }  // namespace
 
 bool ReadUsdCrateBootstrapFromPath(const std::string& path, UsdcCrateBootstrap& out, std::string* err_out) {
@@ -486,6 +547,13 @@ bool ReadUsdCrateSpecsTableFromPath(const std::string& path, UsdcCrateSpecsTable
                                     std::size_t max_total_bytes, std::string* err_out) {
   out = UsdcCrateSpecsTable{};
   return readSpecsTableSection(path, &out.entries, max_entries, max_total_bytes, err_out);
+}
+
+bool ReadUsdCrateFieldSetsTableFromPath(const std::string& path, UsdcCrateFieldSetsTable& out,
+                                        std::size_t max_field_sets, std::size_t max_fields_per_set,
+                                        std::size_t max_total_bytes, std::string* err_out) {
+  out = UsdcCrateFieldSetsTable{};
+  return readFieldSetsTableSection(path, &out.sets, max_field_sets, max_fields_per_set, max_total_bytes, err_out);
 }
 
 UsdFileKind DetectUsdFileKindFromPath(const std::string& path, std::string* detail_out) {

@@ -200,6 +200,24 @@ FREEUSD_C_API int freeusd_read_usdc_specs_table_from_path_utf8(const char* path_
 /** Frees @p entries from @ref freeusd_read_usdc_specs_table_from_path_utf8 (safe on NULL). */
 FREEUSD_C_API void freeusd_usdc_specs_entries_free(FreeusdUsdcSpecEntry* entries);
 
+/** One field set from the validated fixture-oriented ``FIELDSETS`` table. */
+typedef struct FreeusdUsdcFieldSet {
+  uint64_t field_count;
+  uint64_t* field_indices;
+} FreeusdUsdcFieldSet;
+
+/**
+ * Reads the validated ``FIELDSETS`` table payload from a shared test fixture style ``.usdc`` file.
+ * On @ref FREEUSD_OK, @p *out_sets / @p *out_count use @ref freeusd_usdc_fieldsets_free.
+ */
+FREEUSD_C_API int freeusd_read_usdc_fieldsets_table_from_path_utf8(const char* path_utf8, uint64_t max_field_sets,
+                                                                   uint64_t max_fields_per_set,
+                                                                   uint64_t max_total_bytes,
+                                                                   FreeusdUsdcFieldSet** out_sets, size_t* out_count);
+
+/** Frees @p sets from @ref freeusd_read_usdc_fieldsets_table_from_path_utf8 (safe on NULL). */
+FREEUSD_C_API void freeusd_usdc_fieldsets_free(FreeusdUsdcFieldSet* sets, size_t count);
+
 /**
  * Last error message for the calling thread, valid until the next FreeUSD C API
  * call on this thread. Never null (empty string if no error was recorded).
@@ -670,6 +688,13 @@ FREEUSD_C_API int freeusd_stage_read_material_surface_shader_path(const FreeusdS
 FREEUSD_C_API int freeusd_stage_read_preview_surface_diffuse_color(const FreeusdStage* stage,
                                                                  const char* shader_path_utf8, double time,
                                                                  float out_rgb[3]);
+
+/**
+ * Read ``UsdPreviewSurface`` diffuse texture asset path (direct asset or connected ``inputs:file``).
+ * On @ref FREEUSD_OK, @p *out_path_utf8 is malloc'd; free with @ref freeusd_string_free.
+ */
+FREEUSD_C_API int freeusd_stage_read_preview_surface_diffuse_texture_asset_path(
+    const FreeusdStage* stage, const char* shader_path_utf8, double time, char** out_path_utf8);
 
 /**
  * Count of bound blend-shape targets on a geom prim (``skel:blendShapes`` token count).

@@ -1,0 +1,49 @@
+#usda 1.0
+(
+    defaultPrim = "World"
+)
+
+def Xform "World"
+{
+    def Scope "Looks"
+    {
+        def Material "Material"
+        {
+            token outputs:surface.connect = </World/Looks/Material/PreviewSurface.outputs:surface>
+
+            def Shader "PreviewSurface"
+            {
+                token info:id = "UsdPreviewSurface"
+                color3f inputs:emissiveColor = (0.1, 0.0, 0.0)
+                color3f inputs:normal.connect = </World/Looks/Material/normalTex.outputs:rgb>
+                float inputs:occlusion.connect = </World/Looks/Material/aoTex.outputs:r>
+                float inputs:metallic.connect = </World/Looks/Material/metalTex.outputs:r>
+                float inputs:roughness.connect = </World/Looks/Material/roughTex.outputs:r>
+            }
+
+            def Shader "normalTex"
+            {
+                token info:id = "UsdUVTexture"
+                asset inputs:file = @textures/normal.png@
+            }
+
+            def Shader "aoTex"
+            {
+                token info:id = "UsdUVTexture"
+                asset inputs:file = @textures/ao.png@
+            }
+
+            def Shader "metalTex"
+            {
+                token info:id = "UsdUVTexture"
+                asset inputs:file = @textures/metallic.png@
+            }
+
+            def Shader "roughTex"
+            {
+                token info:id = "UsdUVTexture"
+                asset inputs:file = @textures/roughness.png@
+            }
+        }
+    }
+}

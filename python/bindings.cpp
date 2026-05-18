@@ -53,6 +53,11 @@
 #include "freeusd/usdSkel/skeleton.hpp"
 #include "freeusd/usdHydra/tokens.hpp"
 #include "freeusd/usdLux/distantLight.hpp"
+#include "freeusd/usdLux/cylinderLight.hpp"
+#include "freeusd/usdLux/diskLight.hpp"
+#include "freeusd/usdLux/domeLight.hpp"
+#include "freeusd/usdLux/rectLight.hpp"
+#include "freeusd/usdLux/sphereLight.hpp"
 #include "freeusd/usdLux/tokens.hpp"
 #include "freeusd/usdMedia/tokens.hpp"
 #include "freeusd/usdMtlx/tokens.hpp"
@@ -1534,6 +1539,30 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
           py::arg("path"),
           py::arg("max_entries") = static_cast<std::size_t>(65536u),
           py::arg("max_total_bytes") = static_cast<std::size_t>(16u * 1024u * 1024u));
+      crate.def(
+          "read_usdc_fieldsets_table_from_path",
+          [](const std::string& path, std::size_t max_field_sets, std::size_t max_fields_per_set,
+             std::size_t max_total_bytes) {
+            freeusd::usd::crate::UsdcCrateFieldSetsTable table{};
+            std::string err;
+            if (!freeusd::usd::crate::ReadUsdCrateFieldSetsTableFromPath(path, table, max_field_sets, max_fields_per_set,
+                                                                        max_total_bytes, &err)) {
+              return py::make_tuple(false, py::none(), err);
+            }
+            py::list items;
+            for (const freeusd::usd::crate::UsdcCrateFieldSet& set : table.sets) {
+              py::list indices;
+              for (std::uint64_t index : set.field_indices) {
+                indices.append(index);
+              }
+              items.append(indices);
+            }
+            return py::make_tuple(true, items, std::string{});
+          },
+          py::arg("path"),
+          py::arg("max_field_sets") = static_cast<std::size_t>(65536u),
+          py::arg("max_fields_per_set") = static_cast<std::size_t>(65536u),
+          py::arg("max_total_bytes") = static_cast<std::size_t>(16u * 1024u * 1024u));
     }
 
     py::class_<freeusd::usd::EditTarget>(usd, "EditTarget")
@@ -2101,11 +2130,30 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def_readonly("prim", &freeusd::usdGeom::Boundable::prim)
         .def("compute_local_bound", &freeusd::usdGeom::Boundable::ComputeLocalBound, py::arg("time") = 1.0)
         .def("compute_world_bound", &freeusd::usdGeom::Boundable::ComputeWorldBound, py::arg("time") = 1.0);
+    py::class_<freeusd::usdGeom::TexCoord2f>(geom, "TexCoord2f")
+        .def(py::init<>())
+        .def_readwrite("s", &freeusd::usdGeom::TexCoord2f::s)
+        .def_readwrite("t", &freeusd::usdGeom::TexCoord2f::t);
+
     py::class_<freeusd::usdGeom::Mesh>(geom, "Mesh")
         .def(py::init<const freeusd::usd::Prim&>(), py::arg("prim"))
         .def_readonly("prim", &freeusd::usdGeom::Mesh::prim)
         .def("get_points", &freeusd::usdGeom::Mesh::GetPoints, py::arg("time") = 1.0)
-        .def("get_face_vertex_counts", &freeusd::usdGeom::Mesh::GetFaceVertexCounts, py::arg("time") = 1.0);
+        .def("get_face_vertex_counts", &freeusd::usdGeom::Mesh::GetFaceVertexCounts, py::arg("time") = 1.0)
+        .def("get_face_vertex_indices", &freeusd::usdGeom::Mesh::GetFaceVertexIndices, py::arg("time") = 1.0)
+        .def("get_display_color", &freeusd::usdGeom::Mesh::GetDisplayColor, py::arg("time") = 1.0)
+        .def("get_normals", &freeusd::usdGeom::Mesh::GetNormals, py::arg("time") = 1.0)
+        .def("get_primvars_st", &freeusd::usdGeom::Mesh::GetPrimvarsSt, py::arg("time") = 1.0)
+        .def(
+            "get_display_opacity",
+            [](const freeusd::usdGeom::Mesh& mesh, double time) -> py::object {
+              float opacity = 0.0f;
+              if (!mesh.GetDisplayOpacity(&opacity, time)) {
+                return py::none();
+              }
+              return py::cast(opacity);
+            },
+            py::arg("time") = 1.0);
     py::class_<freeusd::usdGeom::Xformable>(geom, "Xformable")
         .def(py::init<const freeusd::usd::Prim&>(), py::arg("prim"))
         .def_readonly("prim", &freeusd::usdGeom::Xformable::prim)
@@ -2199,6 +2247,17 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
               }
               return py::cast(v);
             },
+            py::arg("time") = 1.0)
+        .def(
+            "get_input_asset_path",
+            [&](const freeusd::usdShade::Shader& shader, const freeusd::tf::Token& input_name, double time) -> py::object {
+              std::string path;
+              if (!shader.GetInputAssetPath(input_name, &path, time)) {
+                return py::none();
+              }
+              return py::cast(path);
+            },
+            py::arg("input_name"),
             py::arg("time") = 1.0);
 
     py::class_<freeusd::usdShade::PreviewSurface>(usdShade, "PreviewSurface")
@@ -2219,6 +2278,16 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
             [&](const freeusd::usdShade::PreviewSurface& preview, double time) -> py::object {
               freeusd::gf::Vec3f c{};
               if (!preview.GetDiffuseColor(&c, time)) {
+                return py::none();
+              }
+              return py::cast(c);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_emissive_color",
+            [&](const freeusd::usdShade::PreviewSurface& preview, double time) -> py::object {
+              freeusd::gf::Vec3f c{};
+              if (!preview.GetEmissiveColor(&c, time)) {
                 return py::none();
               }
               return py::cast(c);
@@ -2252,6 +2321,56 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
                 return py::none();
               }
               return py::cast(v);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_diffuse_texture_asset_path",
+            [&](const freeusd::usdShade::PreviewSurface& preview, double time) -> py::object {
+              std::string path;
+              if (!preview.GetDiffuseTextureAssetPath(&path, time)) {
+                return py::none();
+              }
+              return py::cast(path);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_normal_texture_asset_path",
+            [&](const freeusd::usdShade::PreviewSurface& preview, double time) -> py::object {
+              std::string path;
+              if (!preview.GetNormalTextureAssetPath(&path, time)) {
+                return py::none();
+              }
+              return py::cast(path);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_occlusion_texture_asset_path",
+            [&](const freeusd::usdShade::PreviewSurface& preview, double time) -> py::object {
+              std::string path;
+              if (!preview.GetOcclusionTextureAssetPath(&path, time)) {
+                return py::none();
+              }
+              return py::cast(path);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_metallic_texture_asset_path",
+            [&](const freeusd::usdShade::PreviewSurface& preview, double time) -> py::object {
+              std::string path;
+              if (!preview.GetMetallicTextureAssetPath(&path, time)) {
+                return py::none();
+              }
+              return py::cast(path);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_roughness_texture_asset_path",
+            [&](const freeusd::usdShade::PreviewSurface& preview, double time) -> py::object {
+              std::string path;
+              if (!preview.GetRoughnessTextureAssetPath(&path, time)) {
+                return py::none();
+              }
+              return py::cast(path);
             },
             py::arg("time") = 1.0);
   }
@@ -2301,6 +2420,251 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
                 return py::none();
               }
               return py::cast(v);
+            },
+            py::arg("time") = 1.0);
+
+    py::class_<freeusd::usdLux::SphereLight>(usdLux, "SphereLight")
+        .def(py::init<>())
+        .def(py::init<const freeusd::usd::Prim&>(), py::arg("prim"))
+        .def_readonly("prim", &freeusd::usdLux::SphereLight::prim)
+        .def_static(
+            "read_from_prim",
+            [](const std::shared_ptr<const freeusd::usd::Stage>& stage, const freeusd::sdf::Path& path) {
+              return freeusd::usdLux::SphereLight::ReadFromPrim(stage, path);
+            },
+            py::arg("stage"),
+            py::arg("path"))
+        .def("__bool__", [](const freeusd::usdLux::SphereLight& l) { return static_cast<bool>(l); })
+        .def(
+            "get_intensity",
+            [](const freeusd::usdLux::SphereLight& light, double time) -> py::object {
+              float v = 0.0f;
+              if (!light.GetIntensity(&v, time)) {
+                return py::none();
+              }
+              return py::cast(v);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_color",
+            [](const freeusd::usdLux::SphereLight& light, double time) -> py::object {
+              freeusd::gf::Vec3f c{};
+              if (!light.GetColor(&c, time)) {
+                return py::none();
+              }
+              return py::cast(c);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_radius",
+            [](const freeusd::usdLux::SphereLight& light, double time) -> py::object {
+              float v = 0.0f;
+              if (!light.GetRadius(&v, time)) {
+                return py::none();
+              }
+              return py::cast(v);
+            },
+            py::arg("time") = 1.0);
+
+    py::class_<freeusd::usdLux::RectLight>(usdLux, "RectLight")
+        .def(py::init<>())
+        .def(py::init<const freeusd::usd::Prim&>(), py::arg("prim"))
+        .def_readonly("prim", &freeusd::usdLux::RectLight::prim)
+        .def_static(
+            "read_from_prim",
+            [](const std::shared_ptr<const freeusd::usd::Stage>& stage, const freeusd::sdf::Path& path) {
+              return freeusd::usdLux::RectLight::ReadFromPrim(stage, path);
+            },
+            py::arg("stage"),
+            py::arg("path"))
+        .def("__bool__", [](const freeusd::usdLux::RectLight& l) { return static_cast<bool>(l); })
+        .def(
+            "get_intensity",
+            [](const freeusd::usdLux::RectLight& light, double time) -> py::object {
+              float v = 0.0f;
+              if (!light.GetIntensity(&v, time)) {
+                return py::none();
+              }
+              return py::cast(v);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_color",
+            [](const freeusd::usdLux::RectLight& light, double time) -> py::object {
+              freeusd::gf::Vec3f c{};
+              if (!light.GetColor(&c, time)) {
+                return py::none();
+              }
+              return py::cast(c);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_width",
+            [](const freeusd::usdLux::RectLight& light, double time) -> py::object {
+              float v = 0.0f;
+              if (!light.GetWidth(&v, time)) {
+                return py::none();
+              }
+              return py::cast(v);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_height",
+            [](const freeusd::usdLux::RectLight& light, double time) -> py::object {
+              float v = 0.0f;
+              if (!light.GetHeight(&v, time)) {
+                return py::none();
+              }
+              return py::cast(v);
+            },
+            py::arg("time") = 1.0);
+
+    py::class_<freeusd::usdLux::DiskLight>(usdLux, "DiskLight")
+        .def(py::init<>())
+        .def(py::init<const freeusd::usd::Prim&>(), py::arg("prim"))
+        .def_readonly("prim", &freeusd::usdLux::DiskLight::prim)
+        .def_static(
+            "read_from_prim",
+            [](const std::shared_ptr<const freeusd::usd::Stage>& stage, const freeusd::sdf::Path& path) {
+              return freeusd::usdLux::DiskLight::ReadFromPrim(stage, path);
+            },
+            py::arg("stage"),
+            py::arg("path"))
+        .def("__bool__", [](const freeusd::usdLux::DiskLight& l) { return static_cast<bool>(l); })
+        .def(
+            "get_intensity",
+            [](const freeusd::usdLux::DiskLight& light, double time) -> py::object {
+              float v = 0.0f;
+              if (!light.GetIntensity(&v, time)) {
+                return py::none();
+              }
+              return py::cast(v);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_color",
+            [](const freeusd::usdLux::DiskLight& light, double time) -> py::object {
+              freeusd::gf::Vec3f c{};
+              if (!light.GetColor(&c, time)) {
+                return py::none();
+              }
+              return py::cast(c);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_radius",
+            [](const freeusd::usdLux::DiskLight& light, double time) -> py::object {
+              float v = 0.0f;
+              if (!light.GetRadius(&v, time)) {
+                return py::none();
+              }
+              return py::cast(v);
+            },
+            py::arg("time") = 1.0);
+
+    py::class_<freeusd::usdLux::CylinderLight>(usdLux, "CylinderLight")
+        .def(py::init<>())
+        .def(py::init<const freeusd::usd::Prim&>(), py::arg("prim"))
+        .def_readonly("prim", &freeusd::usdLux::CylinderLight::prim)
+        .def_static(
+            "read_from_prim",
+            [](const std::shared_ptr<const freeusd::usd::Stage>& stage, const freeusd::sdf::Path& path) {
+              return freeusd::usdLux::CylinderLight::ReadFromPrim(stage, path);
+            },
+            py::arg("stage"),
+            py::arg("path"))
+        .def("__bool__", [](const freeusd::usdLux::CylinderLight& l) { return static_cast<bool>(l); })
+        .def(
+            "get_intensity",
+            [](const freeusd::usdLux::CylinderLight& light, double time) -> py::object {
+              float v = 0.0f;
+              if (!light.GetIntensity(&v, time)) {
+                return py::none();
+              }
+              return py::cast(v);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_color",
+            [](const freeusd::usdLux::CylinderLight& light, double time) -> py::object {
+              freeusd::gf::Vec3f c{};
+              if (!light.GetColor(&c, time)) {
+                return py::none();
+              }
+              return py::cast(c);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_length",
+            [](const freeusd::usdLux::CylinderLight& light, double time) -> py::object {
+              float v = 0.0f;
+              if (!light.GetLength(&v, time)) {
+                return py::none();
+              }
+              return py::cast(v);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_radius",
+            [](const freeusd::usdLux::CylinderLight& light, double time) -> py::object {
+              float v = 0.0f;
+              if (!light.GetRadius(&v, time)) {
+                return py::none();
+              }
+              return py::cast(v);
+            },
+            py::arg("time") = 1.0);
+
+    py::class_<freeusd::usdLux::DomeLight>(usdLux, "DomeLight")
+        .def(py::init<>())
+        .def(py::init<const freeusd::usd::Prim&>(), py::arg("prim"))
+        .def_readonly("prim", &freeusd::usdLux::DomeLight::prim)
+        .def_static(
+            "read_from_prim",
+            [](const std::shared_ptr<const freeusd::usd::Stage>& stage, const freeusd::sdf::Path& path) {
+              return freeusd::usdLux::DomeLight::ReadFromPrim(stage, path);
+            },
+            py::arg("stage"),
+            py::arg("path"))
+        .def("__bool__", [](const freeusd::usdLux::DomeLight& l) { return static_cast<bool>(l); })
+        .def(
+            "get_intensity",
+            [](const freeusd::usdLux::DomeLight& light, double time) -> py::object {
+              float v = 0.0f;
+              if (!light.GetIntensity(&v, time)) {
+                return py::none();
+              }
+              return py::cast(v);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_color",
+            [](const freeusd::usdLux::DomeLight& light, double time) -> py::object {
+              freeusd::gf::Vec3f c{};
+              if (!light.GetColor(&c, time)) {
+                return py::none();
+              }
+              return py::cast(c);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_texture_file_asset_path",
+            [&](const freeusd::usdLux::DomeLight& light, double time) -> py::object {
+              std::string path;
+              if (!light.GetTextureFileAssetPath(&path, time)) {
+                return py::none();
+              }
+              return py::cast(path);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_texture_format",
+            [&](const freeusd::usdLux::DomeLight& light, double time) -> py::object {
+              std::string format;
+              if (!light.GetTextureFormat(&format, time)) {
+                return py::none();
+              }
+              return py::cast(format);
             },
             py::arg("time") = 1.0);
   }

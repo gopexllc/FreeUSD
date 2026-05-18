@@ -31,9 +31,23 @@ Status vocabulary:
 - `tests/fixtures/parity_kind_active_refs.usda`
   Composed prim `kind` and `active` through `references`, `payloads`, and `inherits` (`parity_kind_active_ref.usda`, `parity_kind_active_payload.usda`).
 - `tests/fixtures/parity_tables.usdc`
-  Shared binary crate fixture for bootstrap, TOC, raw section payloads, and validated `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` / `SPECS` table decode (regenerate with `scripts/gen_parity_tables_usdc.py`).
+  Shared binary crate fixture for bootstrap, TOC, raw section payloads, and validated `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` / `FIELDSETS` / `SPECS` table decode (regenerate with `scripts/gen_parity_tables_usdc.py`).
 - `tests/fixtures/parity_geom_mesh.usda`
-  `UsdGeomMesh`-shaped `points` and `faceVertexCounts` on a triangular mesh prim.
+  `UsdGeomMesh`-shaped `points`, `faceVertexCounts`, `faceVertexIndices`, `normals`, `primvars:st`, `primvars:displayOpacity`, and `primvars:displayColor` on a triangular mesh prim.
+- `tests/fixtures/parity_lux_sphere.usda`
+  `SphereLight` with `inputs:intensity`, `inputs:color`, and `inputs:radius`.
+- `tests/fixtures/parity_lux_rect.usda`
+  `RectLight` with `inputs:intensity`, `inputs:color`, `inputs:width`, and `inputs:height`.
+- `tests/fixtures/parity_shade_texture.usda`
+  `UsdPreviewSurface` with `inputs:diffuseColor` connected to `UsdUVTexture` `inputs:file`.
+- `tests/fixtures/parity_shade_pbr_textures.usda`
+  `UsdPreviewSurface` with `inputs:normal`, `inputs:occlusion`, `inputs:metallic`, and `inputs:roughness` connected to texture shaders plus authored `inputs:emissiveColor`.
+- `tests/fixtures/parity_lux_disk.usda`
+  `DiskLight` with `inputs:intensity`, `inputs:color`, and `inputs:radius`.
+- `tests/fixtures/parity_lux_cylinder.usda`
+  `CylinderLight` with `inputs:intensity`, `inputs:color`, `inputs:length`, and `inputs:radius`.
+- `tests/fixtures/parity_lux_dome.usda`
+  `DomeLight` with `inputs:intensity`, `inputs:color`, `inputs:texture:file`, and `inputs:texture:format`.
 - `tests/fixtures/parity_embedded_scene.usdc`
   Narrow crate scene-open fallback through an embedded `USDA` section for controlled engine pipelines and fixtures.
 - `tests/fixtures/parity_skel_gltf.usda`
@@ -54,7 +68,7 @@ Status vocabulary:
 ### Formats And Data Model
 
 - `implemented`: USDA load/save, typed scalar/vector/quaternion/matrix values, layer metadata, references/payload/inherits/specializes storage, relationship targets, and time-sample evaluation.
-- `partial`: USDC bootstrap parsing, TOC parsing, raw section-payload reads, validated `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` / `SPECS` table decode, and a narrow embedded-`USDA` stage-open fallback are available in C++; the C ABI follows the same validated open/query slice.
+- `partial`: USDC bootstrap parsing, TOC parsing, raw section-payload reads, validated `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` / `FIELDSETS` / `SPECS` table decode, and a narrow embedded-`USDA` stage-open fallback are available in C++; the C ABI follows the same validated open/query slice.
 - `planned`: spec-level `.usdc` payload decode beyond the validated table sections (values, `FIELDSETS`, production compression) and embedded-`USDA` bridge.
 
 ### Composition Semantics
@@ -66,11 +80,11 @@ Status vocabulary:
 ### Schema And Runtime Helpers
 
 - `implemented`: `usdGeom::Xformable`, `usdGeom::Imageable`, `usdGeom::Boundable`, `usdUtils::FlattenStageAtTime`, and `usdUtils` engine-scene helpers for importer/editor/runtime subset inspection.
-- `partial`: `usdGeom::Mesh` reads composed `points` and `faceVertexCounts` (`parity_geom_mesh.usda`).
+- `partial`: `usdGeom::Mesh` reads composed `points`, `faceVertexCounts`, `faceVertexIndices`, `normals`, `primvars:st`, `primvars:displayOpacity`, and `primvars:displayColor` (`parity_geom_mesh.usda`); USDA load/save accepts `texCoord2f` / `float2` tuple literals.
 - `partial`: flattening now preserves evaluated defaults plus composed sample times, but it does not yet reconstruct full authored layer provenance for every arc source.
 - `partial`: `usdSkel::Skeleton` and `usdSkel::SkelAnimation` read joints, bind/rest matrices, and sampled TRS arrays from USDA; glTF mapping helpers build parent indices and world bind matrices; `SkelBinding` resolves `skel:skeleton` plus `primvars:skel:jointIndices` / `jointWeights`; `SkelRoot` finds skeleton and `skel:animationSource` under a scope (`parity_skel_binding.usda`); `BlendShape` / `SkelBlendShapes` / `MorphTargets` read morph offsets, remap animation weights, and apply CPU morph accumulation (`parity_skel_blend_shapes.usda`; glTF `mesh.weights` + morph target POSITION deltas); `DeformPointsWithSkeleton` performs CPU LBS from joint world matrices and inverse bind transforms (`parity_skel_skinning.usda`).
-- `partial`: `usdShade::Material` resolves `outputs:surface` to a shader prim; `usdShade::Shader` / `PreviewSurface` read `info:id` and common `UsdPreviewSurface` inputs (`diffuseColor`, `metallic`, `roughness`, `opacity`) with connection following (`parity_shade_preview.usda`).
-- `partial`: `usdLux::DistantLight` reads `inputs:intensity`, `inputs:color`, and `inputs:angle` at a time code (`parity_lux_distant.usda`).
+- `partial`: `usdShade::Material` resolves `outputs:surface` to a shader prim; `usdShade::Shader` / `PreviewSurface` read `info:id` and common `UsdPreviewSurface` inputs (`diffuseColor`, `emissiveColor`, `metallic`, `roughness`, `opacity`) with connection following (`parity_shade_preview.usda`); texture asset paths for `diffuseColor`, `normal`, `occlusion`, `metallic`, and `roughness` resolve through one connection hop to connected `inputs:file` (`parity_shade_texture.usda`, `parity_shade_pbr_textures.usda`).
+- `partial`: `usdLux::DistantLight` reads `inputs:intensity`, `inputs:color`, and `inputs:angle` at a time code (`parity_lux_distant.usda`); `usdLux::SphereLight` reads `inputs:intensity`, `inputs:color`, and `inputs:radius` (`parity_lux_sphere.usda`); `usdLux::RectLight` reads `inputs:intensity`, `inputs:color`, `inputs:width`, and `inputs:height` (`parity_lux_rect.usda`); `usdLux::DiskLight` reads `inputs:intensity`, `inputs:color`, and `inputs:radius` (`parity_lux_disk.usda`); `usdLux::CylinderLight` reads `inputs:intensity`, `inputs:color`, `inputs:length`, and `inputs:radius` (`parity_lux_cylinder.usda`); `usdLux::DomeLight` reads `inputs:intensity`, `inputs:color`, `inputs:texture:file`, and `inputs:texture:format` (`parity_lux_dome.usda`).
 - `token-only`: most other non-`usdGeom` / non-`usdSkel` / non-`usdShade` / non-`usdLux` schema packages remain generated token surfaces only.
 
 ### ABI And Bindings

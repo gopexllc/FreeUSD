@@ -461,6 +461,73 @@ int freeusd_read_usdc_specs_table_from_path_utf8(const char* path_utf8, uint64_t
 
 void freeusd_usdc_specs_entries_free(FreeusdUsdcSpecEntry* entries) { std::free(entries); }
 
+int freeusd_read_usdc_fieldsets_table_from_path_utf8(const char* path_utf8, uint64_t max_field_sets,
+                                                     uint64_t max_fields_per_set, uint64_t max_total_bytes,
+                                                     FreeusdUsdcFieldSet** out_sets, size_t* out_count) {
+  if (!path_utf8 || !out_sets || !out_count || max_field_sets == 0u || max_fields_per_set == 0u) {
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    clear_error();
+    freeusd::usd::crate::UsdcCrateFieldSetsTable table;
+    std::string err;
+    if (!freeusd::usd::crate::ReadUsdCrateFieldSetsTableFromPath(
+            std::string{path_utf8}, table, static_cast<std::size_t>(max_field_sets),
+            static_cast<std::size_t>(max_fields_per_set), static_cast<std::size_t>(max_total_bytes), &err)) {
+      set_error(err.empty() ? "read usdc fieldsets table failed" : err);
+      return FREEUSD_ERR_PARSE;
+    }
+    *out_count = table.sets.size();
+    if (table.sets.empty()) {
+      *out_sets = nullptr;
+      return FREEUSD_OK;
+    }
+    auto* sets = static_cast<FreeusdUsdcFieldSet*>(std::calloc(table.sets.size(), sizeof(FreeusdUsdcFieldSet)));
+    if (!sets) {
+      set_error("out of memory");
+      return FREEUSD_ERR_INTERNAL;
+    }
+    for (std::size_t i = 0; i < table.sets.size(); ++i) {
+      sets[i].field_count = table.sets[i].field_indices.size();
+      if (sets[i].field_count == 0u) {
+        sets[i].field_indices = nullptr;
+        continue;
+      }
+      sets[i].field_indices =
+          static_cast<uint64_t*>(std::malloc(sets[i].field_count * sizeof(uint64_t)));
+      if (!sets[i].field_indices) {
+        for (std::size_t j = 0; j < i; ++j) {
+          std::free(sets[j].field_indices);
+        }
+        std::free(sets);
+        set_error("out of memory");
+        return FREEUSD_ERR_INTERNAL;
+      }
+      for (std::size_t j = 0; j < sets[i].field_count; ++j) {
+        sets[i].field_indices[j] = table.sets[i].field_indices[j];
+      }
+    }
+    *out_sets = sets;
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown error");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+void freeusd_usdc_fieldsets_free(FreeusdUsdcFieldSet* sets, size_t count) {
+  if (!sets) {
+    return;
+  }
+  for (size_t i = 0; i < count; ++i) {
+    std::free(sets[i].field_indices);
+  }
+  std::free(sets);
+}
+
 const char* freeusd_last_error_message(void) { return g_last_error.c_str(); }
 
 void freeusd_string_free(char* s) { std::free(s); }
@@ -2951,6 +3018,48 @@ int freeusd_stage_read_preview_surface_diffuse_color(const FreeusdStage* stage, 
     out_rgb[0] = diffuse.x();
     out_rgb[1] = diffuse.y();
     out_rgb[2] = diffuse.z();
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_read_preview_surface_diffuse_texture_asset_path(const FreeusdStage* stage,
+                                                                  const char* shader_path_utf8, double time,
+                                                                  char** out_path_utf8) {
+  if (!stage || !stage->inner || !shader_path_utf8 || !out_path_utf8) {
+    set_error("freeusd_stage_read_preview_surface_diffuse_texture_asset_path: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_path_utf8 = nullptr;
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(shader_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid shader path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const freeusd::usdShade::PreviewSurface preview =
+        freeusd::usdShade::PreviewSurface::ReadFromPrim(stage->inner, p);
+    if (!preview || !preview.IsPreviewSurface()) {
+      set_error("shader prim is not UsdPreviewSurface");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    std::string texture_path;
+    if (!preview.GetDiffuseTextureAssetPath(&texture_path, time)) {
+      set_error("diffuse texture asset path not available");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    char* dup = dup_cstr(texture_path);
+    if (!dup) {
+      set_error("out of memory");
+      return FREEUSD_ERR_INTERNAL;
+    }
+    *out_path_utf8 = dup;
     clear_error();
     return FREEUSD_OK;
   } catch (const std::exception& e) {

@@ -47,5 +47,33 @@ int main() {
   assert(counts.size() == 1u);
   assert(counts[0] == 3);
 
+  const auto indices = mesh.GetFaceVertexIndices(1.0);
+  assert(indices.size() == 3u);
+  assert(indices[0] == 0 && indices[1] == 1 && indices[2] == 2);
+
+  const auto colors = mesh.GetDisplayColor(1.0);
+  assert(colors.size() == 3u);
+  assert(near(colors[0].x(), 1.0f) && near(colors[0].y(), 0.0f));
+  assert(near(colors[1].y(), 1.0f));
+  assert(near(colors[2].z(), 1.0f));
+
+  const auto normals = mesh.GetNormals(1.0);
+  assert(normals.size() == 3u);
+  for (const auto& n : normals) {
+    assert(near(n.x(), 0.0f));
+    assert(near(n.y(), 0.0f));
+    assert(near(n.z(), 1.0f));
+  }
+
+  const auto st = mesh.GetPrimvarsSt(1.0);
+  assert(st.size() == 3u);
+  assert(near(st[0].s, 0.0f) && near(st[0].t, 0.0f));
+  assert(near(st[1].s, 1.0f) && near(st[1].t, 0.0f));
+  assert(near(st[2].s, 0.0f) && near(st[2].t, 1.0f));
+
+  float opacity = 0.0f;
+  assert(mesh.GetDisplayOpacity(&opacity, 1.0));
+  assert(near(opacity, 0.75f));
+
   return 0;
 }

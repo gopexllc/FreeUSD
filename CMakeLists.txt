@@ -59,7 +59,7 @@ if(FREEUSD_BUILD_TESTS)
 
   add_executable(freeusd_parity_fixtures_test tests/parity_fixtures_test.cpp)
   target_link_libraries(freeusd_parity_fixtures_test PRIVATE freeusd::usd freeusd::usdUtils freeusd::usdGeom freeusd::usdSkel
-                                                                 freeusd::usdShade)
+                                                                 freeusd::usdShade freeusd::usdLux)
   target_compile_definitions(
     freeusd_parity_fixtures_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
 
@@ -72,6 +72,11 @@ if(FREEUSD_BUILD_TESTS)
   target_link_libraries(freeusd_usdc_specs_test PRIVATE freeusd::usd)
   target_compile_definitions(
     freeusd_usdc_specs_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+
+  add_executable(freeusd_usdc_fieldsets_test tests/usdc_fieldsets_test.cpp)
+  target_link_libraries(freeusd_usdc_fieldsets_test PRIVATE freeusd::usd)
+  target_compile_definitions(
+    freeusd_usdc_fieldsets_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
 
   add_executable(freeusd_usd_geom_mesh_test tests/usd_geom_mesh_test.cpp)
   target_link_libraries(freeusd_usd_geom_mesh_test PRIVATE freeusd::usd freeusd::usdGeom)
@@ -105,6 +110,41 @@ if(FREEUSD_BUILD_TESTS)
   target_link_libraries(freeusd_usd_lux_distant_light_test PRIVATE freeusd::usd freeusd::usdLux)
   target_compile_definitions(
     freeusd_usd_lux_distant_light_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+
+  add_executable(freeusd_usd_lux_sphere_light_test tests/usd_lux_sphere_light_test.cpp)
+  target_link_libraries(freeusd_usd_lux_sphere_light_test PRIVATE freeusd::usd freeusd::usdLux)
+  target_compile_definitions(
+    freeusd_usd_lux_sphere_light_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+
+  add_executable(freeusd_usd_lux_rect_light_test tests/usd_lux_rect_light_test.cpp)
+  target_link_libraries(freeusd_usd_lux_rect_light_test PRIVATE freeusd::usd freeusd::usdLux)
+  target_compile_definitions(
+    freeusd_usd_lux_rect_light_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+
+  add_executable(freeusd_usd_shade_texture_test tests/usd_shade_texture_test.cpp)
+  target_link_libraries(freeusd_usd_shade_texture_test PRIVATE freeusd::usd freeusd::usdShade)
+  target_compile_definitions(
+    freeusd_usd_shade_texture_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+
+  add_executable(freeusd_usd_shade_pbr_textures_test tests/usd_shade_pbr_textures_test.cpp)
+  target_link_libraries(freeusd_usd_shade_pbr_textures_test PRIVATE freeusd::usd freeusd::usdShade)
+  target_compile_definitions(
+    freeusd_usd_shade_pbr_textures_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+
+  add_executable(freeusd_usd_lux_disk_light_test tests/usd_lux_disk_light_test.cpp)
+  target_link_libraries(freeusd_usd_lux_disk_light_test PRIVATE freeusd::usd freeusd::usdLux)
+  target_compile_definitions(
+    freeusd_usd_lux_disk_light_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+
+  add_executable(freeusd_usd_lux_cylinder_light_test tests/usd_lux_cylinder_light_test.cpp)
+  target_link_libraries(freeusd_usd_lux_cylinder_light_test PRIVATE freeusd::usd freeusd::usdLux)
+  target_compile_definitions(
+    freeusd_usd_lux_cylinder_light_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+
+  add_executable(freeusd_usd_lux_dome_light_test tests/usd_lux_dome_light_test.cpp)
+  target_link_libraries(freeusd_usd_lux_dome_light_test PRIVATE freeusd::usd freeusd::usdLux)
+  target_compile_definitions(
+    freeusd_usd_lux_dome_light_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
 
   add_executable(freeusd_ar_path_security_test tests/ar_path_security_test.cpp)
   target_link_libraries(freeusd_ar_path_security_test PRIVATE freeusd::ar)
@@ -163,6 +203,7 @@ if(FREEUSD_BUILD_TESTS)
   add_test(NAME freeusd_parity_fixtures_test COMMAND freeusd_parity_fixtures_test)
   add_test(NAME freeusd_usdc_fields_test COMMAND freeusd_usdc_fields_test)
   add_test(NAME freeusd_usdc_specs_test COMMAND freeusd_usdc_specs_test)
+  add_test(NAME freeusd_usdc_fieldsets_test COMMAND freeusd_usdc_fieldsets_test)
   add_test(NAME freeusd_usd_geom_mesh_test COMMAND freeusd_usd_geom_mesh_test)
   add_test(NAME freeusd_usd_skel_smoke_test COMMAND freeusd_usd_skel_smoke_test)
   add_test(NAME freeusd_usd_shade_smoke_test COMMAND freeusd_usd_shade_smoke_test)
@@ -170,6 +211,13 @@ if(FREEUSD_BUILD_TESTS)
   add_test(NAME freeusd_usd_skel_skinning_matrices_test COMMAND freeusd_usd_skel_skinning_matrices_test)
   add_test(NAME freeusd_stage_kind_active_test COMMAND freeusd_stage_kind_active_test)
   add_test(NAME freeusd_usd_lux_distant_light_test COMMAND freeusd_usd_lux_distant_light_test)
+  add_test(NAME freeusd_usd_lux_sphere_light_test COMMAND freeusd_usd_lux_sphere_light_test)
+  add_test(NAME freeusd_usd_lux_rect_light_test COMMAND freeusd_usd_lux_rect_light_test)
+  add_test(NAME freeusd_usd_shade_texture_test COMMAND freeusd_usd_shade_texture_test)
+  add_test(NAME freeusd_usd_shade_pbr_textures_test COMMAND freeusd_usd_shade_pbr_textures_test)
+  add_test(NAME freeusd_usd_lux_disk_light_test COMMAND freeusd_usd_lux_disk_light_test)
+  add_test(NAME freeusd_usd_lux_cylinder_light_test COMMAND freeusd_usd_lux_cylinder_light_test)
+  add_test(NAME freeusd_usd_lux_dome_light_test COMMAND freeusd_usd_lux_dome_light_test)
   add_test(NAME freeusd_ar_path_security_test COMMAND freeusd_ar_path_security_test)
   add_test(NAME freeusd_engine_integration_test COMMAND freeusd_engine_integration_test)
   add_test(NAME freeusd_schema_tokens_bundle_test COMMAND freeusd_schema_tokens_bundle_test)
@@ -294,7 +342,15 @@ if(FREEUSD_BUILD_TESTS)
     freeusd_parity_fixtures_test
     freeusd_usdc_fields_test
     freeusd_usdc_specs_test
+    freeusd_usdc_fieldsets_test
     freeusd_usd_geom_mesh_test
+    freeusd_usd_lux_sphere_light_test
+    freeusd_usd_lux_rect_light_test
+    freeusd_usd_shade_texture_test
+    freeusd_usd_shade_pbr_textures_test
+    freeusd_usd_lux_disk_light_test
+    freeusd_usd_lux_cylinder_light_test
+    freeusd_usd_lux_dome_light_test
     freeusd_usd_skel_smoke_test
     freeusd_usd_skel_skinning_matrices_test
     freeusd_usd_shade_smoke_test

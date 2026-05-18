@@ -330,6 +330,19 @@ int main(void) {
       return 1;
     }
     freeusd_usdc_specs_entries_free(spec_entries);
+    FreeusdUsdcFieldSet* fieldsets = NULL;
+    count = 0;
+    if (freeusd_read_usdc_fieldsets_table_from_path_utf8(tables_path, 8, 8, 1024, &fieldsets, &count) != FREEUSD_OK) {
+      fprintf(stderr, "read fieldsets table failed: %s\n", freeusd_last_error_message());
+      return 1;
+    }
+    if (!fieldsets || count != 2u || fieldsets[0].field_count != 2u || fieldsets[0].field_indices[0] != 0u ||
+        fieldsets[0].field_indices[1] != 1u || fieldsets[1].field_count != 1u || fieldsets[1].field_indices[0] != 1u) {
+      fprintf(stderr, "unexpected fieldsets table\n");
+      freeusd_usdc_fieldsets_free(fieldsets, count);
+      return 1;
+    }
+    freeusd_usdc_fieldsets_free(fieldsets, count);
   }
 
   FreeusdLayer* layer = freeusd_layer_new_anonymous("c_smoke");

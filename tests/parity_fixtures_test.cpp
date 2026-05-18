@@ -13,6 +13,11 @@
 #include "freeusd/usdSkel/morphTargets.hpp"
 #include "freeusd/usdSkel/skelRoot.hpp"
 #include "freeusd/usdSkel/skeleton.hpp"
+#include "freeusd/usdLux/cylinderLight.hpp"
+#include "freeusd/usdLux/diskLight.hpp"
+#include "freeusd/usdLux/domeLight.hpp"
+#include "freeusd/usdLux/rectLight.hpp"
+#include "freeusd/usdLux/sphereLight.hpp"
 #include "freeusd/usdShade/material.hpp"
 #include "freeusd/usdShade/previewSurface.hpp"
 #include "freeusd/usdUtils/pipeline.hpp"
@@ -107,6 +112,7 @@ int main() {
     freeusd::usd::crate::UsdcCrateStringTable strings{};
     freeusd::usd::crate::UsdcCrateFieldsTable fields{};
     freeusd::usd::crate::UsdcCrateSpecsTable specs{};
+    freeusd::usd::crate::UsdcCrateFieldSetsTable fieldsets{};
     freeusd::usd::crate::UsdcCratePathTable paths{};
     assert(freeusd::usd::crate::ReadUsdCrateTokenTableFromPath(fixture("parity_tables.usdc"), tokens, 8, 1024, &err));
     assert(tokens.values.size() == 2u);
@@ -120,6 +126,14 @@ int main() {
     assert(fields.entries.size() == 2u);
     assert(fields.entries[0].token_index == 0u && fields.entries[0].value_type_token_index == 1u);
     assert(fields.entries[1].token_index == 1u && fields.entries[1].value_type_token_index == 0u);
+    assert(freeusd::usd::crate::ReadUsdCrateFieldSetsTableFromPath(fixture("parity_tables.usdc"), fieldsets, 8, 8, 1024,
+                                                                   &err));
+    assert(fieldsets.sets.size() == 2u);
+    assert(fieldsets.sets[0].field_indices.size() == 2u);
+    assert(fieldsets.sets[0].field_indices[0] == 0u);
+    assert(fieldsets.sets[0].field_indices[1] == 1u);
+    assert(fieldsets.sets[1].field_indices.size() == 1u);
+    assert(fieldsets.sets[1].field_indices[0] == 1u);
     assert(freeusd::usd::crate::ReadUsdCrateSpecsTableFromPath(fixture("parity_tables.usdc"), specs, 8, 1024, &err));
     assert(specs.entries.size() == 2u);
     assert(specs.entries[0].path_index == 0u && specs.entries[0].field_set_index == 0u &&
@@ -143,6 +157,104 @@ int main() {
     assert(points.size() == 3u);
     const auto counts = mesh.GetFaceVertexCounts(1.0);
     assert(counts.size() == 1u && counts[0] == 3);
+    const auto indices = mesh.GetFaceVertexIndices(1.0);
+    assert(indices.size() == 3u);
+    const auto colors = mesh.GetDisplayColor(1.0);
+    assert(colors.size() == 3u);
+    const auto normals = mesh.GetNormals(1.0);
+    assert(normals.size() == 3u);
+    assert(normals[0].z() == 1.0f);
+    const auto st = mesh.GetPrimvarsSt(1.0);
+    assert(st.size() == 3u);
+    float opacity = 0.0f;
+    assert(mesh.GetDisplayOpacity(&opacity, 1.0) && opacity == 0.75f);
+  }
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_shade_texture.usda"),
+                                         freeusd::usd::RootLayerSublayersPolicy::None, &err);
+    assert(stage && err.empty());
+    const freeusd::usdShade::PreviewSurface preview = freeusd::usdShade::PreviewSurface::ReadFromPrim(
+        stage, Path::FromString("/World/Looks/Material/PreviewSurface"));
+    assert(preview);
+    std::string texture_path;
+    assert(preview.GetDiffuseTextureAssetPath(&texture_path, 1.0));
+    assert(texture_path == "textures/albedo.png");
+  }
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_shade_pbr_textures.usda"),
+                                         freeusd::usd::RootLayerSublayersPolicy::None, &err);
+    assert(stage && err.empty());
+    const freeusd::usdShade::PreviewSurface preview = freeusd::usdShade::PreviewSurface::ReadFromPrim(
+        stage, Path::FromString("/World/Looks/Material/PreviewSurface"));
+    assert(preview);
+    std::string pbr_path;
+    assert(preview.GetRoughnessTextureAssetPath(&pbr_path, 1.0));
+    assert(pbr_path == "textures/roughness.png");
+  }
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_lux_sphere.usda"),
+                                         freeusd::usd::RootLayerSublayersPolicy::None, &err);
+    assert(stage && err.empty());
+    freeusd::usdLux::SphereLight light =
+        freeusd::usdLux::SphereLight::ReadFromPrim(stage, Path::FromString("/World/Bulb"));
+    assert(light);
+    float radius = 0.0f;
+    assert(light.GetRadius(&radius, 1.0) && radius == 0.25f);
+  }
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_lux_rect.usda"), freeusd::usd::RootLayerSublayersPolicy::None,
+                                         &err);
+    assert(stage && err.empty());
+    freeusd::usdLux::RectLight light =
+        freeusd::usdLux::RectLight::ReadFromPrim(stage, Path::FromString("/World/Panel"));
+    assert(light);
+    float width = 0.0f;
+    assert(light.GetWidth(&width, 1.0) && width == 2.0f);
+  }
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_lux_disk.usda"), freeusd::usd::RootLayerSublayersPolicy::None,
+                                         &err);
+    assert(stage && err.empty());
+    freeusd::usdLux::DiskLight light =
+        freeusd::usdLux::DiskLight::ReadFromPrim(stage, Path::FromString("/World/Softbox"));
+    assert(light);
+    float radius = 0.0f;
+    assert(light.GetRadius(&radius, 1.0) && radius == 0.75f);
+  }
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_lux_cylinder.usda"),
+                                         freeusd::usd::RootLayerSublayersPolicy::None, &err);
+    assert(stage && err.empty());
+    freeusd::usdLux::CylinderLight light =
+        freeusd::usdLux::CylinderLight::ReadFromPrim(stage, Path::FromString("/World/Tube"));
+    assert(light);
+    float length = 0.0f;
+    assert(light.GetLength(&length, 1.0) && length == 2.5f);
+  }
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_lux_dome.usda"), freeusd::usd::RootLayerSublayersPolicy::None,
+                                         &err);
+    assert(stage && err.empty());
+    freeusd::usdLux::DomeLight light =
+        freeusd::usdLux::DomeLight::ReadFromPrim(stage, Path::FromString("/World/Sky"));
+    assert(light);
+    std::string texture_path;
+    assert(light.GetTextureFileAssetPath(&texture_path, 1.0));
+    assert(texture_path == "textures/sky.hdr");
   }
 
   {

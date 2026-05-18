@@ -245,13 +245,14 @@ EngineRuntimeSupportReport AssessEngineRuntimeSupport(const freeusd::usd::Stage&
     if (prim.HasPrimKind() && prim.GetPrimKind() == freeusd::usdShade::tokens::Material()) {
       const freeusd::sdf::Path shader_path = freeusd::usdShade::Material(prim).GetSurfaceShaderPath();
       if (!shader_path.IsEmpty()) {
-        const freeusd::usdShade::PreviewSurface preview(
-            freeusd::usdShade::Shader(stage.GetPrimAtPath(shader_path)));
+        const freeusd::usdShade::PreviewSurface preview =
+            freeusd::usdShade::PreviewSurface::ReadFromPrim(stage.shared_from_this(), shader_path);
         report.uses_preview_surface = report.uses_preview_surface || static_cast<bool>(preview);
       }
     }
     if (prim.HasPrimKind() && prim.GetPrimKind() == freeusd::usdShade::tokens::Shader()) {
-      const freeusd::usdShade::PreviewSurface preview_shader(freeusd::usdShade::Shader(prim));
+      const freeusd::usdShade::PreviewSurface preview_shader =
+          freeusd::usdShade::PreviewSurface::ReadFromPrim(stage.shared_from_this(), prim.GetPath());
       report.uses_preview_surface = report.uses_preview_surface || static_cast<bool>(preview_shader);
     }
     for (const std::string& field_name : prim.ListAttributeNames()) {

@@ -261,6 +261,44 @@ func ReadUsdcSpecsTableFromPath(path string, maxEntries uint64, maxTotalBytes ui
 	return out, 0
 }
 
+// UsdcFieldSet is one row from the validated FIELDSETS table.
+type UsdcFieldSet struct {
+	FieldIndices []uint64
+}
+
+// ReadUsdcFieldSetsTableFromPath reads the validated FIELDSETS table from a shared crate fixture.
+func ReadUsdcFieldSetsTableFromPath(path string, maxFieldSets uint64, maxFieldsPerSet uint64, maxTotalBytes uint64) ([]UsdcFieldSet, int) {
+	cs := C.CString(path)
+	defer C.free(unsafe.Pointer(cs))
+	var raw *C.FreeusdUsdcFieldSet
+	var count C.size_t
+	rc := int(C.freeusd_read_usdc_fieldsets_table_from_path_utf8(cs, C.uint64_t(maxFieldSets), C.uint64_t(maxFieldsPerSet), C.uint64_t(maxTotalBytes), &raw, &count))
+	if rc != 0 {
+		return nil, rc
+	}
+	defer C.freeusd_usdc_fieldsets_free(raw, count)
+	if raw == nil || count == 0 {
+		return nil, 0
+	}
+	out := make([]UsdcFieldSet, int(count))
+	for i := 0; i < int(count); i++ {
+		entry := (*C.FreeusdUsdcFieldSet)(unsafe.Pointer(uintptr(unsafe.Pointer(raw)) + uintptr(i)*unsafe.Sizeof(C.FreeusdUsdcFieldSet{})))
+		n := int(entry.field_count)
+		if n == 0 {
+			continue
+		}
+		indices := make([]uint64, n)
+		base := unsafe.Pointer(entry.field_indices)
+		step := int(unsafe.Sizeof(C.uint64_t(0)))
+		for j := 0; j < n; j++ {
+			ptr := (*C.uint64_t)(unsafe.Add(base, uintptr(j)*uintptr(step)))
+			indices[j] = uint64(*ptr)
+		}
+		out[i] = UsdcFieldSet{FieldIndices: indices}
+	}
+	return out, 0
+}
+
 // LastErrorMessage returns the thread-local C API error string (valid until the next C call on this thread).
 func LastErrorMessage() string {
 	return C.GoString(C.freeusd_last_error_message())

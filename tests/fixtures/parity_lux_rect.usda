@@ -1,0 +1,15 @@
+#usda 1.0
+(
+    defaultPrim = "World"
+)
+
+def Xform "World"
+{
+    def RectLight "Panel"
+    {
+        float inputs:intensity = 1200
+        color3f inputs:color = (0.95, 0.98, 1.0)
+        float inputs:width = 2.0
+        float inputs:height = 1.0
+    }
+}

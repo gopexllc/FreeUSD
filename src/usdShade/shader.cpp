@@ -1,5 +1,7 @@
 #include "freeusd/usdShade/shader.hpp"
 
+#include <optional>
+
 #include "freeusd/usd/stage.hpp"
 #include "freeusd/usdShade/previewSurface.hpp"
 #include "freeusd/usdShade/tokens.hpp"
@@ -21,6 +23,37 @@ freeusd::tf::Token resolve_info_id_attr(const freeusd::usd::Prim& prim) {
     }
   }
   return {};
+}
+
+std::optional<std::string> normalize_usd_asset_path_string(const std::string& s) {
+  if (s.empty()) {
+    return std::nullopt;
+  }
+  if (s.size() >= 2u && s.front() == '@' && s.back() == '@') {
+    return s.substr(1, s.size() - 2u);
+  }
+  return s;
+}
+
+bool read_asset_path_from_value(const freeusd::vt::Value& v, std::string* out_path) {
+  if (!out_path) {
+    return false;
+  }
+  std::string text;
+  if (!v.GetString(&text)) {
+    return false;
+  }
+  const std::optional<std::string> normalized = normalize_usd_asset_path_string(text);
+  if (!normalized || normalized->empty()) {
+    return false;
+  }
+  *out_path = *normalized;
+  return true;
+}
+
+const freeusd::tf::Token& inputs_file_token() {
+  static const freeusd::tf::Token kInputsFile("inputs:file");
+  return kInputsFile;
 }
 
 bool prim_looks_like_shader(const freeusd::usd::Prim& prim) {
@@ -95,6 +128,33 @@ bool Shader::GetOpacity(float* out, double time) const {
     return false;
   }
   return GetInput(previewSurfaceTokens::inputs_opacity(), time).GetFloat(out);
+}
+
+bool Shader::GetInputAssetPath(const freeusd::tf::Token& input_name, std::string* out_path, double time) const {
+  if (!out_path || !prim.IsValid() || input_name.IsEmpty()) {
+    return false;
+  }
+  out_path->clear();
+
+  const freeusd::vt::Value direct = prim.GetAttribute(input_name, time);
+  if (read_asset_path_from_value(direct, out_path)) {
+    return true;
+  }
+
+  freeusd::sdf::Path target;
+  if (!prim.GetAttributeConnectionTarget(input_name, &target) || target.IsEmpty()) {
+    return false;
+  }
+
+  const std::shared_ptr<const freeusd::usd::Stage> stage = prim.GetStage();
+  if (!stage) {
+    return false;
+  }
+  const freeusd::usd::Prim connected = stage->GetPrimAtPath(target.GetPrimPath());
+  if (!connected.IsValid()) {
+    return false;
+  }
+  return read_asset_path_from_value(connected.GetAttribute(inputs_file_token(), time), out_path);
 }
 
 }  // namespace freeusd::usdShade

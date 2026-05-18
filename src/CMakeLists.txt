@@ -82,7 +82,8 @@ add_library(freeusd::usdShade ALIAS freeusd_usdShade)
 target_include_directories(freeusd_usdShade PUBLIC "$<BUILD_INTERFACE:${FREEUSD_INC}>" "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
 target_link_libraries(freeusd_usdShade PUBLIC freeusd_usd freeusd_gf freeusd_vt freeusd_tf freeusd_build_settings)
 
-add_library(freeusd_usdLux STATIC usdLux/distantLight.cpp)
+add_library(freeusd_usdLux STATIC usdLux/distantLight.cpp usdLux/sphereLight.cpp usdLux/rectLight.cpp
+    usdLux/diskLight.cpp usdLux/cylinderLight.cpp usdLux/domeLight.cpp)
 add_library(freeusd::usdLux ALIAS freeusd_usdLux)
 target_include_directories(freeusd_usdLux PUBLIC "$<BUILD_INTERFACE:${FREEUSD_INC}>" "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
 target_link_libraries(freeusd_usdLux PUBLIC freeusd_usd freeusd_gf freeusd_vt freeusd_tf freeusd_build_settings)

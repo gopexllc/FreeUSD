@@ -46,6 +46,10 @@ bool sdf_type_is_float3_tuple_family(std::string_view type_l) noexcept {
   return type_l == "float3" || type_l == "point3f" || type_l == "normal3f" || type_l == "color3f";
 }
 
+bool sdf_type_is_float2_tuple_family(std::string_view type_l) noexcept {
+  return type_l == "float2" || type_l == "texcoord2f";
+}
+
 bool sv_starts_with(std::string_view s, std::string_view p) noexcept {
   return s.size() >= p.size() && s.compare(0, p.size(), p) == 0;
 }
@@ -205,6 +209,30 @@ void set_err(ParseResult* err, std::size_t line, const char* msg) {
   err->ok = false;
   err->line = line;
   err->message = msg;
+}
+
+bool parse_float2_tuple(std::string_view inner_sv, float* out_u, float* out_v, ParseResult* err, std::size_t line) {
+  if (!out_u || !out_v) {
+    return false;
+  }
+  const std::string inner_str{trim(inner_sv)};
+  float a = 0.0f;
+  float b = 0.0f;
+  char comma = 0;
+  std::istringstream iss{inner_str};
+  iss >> a >> comma >> b;
+  if (!iss || comma != ',') {
+    set_err(err, line, "bad float2 tuple literal");
+    return false;
+  }
+  iss >> std::ws;
+  if (!iss.eof()) {
+    set_err(err, line, "bad float2 tuple literal (trailing tokens)");
+    return false;
+  }
+  *out_u = a;
+  *out_v = b;
+  return true;
 }
 
 void split_bracket_list_elements(std::string_view inner, std::vector<std::string_view>* parts) {
@@ -448,6 +476,24 @@ freeusd::vt::Value parse_value(std::string_view t, ParseResult* err, std::size_t
         }
         return freeusd::vt::Value::MakeQuatfArray(std::move(qs));
       }
+      if (sdf_type_is_float2_tuple_family(elem_type)) {
+        std::vector<float> fs;
+        fs.reserve(pieces.size() * 2u);
+        for (std::string_view piece : pieces) {
+          const freeusd::vt::Value ev = parse_value(piece, err, line, elem_type);
+          if (err && !err->ok) {
+            return {};
+          }
+          std::vector<float> pair;
+          if (!ev.GetFloatArray(&pair) || pair.size() != 2u) {
+            set_err(err, line, "texCoord2f[] element is not a float2 tuple");
+            return {};
+          }
+          fs.push_back(pair[0]);
+          fs.push_back(pair[1]);
+        }
+        return freeusd::vt::Value::MakeFloatArray(std::move(fs));
+      }
       if (sdf_type_is_float3_tuple_family(elem_type) || elem_type == "vec3f") {
         std::vector<freeusd::gf::Vec3f> vs;
         vs.reserve(pieces.size());
@@ -562,6 +608,15 @@ freeusd::vt::Value parse_value(std::string_view t, ParseResult* err, std::size_t
       }
       set_err(err, line, "bad quatf literal (expected w, i, j, k)");
       return {};
+    }
+
+    if (sdf_type_is_float2_tuple_family(type_l)) {
+      float u = 0.0f;
+      float v = 0.0f;
+      if (!parse_float2_tuple(inner_sv, &u, &v, err, line)) {
+        return {};
+      }
+      return freeusd::vt::Value::MakeFloatArray(std::vector<float>{u, v});
     }
 
     if (sdf_type_is_float3_tuple_family(type_l)) {

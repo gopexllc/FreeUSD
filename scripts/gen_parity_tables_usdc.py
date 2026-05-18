@@ -48,12 +48,22 @@ def specs_table_payload(rows: list[tuple[int, int, int]]) -> bytes:
     return bytes(out)
 
 
+def fieldsets_table_payload(sets: list[list[int]]) -> bytes:
+    out = bytearray(le_u64(len(sets)))
+    for indices in sets:
+        out += le_u64(len(indices))
+        for index in indices:
+            out += le_u64(index)
+    return bytes(out)
+
+
 def build_crate() -> bytes:
     sections: list[tuple[str, bytes]] = [
         ("TOKENS", string_table_payload(["render", "invisible"])),
         ("STRINGS", string_table_payload(["hello", "world"])),
         ("PATHS", string_table_payload(["/World", "/World/Cube"])),
         ("FIELDS", fields_table_payload([(0, 1), (1, 0)])),
+        ("FIELDSETS", fieldsets_table_payload([[0, 1], [1]])),
         ("SPECS", specs_table_payload([(0, 0, 1), (1, 1, 2)])),
     ]
 

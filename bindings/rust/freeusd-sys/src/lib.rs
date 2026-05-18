@@ -61,6 +61,17 @@ pub struct UsdcSpecEntry {
 }
 
 #[repr(C)]
+pub struct FreeusdUsdcFieldSet {
+    pub field_count: u64,
+    pub field_indices: *mut u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UsdcFieldSet {
+    pub field_indices: Vec<u64>,
+}
+
+#[repr(C)]
 pub struct FreeusdLayer {
     _private: [u8; 0],
 }
@@ -131,6 +142,15 @@ extern "C" {
         out_count: *mut usize,
     ) -> c_int;
     fn freeusd_usdc_specs_entries_free(entries: *mut FreeusdUsdcSpecEntry);
+    fn freeusd_read_usdc_fieldsets_table_from_path_utf8(
+        path: *const c_char,
+        max_field_sets: u64,
+        max_fields_per_set: u64,
+        max_total_bytes: u64,
+        out_sets: *mut *mut FreeusdUsdcFieldSet,
+        out_count: *mut usize,
+    ) -> c_int;
+    fn freeusd_usdc_fieldsets_free(sets: *mut FreeusdUsdcFieldSet, count: usize);
     fn freeusd_bytes_free(bytes: *mut std::ffi::c_void);
     fn freeusd_last_error_message() -> *const c_char;
 
@@ -768,6 +788,47 @@ pub fn read_usdc_specs_table_from_path(path: &str, max_entries: u64, max_total_b
         })
         .collect();
     unsafe { freeusd_usdc_specs_entries_free(raw) };
+    Ok(out)
+}
+
+pub fn read_usdc_fieldsets_table_from_path(
+    path: &str,
+    max_field_sets: u64,
+    max_fields_per_set: u64,
+    max_total_bytes: u64,
+) -> Result<Vec<UsdcFieldSet>, i32> {
+    let cpath = CString::new(path).map_err(|_| 1i32)?;
+    let mut raw: *mut FreeusdUsdcFieldSet = ptr::null_mut();
+    let mut count: usize = 0;
+    let rc = unsafe {
+        freeusd_read_usdc_fieldsets_table_from_path_utf8(
+            cpath.as_ptr(),
+            max_field_sets,
+            max_fields_per_set,
+            max_total_bytes,
+            &mut raw,
+            &mut count,
+        )
+    };
+    if rc != 0 {
+        return Err(rc);
+    }
+    if raw.is_null() || count == 0 {
+        return Ok(Vec::new());
+    }
+    let mut out = Vec::with_capacity(count);
+    for i in 0..count {
+        let set = unsafe { &*raw.add(i) };
+        let slice = if set.field_count == 0 || set.field_indices.is_null() {
+            &[]
+        } else {
+            unsafe { std::slice::from_raw_parts(set.field_indices, set.field_count as usize) }
+        };
+        out.push(UsdcFieldSet {
+            field_indices: slice.to_vec(),
+        });
+    }
+    unsafe { freeusd_usdc_fieldsets_free(raw, count) };
     Ok(out)
 }
 
@@ -2192,6 +2253,19 @@ mod tests {
                     path_index: 1,
                     field_set_index: 1,
                     spec_type: 2,
+                },
+            ]
+        );
+        let fieldsets =
+            read_usdc_fieldsets_table_from_path(&p.to_string_lossy(), 8, 8, 1024).expect("fieldsets table");
+        assert_eq!(
+            fieldsets,
+            vec![
+                UsdcFieldSet {
+                    field_indices: vec![0, 1],
+                },
+                UsdcFieldSet {
+                    field_indices: vec![1],
                 },
             ]
         );

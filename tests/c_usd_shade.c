@@ -51,6 +51,39 @@ int main(void) {
     return 6;
   }
 
+  if (snprintf(path, sizeof path, "%s/parity_shade_texture.usda", FREEUSD_TEST_FIXTURES_DIR) >= (int)sizeof path) {
+    fprintf(stderr, "fixture path too long\n");
+    return 1;
+  }
+  stage = freeusd_stage_open_from_root_file_utf8(path, 2);
+  if (!stage) {
+    fprintf(stderr, "texture stage open failed: %s\n", freeusd_last_error_message());
+    return 7;
+  }
+  shader_path = NULL;
+  if (freeusd_stage_read_material_surface_shader_path(stage, "/World/Looks/Material", &shader_path) != FREEUSD_OK) {
+    fprintf(stderr, "texture surface shader path failed: %s\n", freeusd_last_error_message());
+    freeusd_stage_free(stage);
+    return 8;
+  }
+  char* texture_path = NULL;
+  if (freeusd_stage_read_preview_surface_diffuse_texture_asset_path(stage, shader_path, 1.0, &texture_path) !=
+      FREEUSD_OK) {
+    fprintf(stderr, "texture path read failed: %s\n", freeusd_last_error_message());
+    freeusd_string_free(shader_path);
+    freeusd_stage_free(stage);
+    return 9;
+  }
+  if (strcmp(texture_path, "textures/albedo.png") != 0) {
+    fprintf(stderr, "unexpected texture path: %s\n", texture_path);
+    freeusd_string_free(texture_path);
+    freeusd_string_free(shader_path);
+    freeusd_stage_free(stage);
+    return 10;
+  }
+  freeusd_string_free(texture_path);
+  freeusd_string_free(shader_path);
+
   freeusd_stage_free(stage);
   return 0;
 }
