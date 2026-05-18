@@ -10,6 +10,7 @@ UsdFileKind = _m.UsdFileKind
 detect_usd_file_kind_from_path = _m.detect_usd_file_kind_from_path
 read_usdc_bootstrap_from_path = _m.read_usdc_bootstrap_from_path
 read_usdc_fields_table_from_path = _m.read_usdc_fields_table_from_path
+read_usdc_specs_table_from_path = _m.read_usdc_specs_table_from_path
 read_usdc_path_table_from_path = _m.read_usdc_path_table_from_path
 read_usdc_section_bytes_from_path = _m.read_usdc_section_bytes_from_path
 read_usdc_string_table_from_path = _m.read_usdc_string_table_from_path
@@ -22,6 +23,7 @@ __all__ = [
     "detect_usd_file_kind_from_path",
     "read_usdc_bootstrap_from_path",
     "read_usdc_fields_table_from_path",
+    "read_usdc_specs_table_from_path",
     "read_usdc_path_table_from_path",
     "read_usdc_section_bytes_from_path",
     "read_usdc_string_table_from_path",

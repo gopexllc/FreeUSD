@@ -45,6 +45,22 @@ pub struct UsdcFieldEntry {
 }
 
 #[repr(C)]
+pub struct FreeusdUsdcSpecEntry {
+    pub path_index: u64,
+    pub field_set_index: u64,
+    pub spec_type: u64,
+}
+
+const _: () = assert!(std::mem::size_of::<FreeusdUsdcSpecEntry>() == 24);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UsdcSpecEntry {
+    pub path_index: u64,
+    pub field_set_index: u64,
+    pub spec_type: u64,
+}
+
+#[repr(C)]
 pub struct FreeusdLayer {
     _private: [u8; 0],
 }
@@ -107,6 +123,14 @@ extern "C" {
         out_count: *mut usize,
     ) -> c_int;
     fn freeusd_usdc_fields_entries_free(entries: *mut FreeusdUsdcFieldEntry);
+    fn freeusd_read_usdc_specs_table_from_path_utf8(
+        path: *const c_char,
+        max_entries: u64,
+        max_total_bytes: u64,
+        out_entries: *mut *mut FreeusdUsdcSpecEntry,
+        out_count: *mut usize,
+    ) -> c_int;
+    fn freeusd_usdc_specs_entries_free(entries: *mut FreeusdUsdcSpecEntry);
     fn freeusd_bytes_free(bytes: *mut std::ffi::c_void);
     fn freeusd_last_error_message() -> *const c_char;
 
@@ -712,6 +736,38 @@ pub fn read_usdc_fields_table_from_path(path: &str, max_entries: u64, max_total_
         })
         .collect();
     unsafe { freeusd_usdc_fields_entries_free(raw) };
+    Ok(out)
+}
+
+pub fn read_usdc_specs_table_from_path(path: &str, max_entries: u64, max_total_bytes: u64) -> Result<Vec<UsdcSpecEntry>, i32> {
+    let cpath = CString::new(path).map_err(|_| 1i32)?;
+    let mut raw: *mut FreeusdUsdcSpecEntry = ptr::null_mut();
+    let mut count: usize = 0;
+    let rc = unsafe {
+        freeusd_read_usdc_specs_table_from_path_utf8(
+            cpath.as_ptr(),
+            max_entries,
+            max_total_bytes,
+            &mut raw,
+            &mut count,
+        )
+    };
+    if rc != 0 {
+        return Err(rc);
+    }
+    if raw.is_null() || count == 0 {
+        return Ok(Vec::new());
+    }
+    let slice = unsafe { std::slice::from_raw_parts(raw, count) };
+    let out = slice
+        .iter()
+        .map(|e| UsdcSpecEntry {
+            path_index: e.path_index,
+            field_set_index: e.field_set_index,
+            spec_type: e.spec_type,
+        })
+        .collect();
+    unsafe { freeusd_usdc_specs_entries_free(raw) };
     Ok(out)
 }
 
@@ -2120,6 +2176,22 @@ mod tests {
                 UsdcFieldEntry {
                     token_index: 1,
                     value_type_token_index: 0,
+                },
+            ]
+        );
+        let specs = read_usdc_specs_table_from_path(&p.to_string_lossy(), 8, 1024).expect("specs table");
+        assert_eq!(
+            specs,
+            vec![
+                UsdcSpecEntry {
+                    path_index: 0,
+                    field_set_index: 0,
+                    spec_type: 1,
+                },
+                UsdcSpecEntry {
+                    path_index: 1,
+                    field_set_index: 1,
+                    spec_type: 2,
                 },
             ]
         );

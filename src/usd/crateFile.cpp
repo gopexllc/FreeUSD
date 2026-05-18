@@ -184,6 +184,55 @@ bool readFieldsTableSection(const std::string& path, std::vector<UsdcCrateFieldE
   return true;
 }
 
+bool readSpecsTableSection(const std::string& path, std::vector<UsdcCrateSpecEntry>* out, std::size_t max_entries,
+                           std::size_t max_total_bytes, std::string* err_out) {
+  if (!out) {
+    set_detail(err_out, "null output table");
+    return false;
+  }
+  out->clear();
+  if (max_entries == 0u) {
+    set_detail(err_out, "max_entries must be non-zero");
+    return false;
+  }
+  std::vector<std::uint8_t> bytes;
+  if (!ReadUsdCrateSectionBytesFromPath(path, "SPECS", bytes, max_total_bytes, err_out)) {
+    return false;
+  }
+  if (bytes.size() < 8u) {
+    set_detail(err_out, "USDC SPECS payload too small for count");
+    return false;
+  }
+  const std::uint64_t count = readLeU64(bytes.data());
+  if (count > max_entries) {
+    set_detail(err_out, "USDC SPECS entry count exceeds max_entries");
+    return false;
+  }
+  constexpr std::size_t kSpecEntryBytes = 24u;
+  const std::uint64_t need = 8u + count * kSpecEntryBytes;
+  if (need > bytes.size()) {
+    set_detail(err_out, "USDC SPECS payload too small for entries");
+    return false;
+  }
+  if (need != bytes.size()) {
+    set_detail(err_out, "USDC SPECS payload has trailing bytes");
+    return false;
+  }
+  out->reserve(static_cast<std::size_t>(count));
+  std::size_t cursor = 8u;
+  for (std::uint64_t i = 0; i < count; ++i) {
+    UsdcCrateSpecEntry entry;
+    entry.path_index = readLeU64(bytes.data() + cursor);
+    cursor += 8u;
+    entry.field_set_index = readLeU64(bytes.data() + cursor);
+    cursor += 8u;
+    entry.spec_type = readLeU64(bytes.data() + cursor);
+    cursor += 8u;
+    out->push_back(entry);
+  }
+  return true;
+}
+
 }  // namespace
 
 bool ReadUsdCrateBootstrapFromPath(const std::string& path, UsdcCrateBootstrap& out, std::string* err_out) {
@@ -431,6 +480,12 @@ bool ReadUsdCrateFieldsTableFromPath(const std::string& path, UsdcCrateFieldsTab
                                     std::size_t max_total_bytes, std::string* err_out) {
   out = UsdcCrateFieldsTable{};
   return readFieldsTableSection(path, &out.entries, max_entries, max_total_bytes, err_out);
+}
+
+bool ReadUsdCrateSpecsTableFromPath(const std::string& path, UsdcCrateSpecsTable& out, std::size_t max_entries,
+                                    std::size_t max_total_bytes, std::string* err_out) {
+  out = UsdcCrateSpecsTable{};
+  return readSpecsTableSection(path, &out.entries, max_entries, max_total_bytes, err_out);
 }
 
 UsdFileKind DetectUsdFileKindFromPath(const std::string& path, std::string* detail_out) {

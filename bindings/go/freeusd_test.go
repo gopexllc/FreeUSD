@@ -190,6 +190,14 @@ func TestReadStructuredUsdcTablesFromFixture(t *testing.T) {
 		fields[1].TokenIndex != 1 || fields[1].ValueTypeTokenIndex != 0 {
 		t.Fatalf("unexpected fields %#v", fields)
 	}
+	specs, rc := ReadUsdcSpecsTableFromPath(p, 8, 1024)
+	if rc != 0 {
+		t.Fatalf("specs table rc=%d %s", rc, LastErrorMessage())
+	}
+	if len(specs) != 2 || specs[0].PathIndex != 0 || specs[0].FieldSetIndex != 0 || specs[0].SpecType != 1 ||
+		specs[1].PathIndex != 1 || specs[1].FieldSetIndex != 1 || specs[1].SpecType != 2 {
+		t.Fatalf("unexpected specs %#v", specs)
+	}
 }
 
 func TestLayerStageReadDouble(t *testing.T) {

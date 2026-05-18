@@ -7,6 +7,7 @@
 #include "freeusd/usd/stage.hpp"
 #include "freeusd/usdGeom/boundable.hpp"
 #include "freeusd/usdGeom/imageable.hpp"
+#include "freeusd/usdGeom/mesh.hpp"
 #include "freeusd/usdSkel/skelAnimation.hpp"
 #include "freeusd/usdSkel/skelBinding.hpp"
 #include "freeusd/usdSkel/morphTargets.hpp"
@@ -105,6 +106,7 @@ int main() {
     freeusd::usd::crate::UsdcCrateStringTable tokens{};
     freeusd::usd::crate::UsdcCrateStringTable strings{};
     freeusd::usd::crate::UsdcCrateFieldsTable fields{};
+    freeusd::usd::crate::UsdcCrateSpecsTable specs{};
     freeusd::usd::crate::UsdcCratePathTable paths{};
     assert(freeusd::usd::crate::ReadUsdCrateTokenTableFromPath(fixture("parity_tables.usdc"), tokens, 8, 1024, &err));
     assert(tokens.values.size() == 2u);
@@ -118,10 +120,29 @@ int main() {
     assert(fields.entries.size() == 2u);
     assert(fields.entries[0].token_index == 0u && fields.entries[0].value_type_token_index == 1u);
     assert(fields.entries[1].token_index == 1u && fields.entries[1].value_type_token_index == 0u);
+    assert(freeusd::usd::crate::ReadUsdCrateSpecsTableFromPath(fixture("parity_tables.usdc"), specs, 8, 1024, &err));
+    assert(specs.entries.size() == 2u);
+    assert(specs.entries[0].path_index == 0u && specs.entries[0].field_set_index == 0u &&
+           specs.entries[0].spec_type == 1u);
+    assert(specs.entries[1].path_index == 1u && specs.entries[1].field_set_index == 1u &&
+           specs.entries[1].spec_type == 2u);
     assert(freeusd::usd::crate::ReadUsdCratePathTableFromPath(fixture("parity_tables.usdc"), paths, 8, 1024, &err));
     assert(paths.paths.size() == 2u);
     assert(paths.paths[0] == Path::FromString("/World"));
     assert(paths.paths[1] == Path::FromString("/World/Cube"));
+  }
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_geom_mesh.usda"),
+                                         freeusd::usd::RootLayerSublayersPolicy::None, &err);
+    assert(stage && err.empty());
+    freeusd::usdGeom::Mesh mesh(stage->GetPrimAtPath(Path::FromString("/World/Tri")));
+    assert(mesh);
+    const auto points = mesh.GetPoints(1.0);
+    assert(points.size() == 3u);
+    const auto counts = mesh.GetFaceVertexCounts(1.0);
+    assert(counts.size() == 1u && counts[0] == 3);
   }
 
   {

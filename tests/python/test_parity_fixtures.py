@@ -7,6 +7,7 @@ from freeusd.tf import Token
 from freeusd.usd import RootLayerSublayersPolicy, Stage
 from freeusd.usd.crate import (
     read_usdc_fields_table_from_path,
+    read_usdc_specs_table_from_path,
     read_usdc_path_table_from_path,
     read_usdc_string_table_from_path,
     read_usdc_token_table_from_path,
@@ -76,6 +77,28 @@ def test_parity_tables_fixture_decodes_structured_usdc_tables() -> None:
         {"token_index": 0, "value_type_token_index": 1},
         {"token_index": 1, "value_type_token_index": 0},
     ]
+
+    ok, specs, err = read_usdc_specs_table_from_path(usdc, 8, 1024)
+    assert ok and err == ""
+    assert specs == [
+        {"path_index": 0, "field_set_index": 0, "spec_type": 1},
+        {"path_index": 1, "field_set_index": 1, "spec_type": 2},
+    ]
+
+
+def test_parity_geom_mesh_fixture_reads_points() -> None:
+    from freeusd import Stage
+    from freeusd.sdf import SdfPath
+    from freeusd.usd import RootLayerSublayersPolicy
+    from freeusd.usdGeom import Mesh
+
+    stage = Stage.open_from_root_file(str(FIXTURES / "parity_geom_mesh.usda"), RootLayerSublayersPolicy.none)
+    assert stage is not None
+    mesh = Mesh(stage.prim_at(SdfPath.from_string("/World/Tri")))
+    points = mesh.get_points(1.0)
+    assert len(points) == 3
+    counts = mesh.get_face_vertex_counts(1.0)
+    assert counts == [3]
 
 
 def test_parity_imageable_fixture_is_primary_scene_anchor() -> None:

@@ -226,6 +226,41 @@ func ReadUsdcFieldsTableFromPath(path string, maxEntries uint64, maxTotalBytes u
 	return out, 0
 }
 
+// UsdcSpecEntry is one row from the validated SPECS table (matches C FreeusdUsdcSpecEntry).
+type UsdcSpecEntry struct {
+	PathIndex      uint64
+	FieldSetIndex  uint64
+	SpecType       uint64
+}
+
+// ReadUsdcSpecsTableFromPath reads the validated SPECS table from a shared crate fixture.
+func ReadUsdcSpecsTableFromPath(path string, maxEntries uint64, maxTotalBytes uint64) ([]UsdcSpecEntry, int) {
+	cs := C.CString(path)
+	defer C.free(unsafe.Pointer(cs))
+	var raw *C.FreeusdUsdcSpecEntry
+	var count C.size_t
+	rc := int(C.freeusd_read_usdc_specs_table_from_path_utf8(cs, C.uint64_t(maxEntries), C.uint64_t(maxTotalBytes), &raw, &count))
+	if rc != 0 {
+		return nil, rc
+	}
+	defer C.freeusd_usdc_specs_entries_free(raw)
+	if raw == nil || count == 0 {
+		return nil, 0
+	}
+	step := int(unsafe.Sizeof(C.FreeusdUsdcSpecEntry{}))
+	out := make([]UsdcSpecEntry, int(count))
+	base := unsafe.Pointer(raw)
+	for i := range out {
+		entry := (*C.FreeusdUsdcSpecEntry)(unsafe.Add(base, uintptr(i)*uintptr(step)))
+		out[i] = UsdcSpecEntry{
+			PathIndex:     uint64(entry.path_index),
+			FieldSetIndex: uint64(entry.field_set_index),
+			SpecType:      uint64(entry.spec_type),
+		}
+	}
+	return out, 0
+}
+
 // LastErrorMessage returns the thread-local C API error string (valid until the next C call on this thread).
 func LastErrorMessage() string {
 	return C.GoString(C.freeusd_last_error_message())

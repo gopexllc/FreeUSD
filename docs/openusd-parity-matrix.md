@@ -31,7 +31,9 @@ Status vocabulary:
 - `tests/fixtures/parity_kind_active_refs.usda`
   Composed prim `kind` and `active` through `references`, `payloads`, and `inherits` (`parity_kind_active_ref.usda`, `parity_kind_active_payload.usda`).
 - `tests/fixtures/parity_tables.usdc`
-  Shared binary crate fixture for bootstrap, TOC, raw section payloads, and validated `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` table decode.
+  Shared binary crate fixture for bootstrap, TOC, raw section payloads, and validated `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` / `SPECS` table decode (regenerate with `scripts/gen_parity_tables_usdc.py`).
+- `tests/fixtures/parity_geom_mesh.usda`
+  `UsdGeomMesh`-shaped `points` and `faceVertexCounts` on a triangular mesh prim.
 - `tests/fixtures/parity_embedded_scene.usdc`
   Narrow crate scene-open fallback through an embedded `USDA` section for controlled engine pipelines and fixtures.
 - `tests/fixtures/parity_skel_gltf.usda`
@@ -52,8 +54,8 @@ Status vocabulary:
 ### Formats And Data Model
 
 - `implemented`: USDA load/save, typed scalar/vector/quaternion/matrix values, layer metadata, references/payload/inherits/specializes storage, relationship targets, and time-sample evaluation.
-- `partial`: USDC bootstrap parsing, TOC parsing, raw section-payload reads, validated `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` table decode, and a narrow embedded-`USDA` stage-open fallback are available in C++; the C ABI follows the same validated open/query slice.
-- `planned`: spec-level `.usdc` payload decode beyond the validated table sections and embedded-`USDA` bridge.
+- `partial`: USDC bootstrap parsing, TOC parsing, raw section-payload reads, validated `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` / `SPECS` table decode, and a narrow embedded-`USDA` stage-open fallback are available in C++; the C ABI follows the same validated open/query slice.
+- `planned`: spec-level `.usdc` payload decode beyond the validated table sections (values, `FIELDSETS`, production compression) and embedded-`USDA` bridge.
 
 ### Composition Semantics
 
@@ -64,6 +66,7 @@ Status vocabulary:
 ### Schema And Runtime Helpers
 
 - `implemented`: `usdGeom::Xformable`, `usdGeom::Imageable`, `usdGeom::Boundable`, `usdUtils::FlattenStageAtTime`, and `usdUtils` engine-scene helpers for importer/editor/runtime subset inspection.
+- `partial`: `usdGeom::Mesh` reads composed `points` and `faceVertexCounts` (`parity_geom_mesh.usda`).
 - `partial`: flattening now preserves evaluated defaults plus composed sample times, but it does not yet reconstruct full authored layer provenance for every arc source.
 - `partial`: `usdSkel::Skeleton` and `usdSkel::SkelAnimation` read joints, bind/rest matrices, and sampled TRS arrays from USDA; glTF mapping helpers build parent indices and world bind matrices; `SkelBinding` resolves `skel:skeleton` plus `primvars:skel:jointIndices` / `jointWeights`; `SkelRoot` finds skeleton and `skel:animationSource` under a scope (`parity_skel_binding.usda`); `BlendShape` / `SkelBlendShapes` / `MorphTargets` read morph offsets, remap animation weights, and apply CPU morph accumulation (`parity_skel_blend_shapes.usda`; glTF `mesh.weights` + morph target POSITION deltas); `DeformPointsWithSkeleton` performs CPU LBS from joint world matrices and inverse bind transforms (`parity_skel_skinning.usda`).
 - `partial`: `usdShade::Material` resolves `outputs:surface` to a shader prim; `usdShade::Shader` / `PreviewSurface` read `info:id` and common `UsdPreviewSurface` inputs (`diffuseColor`, `metallic`, `roughness`, `opacity`) with connection following (`parity_shade_preview.usda`).

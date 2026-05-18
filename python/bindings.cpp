@@ -39,6 +39,7 @@
 #include "freeusd/usdUtils/pipeline.hpp"
 #include "freeusd/usdGeom/boundable.hpp"
 #include "freeusd/usdGeom/imageable.hpp"
+#include "freeusd/usdGeom/mesh.hpp"
 #include "freeusd/usdGeom/tokens.hpp"
 #include "freeusd/usdGeom/xformable.hpp"
 #include "freeusd/usdSkel/gltfMapping.hpp"
@@ -1512,6 +1513,27 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
           py::arg("path"),
           py::arg("max_entries") = static_cast<std::size_t>(65536u),
           py::arg("max_total_bytes") = static_cast<std::size_t>(16u * 1024u * 1024u));
+      crate.def(
+          "read_usdc_specs_table_from_path",
+          [](const std::string& path, std::size_t max_entries, std::size_t max_total_bytes) {
+            freeusd::usd::crate::UsdcCrateSpecsTable table{};
+            std::string err;
+            if (!freeusd::usd::crate::ReadUsdCrateSpecsTableFromPath(path, table, max_entries, max_total_bytes, &err)) {
+              return py::make_tuple(false, py::none(), err);
+            }
+            py::list items;
+            for (const freeusd::usd::crate::UsdcCrateSpecEntry& entry : table.entries) {
+              py::dict d;
+              d["path_index"] = entry.path_index;
+              d["field_set_index"] = entry.field_set_index;
+              d["spec_type"] = entry.spec_type;
+              items.append(d);
+            }
+            return py::make_tuple(true, items, std::string{});
+          },
+          py::arg("path"),
+          py::arg("max_entries") = static_cast<std::size_t>(65536u),
+          py::arg("max_total_bytes") = static_cast<std::size_t>(16u * 1024u * 1024u));
     }
 
     py::class_<freeusd::usd::EditTarget>(usd, "EditTarget")
@@ -2079,6 +2101,11 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def_readonly("prim", &freeusd::usdGeom::Boundable::prim)
         .def("compute_local_bound", &freeusd::usdGeom::Boundable::ComputeLocalBound, py::arg("time") = 1.0)
         .def("compute_world_bound", &freeusd::usdGeom::Boundable::ComputeWorldBound, py::arg("time") = 1.0);
+    py::class_<freeusd::usdGeom::Mesh>(geom, "Mesh")
+        .def(py::init<const freeusd::usd::Prim&>(), py::arg("prim"))
+        .def_readonly("prim", &freeusd::usdGeom::Mesh::prim)
+        .def("get_points", &freeusd::usdGeom::Mesh::GetPoints, py::arg("time") = 1.0)
+        .def("get_face_vertex_counts", &freeusd::usdGeom::Mesh::GetFaceVertexCounts, py::arg("time") = 1.0);
     py::class_<freeusd::usdGeom::Xformable>(geom, "Xformable")
         .def(py::init<const freeusd::usd::Prim&>(), py::arg("prim"))
         .def_readonly("prim", &freeusd::usdGeom::Xformable::prim)

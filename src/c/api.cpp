@@ -417,6 +417,50 @@ int freeusd_read_usdc_fields_table_from_path_utf8(const char* path_utf8, uint64_
 
 void freeusd_usdc_fields_entries_free(FreeusdUsdcFieldEntry* entries) { std::free(entries); }
 
+int freeusd_read_usdc_specs_table_from_path_utf8(const char* path_utf8, uint64_t max_entries,
+                                                 uint64_t max_total_bytes, FreeusdUsdcSpecEntry** out_entries,
+                                                 size_t* out_count) {
+  if (!path_utf8 || !out_entries || !out_count || max_entries == 0u) {
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    clear_error();
+    freeusd::usd::crate::UsdcCrateSpecsTable table;
+    std::string err;
+    if (!freeusd::usd::crate::ReadUsdCrateSpecsTableFromPath(std::string{path_utf8}, table,
+                                                             static_cast<std::size_t>(max_entries),
+                                                             static_cast<std::size_t>(max_total_bytes), &err)) {
+      set_error(err.empty() ? "read usdc specs table failed" : err);
+      return FREEUSD_ERR_PARSE;
+    }
+    *out_count = table.entries.size();
+    if (table.entries.empty()) {
+      *out_entries = nullptr;
+      return FREEUSD_OK;
+    }
+    auto* arr = static_cast<FreeusdUsdcSpecEntry*>(std::malloc(table.entries.size() * sizeof(FreeusdUsdcSpecEntry)));
+    if (!arr) {
+      set_error("out of memory");
+      return FREEUSD_ERR_INTERNAL;
+    }
+    for (std::size_t i = 0; i < table.entries.size(); ++i) {
+      arr[i].path_index = table.entries[i].path_index;
+      arr[i].field_set_index = table.entries[i].field_set_index;
+      arr[i].spec_type = table.entries[i].spec_type;
+    }
+    *out_entries = arr;
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown error");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+void freeusd_usdc_specs_entries_free(FreeusdUsdcSpecEntry* entries) { std::free(entries); }
+
 const char* freeusd_last_error_message(void) { return g_last_error.c_str(); }
 
 void freeusd_string_free(char* s) { std::free(s); }

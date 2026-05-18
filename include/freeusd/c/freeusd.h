@@ -176,6 +176,30 @@ FREEUSD_C_API int freeusd_read_usdc_fields_table_from_path_utf8(const char* path
 /** Frees @p entries from @ref freeusd_read_usdc_fields_table_from_path_utf8 (safe on NULL). */
 FREEUSD_C_API void freeusd_usdc_fields_entries_free(FreeusdUsdcFieldEntry* entries);
 
+/** One row from the validated fixture-oriented ``SPECS`` table (``ReadUsdCrateSpecsTableFromPath``). */
+typedef struct FreeusdUsdcSpecEntry {
+  uint64_t path_index;
+  uint64_t field_set_index;
+  uint64_t spec_type;
+} FreeusdUsdcSpecEntry;
+
+#if defined(__cplusplus)
+static_assert(sizeof(FreeusdUsdcSpecEntry) == 24u, "FreeusdUsdcSpecEntry must be 24 bytes (FFI)");
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+_Static_assert(sizeof(FreeusdUsdcSpecEntry) == 24u, "FreeusdUsdcSpecEntry must be 24 bytes (FFI)");
+#endif
+
+/**
+ * Reads the validated ``SPECS`` table payload from a shared test fixture style ``.usdc`` file.
+ * On @ref FREEUSD_OK, @p *out_entries / @p *out_count use @ref freeusd_usdc_specs_entries_free.
+ */
+FREEUSD_C_API int freeusd_read_usdc_specs_table_from_path_utf8(const char* path_utf8, uint64_t max_entries,
+                                                               uint64_t max_total_bytes,
+                                                               FreeusdUsdcSpecEntry** out_entries, size_t* out_count);
+
+/** Frees @p entries from @ref freeusd_read_usdc_specs_table_from_path_utf8 (safe on NULL). */
+FREEUSD_C_API void freeusd_usdc_specs_entries_free(FreeusdUsdcSpecEntry* entries);
+
 /**
  * Last error message for the calling thread, valid until the next FreeUSD C API
  * call on this thread. Never null (empty string if no error was recorded).
