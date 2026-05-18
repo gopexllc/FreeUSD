@@ -211,6 +211,21 @@ def test_parity_lux_rect_fixture_reads_inputs() -> None:
     assert light.get_height(1.0) == 1.0
 
 
+def test_parity_physics_scene_fixture_reads_gravity() -> None:
+    from freeusd.sdf import Path as SdfPath
+    from freeusd.usd import RootLayerSublayersPolicy, Stage
+    from freeusd.usdPhysics import PhysicsScene
+
+    stage = Stage.open_from_root_file(str(FIXTURES / "parity_physics_scene.usda"), RootLayerSublayersPolicy.none)
+    assert stage is not None
+    scene = PhysicsScene.read_from_prim(stage, SdfPath.from_string("/World/Physics"))
+    assert scene.is_physics_scene()
+    gravity = scene.get_gravity_direction(1.0)
+    assert gravity is not None
+    assert gravity.as_array() == [0.0, 0.0, -1.0]
+    assert scene.get_gravity_magnitude(1.0) == 981.0
+
+
 def test_parity_imageable_fixture_is_primary_scene_anchor() -> None:
     stage = Stage.open_from_root_file(str(FIXTURES / "parity_imageable.usda"), RootLayerSublayersPolicy.depth_first)
     assert stage is not None

@@ -59,6 +59,7 @@
 #include "freeusd/usdLux/rectLight.hpp"
 #include "freeusd/usdLux/sphereLight.hpp"
 #include "freeusd/usdLux/tokens.hpp"
+#include "freeusd/usdPhysics/physicsScene.hpp"
 #include "freeusd/usdMedia/tokens.hpp"
 #include "freeusd/usdMtlx/tokens.hpp"
 #include "freeusd/usdPhysics/tokens.hpp"
@@ -2715,6 +2716,40 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
     auto usdPhysics = m.def_submodule("usdPhysics");
     auto physics_tokens = usdPhysics.def_submodule("tokens");
 #include "generated/usdPhysics_tokens.inc"
+
+    py::class_<freeusd::usdPhysics::PhysicsScene>(usdPhysics, "PhysicsScene")
+        .def(py::init<>())
+        .def(py::init<freeusd::usd::Prim>(), py::arg("prim"))
+        .def_readonly("prim", &freeusd::usdPhysics::PhysicsScene::prim)
+        .def_static(
+            "read_from_prim",
+            [](const std::shared_ptr<freeusd::usd::Stage>& stage, const freeusd::sdf::Path& path) {
+              return freeusd::usdPhysics::PhysicsScene::ReadFromPrim(stage, path);
+            },
+            py::arg("stage"),
+            py::arg("path"))
+        .def("__bool__", [](const freeusd::usdPhysics::PhysicsScene& scene) { return static_cast<bool>(scene); })
+        .def("is_physics_scene", &freeusd::usdPhysics::PhysicsScene::IsPhysicsScene)
+        .def(
+            "get_gravity_direction",
+            [](const freeusd::usdPhysics::PhysicsScene& scene, double time) -> py::object {
+              freeusd::gf::Vec3f dir{};
+              if (!scene.GetGravityDirection(&dir, time)) {
+                return py::none();
+              }
+              return py::cast(dir);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_gravity_magnitude",
+            [](const freeusd::usdPhysics::PhysicsScene& scene, double time) -> py::object {
+              float magnitude = 0.0f;
+              if (!scene.GetGravityMagnitude(&magnitude, time)) {
+                return py::none();
+              }
+              return py::cast(magnitude);
+            },
+            py::arg("time") = 1.0);
   }
 
   {
@@ -3212,7 +3247,9 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def_readwrite("path", &freeusd::usdUtils::EngineSceneNode::path)
         .def_readwrite("name", &freeusd::usdUtils::EngineSceneNode::name)
         .def_readwrite("prim_kind", &freeusd::usdUtils::EngineSceneNode::prim_kind)
+        .def_readwrite("has_prim_kind", &freeusd::usdUtils::EngineSceneNode::has_prim_kind)
         .def_readwrite("active", &freeusd::usdUtils::EngineSceneNode::active)
+        .def_readwrite("has_prim_active_opinion", &freeusd::usdUtils::EngineSceneNode::has_prim_active_opinion)
         .def_readwrite("visible", &freeusd::usdUtils::EngineSceneNode::visible)
         .def_readwrite("has_references", &freeusd::usdUtils::EngineSceneNode::has_references)
         .def_readwrite("has_payloads", &freeusd::usdUtils::EngineSceneNode::has_payloads)
@@ -3242,7 +3279,8 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def_readwrite("has_lux_light", &freeusd::usdUtils::EngineSceneNode::has_lux_light)
         .def_readwrite("lux_light_type", &freeusd::usdUtils::EngineSceneNode::lux_light_type)
         .def_readwrite("has_preview_surface_textures",
-                       &freeusd::usdUtils::EngineSceneNode::has_preview_surface_textures);
+                       &freeusd::usdUtils::EngineSceneNode::has_preview_surface_textures)
+        .def_readwrite("has_physics_scene", &freeusd::usdUtils::EngineSceneNode::has_physics_scene);
     py::class_<freeusd::usdUtils::EngineSceneSnapshot>(usdUtils, "EngineSceneSnapshot")
         .def(py::init<>())
         .def_readwrite("root_identifier", &freeusd::usdUtils::EngineSceneSnapshot::root_identifier)
@@ -3268,7 +3306,9 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
                        &freeusd::usdUtils::EngineSceneSnapshot::preview_surface_shader_paths)
         .def_readwrite("preview_surface_textured_shader_paths",
                        &freeusd::usdUtils::EngineSceneSnapshot::preview_surface_textured_shader_paths)
-        .def_readwrite("lux_light_paths", &freeusd::usdUtils::EngineSceneSnapshot::lux_light_paths);
+        .def_readwrite("lux_light_paths", &freeusd::usdUtils::EngineSceneSnapshot::lux_light_paths)
+        .def_readwrite("composed_kind_prim_paths", &freeusd::usdUtils::EngineSceneSnapshot::composed_kind_prim_paths)
+        .def_readwrite("physics_scene_paths", &freeusd::usdUtils::EngineSceneSnapshot::physics_scene_paths);
     py::class_<freeusd::usdUtils::EnginePrimEditorView>(usdUtils, "EnginePrimEditorView")
         .def(py::init<>())
         .def_readwrite("path", &freeusd::usdUtils::EnginePrimEditorView::path)
@@ -3309,6 +3349,13 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def_readwrite("uses_preview_surface_textures",
                        &freeusd::usdUtils::EngineRuntimeSupportReport::uses_preview_surface_textures)
         .def_readwrite("uses_lux_lights", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_lux_lights)
+        .def_readwrite("uses_composed_prim_kind",
+                       &freeusd::usdUtils::EngineRuntimeSupportReport::uses_composed_prim_kind)
+        .def_readwrite("uses_prim_active_opinions",
+                       &freeusd::usdUtils::EngineRuntimeSupportReport::uses_prim_active_opinions)
+        .def_readwrite("uses_kind_active_through_arcs",
+                       &freeusd::usdUtils::EngineRuntimeSupportReport::uses_kind_active_through_arcs)
+        .def_readwrite("uses_physics_scenes", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_physics_scenes)
         .def_readwrite("warnings", &freeusd::usdUtils::EngineRuntimeSupportReport::warnings);
     py::class_<freeusd::usdUtils::FlattenOptions>(usdUtils, "FlattenOptions")
         .def(py::init<>())

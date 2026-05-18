@@ -803,6 +803,10 @@ typedef struct FreeusdEngineRuntimeSupport {
   int uses_preview_surface;
   int uses_preview_surface_textures;
   int uses_lux_lights;
+  int uses_composed_prim_kind;
+  int uses_prim_active_opinions;
+  int uses_kind_active_through_arcs;
+  int uses_physics_scenes;
 } FreeusdEngineRuntimeSupport;
 
 /**

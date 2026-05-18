@@ -571,6 +571,10 @@ pub struct FreeusdEngineRuntimeSupport {
     pub uses_preview_surface: c_int,
     pub uses_preview_surface_textures: c_int,
     pub uses_lux_lights: c_int,
+    pub uses_composed_prim_kind: c_int,
+    pub uses_prim_active_opinions: c_int,
+    pub uses_kind_active_through_arcs: c_int,
+    pub uses_physics_scenes: c_int,
 }
 
 pub type EngineRuntimeSupport = FreeusdEngineRuntimeSupport;

@@ -62,12 +62,14 @@ Status vocabulary:
   `Material` with `UsdPreviewSurface` shader, `outputs:surface` connection, and `material:binding` on a mesh.
 - `tests/fixtures/parity_lux_distant.usda`
   `DistantLight` with `inputs:intensity`, `inputs:color`, and `inputs:angle`.
+- `tests/fixtures/parity_physics_scene.usda`
+  `PhysicsScene` with `physics:gravityDirection` and `physics:gravityMagnitude`.
 
 ## Current Matrix
 
 ### Formats And Data Model
 
-- `implemented`: USDA load/save, typed scalar/vector/quaternion/matrix values, layer metadata, references/payload/inherits/specializes storage, relationship targets, and time-sample evaluation.
+- `implemented`: USDA load/save, typed scalar/vector/quaternion/matrix values (including `vector3f` tuple literals), layer metadata, references/payload/inherits/specializes storage, relationship targets, and time-sample evaluation.
 - `partial`: USDC bootstrap parsing, TOC parsing, raw section-payload reads, validated `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` / `FIELDSETS` / `SPECS` / `VALUES` table decode (fixture-oriented typed kinds: Int32, Float, TokenIndex, Bool, plus opaque), and a narrow embedded-`USDA` stage-open fallback are available in C++; the C ABI follows the same validated open/query slice.
 - `planned`: arbitrary OpenUSD `.usdc` typed value payloads beyond the parity fixture kinds, production compression, and full embedded-`USDA` bridge.
 
@@ -80,12 +82,13 @@ Status vocabulary:
 ### Schema And Runtime Helpers
 
 - `implemented`: `usdGeom::Xformable`, `usdGeom::Imageable`, `usdGeom::Boundable`, `usdUtils::FlattenStageAtTime`, and `usdUtils` engine-scene helpers for importer/editor/runtime subset inspection.
-- `partial`: `usdGeom::Mesh` reads composed `points`, `faceVertexCounts`, `faceVertexIndices`, `normals`, `primvars:st`, `primvars:displayOpacity`, and `primvars:displayColor` (`parity_geom_mesh.usda`); USDA load/save accepts `texCoord2f` / `float2` tuple literals.
+- `partial`: `usdGeom::Mesh` reads composed `points`, `faceVertexCounts`, `faceVertexIndices`, `normals`, `primvars:st`, `primvars:displayOpacity`, and `primvars:displayColor` (`parity_geom_mesh.usda`); USDA load/save accepts `texCoord2f` / `float2` and `vector3f` tuple literals.
 - `partial`: flattening now preserves evaluated defaults plus composed sample times, but it does not yet reconstruct full authored layer provenance for every arc source.
 - `partial`: `usdSkel::Skeleton` and `usdSkel::SkelAnimation` read joints, bind/rest matrices, and sampled TRS arrays from USDA; glTF mapping helpers build parent indices and world bind matrices; `SkelBinding` resolves `skel:skeleton` plus `primvars:skel:jointIndices` / `jointWeights`; `SkelRoot` finds skeleton and `skel:animationSource` under a scope (`parity_skel_binding.usda`); `BlendShape` / `SkelBlendShapes` / `MorphTargets` read morph offsets, remap animation weights, and apply CPU morph accumulation (`parity_skel_blend_shapes.usda`; glTF `mesh.weights` + morph target POSITION deltas); `DeformPointsWithSkeleton` performs CPU LBS from joint world matrices and inverse bind transforms (`parity_skel_skinning.usda`).
 - `partial`: `usdShade::Material` resolves `outputs:surface` to a shader prim; `usdShade::Shader` / `PreviewSurface` read `info:id` and common `UsdPreviewSurface` inputs (`diffuseColor`, `emissiveColor`, `metallic`, `roughness`, `opacity`) with connection following (`parity_shade_preview.usda`); texture asset paths for `diffuseColor`, `normal`, `occlusion`, `metallic`, and `roughness` resolve through one connection hop to connected `inputs:file` (`parity_shade_texture.usda`, `parity_shade_pbr_textures.usda`).
 - `partial`: `usdLux::DistantLight` reads `inputs:intensity`, `inputs:color`, and `inputs:angle` at a time code (`parity_lux_distant.usda`); `usdLux::SphereLight` reads `inputs:intensity`, `inputs:color`, and `inputs:radius` (`parity_lux_sphere.usda`); `usdLux::RectLight` reads `inputs:intensity`, `inputs:color`, `inputs:width`, and `inputs:height` (`parity_lux_rect.usda`); `usdLux::DiskLight` reads `inputs:intensity`, `inputs:color`, and `inputs:radius` (`parity_lux_disk.usda`); `usdLux::CylinderLight` reads `inputs:intensity`, `inputs:color`, `inputs:length`, and `inputs:radius` (`parity_lux_cylinder.usda`); `usdLux::DomeLight` reads `inputs:intensity`, `inputs:color`, `inputs:texture:file`, and `inputs:texture:format` (`parity_lux_dome.usda`).
-- `token-only`: most other non-`usdGeom` / non-`usdSkel` / non-`usdShade` / non-`usdLux` schema packages remain generated token surfaces only.
+- `partial`: `usdPhysics::PhysicsScene` reads `physics:gravityDirection` and `physics:gravityMagnitude` at a time code (`parity_physics_scene.usda`).
+- `token-only`: most other non-`usdGeom` / non-`usdSkel` / non-`usdShade` / non-`usdLux` / non-`usdPhysics` schema packages remain generated token surfaces only.
 
 ### ABI And Bindings
 
@@ -101,7 +104,7 @@ Status vocabulary:
 ### Engine Integration Contract
 
 - `implemented`: `docs/engine-supported-subset.md`, `docs/engine-integration.md`, clean-room/fixture/claim policy docs, `usdUtils::engineScene`, and focused engine integration tests freeze the USDA-first engine path.
-- `partial`: shipping runtime remains intentionally narrow; engine snapshots list material bindings, preview-surface materials, textured preview shaders, and supported `usdLux` light families; `AssessEngineRuntimeSupport` reports `uses_material_bindings`, `uses_preview_surface`, `uses_preview_surface_textures`, and `uses_lux_lights`; arbitrary `.usdc` scene decode and broad live-stage runtime guarantees are still out of scope.
+- `partial`: shipping runtime remains intentionally narrow; engine snapshots list material bindings, preview-surface materials, textured preview shaders, supported `usdLux` light families, `PhysicsScene` prims, and composed prim `kind` paths; `AssessEngineRuntimeSupport` reports `uses_material_bindings`, `uses_preview_surface`, `uses_preview_surface_textures`, `uses_lux_lights`, `uses_physics_scenes`, `uses_composed_prim_kind`, `uses_prim_active_opinions`, and `uses_kind_active_through_arcs`; arbitrary `.usdc` scene decode and broad live-stage runtime guarantees are still out of scope.
 
 ## Acceptance Criteria
 

@@ -64,11 +64,14 @@ This document freezes the exact FreeUSD subset a GPL-compatible engine may rely 
 | scene hierarchy + typed field reads | `tests/fixtures/usd_cross_language.usda` |
 | sublayer expansion + sublayer offsets + time samples | `tests/fixtures/parity_stack_root.usda` |
 | references / payloads / relocates / prefix substitutions | `tests/fixtures/parity_namespace.usda` |
+| composed prim kind / active through arcs | `tests/fixtures/parity_kind_active_refs.usda` |
+| composed prim customData through inherits | `tests/fixtures/parity_custom_data_inherit.usda` |
 | selected variant expansion | `tests/fixtures/parity_variants.usda` |
 | visibility / purpose / bounds / transforms | `tests/fixtures/parity_imageable.usda` |
 | material bindings / preview surface | `tests/fixtures/parity_shade_preview.usda` |
 | preview-surface texture assets | `tests/fixtures/parity_shade_pbr_textures.usda` |
 | usdLux lights in engine snapshots | `tests/fixtures/parity_lux_sphere.usda` |
+| PhysicsScene in engine snapshots | `tests/fixtures/parity_physics_scene.usda` |
 | low-level crate tables | `tests/fixtures/parity_tables.usdc` |
 | narrow crate scene-open fallback | `tests/fixtures/parity_embedded_scene.usdc` |
 

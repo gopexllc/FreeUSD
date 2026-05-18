@@ -3071,6 +3071,10 @@ int freeusd_usdutils_assess_engine_runtime_support(const FreeusdStage* stage, Fr
     out->uses_preview_surface = report.uses_preview_surface ? 1 : 0;
     out->uses_preview_surface_textures = report.uses_preview_surface_textures ? 1 : 0;
     out->uses_lux_lights = report.uses_lux_lights ? 1 : 0;
+    out->uses_composed_prim_kind = report.uses_composed_prim_kind ? 1 : 0;
+    out->uses_prim_active_opinions = report.uses_prim_active_opinions ? 1 : 0;
+    out->uses_kind_active_through_arcs = report.uses_kind_active_through_arcs ? 1 : 0;
+    out->uses_physics_scenes = report.uses_physics_scenes ? 1 : 0;
     clear_error();
     return FREEUSD_OK;
   } catch (const std::exception& e) {

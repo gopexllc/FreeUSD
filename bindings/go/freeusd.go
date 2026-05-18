@@ -1434,8 +1434,12 @@ type EngineRuntimeSupport struct {
 	UsesSkelAnimation          bool
 	UsesMaterialBindings         bool
 	UsesPreviewSurface           bool
-	UsesPreviewSurfaceTextures   bool
-	UsesLuxLights                bool
+	UsesPreviewSurfaceTextures     bool
+	UsesLuxLights                  bool
+	UsesComposedPrimKind             bool
+	UsesPrimActiveOpinions           bool
+	UsesKindActiveThroughArcs        bool
+	UsesPhysicsScenes                bool
 }
 
 // AssessEngineRuntimeSupport reports which engine integration mode fits the composed stage.
@@ -1469,6 +1473,10 @@ func (s *Stage) AssessEngineRuntimeSupport() (report EngineRuntimeSupport, rc in
 	report.UsesPreviewSurface = raw.uses_preview_surface != 0
 	report.UsesPreviewSurfaceTextures = raw.uses_preview_surface_textures != 0
 	report.UsesLuxLights = raw.uses_lux_lights != 0
+	report.UsesComposedPrimKind = raw.uses_composed_prim_kind != 0
+	report.UsesPrimActiveOpinions = raw.uses_prim_active_opinions != 0
+	report.UsesKindActiveThroughArcs = raw.uses_kind_active_through_arcs != 0
+	report.UsesPhysicsScenes = raw.uses_physics_scenes != 0
 	return report, 0
 }
 

@@ -1,0 +1,13 @@
+#usda 1.0
+(
+    defaultPrim = "World"
+)
+
+def Xform "World"
+{
+    def PhysicsScene "Physics"
+    {
+        vector3f physics:gravityDirection = (0.0, 0.0, -1.0)
+        float physics:gravityMagnitude = 981.0
+    }
+}

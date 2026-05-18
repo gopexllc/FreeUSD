@@ -11,6 +11,7 @@
 #include "freeusd/usdShade/previewSurface.hpp"
 #include "freeusd/usdShade/tokens.hpp"
 #include "freeusd/usdLux/tokens.hpp"
+#include "freeusd/usdPhysics/tokens.hpp"
 #include "freeusd/usdSkel/skelBinding.hpp"
 #include "freeusd/usdSkel/skelBlendShapes.hpp"
 #include "freeusd/usdSkel/tokens.hpp"
@@ -67,6 +68,11 @@ EngineSceneNode build_scene_node(const std::shared_ptr<const freeusd::usd::Stage
   }
   node.path = prim.GetPath();
   node.name = prim.GetName();
+  node.has_prim_kind = prim.HasPrimKind();
+  if (node.has_prim_kind) {
+    node.prim_kind = prim.GetPrimKind();
+  }
+  node.has_prim_active_opinion = prim.HasPrimActiveOpinion();
   node.active = prim.IsActive();
   node.visible = freeusd::usdGeom::Imageable(prim).ComputeVisibility(time);
   node.purpose = freeusd::usdGeom::Imageable(prim).ComputePurpose(time);
@@ -74,9 +80,6 @@ EngineSceneNode build_scene_node(const std::shared_ptr<const freeusd::usd::Stage
   node.local_to_world_transform = freeusd::usdGeom::Xformable(prim).ComputeLocalToWorldTransform(time);
   node.local_bound = freeusd::usdGeom::Boundable(prim).ComputeLocalBound(time);
   node.world_bound = freeusd::usdGeom::Boundable(prim).ComputeWorldBound(time);
-  if (prim.HasPrimKind()) {
-    node.prim_kind = prim.GetPrimKind();
-  }
   node.has_references = prim.HasReferences();
   node.has_payloads = prim.HasPayloads();
   node.has_inherits = prim.HasInherits();
@@ -127,6 +130,9 @@ EngineSceneNode build_scene_node(const std::shared_ptr<const freeusd::usd::Stage
     node.has_lux_light = true;
     node.lux_light_type = prim.GetPrimKind().GetText();
   }
+  if (prim.HasPrimKind() && prim.GetPrimKind() == freeusd::usdPhysics::tokens::PhysicsScene()) {
+    node.has_physics_scene = true;
+  }
   return node;
 }
 
@@ -173,6 +179,12 @@ EngineSceneSnapshot BuildEngineSceneSnapshot(const freeusd::usd::Stage& stage, d
     }
     if (node.has_lux_light) {
       append_unique_path(&snapshot.lux_light_paths, node.path);
+    }
+    if (node.has_physics_scene) {
+      append_unique_path(&snapshot.physics_scene_paths, node.path);
+    }
+    if (node.has_prim_kind) {
+      append_unique_path(&snapshot.composed_kind_prim_paths, node.path);
     }
     if (prim.HasPrimKind() && prim.GetPrimKind() == freeusd::usdSkel::tokens::SkelRoot()) {
       snapshot.skel_root_paths.push_back(node.path);
@@ -264,6 +276,16 @@ EngineRuntimeSupportReport AssessEngineRuntimeSupport(const freeusd::usd::Stage&
     if (prim.HasPrimKind() && is_supported_lux_light_kind(prim.GetPrimKind())) {
       report.uses_lux_lights = true;
     }
+    if (prim.HasPrimKind() && prim.GetPrimKind() == freeusd::usdPhysics::tokens::PhysicsScene()) {
+      report.uses_physics_scenes = true;
+    }
+    report.uses_composed_prim_kind = report.uses_composed_prim_kind || prim.HasPrimKind();
+    report.uses_prim_active_opinions = report.uses_prim_active_opinions || prim.HasPrimActiveOpinion();
+    const bool kind_active_arc_prim =
+        prim.HasReferences() || prim.HasPayloads() || prim.HasInherits();
+    if (kind_active_arc_prim && (prim.HasPrimKind() || prim.HasPrimActiveOpinion())) {
+      report.uses_kind_active_through_arcs = true;
+    }
     report.uses_references = report.uses_references || prim.HasReferences();
     report.uses_payloads = report.uses_payloads || prim.HasPayloads();
     report.uses_inherits = report.uses_inherits || prim.HasInherits();
@@ -353,6 +375,14 @@ EngineRuntimeSupportReport AssessEngineRuntimeSupport(const freeusd::usd::Stage&
   if (report.uses_preview_surface_textures) {
     append_warning(&report.warnings, &seen_warnings,
                    "Scene uses preview-surface texture assets; resolve and bake textures during offline import.");
+  }
+  if (report.uses_kind_active_through_arcs) {
+    append_warning(&report.warnings, &seen_warnings,
+                   "Scene resolves prim kind or active through composition arcs; bake hierarchy metadata during import.");
+  }
+  if (report.uses_physics_scenes) {
+    append_warning(&report.warnings, &seen_warnings,
+                   "Scene uses PhysicsScene prims; bake gravity and simulation settings during offline import.");
   }
 
   const bool requires_prebake = report.uses_composed_layer_stack || report.uses_references || report.uses_payloads ||

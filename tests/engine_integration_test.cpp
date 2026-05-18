@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cassert>
 #include <string>
 
@@ -221,6 +222,72 @@ int main() {
     const auto report = AssessEngineRuntimeSupport(*stage);
     assert(report.uses_preview_surface);
     assert(report.uses_preview_surface_textures);
+  }
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_kind_active_refs.usda"), RootLayerSublayersPolicy::DepthFirst,
+                                         &err);
+    assert(stage && err.empty());
+    const auto snapshot = BuildEngineSceneSnapshot(*stage, 1.0);
+    assert(snapshot.composed_kind_prim_paths.size() >= 3u);
+
+    const auto* ref_host = find_node(snapshot, Path::FromString("/World/RefHost"));
+    const auto* payload_host = find_node(snapshot, Path::FromString("/World/PayloadHost"));
+    const auto* inherit_host = find_node(snapshot, Path::FromString("/World/InheritHost"));
+    assert(ref_host != nullptr && ref_host->has_prim_kind);
+    assert(ref_host->prim_kind.GetText() == std::string("component"));
+    assert(ref_host->has_prim_active_opinion);
+    assert(!ref_host->active);
+    assert(payload_host != nullptr && payload_host->prim_kind.GetText() == std::string("group"));
+    assert(inherit_host != nullptr && inherit_host->prim_kind.GetText() == std::string("assembly"));
+
+    const auto report = AssessEngineRuntimeSupport(*stage);
+    assert(report.uses_composed_prim_kind);
+    assert(report.uses_prim_active_opinions);
+    assert(report.uses_kind_active_through_arcs);
+    assert(report.uses_references);
+    assert(report.uses_payloads);
+    assert(report.uses_inherits);
+    assert(report.recommended_mode == EngineRuntimeMode::PreBakedAssetsOnly);
+  }
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_custom_data_inherit.usda"),
+                                         RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const Path host_path = Path::FromString("/World/Host");
+    const auto host_prim = stage->GetPrimAtPath(host_path);
+    assert(host_prim.IsValid());
+    assert(host_prim.HasInherits());
+    const auto keys = host_prim.ListCustomDataKeys();
+    assert(keys.size() == 2u);
+    assert(std::find(keys.begin(), keys.end(), "role") != keys.end());
+    assert(std::find(keys.begin(), keys.end(), "priority") != keys.end());
+    const auto* host_node = find_node(BuildEngineSceneSnapshot(*stage, 1.0), host_path);
+    assert(host_node != nullptr);
+    assert(host_node->has_inherits);
+
+    const auto report = AssessEngineRuntimeSupport(*stage);
+    assert(report.uses_inherits);
+    assert(report.uses_custom_data);
+  }
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_physics_scene.usda"), RootLayerSublayersPolicy::DepthFirst,
+                                         &err);
+    assert(stage && err.empty());
+    const auto snapshot = BuildEngineSceneSnapshot(*stage, 1.0);
+    assert(snapshot.physics_scene_paths.size() == 1u);
+    assert(snapshot.physics_scene_paths[0] == Path::FromString("/World/Physics"));
+    const auto* physics = find_node(snapshot, Path::FromString("/World/Physics"));
+    assert(physics != nullptr && physics->has_physics_scene);
+
+    const auto report = AssessEngineRuntimeSupport(*stage);
+    assert(report.uses_physics_scenes);
+    assert(report.recommended_mode == EngineRuntimeMode::ExperimentalLiveStage);
   }
 
   return 0;

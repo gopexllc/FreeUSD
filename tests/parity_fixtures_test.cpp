@@ -18,6 +18,7 @@
 #include "freeusd/usdLux/domeLight.hpp"
 #include "freeusd/usdLux/rectLight.hpp"
 #include "freeusd/usdLux/sphereLight.hpp"
+#include "freeusd/usdPhysics/physicsScene.hpp"
 #include "freeusd/usdShade/material.hpp"
 #include "freeusd/usdShade/previewSurface.hpp"
 #include "freeusd/usdUtils/pipeline.hpp"
@@ -416,6 +417,21 @@ int main() {
     freeusd::gf::Vec3f diffuse{};
     assert(preview.GetDiffuseColor(&diffuse, 1.0));
     assert(diffuse.x() == 0.8f && diffuse.y() == 0.2f && diffuse.z() == 0.1f);
+  }
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_physics_scene.usda"),
+                                         freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const freeusd::usdPhysics::PhysicsScene scene =
+        freeusd::usdPhysics::PhysicsScene::ReadFromPrim(stage, Path::FromString("/World/Physics"));
+    assert(scene && scene.IsPhysicsScene());
+    freeusd::gf::Vec3f gravity_dir{};
+    assert(scene.GetGravityDirection(&gravity_dir, 1.0));
+    assert(gravity_dir.z() == -1.0f);
+    float gravity_mag = 0.0f;
+    assert(scene.GetGravityMagnitude(&gravity_mag, 1.0) && gravity_mag == 981.0f);
   }
 
   return 0;

@@ -102,11 +102,14 @@ target_link_libraries(engine_runtime_bridge PRIVATE freeusd::c)
 - hierarchy / field reads: `tests/fixtures/usd_cross_language.usda`
 - sublayers / offsets / sample times: `tests/fixtures/parity_stack_root.usda`
 - references / payloads / relocates / prefix substitutions: `tests/fixtures/parity_namespace.usda`
+- composed prim kind / active through arcs: `tests/fixtures/parity_kind_active_refs.usda`
+- composed prim customData through inherits: `tests/fixtures/parity_custom_data_inherit.usda`
 - variants: `tests/fixtures/parity_variants.usda`
 - transforms / visibility / purpose / bounds: `tests/fixtures/parity_imageable.usda`
 - preview materials / bindings: `tests/fixtures/parity_shade_preview.usda`
 - preview-surface texture assets: `tests/fixtures/parity_shade_pbr_textures.usda`
 - usdLux light families: `tests/fixtures/parity_lux_sphere.usda` (and sibling `parity_lux_*.usda` fixtures)
+- PhysicsScene gravity inputs: `tests/fixtures/parity_physics_scene.usda`
 - crate tables: `tests/fixtures/parity_tables.usdc`
 - narrow crate scene-open fallback: `tests/fixtures/parity_embedded_scene.usdc`
 

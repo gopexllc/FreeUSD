@@ -43,7 +43,8 @@ std::string_view trim(std::string_view s) {
 
 /// Lowercase SDF type name (e.g. from ``ascii_lower`` on the declared attribute type).
 bool sdf_type_is_float3_tuple_family(std::string_view type_l) noexcept {
-  return type_l == "float3" || type_l == "point3f" || type_l == "normal3f" || type_l == "color3f";
+  return type_l == "float3" || type_l == "point3f" || type_l == "normal3f" || type_l == "color3f" ||
+         type_l == "vector3f";
 }
 
 bool sdf_type_is_float2_tuple_family(std::string_view type_l) noexcept {

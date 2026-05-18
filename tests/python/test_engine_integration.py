@@ -87,3 +87,24 @@ def test_engine_editor_view_and_prebake_reports_bindings() -> None:
     ]
     pbr_report = assess_engine_runtime_support(pbr_stage)
     assert pbr_report.uses_preview_surface_textures
+
+    kind_stage = _open_stage("parity_kind_active_refs.usda")
+    kind_snapshot = build_engine_scene_snapshot(kind_stage, 1.0)
+    assert len(kind_snapshot.composed_kind_prim_paths) >= 3
+    kind_report = assess_engine_runtime_support(kind_stage)
+    assert kind_report.uses_kind_active_through_arcs
+    assert kind_report.uses_composed_prim_kind
+    assert kind_report.recommended_mode == EngineRuntimeMode.pre_baked_assets_only
+
+    custom_stage = _open_stage("parity_custom_data_inherit.usda")
+    host = next(node for node in build_engine_scene_snapshot(custom_stage, 1.0).nodes if node.path.text() == "/World/Host")
+    assert "role" in host.custom_data_keys
+    custom_report = assess_engine_runtime_support(custom_stage)
+    assert custom_report.uses_inherits
+    assert custom_report.uses_custom_data
+
+    physics_stage = _open_stage("parity_physics_scene.usda")
+    physics_snapshot = build_engine_scene_snapshot(physics_stage, 1.0)
+    assert [path.text() for path in physics_snapshot.physics_scene_paths] == ["/World/Physics"]
+    physics_report = assess_engine_runtime_support(physics_stage)
+    assert physics_report.uses_physics_scenes
