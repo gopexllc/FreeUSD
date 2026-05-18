@@ -206,6 +206,14 @@ func TestReadStructuredUsdcTablesFromFixture(t *testing.T) {
 		len(sets[1].FieldIndices) != 1 || sets[1].FieldIndices[0] != 1 {
 		t.Fatalf("unexpected fieldsets %#v", sets)
 	}
+
+	values, rc := ReadUsdcValuesTableFromPath(p, 8, 1024)
+	if rc != 0 {
+		t.Fatalf("values table rc=%d %s", rc, LastErrorMessage())
+	}
+	if len(values) != 2 || string(values[0].Bytes) != "v0" || string(values[1].Bytes) != "v1-payload" {
+		t.Fatalf("unexpected values %#v", values)
+	}
 }
 
 func TestLayerStageReadDouble(t *testing.T) {

@@ -528,6 +528,67 @@ void freeusd_usdc_fieldsets_free(FreeusdUsdcFieldSet* sets, size_t count) {
   std::free(sets);
 }
 
+int freeusd_read_usdc_values_table_from_path_utf8(const char* path_utf8, uint64_t max_entries,
+                                                  uint64_t max_total_bytes, FreeusdUsdcValueBlob** out_blobs,
+                                                  size_t* out_count) {
+  if (!path_utf8 || !out_blobs || !out_count || max_entries == 0u) {
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    clear_error();
+    freeusd::usd::crate::UsdcCrateValuesTable table;
+    std::string err;
+    if (!freeusd::usd::crate::ReadUsdCrateValuesTableFromPath(std::string{path_utf8}, table,
+                                                              static_cast<std::size_t>(max_entries),
+                                                              static_cast<std::size_t>(max_total_bytes), &err)) {
+      set_error(err.empty() ? "read usdc values table failed" : err);
+      return FREEUSD_ERR_PARSE;
+    }
+    *out_count = table.entries.size();
+    if (table.entries.empty()) {
+      *out_blobs = nullptr;
+      return FREEUSD_OK;
+    }
+    auto* blobs = static_cast<FreeusdUsdcValueBlob*>(std::calloc(table.entries.size(), sizeof(FreeusdUsdcValueBlob)));
+    if (!blobs) {
+      set_error("out of memory");
+      return FREEUSD_ERR_INTERNAL;
+    }
+    for (std::size_t i = 0; i < table.entries.size(); ++i) {
+      blobs[i].byte_count = table.entries[i].bytes.size();
+      if (blobs[i].byte_count == 0u) {
+        blobs[i].bytes = nullptr;
+        continue;
+      }
+      blobs[i].bytes = static_cast<uint8_t*>(std::malloc(blobs[i].byte_count));
+      if (!blobs[i].bytes) {
+        freeusd_usdc_values_blobs_free(blobs, i);
+        set_error("out of memory");
+        return FREEUSD_ERR_INTERNAL;
+      }
+      std::memcpy(blobs[i].bytes, table.entries[i].bytes.data(), blobs[i].byte_count);
+    }
+    *out_blobs = blobs;
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown error");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+void freeusd_usdc_values_blobs_free(FreeusdUsdcValueBlob* blobs, size_t count) {
+  if (!blobs) {
+    return;
+  }
+  for (size_t i = 0; i < count; ++i) {
+    std::free(blobs[i].bytes);
+  }
+  std::free(blobs);
+}
+
 const char* freeusd_last_error_message(void) { return g_last_error.c_str(); }
 
 void freeusd_string_free(char* s) { std::free(s); }

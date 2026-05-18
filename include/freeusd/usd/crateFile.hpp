@@ -130,6 +130,21 @@ FREEUSD_API bool ReadUsdCrateFieldSetsTableFromPath(const std::string& path, Usd
                                                     std::size_t max_field_sets, std::size_t max_fields_per_set,
                                                     std::size_t max_total_bytes, std::string* err_out = nullptr);
 
+/// One opaque encoded value blob from the fixture-oriented ``VALUES`` table.
+struct UsdcCrateValueEntry {
+  std::vector<std::uint8_t> bytes;
+};
+
+/// Validated ``VALUES`` table: ``uint64_t`` count, then length-prefixed opaque byte payloads.
+struct UsdcCrateValuesTable {
+  std::vector<UsdcCrateValueEntry> entries;
+};
+
+/// Reads the ``VALUES`` section using the shared length-prefixed blob table shape (same as ``STRINGS`` payloads).
+FREEUSD_API bool ReadUsdCrateValuesTableFromPath(const std::string& path, UsdcCrateValuesTable& out,
+                                                 std::size_t max_entries, std::size_t max_total_bytes,
+                                                 std::string* err_out = nullptr);
+
 enum class UsdFileKind {
   /// Could not read path or empty file.
   IoOrEmpty = 0,

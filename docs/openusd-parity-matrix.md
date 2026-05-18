@@ -31,7 +31,7 @@ Status vocabulary:
 - `tests/fixtures/parity_kind_active_refs.usda`
   Composed prim `kind` and `active` through `references`, `payloads`, and `inherits` (`parity_kind_active_ref.usda`, `parity_kind_active_payload.usda`).
 - `tests/fixtures/parity_tables.usdc`
-  Shared binary crate fixture for bootstrap, TOC, raw section payloads, and validated `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` / `FIELDSETS` / `SPECS` table decode (regenerate with `scripts/gen_parity_tables_usdc.py`).
+  Shared binary crate fixture for bootstrap, TOC, raw section payloads, and validated `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` / `FIELDSETS` / `SPECS` / `VALUES` table decode (regenerate with `scripts/gen_parity_tables_usdc.py`).
 - `tests/fixtures/parity_geom_mesh.usda`
   `UsdGeomMesh`-shaped `points`, `faceVertexCounts`, `faceVertexIndices`, `normals`, `primvars:st`, `primvars:displayOpacity`, and `primvars:displayColor` on a triangular mesh prim.
 - `tests/fixtures/parity_lux_sphere.usda`
@@ -68,8 +68,8 @@ Status vocabulary:
 ### Formats And Data Model
 
 - `implemented`: USDA load/save, typed scalar/vector/quaternion/matrix values, layer metadata, references/payload/inherits/specializes storage, relationship targets, and time-sample evaluation.
-- `partial`: USDC bootstrap parsing, TOC parsing, raw section-payload reads, validated `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` / `FIELDSETS` / `SPECS` table decode, and a narrow embedded-`USDA` stage-open fallback are available in C++; the C ABI follows the same validated open/query slice.
-- `planned`: spec-level `.usdc` payload decode beyond the validated table sections (values, `FIELDSETS`, production compression) and embedded-`USDA` bridge.
+- `partial`: USDC bootstrap parsing, TOC parsing, raw section-payload reads, validated `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` / `FIELDSETS` / `SPECS` / `VALUES` table decode, and a narrow embedded-`USDA` stage-open fallback are available in C++; the C ABI follows the same validated open/query slice.
+- `planned`: spec-level `.usdc` typed value payload interpretation beyond opaque `VALUES` blobs, production compression, and full embedded-`USDA` bridge.
 
 ### Composition Semantics
 

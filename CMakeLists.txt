@@ -78,6 +78,11 @@ if(FREEUSD_BUILD_TESTS)
   target_compile_definitions(
     freeusd_usdc_fieldsets_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
 
+  add_executable(freeusd_usdc_values_test tests/usdc_values_test.cpp)
+  target_link_libraries(freeusd_usdc_values_test PRIVATE freeusd::usd)
+  target_compile_definitions(
+    freeusd_usdc_values_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+
   add_executable(freeusd_usd_geom_mesh_test tests/usd_geom_mesh_test.cpp)
   target_link_libraries(freeusd_usd_geom_mesh_test PRIVATE freeusd::usd freeusd::usdGeom)
   target_compile_definitions(
@@ -204,6 +209,7 @@ if(FREEUSD_BUILD_TESTS)
   add_test(NAME freeusd_usdc_fields_test COMMAND freeusd_usdc_fields_test)
   add_test(NAME freeusd_usdc_specs_test COMMAND freeusd_usdc_specs_test)
   add_test(NAME freeusd_usdc_fieldsets_test COMMAND freeusd_usdc_fieldsets_test)
+  add_test(NAME freeusd_usdc_values_test COMMAND freeusd_usdc_values_test)
   add_test(NAME freeusd_usd_geom_mesh_test COMMAND freeusd_usd_geom_mesh_test)
   add_test(NAME freeusd_usd_skel_smoke_test COMMAND freeusd_usd_skel_smoke_test)
   add_test(NAME freeusd_usd_shade_smoke_test COMMAND freeusd_usd_shade_smoke_test)
@@ -343,6 +349,7 @@ if(FREEUSD_BUILD_TESTS)
     freeusd_usdc_fields_test
     freeusd_usdc_specs_test
     freeusd_usdc_fieldsets_test
+    freeusd_usdc_values_test
     freeusd_usd_geom_mesh_test
     freeusd_usd_lux_sphere_light_test
     freeusd_usd_lux_rect_light_test

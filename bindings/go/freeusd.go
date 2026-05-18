@@ -299,6 +299,39 @@ func ReadUsdcFieldSetsTableFromPath(path string, maxFieldSets uint64, maxFieldsP
 	return out, 0
 }
 
+// UsdcValueBlob is one opaque payload from the validated VALUES table.
+type UsdcValueBlob struct {
+	Bytes []byte
+}
+
+// ReadUsdcValuesTableFromPath reads the validated VALUES table from a shared crate fixture.
+func ReadUsdcValuesTableFromPath(path string, maxEntries uint64, maxTotalBytes uint64) ([]UsdcValueBlob, int) {
+	cs := C.CString(path)
+	defer C.free(unsafe.Pointer(cs))
+	var raw *C.FreeusdUsdcValueBlob
+	var count C.size_t
+	rc := int(C.freeusd_read_usdc_values_table_from_path_utf8(cs, C.uint64_t(maxEntries), C.uint64_t(maxTotalBytes), &raw, &count))
+	if rc != 0 {
+		return nil, rc
+	}
+	defer C.freeusd_usdc_values_blobs_free(raw, count)
+	if raw == nil || count == 0 {
+		return nil, 0
+	}
+	out := make([]UsdcValueBlob, int(count))
+	for i := 0; i < int(count); i++ {
+		entry := (*C.FreeusdUsdcValueBlob)(unsafe.Pointer(uintptr(unsafe.Pointer(raw)) + uintptr(i)*unsafe.Sizeof(C.FreeusdUsdcValueBlob{})))
+		n := int(entry.byte_count)
+		if n == 0 {
+			continue
+		}
+		slice := make([]byte, n)
+		copy(slice, C.GoBytes(unsafe.Pointer(entry.bytes), C.int(n)))
+		out[i] = UsdcValueBlob{Bytes: slice}
+	}
+	return out, 0
+}
+
 // LastErrorMessage returns the thread-local C API error string (valid until the next C call on this thread).
 func LastErrorMessage() string {
 	return C.GoString(C.freeusd_last_error_message())

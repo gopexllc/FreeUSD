@@ -343,6 +343,19 @@ int main(void) {
       return 1;
     }
     freeusd_usdc_fieldsets_free(fieldsets, count);
+    FreeusdUsdcValueBlob* value_blobs = NULL;
+    count = 0;
+    if (freeusd_read_usdc_values_table_from_path_utf8(tables_path, 8, 1024, &value_blobs, &count) != FREEUSD_OK) {
+      fprintf(stderr, "read values table failed: %s\n", freeusd_last_error_message());
+      return 1;
+    }
+    if (!value_blobs || count != 2u || value_blobs[0].byte_count != 2u || value_blobs[0].bytes[0] != 'v' ||
+        value_blobs[0].bytes[1] != '0' || value_blobs[1].byte_count != 10u) {
+      fprintf(stderr, "unexpected values table\n");
+      freeusd_usdc_values_blobs_free(value_blobs, count);
+      return 1;
+    }
+    freeusd_usdc_values_blobs_free(value_blobs, count);
   }
 
   FreeusdLayer* layer = freeusd_layer_new_anonymous("c_smoke");

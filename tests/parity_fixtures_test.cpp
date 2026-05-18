@@ -113,6 +113,7 @@ int main() {
     freeusd::usd::crate::UsdcCrateFieldsTable fields{};
     freeusd::usd::crate::UsdcCrateSpecsTable specs{};
     freeusd::usd::crate::UsdcCrateFieldSetsTable fieldsets{};
+    freeusd::usd::crate::UsdcCrateValuesTable values{};
     freeusd::usd::crate::UsdcCratePathTable paths{};
     assert(freeusd::usd::crate::ReadUsdCrateTokenTableFromPath(fixture("parity_tables.usdc"), tokens, 8, 1024, &err));
     assert(tokens.values.size() == 2u);
@@ -134,6 +135,10 @@ int main() {
     assert(fieldsets.sets[0].field_indices[1] == 1u);
     assert(fieldsets.sets[1].field_indices.size() == 1u);
     assert(fieldsets.sets[1].field_indices[0] == 1u);
+    assert(freeusd::usd::crate::ReadUsdCrateValuesTableFromPath(fixture("parity_tables.usdc"), values, 8, 1024, &err));
+    assert(values.entries.size() == 2u);
+    assert(values.entries[0].bytes.size() == 2u);
+    assert(values.entries[1].bytes[0] == 'v');
     assert(freeusd::usd::crate::ReadUsdCrateSpecsTableFromPath(fixture("parity_tables.usdc"), specs, 8, 1024, &err));
     assert(specs.entries.size() == 2u);
     assert(specs.entries[0].path_index == 0u && specs.entries[0].field_set_index == 0u &&

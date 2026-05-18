@@ -10,6 +10,8 @@ _geom = import_module("freeusd._native").usdGeom
 
 Boundable = _geom.Boundable
 Imageable = _geom.Imageable
+Mesh = _geom.Mesh
+TexCoord2f = _geom.TexCoord2f
 Xformable = _geom.Xformable
 
 
@@ -25,4 +27,14 @@ def token_scope():
     return tokens.Scope()
 
 
-__all__ = ["tokens", "Boundable", "Imageable", "Xformable", "token_mesh", "token_xform", "token_scope"]
+__all__ = [
+    "tokens",
+    "Boundable",
+    "Imageable",
+    "Mesh",
+    "TexCoord2f",
+    "Xformable",
+    "token_mesh",
+    "token_xform",
+    "token_scope",
+]

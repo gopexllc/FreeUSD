@@ -72,6 +72,17 @@ pub struct UsdcFieldSet {
 }
 
 #[repr(C)]
+pub struct FreeusdUsdcValueBlob {
+    pub byte_count: u64,
+    pub bytes: *mut u8,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UsdcValueBlob {
+    pub bytes: Vec<u8>,
+}
+
+#[repr(C)]
 pub struct FreeusdLayer {
     _private: [u8; 0],
 }
@@ -151,6 +162,14 @@ extern "C" {
         out_count: *mut usize,
     ) -> c_int;
     fn freeusd_usdc_fieldsets_free(sets: *mut FreeusdUsdcFieldSet, count: usize);
+    fn freeusd_read_usdc_values_table_from_path_utf8(
+        path: *const c_char,
+        max_entries: u64,
+        max_total_bytes: u64,
+        out_blobs: *mut *mut FreeusdUsdcValueBlob,
+        out_count: *mut usize,
+    ) -> c_int;
+    fn freeusd_usdc_values_blobs_free(blobs: *mut FreeusdUsdcValueBlob, count: usize);
     fn freeusd_bytes_free(bytes: *mut std::ffi::c_void);
     fn freeusd_last_error_message() -> *const c_char;
 
@@ -829,6 +848,35 @@ pub fn read_usdc_fieldsets_table_from_path(
         });
     }
     unsafe { freeusd_usdc_fieldsets_free(raw, count) };
+    Ok(out)
+}
+
+pub fn read_usdc_values_table_from_path(path: &str, max_entries: u64, max_total_bytes: u64) -> Result<Vec<UsdcValueBlob>, i32> {
+    let cpath = CString::new(path).map_err(|_| 1i32)?;
+    let mut raw: *mut FreeusdUsdcValueBlob = ptr::null_mut();
+    let mut count: usize = 0;
+    let rc = unsafe {
+        freeusd_read_usdc_values_table_from_path_utf8(cpath.as_ptr(), max_entries, max_total_bytes, &mut raw, &mut count)
+    };
+    if rc != 0 {
+        return Err(rc);
+    }
+    if raw.is_null() || count == 0 {
+        return Ok(Vec::new());
+    }
+    let out = (0..count)
+        .map(|i| {
+            let blob = unsafe { &*raw.add(i) };
+            if blob.byte_count == 0 || blob.bytes.is_null() {
+                return UsdcValueBlob { bytes: Vec::new() };
+            }
+            let slice = unsafe { std::slice::from_raw_parts(blob.bytes, blob.byte_count as usize) };
+            UsdcValueBlob {
+                bytes: slice.to_vec(),
+            }
+        })
+        .collect();
+    unsafe { freeusd_usdc_values_blobs_free(raw, count) };
     Ok(out)
 }
 
@@ -2266,6 +2314,19 @@ mod tests {
                 },
                 UsdcFieldSet {
                     field_indices: vec![1],
+                },
+            ]
+        );
+
+        let values = read_usdc_values_table_from_path(&p.to_string_lossy(), 8, 1024).expect("values table");
+        assert_eq!(
+            values,
+            vec![
+                UsdcValueBlob {
+                    bytes: b"v0".to_vec(),
+                },
+                UsdcValueBlob {
+                    bytes: b"v1-payload".to_vec(),
                 },
             ]
         );

@@ -218,6 +218,23 @@ FREEUSD_C_API int freeusd_read_usdc_fieldsets_table_from_path_utf8(const char* p
 /** Frees @p sets from @ref freeusd_read_usdc_fieldsets_table_from_path_utf8 (safe on NULL). */
 FREEUSD_C_API void freeusd_usdc_fieldsets_free(FreeusdUsdcFieldSet* sets, size_t count);
 
+/** One opaque value blob from the validated fixture-oriented ``VALUES`` table. */
+typedef struct FreeusdUsdcValueBlob {
+  uint64_t byte_count;
+  uint8_t* bytes;
+} FreeusdUsdcValueBlob;
+
+/**
+ * Reads the validated ``VALUES`` table payload from a shared test fixture style ``.usdc`` file.
+ * On @ref FREEUSD_OK, @p *out_blobs / @p *out_count use @ref freeusd_usdc_values_blobs_free.
+ */
+FREEUSD_C_API int freeusd_read_usdc_values_table_from_path_utf8(const char* path_utf8, uint64_t max_entries,
+                                                              uint64_t max_total_bytes,
+                                                              FreeusdUsdcValueBlob** out_blobs, size_t* out_count);
+
+/** Frees @p blobs from @ref freeusd_read_usdc_values_table_from_path_utf8 (safe on NULL). */
+FREEUSD_C_API void freeusd_usdc_values_blobs_free(FreeusdUsdcValueBlob* blobs, size_t count);
+
 /**
  * Last error message for the calling thread, valid until the next FreeUSD C API
  * call on this thread. Never null (empty string if no error was recorded).

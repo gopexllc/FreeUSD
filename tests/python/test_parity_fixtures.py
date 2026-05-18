@@ -9,6 +9,7 @@ from freeusd.usd.crate import (
     read_usdc_fields_table_from_path,
     read_usdc_specs_table_from_path,
     read_usdc_fieldsets_table_from_path,
+    read_usdc_values_table_from_path,
     read_usdc_path_table_from_path,
     read_usdc_string_table_from_path,
     read_usdc_token_table_from_path,
@@ -90,11 +91,14 @@ def test_parity_tables_fixture_decodes_structured_usdc_tables() -> None:
     assert ok and err == ""
     assert fieldsets == [[0, 1], [1]]
 
+    ok, values, err = read_usdc_values_table_from_path(usdc, 8, 1024)
+    assert ok and err == ""
+    assert [bytes(v) for v in values] == [b"v0", b"v1-payload"]
+
 
 def test_parity_geom_mesh_fixture_reads_points() -> None:
-    from freeusd import Stage
-    from freeusd.sdf import SdfPath
-    from freeusd.usd import RootLayerSublayersPolicy
+    from freeusd.sdf import Path as SdfPath
+    from freeusd.usd import RootLayerSublayersPolicy, Stage
     from freeusd.usdGeom import Mesh
 
     stage = Stage.open_from_root_file(str(FIXTURES / "parity_geom_mesh.usda"), RootLayerSublayersPolicy.none)
@@ -117,9 +121,8 @@ def test_parity_geom_mesh_fixture_reads_points() -> None:
 
 
 def test_parity_shade_texture_fixture_reads_asset_path() -> None:
-    from freeusd import Stage
-    from freeusd.sdf import SdfPath
-    from freeusd.usd import RootLayerSublayersPolicy
+    from freeusd.sdf import Path as SdfPath
+    from freeusd.usd import RootLayerSublayersPolicy, Stage
     from freeusd.usdShade import Material, PreviewSurface
 
     stage = Stage.open_from_root_file(str(FIXTURES / "parity_shade_texture.usda"), RootLayerSublayersPolicy.none)
@@ -130,9 +133,8 @@ def test_parity_shade_texture_fixture_reads_asset_path() -> None:
 
 
 def test_parity_lux_sphere_fixture_reads_inputs() -> None:
-    from freeusd import Stage
-    from freeusd.sdf import SdfPath
-    from freeusd.usd import RootLayerSublayersPolicy
+    from freeusd.sdf import Path as SdfPath
+    from freeusd.usd import RootLayerSublayersPolicy, Stage
     from freeusd.usdLux import SphereLight
 
     stage = Stage.open_from_root_file(str(FIXTURES / "parity_lux_sphere.usda"), RootLayerSublayersPolicy.none)
@@ -142,9 +144,8 @@ def test_parity_lux_sphere_fixture_reads_inputs() -> None:
 
 
 def test_parity_shade_pbr_textures_fixture() -> None:
-    from freeusd import Stage
-    from freeusd.sdf import SdfPath
-    from freeusd.usd import RootLayerSublayersPolicy
+    from freeusd.sdf import Path as SdfPath
+    from freeusd.usd import RootLayerSublayersPolicy, Stage
     from freeusd.usdShade import PreviewSurface
 
     stage = Stage.open_from_root_file(
@@ -157,9 +158,8 @@ def test_parity_shade_pbr_textures_fixture() -> None:
 
 
 def test_parity_lux_disk_fixture_reads_inputs() -> None:
-    from freeusd import Stage
-    from freeusd.sdf import SdfPath
-    from freeusd.usd import RootLayerSublayersPolicy
+    from freeusd.sdf import Path as SdfPath
+    from freeusd.usd import RootLayerSublayersPolicy, Stage
     from freeusd.usdLux import DiskLight
 
     stage = Stage.open_from_root_file(str(FIXTURES / "parity_lux_disk.usda"), RootLayerSublayersPolicy.none)
@@ -169,9 +169,8 @@ def test_parity_lux_disk_fixture_reads_inputs() -> None:
 
 
 def test_parity_lux_dome_fixture_reads_inputs() -> None:
-    from freeusd import Stage
-    from freeusd.sdf import SdfPath
-    from freeusd.usd import RootLayerSublayersPolicy
+    from freeusd.sdf import Path as SdfPath
+    from freeusd.usd import RootLayerSublayersPolicy, Stage
     from freeusd.usdLux import DomeLight
 
     stage = Stage.open_from_root_file(str(FIXTURES / "parity_lux_dome.usda"), RootLayerSublayersPolicy.none)
@@ -182,9 +181,8 @@ def test_parity_lux_dome_fixture_reads_inputs() -> None:
 
 
 def test_parity_lux_cylinder_fixture_reads_inputs() -> None:
-    from freeusd import Stage
-    from freeusd.sdf import SdfPath
-    from freeusd.usd import RootLayerSublayersPolicy
+    from freeusd.sdf import Path as SdfPath
+    from freeusd.usd import RootLayerSublayersPolicy, Stage
     from freeusd.usdLux import CylinderLight
 
     stage = Stage.open_from_root_file(str(FIXTURES / "parity_lux_cylinder.usda"), RootLayerSublayersPolicy.none)
@@ -194,9 +192,8 @@ def test_parity_lux_cylinder_fixture_reads_inputs() -> None:
 
 
 def test_parity_lux_rect_fixture_reads_inputs() -> None:
-    from freeusd import Stage
-    from freeusd.sdf import SdfPath
-    from freeusd.usd import RootLayerSublayersPolicy
+    from freeusd.sdf import Path as SdfPath
+    from freeusd.usd import RootLayerSublayersPolicy, Stage
     from freeusd.usdLux import RectLight
 
     stage = Stage.open_from_root_file(str(FIXTURES / "parity_lux_rect.usda"), RootLayerSublayersPolicy.none)

@@ -556,6 +556,26 @@ bool ReadUsdCrateFieldSetsTableFromPath(const std::string& path, UsdcCrateFieldS
   return readFieldSetsTableSection(path, &out.sets, max_field_sets, max_fields_per_set, max_total_bytes, err_out);
 }
 
+bool ReadUsdCrateValuesTableFromPath(const std::string& path, UsdcCrateValuesTable& out, std::size_t max_entries,
+                                     std::size_t max_total_bytes, std::string* err_out) {
+  out = UsdcCrateValuesTable{};
+  if (max_entries == 0u) {
+    set_detail(err_out, "max_entries must be non-zero");
+    return false;
+  }
+  std::vector<std::string> blobs;
+  if (!readSizedStringTableSection(path, "VALUES", &blobs, max_entries, max_total_bytes, err_out)) {
+    return false;
+  }
+  out.entries.reserve(blobs.size());
+  for (std::string& blob : blobs) {
+    UsdcCrateValueEntry entry;
+    entry.bytes.assign(blob.begin(), blob.end());
+    out.entries.push_back(std::move(entry));
+  }
+  return true;
+}
+
 UsdFileKind DetectUsdFileKindFromPath(const std::string& path, std::string* detail_out) {
   if (path.empty()) {
     set_detail(detail_out, "empty path");
