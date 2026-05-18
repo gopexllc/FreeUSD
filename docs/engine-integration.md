@@ -68,6 +68,7 @@ target_link_libraries(engine_runtime_bridge PRIVATE freeusd::c)
 - stage open/query helpers in [`include/freeusd/c/freeusd.h`](../include/freeusd/c/freeusd.h)
 - typed field reads and sample-time queries
 - composition arc queries
+- engine runtime support assessment (`freeusd_usdutils_assess_engine_runtime_support`)
 - `freeusd_stage_compute_local_transform_matrix4d`
 - `freeusd_stage_compute_local_to_world_transform_matrix4d`
 - `freeusd_stage_compute_imageable_visibility`
@@ -103,6 +104,9 @@ target_link_libraries(engine_runtime_bridge PRIVATE freeusd::c)
 - references / payloads / relocates / prefix substitutions: `tests/fixtures/parity_namespace.usda`
 - variants: `tests/fixtures/parity_variants.usda`
 - transforms / visibility / purpose / bounds: `tests/fixtures/parity_imageable.usda`
+- preview materials / bindings: `tests/fixtures/parity_shade_preview.usda`
+- preview-surface texture assets: `tests/fixtures/parity_shade_pbr_textures.usda`
+- usdLux light families: `tests/fixtures/parity_lux_sphere.usda` (and sibling `parity_lux_*.usda` fixtures)
 - crate tables: `tests/fixtures/parity_tables.usdc`
 - narrow crate scene-open fallback: `tests/fixtures/parity_embedded_scene.usdc`
 

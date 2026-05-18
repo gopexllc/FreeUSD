@@ -69,3 +69,21 @@ def test_engine_editor_view_and_prebake_reports_bindings() -> None:
     assert variant_report.uses_variant_selection
     assert variant_report.uses_variant_sets
     assert variant_report.recommended_mode == EngineRuntimeMode.pre_baked_assets_only
+
+    shade_report = assess_engine_runtime_support(_open_stage("parity_shade_preview.usda"))
+    assert shade_report.uses_material_bindings
+    assert shade_report.uses_preview_surface
+
+    lux_stage = _open_stage("parity_lux_sphere.usda")
+    lux_snapshot = build_engine_scene_snapshot(lux_stage, 1.0)
+    assert [path.text() for path in lux_snapshot.lux_light_paths] == ["/World/Bulb"]
+    lux_report = assess_engine_runtime_support(lux_stage)
+    assert lux_report.uses_lux_lights
+
+    pbr_stage = _open_stage("parity_shade_pbr_textures.usda")
+    pbr_snapshot = build_engine_scene_snapshot(pbr_stage, 1.0)
+    assert [path.text() for path in pbr_snapshot.preview_surface_textured_shader_paths] == [
+        "/World/Looks/Material/PreviewSurface"
+    ]
+    pbr_report = assess_engine_runtime_support(pbr_stage)
+    assert pbr_report.uses_preview_surface_textures

@@ -10,6 +10,7 @@
 #include "freeusd/usdShade/material.hpp"
 #include "freeusd/usdShade/previewSurface.hpp"
 #include "freeusd/usdShade/tokens.hpp"
+#include "freeusd/usdLux/tokens.hpp"
 #include "freeusd/usdSkel/skelBinding.hpp"
 #include "freeusd/usdSkel/skelBlendShapes.hpp"
 #include "freeusd/usdSkel/tokens.hpp"
@@ -40,7 +41,26 @@ void append_warning(std::vector<std::string>* warnings, std::unordered_set<std::
   }
 }
 
-EngineSceneNode build_scene_node(const freeusd::usd::Prim& prim, double time) {
+bool is_supported_lux_light_kind(const freeusd::tf::Token& kind) {
+  using namespace freeusd::usdLux::tokens;
+  return kind == DistantLight() || kind == SphereLight() || kind == RectLight() || kind == DiskLight() ||
+         kind == CylinderLight() || kind == DomeLight();
+}
+
+bool preview_surface_has_textured_inputs(const freeusd::usdShade::PreviewSurface& preview, double time) {
+  if (!preview) {
+    return false;
+  }
+  std::string path;
+  return (preview.GetDiffuseTextureAssetPath(&path, time) && !path.empty()) ||
+         (preview.GetNormalTextureAssetPath(&path, time) && !path.empty()) ||
+         (preview.GetOcclusionTextureAssetPath(&path, time) && !path.empty()) ||
+         (preview.GetMetallicTextureAssetPath(&path, time) && !path.empty()) ||
+         (preview.GetRoughnessTextureAssetPath(&path, time) && !path.empty());
+}
+
+EngineSceneNode build_scene_node(const std::shared_ptr<const freeusd::usd::Stage>& stage_ptr,
+                                 const freeusd::usd::Prim& prim, double time) {
   EngineSceneNode node;
   if (!prim.IsValid()) {
     return node;
@@ -92,6 +112,20 @@ EngineSceneNode build_scene_node(const freeusd::usd::Prim& prim, double time) {
   if (!material_bindings.empty()) {
     node.has_material_binding = true;
     node.material_path = material_bindings.front();
+    if (stage_ptr) {
+      const freeusd::usdShade::Material material =
+          freeusd::usdShade::Material::ReadFromPrim(stage_ptr, node.material_path);
+      const freeusd::sdf::Path shader_path = material.GetSurfaceShaderPath();
+      if (!shader_path.IsEmpty()) {
+        const freeusd::usdShade::PreviewSurface preview =
+            freeusd::usdShade::PreviewSurface::ReadFromPrim(stage_ptr, shader_path);
+        node.has_preview_surface_textures = preview_surface_has_textured_inputs(preview, time);
+      }
+    }
+  }
+  if (prim.HasPrimKind() && is_supported_lux_light_kind(prim.GetPrimKind())) {
+    node.has_lux_light = true;
+    node.lux_light_type = prim.GetPrimKind().GetText();
   }
   return node;
 }
@@ -127,7 +161,7 @@ EngineSceneSnapshot BuildEngineSceneSnapshot(const freeusd::usd::Stage& stage, d
   snapshot.up_axis = stage.GetUpAxis();
   snapshot.prim_order = stage.GetPrimOrder();
   stage.TraversePreorder([stage_ptr, &snapshot, time](const freeusd::usd::Prim& prim) {
-    EngineSceneNode node = build_scene_node(prim, time);
+    EngineSceneNode node = build_scene_node(stage_ptr, prim, time);
     if (node.has_skel_binding) {
       snapshot.skel_bound_geom_paths.push_back(node.path);
     }
@@ -136,6 +170,9 @@ EngineSceneSnapshot BuildEngineSceneSnapshot(const freeusd::usd::Stage& stage, d
     }
     if (node.has_material_binding) {
       snapshot.material_bound_geom_paths.push_back(node.path);
+    }
+    if (node.has_lux_light) {
+      append_unique_path(&snapshot.lux_light_paths, node.path);
     }
     if (prim.HasPrimKind() && prim.GetPrimKind() == freeusd::usdSkel::tokens::SkelRoot()) {
       snapshot.skel_root_paths.push_back(node.path);
@@ -153,6 +190,9 @@ EngineSceneSnapshot BuildEngineSceneSnapshot(const freeusd::usd::Stage& stage, d
         if (preview) {
           append_unique_path(&snapshot.material_paths, prim.GetPath());
           append_unique_path(&snapshot.preview_surface_shader_paths, shader_path);
+          if (preview_surface_has_textured_inputs(preview, time)) {
+            append_unique_path(&snapshot.preview_surface_textured_shader_paths, shader_path);
+          }
         }
       }
     }
@@ -161,6 +201,9 @@ EngineSceneSnapshot BuildEngineSceneSnapshot(const freeusd::usd::Stage& stage, d
           freeusd::usdShade::PreviewSurface::ReadFromPrim(stage_ptr, prim.GetPath());
       if (preview_shader) {
         append_unique_path(&snapshot.preview_surface_shader_paths, prim.GetPath());
+        if (preview_surface_has_textured_inputs(preview_shader, time)) {
+          append_unique_path(&snapshot.preview_surface_textured_shader_paths, prim.GetPath());
+        }
       }
     }
     snapshot.nodes.push_back(std::move(node));
@@ -218,6 +261,9 @@ EngineRuntimeSupportReport AssessEngineRuntimeSupport(const freeusd::usd::Stage&
     if (!prim.IsValid()) {
       return true;
     }
+    if (prim.HasPrimKind() && is_supported_lux_light_kind(prim.GetPrimKind())) {
+      report.uses_lux_lights = true;
+    }
     report.uses_references = report.uses_references || prim.HasReferences();
     report.uses_payloads = report.uses_payloads || prim.HasPayloads();
     report.uses_inherits = report.uses_inherits || prim.HasInherits();
@@ -248,12 +294,16 @@ EngineRuntimeSupportReport AssessEngineRuntimeSupport(const freeusd::usd::Stage&
         const freeusd::usdShade::PreviewSurface preview =
             freeusd::usdShade::PreviewSurface::ReadFromPrim(stage.shared_from_this(), shader_path);
         report.uses_preview_surface = report.uses_preview_surface || static_cast<bool>(preview);
+        report.uses_preview_surface_textures =
+            report.uses_preview_surface_textures || preview_surface_has_textured_inputs(preview, 1.0);
       }
     }
     if (prim.HasPrimKind() && prim.GetPrimKind() == freeusd::usdShade::tokens::Shader()) {
       const freeusd::usdShade::PreviewSurface preview_shader =
           freeusd::usdShade::PreviewSurface::ReadFromPrim(stage.shared_from_this(), prim.GetPath());
       report.uses_preview_surface = report.uses_preview_surface || static_cast<bool>(preview_shader);
+      report.uses_preview_surface_textures =
+          report.uses_preview_surface_textures || preview_surface_has_textured_inputs(preview_shader, 1.0);
     }
     for (const std::string& field_name : prim.ListAttributeNames()) {
       const freeusd::tf::Token token(field_name);
@@ -295,6 +345,14 @@ EngineRuntimeSupportReport AssessEngineRuntimeSupport(const freeusd::usd::Stage&
   if (report.uses_skel_animation) {
     append_warning(&report.warnings, &seen_warnings,
                    "Scene uses skeletal animation clips; pre-bake joint samples for shipping runtime.");
+  }
+  if (report.uses_lux_lights) {
+    append_warning(&report.warnings, &seen_warnings,
+                   "Scene uses usdLux lights; bake light parameters into engine-native light assets.");
+  }
+  if (report.uses_preview_surface_textures) {
+    append_warning(&report.warnings, &seen_warnings,
+                   "Scene uses preview-surface texture assets; resolve and bake textures during offline import.");
   }
 
   const bool requires_prebake = report.uses_composed_layer_stack || report.uses_references || report.uses_payloads ||

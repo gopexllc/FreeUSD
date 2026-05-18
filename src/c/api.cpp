@@ -589,6 +589,74 @@ void freeusd_usdc_values_blobs_free(FreeusdUsdcValueBlob* blobs, size_t count) {
   std::free(blobs);
 }
 
+int freeusd_read_usdc_typed_values_table_from_path_utf8(const char* path_utf8, uint64_t max_entries,
+                                                        uint64_t max_total_bytes, FreeusdUsdcTypedValue** out_values,
+                                                        size_t* out_count) {
+  if (!path_utf8 || !out_values || !out_count || max_entries == 0u) {
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  try {
+    clear_error();
+    freeusd::usd::crate::UsdcCrateTypedValuesTable table;
+    std::string err;
+    if (!freeusd::usd::crate::ReadUsdCrateTypedValuesTableFromPath(
+            std::string{path_utf8}, table, static_cast<std::size_t>(max_entries),
+            static_cast<std::size_t>(max_total_bytes), &err)) {
+      set_error(err.empty() ? "read usdc typed values table failed" : err);
+      return FREEUSD_ERR_PARSE;
+    }
+    *out_count = table.entries.size();
+    if (table.entries.empty()) {
+      *out_values = nullptr;
+      return FREEUSD_OK;
+    }
+    auto* values =
+        static_cast<FreeusdUsdcTypedValue*>(std::calloc(table.entries.size(), sizeof(FreeusdUsdcTypedValue)));
+    if (!values) {
+      set_error("out of memory");
+      return FREEUSD_ERR_INTERNAL;
+    }
+    for (std::size_t i = 0; i < table.entries.size(); ++i) {
+      const freeusd::usd::crate::UsdcCrateTypedValue& src = table.entries[i];
+      values[i].kind = static_cast<uint64_t>(src.kind);
+      values[i].byte_count = src.bytes.size();
+      values[i].int32_value = src.int32_value;
+      values[i].float_value = src.float_value;
+      values[i].token_index = src.token_index;
+      values[i].bool_value = src.bool_value ? 1 : 0;
+      if (values[i].byte_count == 0u) {
+        values[i].bytes = nullptr;
+        continue;
+      }
+      values[i].bytes = static_cast<uint8_t*>(std::malloc(values[i].byte_count));
+      if (!values[i].bytes) {
+        freeusd_usdc_typed_values_free(values, i);
+        set_error("out of memory");
+        return FREEUSD_ERR_INTERNAL;
+      }
+      std::memcpy(values[i].bytes, src.bytes.data(), values[i].byte_count);
+    }
+    *out_values = values;
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown error");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+void freeusd_usdc_typed_values_free(FreeusdUsdcTypedValue* values, size_t count) {
+  if (!values) {
+    return;
+  }
+  for (size_t i = 0; i < count; ++i) {
+    std::free(values[i].bytes);
+  }
+  std::free(values);
+}
+
 const char* freeusd_last_error_message(void) { return g_last_error.c_str(); }
 
 void freeusd_string_free(char* s) { std::free(s); }
@@ -3001,6 +3069,8 @@ int freeusd_usdutils_assess_engine_runtime_support(const FreeusdStage* stage, Fr
     out->uses_skel_animation = report.uses_skel_animation ? 1 : 0;
     out->uses_material_bindings = report.uses_material_bindings ? 1 : 0;
     out->uses_preview_surface = report.uses_preview_surface ? 1 : 0;
+    out->uses_preview_surface_textures = report.uses_preview_surface_textures ? 1 : 0;
+    out->uses_lux_lights = report.uses_lux_lights ? 1 : 0;
     clear_error();
     return FREEUSD_OK;
   } catch (const std::exception& e) {

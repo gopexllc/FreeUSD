@@ -68,8 +68,8 @@ Status vocabulary:
 ### Formats And Data Model
 
 - `implemented`: USDA load/save, typed scalar/vector/quaternion/matrix values, layer metadata, references/payload/inherits/specializes storage, relationship targets, and time-sample evaluation.
-- `partial`: USDC bootstrap parsing, TOC parsing, raw section-payload reads, validated `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` / `FIELDSETS` / `SPECS` / `VALUES` table decode, and a narrow embedded-`USDA` stage-open fallback are available in C++; the C ABI follows the same validated open/query slice.
-- `planned`: spec-level `.usdc` typed value payload interpretation beyond opaque `VALUES` blobs, production compression, and full embedded-`USDA` bridge.
+- `partial`: USDC bootstrap parsing, TOC parsing, raw section-payload reads, validated `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` / `FIELDSETS` / `SPECS` / `VALUES` table decode (fixture-oriented typed kinds: Int32, Float, TokenIndex, Bool, plus opaque), and a narrow embedded-`USDA` stage-open fallback are available in C++; the C ABI follows the same validated open/query slice.
+- `planned`: arbitrary OpenUSD `.usdc` typed value payloads beyond the parity fixture kinds, production compression, and full embedded-`USDA` bridge.
 
 ### Composition Semantics
 
@@ -101,7 +101,7 @@ Status vocabulary:
 ### Engine Integration Contract
 
 - `implemented`: `docs/engine-supported-subset.md`, `docs/engine-integration.md`, clean-room/fixture/claim policy docs, `usdUtils::engineScene`, and focused engine integration tests freeze the USDA-first engine path.
-- `partial`: shipping runtime remains intentionally narrow; engine snapshots now list material bindings, preview-surface materials, and distant lights; `AssessEngineRuntimeSupport` reports `uses_material_bindings` / `uses_preview_surface`; arbitrary `.usdc` scene decode and broad live-stage runtime guarantees are still out of scope.
+- `partial`: shipping runtime remains intentionally narrow; engine snapshots list material bindings, preview-surface materials, textured preview shaders, and supported `usdLux` light families; `AssessEngineRuntimeSupport` reports `uses_material_bindings`, `uses_preview_surface`, `uses_preview_surface_textures`, and `uses_lux_lights`; arbitrary `.usdc` scene decode and broad live-stage runtime guarantees are still out of scope.
 
 ## Acceptance Criteria
 

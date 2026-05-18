@@ -235,6 +235,32 @@ FREEUSD_C_API int freeusd_read_usdc_values_table_from_path_utf8(const char* path
 /** Frees @p blobs from @ref freeusd_read_usdc_values_table_from_path_utf8 (safe on NULL). */
 FREEUSD_C_API void freeusd_usdc_values_blobs_free(FreeusdUsdcValueBlob* blobs, size_t count);
 
+/** Fixture-oriented typed value kinds in the ``VALUES`` table. */
+typedef enum FreeusdUsdcTypedValueKind {
+  FREEUSD_USDC_VALUE_OPAQUE = 0,
+  FREEUSD_USDC_VALUE_INT32 = 1,
+  FREEUSD_USDC_VALUE_FLOAT = 2,
+  FREEUSD_USDC_VALUE_TOKEN_INDEX = 3,
+  FREEUSD_USDC_VALUE_BOOL = 4,
+} FreeusdUsdcTypedValueKind;
+
+typedef struct FreeusdUsdcTypedValue {
+  uint64_t kind;
+  uint64_t byte_count;
+  uint8_t* bytes;
+  int32_t int32_value;
+  float float_value;
+  uint64_t token_index;
+  int bool_value;
+} FreeusdUsdcTypedValue;
+
+FREEUSD_C_API int freeusd_read_usdc_typed_values_table_from_path_utf8(const char* path_utf8, uint64_t max_entries,
+                                                                      uint64_t max_total_bytes,
+                                                                      FreeusdUsdcTypedValue** out_values,
+                                                                      size_t* out_count);
+
+FREEUSD_C_API void freeusd_usdc_typed_values_free(FreeusdUsdcTypedValue* values, size_t count);
+
 /**
  * Last error message for the calling thread, valid until the next FreeUSD C API
  * call on this thread. Never null (empty string if no error was recorded).
@@ -775,6 +801,8 @@ typedef struct FreeusdEngineRuntimeSupport {
   int uses_skel_animation;
   int uses_material_bindings;
   int uses_preview_surface;
+  int uses_preview_surface_textures;
+  int uses_lux_lights;
 } FreeusdEngineRuntimeSupport;
 
 /**

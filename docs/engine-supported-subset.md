@@ -66,6 +66,9 @@ This document freezes the exact FreeUSD subset a GPL-compatible engine may rely 
 | references / payloads / relocates / prefix substitutions | `tests/fixtures/parity_namespace.usda` |
 | selected variant expansion | `tests/fixtures/parity_variants.usda` |
 | visibility / purpose / bounds / transforms | `tests/fixtures/parity_imageable.usda` |
+| material bindings / preview surface | `tests/fixtures/parity_shade_preview.usda` |
+| preview-surface texture assets | `tests/fixtures/parity_shade_pbr_textures.usda` |
+| usdLux lights in engine snapshots | `tests/fixtures/parity_lux_sphere.usda` |
 | low-level crate tables | `tests/fixtures/parity_tables.usdc` |
 | narrow crate scene-open fallback | `tests/fixtures/parity_embedded_scene.usdc` |
 

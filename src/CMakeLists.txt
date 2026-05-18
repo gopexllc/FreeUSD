@@ -90,7 +90,7 @@ target_link_libraries(freeusd_usdLux PUBLIC freeusd_usd freeusd_gf freeusd_vt fr
 target_link_libraries(freeusd_usdLux INTERFACE freeusd_usdGeom)
 set_target_properties(freeusd_usdLux PROPERTIES EXPORT_NAME usdLux)
 
-target_link_libraries(freeusd_usdUtils PUBLIC freeusd_usdSkel freeusd_usdShade)
+target_link_libraries(freeusd_usdUtils PUBLIC freeusd_usdSkel freeusd_usdShade freeusd_usdLux)
 
 # Header-only schema stubs (OpenUSD-shaped package names; clean-room tokens only).
 foreach(

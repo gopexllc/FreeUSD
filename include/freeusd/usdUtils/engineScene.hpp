@@ -62,6 +62,12 @@ struct FREEUSD_API EngineSceneNode {
   /// True when ``material:binding`` resolves to at least one target.
   bool has_material_binding{false};
   freeusd::sdf::Path material_path{};
+  /// True when the prim type name matches a supported ``usdLux`` light family.
+  bool has_lux_light{false};
+  /// OpenUSD-shaped lux type name (for example ``SphereLight``); empty when @ref has_lux_light is false.
+  std::string lux_light_type;
+  /// True when a bound or local ``UsdPreviewSurface`` resolves at least one texture asset path.
+  bool has_preview_surface_textures{false};
 };
 
 /// Stage-level snapshot for USDA-first import and engine/editor cache generation.
@@ -92,6 +98,10 @@ struct FREEUSD_API EngineSceneSnapshot {
   std::vector<freeusd::sdf::Path> material_paths;
   /// Shader prims with ``info:id`` ``UsdPreviewSurface``.
   std::vector<freeusd::sdf::Path> preview_surface_shader_paths;
+  /// ``UsdPreviewSurface`` shaders with at least one resolved texture asset path.
+  std::vector<freeusd::sdf::Path> preview_surface_textured_shader_paths;
+  /// Supported ``usdLux`` light prims (distant, sphere, rect, disk, cylinder, dome).
+  std::vector<freeusd::sdf::Path> lux_light_paths;
 };
 
 /// Editor-facing inspection view for one prim in the validated subset.
@@ -127,6 +137,8 @@ struct FREEUSD_API EngineRuntimeSupportReport {
   bool uses_skel_animation{false};
   bool uses_material_bindings{false};
   bool uses_preview_surface{false};
+  bool uses_preview_surface_textures{false};
+  bool uses_lux_lights{false};
   std::vector<std::string> warnings;
 };
 

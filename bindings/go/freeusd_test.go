@@ -211,8 +211,16 @@ func TestReadStructuredUsdcTablesFromFixture(t *testing.T) {
 	if rc != 0 {
 		t.Fatalf("values table rc=%d %s", rc, LastErrorMessage())
 	}
-	if len(values) != 2 || string(values[0].Bytes) != "v0" || string(values[1].Bytes) != "v1-payload" {
+	if len(values) != 4 || len(values[0].Bytes) != 4 {
 		t.Fatalf("unexpected values %#v", values)
+	}
+	typed, rc := ReadUsdcTypedValuesTableFromPath(p, 8, 1024)
+	if rc != 0 {
+		t.Fatalf("typed values table rc=%d %s", rc, LastErrorMessage())
+	}
+	if len(typed) != 4 || typed[0].Kind != 1 || typed[0].Int32Value != 42 || typed[1].Kind != 2 ||
+		typed[2].Kind != 3 || typed[2].TokenIndex != 0 || typed[3].Kind != 4 || !typed[3].BoolValue {
+		t.Fatalf("unexpected typed values %#v", typed)
 	}
 }
 

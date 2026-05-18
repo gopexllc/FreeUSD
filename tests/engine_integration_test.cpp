@@ -190,5 +190,38 @@ int main() {
     assert(report.recommended_mode == EngineRuntimeMode::HybridMetadata);
   }
 
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_lux_sphere.usda"), RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const auto snapshot = BuildEngineSceneSnapshot(*stage, 1.0);
+    assert(snapshot.lux_light_paths.size() == 1u);
+    assert(snapshot.lux_light_paths[0] == Path::FromString("/World/Bulb"));
+    const auto* bulb = find_node(snapshot, Path::FromString("/World/Bulb"));
+    assert(bulb != nullptr);
+    assert(bulb->has_lux_light);
+    assert(bulb->lux_light_type == "SphereLight");
+
+    const auto report = AssessEngineRuntimeSupport(*stage);
+    assert(report.uses_lux_lights);
+    assert(report.recommended_mode == EngineRuntimeMode::ExperimentalLiveStage);
+  }
+
+  {
+    std::string err;
+    auto stage =
+        Stage::OpenFromRootFile(fixture("parity_shade_pbr_textures.usda"), RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const auto snapshot = BuildEngineSceneSnapshot(*stage, 1.0);
+    assert(snapshot.preview_surface_shader_paths.size() == 1u);
+    assert(snapshot.preview_surface_textured_shader_paths.size() == 1u);
+    assert(snapshot.preview_surface_textured_shader_paths[0] ==
+           Path::FromString("/World/Looks/Material/PreviewSurface"));
+
+    const auto report = AssessEngineRuntimeSupport(*stage);
+    assert(report.uses_preview_surface);
+    assert(report.uses_preview_surface_textures);
+  }
+
   return 0;
 }

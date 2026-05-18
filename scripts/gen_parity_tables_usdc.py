@@ -48,11 +48,19 @@ def specs_table_payload(rows: list[tuple[int, int, int]]) -> bytes:
     return bytes(out)
 
 
-def values_table_payload(blobs: list[bytes]) -> bytes:
-    out = bytearray(le_u64(len(blobs)))
-    for blob in blobs:
-        out += le_u64(len(blob))
-        out += blob
+VALUE_KIND_OPAQUE = 0
+VALUE_KIND_INT32 = 1
+VALUE_KIND_FLOAT = 2
+VALUE_KIND_TOKEN_INDEX = 3
+VALUE_KIND_BOOL = 4
+
+
+def typed_values_table_payload(entries: list[tuple[int, bytes]]) -> bytes:
+    out = bytearray(le_u64(len(entries)))
+    for kind, data in entries:
+        out += le_u64(kind)
+        out += le_u64(len(data))
+        out += data
     return bytes(out)
 
 
@@ -73,7 +81,17 @@ def build_crate() -> bytes:
         ("FIELDS", fields_table_payload([(0, 1), (1, 0)])),
         ("FIELDSETS", fieldsets_table_payload([[0, 1], [1]])),
         ("SPECS", specs_table_payload([(0, 0, 1), (1, 1, 2)])),
-        ("VALUES", values_table_payload([b"v0", b"v1-payload"])),
+        (
+            "VALUES",
+            typed_values_table_payload(
+                [
+                    (VALUE_KIND_INT32, struct.pack("<i", 42)),
+                    (VALUE_KIND_FLOAT, struct.pack("<f", 1.5)),
+                    (VALUE_KIND_TOKEN_INDEX, le_u64(0)),
+                    (VALUE_KIND_BOOL, b"\x01"),
+                ]
+            ),
+        ),
     ]
 
     toc_offset = BOOT_SIZE

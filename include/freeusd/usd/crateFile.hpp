@@ -145,6 +145,34 @@ FREEUSD_API bool ReadUsdCrateValuesTableFromPath(const std::string& path, UsdcCr
                                                  std::size_t max_entries, std::size_t max_total_bytes,
                                                  std::string* err_out = nullptr);
 
+/// Fixture-oriented typed value kinds in the ``VALUES`` table (clean-room; not production USDC encoding).
+enum class UsdcCrateTypedValueKind : std::uint64_t {
+  Opaque = 0,
+  Int32 = 1,
+  Float = 2,
+  TokenIndex = 3,
+  Bool = 4,
+};
+
+/// One decoded typed value from the fixture ``VALUES`` table.
+struct UsdcCrateTypedValue {
+  UsdcCrateTypedValueKind kind{UsdcCrateTypedValueKind::Opaque};
+  std::vector<std::uint8_t> bytes;
+  std::int32_t int32_value{0};
+  float float_value{0.0f};
+  std::uint64_t token_index{0};
+  bool bool_value{false};
+};
+
+struct UsdcCrateTypedValuesTable {
+  std::vector<UsdcCrateTypedValue> entries;
+};
+
+/// Reads the fixture ``VALUES`` table: ``uint64_t`` count, then per entry kind, length, and payload bytes.
+FREEUSD_API bool ReadUsdCrateTypedValuesTableFromPath(const std::string& path, UsdcCrateTypedValuesTable& out,
+                                                      std::size_t max_entries, std::size_t max_total_bytes,
+                                                      std::string* err_out = nullptr);
+
 enum class UsdFileKind {
   /// Could not read path or empty file.
   IoOrEmpty = 0,

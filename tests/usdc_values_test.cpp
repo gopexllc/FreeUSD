@@ -1,4 +1,5 @@
 #include <cassert>
+#include <cmath>
 #include <string>
 
 #include "freeusd/usd/crateFile.hpp"
@@ -16,27 +17,42 @@ std::string fixture(const char* name) {
 }  // namespace
 
 int main() {
+  using freeusd::usd::crate::UsdcCrateTypedValueKind;
+  using freeusd::usd::crate::UsdcCrateTypedValuesTable;
   using freeusd::usd::crate::UsdcCrateValuesTable;
 
   {
     std::string err;
-    UsdcCrateValuesTable values{};
-    assert(freeusd::usd::crate::ReadUsdCrateValuesTableFromPath(fixture("parity_tables.usdc"), values, 8, 1024,
-                                                              &err));
+    UsdcCrateTypedValuesTable typed{};
+    assert(freeusd::usd::crate::ReadUsdCrateTypedValuesTableFromPath(fixture("parity_tables.usdc"), typed, 8, 1024,
+                                                                    &err));
     assert(err.empty());
-    assert(values.entries.size() == 2u);
-    assert(values.entries[0].bytes.size() == 2u);
-    assert(values.entries[0].bytes[0] == 'v' && values.entries[0].bytes[1] == '0');
-    assert(values.entries[1].bytes.size() == 10u);
-    assert(values.entries[1].bytes[0] == 'v' && values.entries[1].bytes[1] == '1');
+    assert(typed.entries.size() == 4u);
+    assert(typed.entries[0].kind == UsdcCrateTypedValueKind::Int32);
+    assert(typed.entries[0].int32_value == 42);
+    assert(typed.entries[1].kind == UsdcCrateTypedValueKind::Float);
+    assert(std::fabs(typed.entries[1].float_value - 1.5f) < 1e-5f);
+    assert(typed.entries[2].kind == UsdcCrateTypedValueKind::TokenIndex);
+    assert(typed.entries[2].token_index == 0u);
+    assert(typed.entries[3].kind == UsdcCrateTypedValueKind::Bool);
+    assert(typed.entries[3].bool_value);
   }
 
   {
     std::string err;
-    UsdcCrateValuesTable values{};
-    assert(!freeusd::usd::crate::ReadUsdCrateValuesTableFromPath(fixture("parity_tables.usdc"), values, 1, 1024,
-                                                                 &err));
-    assert(values.entries.empty());
+    UsdcCrateValuesTable opaque{};
+    assert(freeusd::usd::crate::ReadUsdCrateValuesTableFromPath(fixture("parity_tables.usdc"), opaque, 8, 1024, &err));
+    assert(err.empty());
+    assert(opaque.entries.size() == 4u);
+    assert(opaque.entries[0].bytes.size() == 4u);
+  }
+
+  {
+    std::string err;
+    UsdcCrateTypedValuesTable typed{};
+    assert(!freeusd::usd::crate::ReadUsdCrateTypedValuesTableFromPath(fixture("parity_tables.usdc"), typed, 2, 1024,
+                                                                     &err));
+    assert(typed.entries.empty());
   }
 
   return 0;

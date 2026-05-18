@@ -1580,6 +1580,31 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
           py::arg("path"),
           py::arg("max_entries") = static_cast<std::size_t>(65536u),
           py::arg("max_total_bytes") = static_cast<std::size_t>(16u * 1024u * 1024u));
+      crate.def(
+          "read_usdc_typed_values_table_from_path",
+          [](const std::string& path, std::size_t max_entries, std::size_t max_total_bytes) {
+            freeusd::usd::crate::UsdcCrateTypedValuesTable table{};
+            std::string err;
+            if (!freeusd::usd::crate::ReadUsdCrateTypedValuesTableFromPath(path, table, max_entries, max_total_bytes,
+                                                                          &err)) {
+              return py::make_tuple(false, py::none(), err);
+            }
+            py::list items;
+            for (const freeusd::usd::crate::UsdcCrateTypedValue& entry : table.entries) {
+              py::dict row;
+              row["kind"] = static_cast<std::uint64_t>(entry.kind);
+              row["bytes"] = py::bytes(reinterpret_cast<const char*>(entry.bytes.data()), entry.bytes.size());
+              row["int32_value"] = entry.int32_value;
+              row["float_value"] = entry.float_value;
+              row["token_index"] = entry.token_index;
+              row["bool_value"] = entry.bool_value;
+              items.append(row);
+            }
+            return py::make_tuple(true, items, std::string{});
+          },
+          py::arg("path"),
+          py::arg("max_entries") = static_cast<std::size_t>(65536u),
+          py::arg("max_total_bytes") = static_cast<std::size_t>(16u * 1024u * 1024u));
     }
 
     py::class_<freeusd::usd::EditTarget>(usd, "EditTarget")
@@ -3213,7 +3238,11 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def_readwrite("has_blend_shapes", &freeusd::usdUtils::EngineSceneNode::has_blend_shapes)
         .def_readwrite("blend_shape_tokens", &freeusd::usdUtils::EngineSceneNode::blend_shape_tokens)
         .def_readwrite("has_material_binding", &freeusd::usdUtils::EngineSceneNode::has_material_binding)
-        .def_readwrite("material_path", &freeusd::usdUtils::EngineSceneNode::material_path);
+        .def_readwrite("material_path", &freeusd::usdUtils::EngineSceneNode::material_path)
+        .def_readwrite("has_lux_light", &freeusd::usdUtils::EngineSceneNode::has_lux_light)
+        .def_readwrite("lux_light_type", &freeusd::usdUtils::EngineSceneNode::lux_light_type)
+        .def_readwrite("has_preview_surface_textures",
+                       &freeusd::usdUtils::EngineSceneNode::has_preview_surface_textures);
     py::class_<freeusd::usdUtils::EngineSceneSnapshot>(usdUtils, "EngineSceneSnapshot")
         .def(py::init<>())
         .def_readwrite("root_identifier", &freeusd::usdUtils::EngineSceneSnapshot::root_identifier)
@@ -3236,7 +3265,10 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
                        &freeusd::usdUtils::EngineSceneSnapshot::material_bound_geom_paths)
         .def_readwrite("material_paths", &freeusd::usdUtils::EngineSceneSnapshot::material_paths)
         .def_readwrite("preview_surface_shader_paths",
-                       &freeusd::usdUtils::EngineSceneSnapshot::preview_surface_shader_paths);
+                       &freeusd::usdUtils::EngineSceneSnapshot::preview_surface_shader_paths)
+        .def_readwrite("preview_surface_textured_shader_paths",
+                       &freeusd::usdUtils::EngineSceneSnapshot::preview_surface_textured_shader_paths)
+        .def_readwrite("lux_light_paths", &freeusd::usdUtils::EngineSceneSnapshot::lux_light_paths);
     py::class_<freeusd::usdUtils::EnginePrimEditorView>(usdUtils, "EnginePrimEditorView")
         .def(py::init<>())
         .def_readwrite("path", &freeusd::usdUtils::EnginePrimEditorView::path)
@@ -3274,6 +3306,9 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def_readwrite("uses_material_bindings",
                        &freeusd::usdUtils::EngineRuntimeSupportReport::uses_material_bindings)
         .def_readwrite("uses_preview_surface", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_preview_surface)
+        .def_readwrite("uses_preview_surface_textures",
+                       &freeusd::usdUtils::EngineRuntimeSupportReport::uses_preview_surface_textures)
+        .def_readwrite("uses_lux_lights", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_lux_lights)
         .def_readwrite("warnings", &freeusd::usdUtils::EngineRuntimeSupportReport::warnings);
     py::class_<freeusd::usdUtils::FlattenOptions>(usdUtils, "FlattenOptions")
         .def(py::init<>())

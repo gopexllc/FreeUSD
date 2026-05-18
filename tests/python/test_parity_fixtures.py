@@ -10,6 +10,7 @@ from freeusd.usd.crate import (
     read_usdc_specs_table_from_path,
     read_usdc_fieldsets_table_from_path,
     read_usdc_values_table_from_path,
+    read_usdc_typed_values_table_from_path,
     read_usdc_path_table_from_path,
     read_usdc_string_table_from_path,
     read_usdc_token_table_from_path,
@@ -91,9 +92,16 @@ def test_parity_tables_fixture_decodes_structured_usdc_tables() -> None:
     assert ok and err == ""
     assert fieldsets == [[0, 1], [1]]
 
+    ok, typed, err = read_usdc_typed_values_table_from_path(usdc, 8, 1024)
+    assert ok and err == ""
+    assert typed[0]["kind"] == 1 and typed[0]["int32_value"] == 42
+    assert typed[1]["kind"] == 2 and abs(typed[1]["float_value"] - 1.5) < 1e-5
+    assert typed[2]["kind"] == 3 and typed[2]["token_index"] == 0
+    assert typed[3]["kind"] == 4 and typed[3]["bool_value"] is True
+
     ok, values, err = read_usdc_values_table_from_path(usdc, 8, 1024)
     assert ok and err == ""
-    assert [bytes(v) for v in values] == [b"v0", b"v1-payload"]
+    assert len(values) == 4
 
 
 def test_parity_geom_mesh_fixture_reads_points() -> None:

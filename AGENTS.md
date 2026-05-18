@@ -38,7 +38,7 @@ Module boundaries: [docs/openusd-map.md](docs/openusd-map.md). Repo layout: [doc
 
 **On main today:** USDA load/save and composition subsets are strong; USDC has bootstrap/TOC plus validated `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` / `FIELDSETS` / `SPECS` (and matrix documents `VALUES` table decode on the fixture path). Schema helpers cover mesh, skel (glTF-oriented), preview materials, and lux light families at `partial` depth.
 
-**Local uncommitted WIP (verify `git status` before claiming merge-ready):** a **USDC `VALUES` table** slice may exist only in the working tree (`tests/usdc_values_test.cpp`, `src/usd/crateFile.cpp`, C ABI/bindings, regenerated `parity_tables.usdc`). Land it with the standard slice workflow below; next matrix step after opaque blobs is **typed `.usdc` value payload** interpretation (`planned`).
+**USDC `VALUES` on the parity branch:** opaque blob decode plus fixture-oriented **typed** kinds (Int32, Float, TokenIndex, Bool) in `ReadUsdCrateTypedValuesTableFromPath`, C ABI `freeusd_read_usdc_typed_values_table_from_path_utf8`, and cross-language bindings. Matrix `planned` next: arbitrary production `.usdc` value kinds and compression.
 
 ## Agent work sequence (every slice)
 
@@ -57,7 +57,7 @@ Work in small, test-backed steps on the shared crate fixture:
 1. Regenerate `tests/fixtures/parity_tables.usdc` with `scripts/gen_parity_tables_usdc.py` when table layout changes.
 2. Land C++ decode in `src/usd/crateFile.cpp` / `include/freeusd/usd/crateFile.hpp` first.
 3. Mirror only the validated slice in `include/freeusd/c/freeusd.h` and bindings.
-4. Typical table order: bootstrap/TOC, then `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` / `FIELDSETS` / `SPECS` / `VALUES`, then typed payload decode (`planned`).
+4. Typical table order: bootstrap/TOC, then `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` / `FIELDSETS` / `SPECS` / `VALUES` (typed fixture kinds), then broader production value kinds (`planned`).
 5. Do not claim arbitrary `.usdc` scene decode; production compression and full embedded-USDA bridge remain out of scope until fixture-backed.
 
 ### Schema / engine slices
@@ -129,8 +129,8 @@ Follow [docs/compatibility-claims.md](docs/compatibility-claims.md). Never claim
 
 - GitHub org `gopexllc` may show all CI/CodeQL jobs failing in 1–3 seconds with a billing lock message; that is not a code failure (see [docs/github-actions.md](docs/github-actions.md)).
 - Main milestones: `c302408` (USDC `SPECS` + `UsdGeom::Mesh`), `2942708` (USDC `FIELDSETS`, lux/shade/mesh primvars), `493ca1b` (continual-learning index).
-- USDC table decode on main through `SPECS`; `VALUES` table work may exist only as uncommitted WIP (`tests/usdc_values_test.cpp`, regen `parity_tables.usdc`) until landed.
-- Matrix `planned` next for USDC: typed value payload beyond opaque `VALUES` blobs, production compression, full embedded-USDA bridge.
+- USDC table decode through `SPECS` and fixture `VALUES` (opaque + typed kinds on parity branch).
+- Matrix `planned` next for USDC: arbitrary production value kinds, compression, full embedded-USDA bridge.
 - Composition, `usdShade`, `usdLux`, and `usdSkel` are `partial` per the parity matrix; Hydra/imaging/Ndr/Sdr are intentionally deferred.
 - Shared USDC validation uses `tests/fixtures/parity_tables.usdc` from `scripts/gen_parity_tables_usdc.py`.
 - Cross-language contract tests use `tests/fixtures/usd_cross_language.usda` and `tests/parity_fixtures_test.cpp`.

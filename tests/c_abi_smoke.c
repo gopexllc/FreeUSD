@@ -349,13 +349,28 @@ int main(void) {
       fprintf(stderr, "read values table failed: %s\n", freeusd_last_error_message());
       return 1;
     }
-    if (!value_blobs || count != 2u || value_blobs[0].byte_count != 2u || value_blobs[0].bytes[0] != 'v' ||
-        value_blobs[0].bytes[1] != '0' || value_blobs[1].byte_count != 10u) {
+    if (!value_blobs || count != 4u || value_blobs[0].byte_count != 4u) {
       fprintf(stderr, "unexpected values table\n");
       freeusd_usdc_values_blobs_free(value_blobs, count);
       return 1;
     }
     freeusd_usdc_values_blobs_free(value_blobs, count);
+    FreeusdUsdcTypedValue* typed_values = NULL;
+    count = 0;
+    if (freeusd_read_usdc_typed_values_table_from_path_utf8(tables_path, 8, 1024, &typed_values, &count) !=
+        FREEUSD_OK) {
+      fprintf(stderr, "read typed values table failed: %s\n", freeusd_last_error_message());
+      return 1;
+    }
+    if (!typed_values || count != 4u || typed_values[0].kind != FREEUSD_USDC_VALUE_INT32 ||
+        typed_values[0].int32_value != 42 || typed_values[1].kind != FREEUSD_USDC_VALUE_FLOAT ||
+        typed_values[2].kind != FREEUSD_USDC_VALUE_TOKEN_INDEX || typed_values[2].token_index != 0u ||
+        typed_values[3].kind != FREEUSD_USDC_VALUE_BOOL || !typed_values[3].bool_value) {
+      fprintf(stderr, "unexpected typed values table\n");
+      freeusd_usdc_typed_values_free(typed_values, count);
+      return 1;
+    }
+    freeusd_usdc_typed_values_free(typed_values, count);
   }
 
   FreeusdLayer* layer = freeusd_layer_new_anonymous("c_smoke");

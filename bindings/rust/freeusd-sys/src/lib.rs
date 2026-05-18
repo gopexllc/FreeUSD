@@ -77,9 +77,30 @@ pub struct FreeusdUsdcValueBlob {
     pub bytes: *mut u8,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct UsdcValueBlob {
     pub bytes: Vec<u8>,
+}
+
+#[repr(C)]
+pub struct FreeusdUsdcTypedValue {
+    pub kind: u64,
+    pub byte_count: u64,
+    pub bytes: *mut u8,
+    pub int32_value: i32,
+    pub float_value: f32,
+    pub token_index: u64,
+    pub bool_value: i32,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct UsdcTypedValue {
+    pub kind: u64,
+    pub bytes: Vec<u8>,
+    pub int32_value: i32,
+    pub float_value: f32,
+    pub token_index: u64,
+    pub bool_value: bool,
 }
 
 #[repr(C)]
@@ -170,6 +191,14 @@ extern "C" {
         out_count: *mut usize,
     ) -> c_int;
     fn freeusd_usdc_values_blobs_free(blobs: *mut FreeusdUsdcValueBlob, count: usize);
+    fn freeusd_read_usdc_typed_values_table_from_path_utf8(
+        path: *const c_char,
+        max_entries: u64,
+        max_total_bytes: u64,
+        out_values: *mut *mut FreeusdUsdcTypedValue,
+        out_count: *mut usize,
+    ) -> c_int;
+    fn freeusd_usdc_typed_values_free(values: *mut FreeusdUsdcTypedValue, count: usize);
     fn freeusd_bytes_free(bytes: *mut std::ffi::c_void);
     fn freeusd_last_error_message() -> *const c_char;
 
@@ -538,6 +567,10 @@ pub struct FreeusdEngineRuntimeSupport {
     pub uses_skel_bound_meshes: c_int,
     pub uses_blend_shapes: c_int,
     pub uses_skel_animation: c_int,
+    pub uses_material_bindings: c_int,
+    pub uses_preview_surface: c_int,
+    pub uses_preview_surface_textures: c_int,
+    pub uses_lux_lights: c_int,
 }
 
 pub type EngineRuntimeSupport = FreeusdEngineRuntimeSupport;
@@ -877,6 +910,52 @@ pub fn read_usdc_values_table_from_path(path: &str, max_entries: u64, max_total_
         })
         .collect();
     unsafe { freeusd_usdc_values_blobs_free(raw, count) };
+    Ok(out)
+}
+
+pub fn read_usdc_typed_values_table_from_path(
+    path: &str,
+    max_entries: u64,
+    max_total_bytes: u64,
+) -> Result<Vec<UsdcTypedValue>, i32> {
+    let cpath = CString::new(path).map_err(|_| 1i32)?;
+    let mut raw: *mut FreeusdUsdcTypedValue = ptr::null_mut();
+    let mut count: usize = 0;
+    let rc = unsafe {
+        freeusd_read_usdc_typed_values_table_from_path_utf8(
+            cpath.as_ptr(),
+            max_entries,
+            max_total_bytes,
+            &mut raw,
+            &mut count,
+        )
+    };
+    if rc != 0 {
+        return Err(rc);
+    }
+    if raw.is_null() || count == 0 {
+        return Ok(Vec::new());
+    }
+    let out = (0..count)
+        .map(|i| {
+            let value = unsafe { &*raw.add(i) };
+            let bytes = if value.byte_count == 0 || value.bytes.is_null() {
+                Vec::new()
+            } else {
+                let slice = unsafe { std::slice::from_raw_parts(value.bytes, value.byte_count as usize) };
+                slice.to_vec()
+            };
+            UsdcTypedValue {
+                kind: value.kind,
+                bytes,
+                int32_value: value.int32_value,
+                float_value: value.float_value,
+                token_index: value.token_index,
+                bool_value: value.bool_value != 0,
+            }
+        })
+        .collect();
+    unsafe { freeusd_usdc_typed_values_free(raw, count) };
     Ok(out)
 }
 
@@ -2318,18 +2397,20 @@ mod tests {
             ]
         );
 
+        let typed = read_usdc_typed_values_table_from_path(&p.to_string_lossy(), 8, 1024).expect("typed values");
+        assert_eq!(typed.len(), 4);
+        assert_eq!(typed[0].kind, 1);
+        assert_eq!(typed[0].int32_value, 42);
+        assert_eq!(typed[1].kind, 2);
+        assert!((typed[1].float_value - 1.5f32).abs() < 1e-5);
+        assert_eq!(typed[2].kind, 3);
+        assert_eq!(typed[2].token_index, 0);
+        assert_eq!(typed[3].kind, 4);
+        assert!(typed[3].bool_value);
+
         let values = read_usdc_values_table_from_path(&p.to_string_lossy(), 8, 1024).expect("values table");
-        assert_eq!(
-            values,
-            vec![
-                UsdcValueBlob {
-                    bytes: b"v0".to_vec(),
-                },
-                UsdcValueBlob {
-                    bytes: b"v1-payload".to_vec(),
-                },
-            ]
-        );
+        assert_eq!(values.len(), 4);
+        assert_eq!(values[0].bytes.len(), 4);
     }
 
     #[test]

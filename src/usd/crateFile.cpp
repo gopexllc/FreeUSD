@@ -558,20 +558,119 @@ bool ReadUsdCrateFieldSetsTableFromPath(const std::string& path, UsdcCrateFieldS
 
 bool ReadUsdCrateValuesTableFromPath(const std::string& path, UsdcCrateValuesTable& out, std::size_t max_entries,
                                      std::size_t max_total_bytes, std::string* err_out) {
+  UsdcCrateTypedValuesTable typed;
+  if (!ReadUsdCrateTypedValuesTableFromPath(path, typed, max_entries, max_total_bytes, err_out)) {
+    return false;
+  }
   out = UsdcCrateValuesTable{};
+  out.entries.reserve(typed.entries.size());
+  for (const UsdcCrateTypedValue& value : typed.entries) {
+    UsdcCrateValueEntry entry;
+    entry.bytes = value.bytes;
+    out.entries.push_back(std::move(entry));
+  }
+  return true;
+}
+
+namespace {
+
+bool parse_typed_value_payload(UsdcCrateTypedValueKind kind, const std::vector<std::uint8_t>& bytes,
+                               UsdcCrateTypedValue* out, std::string* err_out) {
+  if (!out) {
+    return false;
+  }
+  out->kind = kind;
+  out->bytes = bytes;
+  switch (kind) {
+    case UsdcCrateTypedValueKind::Opaque:
+      return true;
+    case UsdcCrateTypedValueKind::Int32:
+      if (bytes.size() != 4u) {
+        set_detail(err_out, "USDC typed Int32 payload must be 4 bytes");
+        return false;
+      }
+      std::memcpy(&out->int32_value, bytes.data(), 4u);
+      return true;
+    case UsdcCrateTypedValueKind::Float:
+      if (bytes.size() != 4u) {
+        set_detail(err_out, "USDC typed Float payload must be 4 bytes");
+        return false;
+      }
+      std::memcpy(&out->float_value, bytes.data(), 4u);
+      return true;
+    case UsdcCrateTypedValueKind::TokenIndex:
+      if (bytes.size() != 8u) {
+        set_detail(err_out, "USDC typed TokenIndex payload must be 8 bytes");
+        return false;
+      }
+      out->token_index = readLeU64(bytes.data());
+      return true;
+    case UsdcCrateTypedValueKind::Bool:
+      if (bytes.size() != 1u) {
+        set_detail(err_out, "USDC typed Bool payload must be 1 byte");
+        return false;
+      }
+      out->bool_value = bytes[0] != 0u;
+      return true;
+  }
+  set_detail(err_out, "USDC typed value kind out of range");
+  return false;
+}
+
+}  // namespace
+
+bool ReadUsdCrateTypedValuesTableFromPath(const std::string& path, UsdcCrateTypedValuesTable& out,
+                                          std::size_t max_entries, std::size_t max_total_bytes,
+                                          std::string* err_out) {
+  out = UsdcCrateTypedValuesTable{};
   if (max_entries == 0u) {
     set_detail(err_out, "max_entries must be non-zero");
     return false;
   }
-  std::vector<std::string> blobs;
-  if (!readSizedStringTableSection(path, "VALUES", &blobs, max_entries, max_total_bytes, err_out)) {
+  std::vector<std::uint8_t> section;
+  if (!ReadUsdCrateSectionBytesFromPath(path, "VALUES", section, max_total_bytes, err_out)) {
     return false;
   }
-  out.entries.reserve(blobs.size());
-  for (std::string& blob : blobs) {
-    UsdcCrateValueEntry entry;
-    entry.bytes.assign(blob.begin(), blob.end());
-    out.entries.push_back(std::move(entry));
+  if (section.size() < 8u) {
+    set_detail(err_out, "USDC VALUES payload too small for count");
+    return false;
+  }
+  const std::uint64_t count = readLeU64(section.data());
+  if (count > max_entries) {
+    set_detail(err_out, "USDC VALUES entry count exceeds max_entries");
+    return false;
+  }
+  std::size_t cursor = 8u;
+  out.entries.reserve(static_cast<std::size_t>(count));
+  for (std::uint64_t i = 0; i < count; ++i) {
+    if (cursor + 16u > section.size()) {
+      set_detail(err_out, "USDC VALUES payload ended before typed entry header");
+      return false;
+    }
+    const std::uint64_t kind_raw = readLeU64(section.data() + cursor);
+    cursor += 8u;
+    const std::uint64_t len = readLeU64(section.data() + cursor);
+    cursor += 8u;
+    if (len > static_cast<std::uint64_t>(section.size() - cursor)) {
+      set_detail(err_out, "USDC VALUES typed payload length exceeds section bytes");
+      return false;
+    }
+    const std::vector<std::uint8_t> payload(section.begin() + static_cast<std::ptrdiff_t>(cursor),
+                                            section.begin() + static_cast<std::ptrdiff_t>(cursor + len));
+    cursor += static_cast<std::size_t>(len);
+    if (kind_raw > static_cast<std::uint64_t>(UsdcCrateTypedValueKind::Bool)) {
+      set_detail(err_out, "USDC VALUES typed kind out of range");
+      return false;
+    }
+    UsdcCrateTypedValue value;
+    if (!parse_typed_value_payload(static_cast<UsdcCrateTypedValueKind>(kind_raw), payload, &value, err_out)) {
+      return false;
+    }
+    out.entries.push_back(std::move(value));
+  }
+  if (cursor != section.size()) {
+    set_detail(err_out, "USDC VALUES payload has trailing bytes");
+    return false;
   }
   return true;
 }
