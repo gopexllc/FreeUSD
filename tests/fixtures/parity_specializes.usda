@@ -1,0 +1,22 @@
+#usda 1.0
+(
+    defaultPrim = "World"
+)
+
+def Xform "World"
+{
+    class "BaseSpec"
+    {
+        double sharedStrength = 10.0
+        double fromSpec = 1.0
+    }
+
+    def "Host"
+    (
+        prepend specializes = </World/BaseSpec>
+    )
+    {
+        double fromSpec = 99.0
+        double hostOnly = 3.0
+    }
+}

@@ -28,6 +28,8 @@ Status vocabulary:
   Schema-facing `purpose` / `visibility` behavior for `usdGeom::Imageable` and cube-like bounds via `usdGeom::Boundable`.
 - `tests/fixtures/parity_custom_data_inherit.usda`
   Composed prim `customData` through `inherits` arcs (local strongest-wins override plus inherited keys).
+- `tests/fixtures/parity_specializes.usda`
+  Composed attribute reads through `specializes` arcs (arc-sourced defaults plus local strongest-wins override).
 - `tests/fixtures/parity_kind_active_refs.usda`
   Composed prim `kind` and `active` through `references`, `payloads`, and `inherits` (`parity_kind_active_ref.usda`, `parity_kind_active_payload.usda`).
 - `tests/fixtures/parity_tables.usdc`
@@ -82,7 +84,7 @@ Status vocabulary:
 ### Composition Semantics
 
 - `implemented`: strongest-wins field reads, concatenated relationship lists, composed field/relationship/prim-path unions, relocated prim-path query behavior, and prefix-substituted reference/payload asset paths.
-- `partial`: `subLayerOffsets` now remap composed sample times and file-backed reads; selected variants plus reference/payload/inherit/specialize arcs now affect file-backed field and prim-path queries; composed prim `kind` / `active`, `customData`, and USDA `class` / `over` specifier resolution follow references, payloads, and `inherits` / `specializes` (local layer stack still wins when authored), but other metadata propagation through every arc type remains incomplete.
+- `partial`: `subLayerOffsets` now remap composed sample times and file-backed reads; selected variants plus reference/payload/inherit/specialize arcs now affect file-backed field and prim-path queries (`parity_specializes.usda` for composed doubles through `specializes`); composed prim `kind` / `active`, `customData`, and USDA `class` / `over` specifier resolution follow references, payloads, and `inherits` / `specializes` (local layer stack still wins when authored), but other metadata propagation through every arc type remains incomplete.
 - `planned`: broader resolver-aware arc expansion for the remaining composed query families.
 
 ### Schema And Runtime Helpers
@@ -111,7 +113,7 @@ Status vocabulary:
 ### Engine Integration Contract
 
 - `implemented`: `docs/engine-supported-subset.md`, `docs/engine-integration.md`, clean-room/fixture/claim policy docs, `usdUtils::engineScene`, and focused engine integration tests freeze the USDA-first engine path.
-- `partial`: shipping runtime remains intentionally narrow; engine snapshots list material bindings, preview-surface materials, textured preview shaders, supported `usdLux` light families, `PhysicsScene` prims, `OpenVDBAsset` prims (`open_vdb_asset_paths`), `Volume` prims (`volume_paths`), and composed prim `kind` paths; `AssessEngineRuntimeSupport` reports `uses_material_bindings`, `uses_preview_surface`, `uses_preview_surface_textures`, `uses_lux_lights`, `uses_physics_scenes`, `uses_open_vdb_assets`, `uses_volumes`, `uses_composed_prim_kind`, `uses_prim_active_opinions`, and `uses_kind_active_through_arcs`; arbitrary `.usdc` scene decode and broad live-stage runtime guarantees are still out of scope.
+- `partial`: shipping runtime remains intentionally narrow; engine snapshots list material bindings, preview-surface materials, textured preview shaders, supported `usdLux` light families, `PhysicsScene` prims, `PhysicsRigidBodyAPI`-shaped prims with composed `physics:mass` (`rigid_body_api_paths`), `OpenVDBAsset` prims (`open_vdb_asset_paths`), `Volume` prims (`volume_paths`), and composed prim `kind` paths; `AssessEngineRuntimeSupport` reports `uses_material_bindings`, `uses_preview_surface`, `uses_preview_surface_textures`, `uses_lux_lights`, `uses_physics_scenes`, `uses_rigid_body_api`, `uses_open_vdb_assets`, `uses_volumes`, `uses_composed_prim_kind`, `uses_prim_active_opinions`, and `uses_kind_active_through_arcs`; arbitrary `.usdc` scene decode and broad live-stage runtime guarantees are still out of scope.
 
 ## Acceptance Criteria
 

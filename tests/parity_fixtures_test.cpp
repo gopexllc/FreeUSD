@@ -316,6 +316,37 @@ int main() {
 
   {
     std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_specializes.usda"),
+                                         freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const Path host = Path::FromString("/World/Host");
+    const Path base = Path::FromString("/World/BaseSpec");
+    const auto host_prim = stage->GetPrimAtPath(host);
+    assert(host_prim.IsValid());
+    assert(host_prim.HasSpecializes());
+    const auto specs = stage->ReadPrimSpecializes(host);
+    assert(specs.size() == 1u);
+    assert(specs[0] == base);
+    freeusd::vt::Value v;
+    double d = 0.0;
+    assert(stage->ReadFieldAtEvaluatedTime(host, Token("sharedStrength"), 1.0, &v));
+    assert(v.GetDouble(&d) && d == 10.0);
+    assert(stage->ReadFieldAtEvaluatedTime(host, Token("fromSpec"), 1.0, &v));
+    assert(v.GetDouble(&d) && d == 99.0);
+    assert(stage->ReadFieldAtEvaluatedTime(host, Token("hostOnly"), 1.0, &v));
+    assert(v.GetDouble(&d) && d == 3.0);
+    bool has_shared = false;
+    for (const std::string& name : stage->ListComposedFieldNames(host)) {
+      if (name == "sharedStrength") {
+        has_shared = true;
+      }
+    }
+    assert(has_shared);
+    assert(!stage->ReadFieldAtEvaluatedTime(base, Token("hostOnly"), 1.0, &v));
+  }
+
+  {
+    std::string err;
     auto stage = Stage::OpenFromRootFile(fixture("parity_kind_active_refs.usda"),
                                          freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
     assert(stage && err.empty());

@@ -269,6 +269,21 @@ def test_parity_vol_openvdb_fixture_reads_field_asset() -> None:
     assert field.get_field_name(1.0) == "density"
 
 
+def test_parity_specializes_fixture_composes_field_reads() -> None:
+    stage = Stage.open_from_root_file(str(FIXTURES / "parity_specializes.usda"), RootLayerSublayersPolicy.depth_first)
+    assert stage is not None
+    host = SdfPath.from_string("/World/Host")
+    base = SdfPath.from_string("/World/BaseSpec")
+    prim = stage.prim_at(host)
+    assert prim.has_specializes()
+    assert stage.read_prim_specializes(host)[0] == base
+    assert stage.read_field_double(host, Token("sharedStrength"), 1.0) == 10.0
+    assert stage.read_field_double(host, Token("fromSpec"), 1.0) == 99.0
+    assert stage.read_field_double(host, Token("hostOnly"), 1.0) == 3.0
+    assert "sharedStrength" in stage.list_composed_field_names(host)
+    assert not stage.has_field_opinion(base, Token("hostOnly"))
+
+
 def test_parity_imageable_fixture_is_primary_scene_anchor() -> None:
     stage = Stage.open_from_root_file(str(FIXTURES / "parity_imageable.usda"), RootLayerSublayersPolicy.depth_first)
     assert stage is not None
