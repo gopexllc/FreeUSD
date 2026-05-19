@@ -27,6 +27,7 @@ set(_buildcfg Release)
 
 file(REMOVE_RECURSE "${FREEUSD_SCRATCH}")
 file(MAKE_DIRECTORY "${FREEUSD_SCRATCH}")
+execute_process(COMMAND "${CMAKE_COMMAND}" -E sleep 0.2)
 
 function(_freeusd_run)
   execute_process(COMMAND ${ARGV} RESULT_VARIABLE _rv OUTPUT_VARIABLE _out ERROR_VARIABLE _err)
@@ -40,7 +41,19 @@ _freeusd_run("${CMAKE_COMMAND}" -S "${FREEUSD_SOURCE_DIR}" -B "${_build}" -DCMAK
              "-DCMAKE_INSTALL_PREFIX=${_prefix}" -DFREEUSD_BUILD_PYTHON=OFF -DFREEUSD_BUILD_TESTS=OFF)
 
 message(STATUS "FreeUSD install integration: build")
-_freeusd_run("${CMAKE_COMMAND}" --build "${_build}" --parallel --config "${_buildcfg}")
+set(_build_rv 1)
+set(_build_out "")
+set(_build_err "")
+foreach(_attempt RANGE 4)
+  execute_process(COMMAND "${CMAKE_COMMAND}" --build "${_build}" --config "${_buildcfg}"
+                  RESULT_VARIABLE _build_rv OUTPUT_VARIABLE _build_out ERROR_VARIABLE _build_err)
+  if(_build_rv EQUAL 0)
+    break()
+  endif()
+endforeach()
+if(NOT _build_rv EQUAL 0)
+  message(FATAL_ERROR "Command failed (${_build_rv}): ${CMAKE_COMMAND} --build ${_build}\n${_build_out}\n${_build_err}")
+endif()
 
 message(STATUS "FreeUSD install integration: install")
 _freeusd_run("${CMAKE_COMMAND}" --install "${_build}" --config "${_buildcfg}")
