@@ -19,6 +19,7 @@
 #include "freeusd/usdLux/rectLight.hpp"
 #include "freeusd/usdLux/sphereLight.hpp"
 #include "freeusd/usdPhysics/physicsScene.hpp"
+#include "freeusd/usdPhysics/rigidBodyAPI.hpp"
 #include "freeusd/usdVol/openVdbAsset.hpp"
 #include "freeusd/usdVol/volume.hpp"
 #include "freeusd/usdShade/material.hpp"
@@ -434,6 +435,18 @@ int main() {
     assert(gravity_dir.z() == -1.0f);
     float gravity_mag = 0.0f;
     assert(scene.GetGravityMagnitude(&gravity_mag, 1.0) && gravity_mag == 981.0f);
+  }
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_physics_rigid_body.usda"),
+                                         freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const freeusd::usdPhysics::RigidBodyAPI body =
+        freeusd::usdPhysics::RigidBodyAPI::ReadFromPrim(stage, Path::FromString("/World/Body"));
+    assert(body && body.IsRigidBodyAPI());
+    float mass = 0.0f;
+    assert(body.GetMass(&mass, 1.0) && mass == 2.5f);
   }
 
   {

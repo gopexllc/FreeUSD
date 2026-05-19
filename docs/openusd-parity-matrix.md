@@ -64,6 +64,8 @@ Status vocabulary:
   `DistantLight` with `inputs:intensity`, `inputs:color`, and `inputs:angle`.
 - `tests/fixtures/parity_physics_scene.usda`
   `PhysicsScene` with `physics:gravityDirection` and `physics:gravityMagnitude`.
+- `tests/fixtures/parity_physics_rigid_body.usda`
+  `PhysicsRigidBodyAPI` with authored `physics:mass` on an `Xform` prim.
 - `tests/fixtures/parity_vol_openvdb.usda`
   `OpenVDBAsset` with `filePath` and `fieldName`.
 - `tests/fixtures/parity_vol_volume.usda`
@@ -91,7 +93,7 @@ Status vocabulary:
 - `partial`: `usdSkel::Skeleton` and `usdSkel::SkelAnimation` read joints, bind/rest matrices, and sampled TRS arrays from USDA; glTF mapping helpers build parent indices and world bind matrices; `SkelBinding` resolves `skel:skeleton` plus `primvars:skel:jointIndices` / `jointWeights`; `SkelRoot` finds skeleton and `skel:animationSource` under a scope (`parity_skel_binding.usda`); `BlendShape` / `SkelBlendShapes` / `MorphTargets` read morph offsets, remap animation weights, and apply CPU morph accumulation (`parity_skel_blend_shapes.usda`; glTF `mesh.weights` + morph target POSITION deltas); `DeformPointsWithSkeleton` performs CPU LBS from joint world matrices and inverse bind transforms (`parity_skel_skinning.usda`).
 - `partial`: `usdShade::Material` resolves `outputs:surface` to a shader prim; `usdShade::Shader` / `PreviewSurface` read `info:id` and common `UsdPreviewSurface` inputs (`diffuseColor`, `emissiveColor`, `metallic`, `roughness`, `opacity`) with connection following (`parity_shade_preview.usda`); texture asset paths for `diffuseColor`, `normal`, `occlusion`, `metallic`, and `roughness` resolve through one connection hop to connected `inputs:file` (`parity_shade_texture.usda`, `parity_shade_pbr_textures.usda`).
 - `partial`: `usdLux::DistantLight` reads `inputs:intensity`, `inputs:color`, and `inputs:angle` at a time code (`parity_lux_distant.usda`); `usdLux::SphereLight` reads `inputs:intensity`, `inputs:color`, and `inputs:radius` (`parity_lux_sphere.usda`); `usdLux::RectLight` reads `inputs:intensity`, `inputs:color`, `inputs:width`, and `inputs:height` (`parity_lux_rect.usda`); `usdLux::DiskLight` reads `inputs:intensity`, `inputs:color`, and `inputs:radius` (`parity_lux_disk.usda`); `usdLux::CylinderLight` reads `inputs:intensity`, `inputs:color`, `inputs:length`, and `inputs:radius` (`parity_lux_cylinder.usda`); `usdLux::DomeLight` reads `inputs:intensity`, `inputs:color`, `inputs:texture:file`, and `inputs:texture:format` (`parity_lux_dome.usda`).
-- `partial`: `usdPhysics::PhysicsScene` reads `physics:gravityDirection` and `physics:gravityMagnitude` at a time code (`parity_physics_scene.usda`).
+- `partial`: `usdPhysics::PhysicsScene` reads `physics:gravityDirection` and `physics:gravityMagnitude` at a time code (`parity_physics_scene.usda`); `usdPhysics::RigidBodyAPI` reads composed `physics:mass` when authored (`parity_physics_rigid_body.usda`; `apiSchemas` metadata not composed yet).
 - `partial`: `usdVol::OpenVDBAsset` reads `filePath` and `fieldName` at a time code (`parity_vol_openvdb.usda`); `usdVol::Volume` reads prim kind and composed `field` relationship targets, resolving child `OpenVDBAsset` field prims (`parity_vol_volume.usda`).
 - `token-only`: most other non-`usdGeom` / non-`usdSkel` / non-`usdShade` / non-`usdLux` / non-`usdPhysics` / non-`usdVol` schema packages remain generated token surfaces only.
 

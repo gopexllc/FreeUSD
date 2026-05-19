@@ -211,6 +211,18 @@ def test_parity_lux_rect_fixture_reads_inputs() -> None:
     assert light.get_height(1.0) == 1.0
 
 
+def test_parity_physics_rigid_body_fixture_reads_mass() -> None:
+    from freeusd.sdf import Path as SdfPath
+    from freeusd.usd import RootLayerSublayersPolicy, Stage
+    from freeusd.usdPhysics import RigidBodyAPI
+
+    stage = Stage.open_from_root_file(str(FIXTURES / "parity_physics_rigid_body.usda"), RootLayerSublayersPolicy.none)
+    assert stage is not None
+    body = RigidBodyAPI.read_from_prim(stage, SdfPath.from_string("/World/Body"))
+    assert body.is_rigid_body_api()
+    assert body.get_mass(1.0) == 2.5
+
+
 def test_parity_physics_scene_fixture_reads_gravity() -> None:
     from freeusd.sdf import Path as SdfPath
     from freeusd.usd import RootLayerSublayersPolicy, Stage

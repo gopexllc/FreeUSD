@@ -24,6 +24,8 @@ __pycache__/
 *.dylib
 *.dll
 *.pyd
+.install_integration_scratch/
+.install_integration_scratch/
 .cache/
 .pytest_cache/
 .coverage

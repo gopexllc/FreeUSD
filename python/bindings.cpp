@@ -60,6 +60,8 @@
 #include "freeusd/usdLux/sphereLight.hpp"
 #include "freeusd/usdLux/tokens.hpp"
 #include "freeusd/usdPhysics/physicsScene.hpp"
+#include "freeusd/usdPhysics/rigidBodyAPI.hpp"
+#include "freeusd/usdPhysics/rigidBodyAPI.hpp"
 #include "freeusd/usdMedia/tokens.hpp"
 #include "freeusd/usdMtlx/tokens.hpp"
 #include "freeusd/usdPhysics/tokens.hpp"
@@ -2750,6 +2752,54 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
                 return py::none();
               }
               return py::cast(magnitude);
+            },
+            py::arg("time") = 1.0);
+
+    py::class_<freeusd::usdPhysics::RigidBodyAPI>(usdPhysics, "RigidBodyAPI")
+        .def(py::init<>())
+        .def(py::init<freeusd::usd::Prim>(), py::arg("prim"))
+        .def_readonly("prim", &freeusd::usdPhysics::RigidBodyAPI::prim)
+        .def_static(
+            "read_from_prim",
+            [](const std::shared_ptr<freeusd::usd::Stage>& stage, const freeusd::sdf::Path& path) {
+              return freeusd::usdPhysics::RigidBodyAPI::ReadFromPrim(stage, path);
+            },
+            py::arg("stage"),
+            py::arg("path"))
+        .def("__bool__", [](const freeusd::usdPhysics::RigidBodyAPI& body) { return static_cast<bool>(body); })
+        .def("is_rigid_body_api", &freeusd::usdPhysics::RigidBodyAPI::IsRigidBodyAPI)
+        .def(
+            "get_mass",
+            [](const freeusd::usdPhysics::RigidBodyAPI& body, double time) -> py::object {
+              float mass = 0.0f;
+              if (!body.GetMass(&mass, time)) {
+                return py::none();
+              }
+              return py::cast(mass);
+            },
+            py::arg("time") = 1.0);
+
+    py::class_<freeusd::usdPhysics::RigidBodyAPI>(usdPhysics, "RigidBodyAPI")
+        .def(py::init<>())
+        .def(py::init<freeusd::usd::Prim>(), py::arg("prim"))
+        .def_readonly("prim", &freeusd::usdPhysics::RigidBodyAPI::prim)
+        .def_static(
+            "read_from_prim",
+            [](const std::shared_ptr<freeusd::usd::Stage>& stage, const freeusd::sdf::Path& path) {
+              return freeusd::usdPhysics::RigidBodyAPI::ReadFromPrim(stage, path);
+            },
+            py::arg("stage"),
+            py::arg("path"))
+        .def("__bool__", [](const freeusd::usdPhysics::RigidBodyAPI& body) { return static_cast<bool>(body); })
+        .def("is_rigid_body_api", &freeusd::usdPhysics::RigidBodyAPI::IsRigidBodyAPI)
+        .def(
+            "get_mass",
+            [](const freeusd::usdPhysics::RigidBodyAPI& body, double time) -> py::object {
+              float mass = 0.0f;
+              if (!body.GetMass(&mass, time)) {
+                return py::none();
+              }
+              return py::cast(mass);
             },
             py::arg("time") = 1.0);
   }
