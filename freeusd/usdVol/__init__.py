@@ -1,4 +1,4 @@
-"""UsdVol-shaped schema helpers (tokens plus minimal OpenVDBAsset runtime)."""
+"""UsdVol-shaped schema helpers (tokens plus minimal Volume and OpenVDBAsset runtime)."""
 
 from __future__ import annotations
 
@@ -9,8 +9,10 @@ from . import tokens
 _vol = import_module("freeusd._native").usdVol
 
 OpenVDBAsset = _vol.OpenVDBAsset
+Volume = _vol.Volume
 
 __all__ = [
     "OpenVDBAsset",
+    "Volume",
     "tokens",
 ]

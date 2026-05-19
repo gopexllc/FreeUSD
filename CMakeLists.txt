@@ -379,6 +379,7 @@ if(FREEUSD_BUILD_TESTS)
     freeusd_usd_lux_dome_light_test
     freeusd_usd_physics_scene_test
     freeusd_usd_vol_openvdb_test
+    freeusd_usd_vol_volume_test
     freeusd_usd_skel_smoke_test
     freeusd_usd_skel_skinning_matrices_test
     freeusd_usd_shade_smoke_test

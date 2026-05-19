@@ -808,6 +808,7 @@ typedef struct FreeusdEngineRuntimeSupport {
   int uses_kind_active_through_arcs;
   int uses_physics_scenes;
   int uses_open_vdb_assets;
+  int uses_volumes;
 } FreeusdEngineRuntimeSupport;
 
 /**

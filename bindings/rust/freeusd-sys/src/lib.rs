@@ -576,6 +576,7 @@ pub struct FreeusdEngineRuntimeSupport {
     pub uses_kind_active_through_arcs: c_int,
     pub uses_physics_scenes: c_int,
     pub uses_open_vdb_assets: c_int,
+    pub uses_volumes: c_int,
 }
 
 pub type EngineRuntimeSupport = FreeusdEngineRuntimeSupport;

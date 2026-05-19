@@ -74,6 +74,7 @@
 #include "freeusd/usdSkel/tokens.hpp"
 #include "freeusd/usdUI/tokens.hpp"
 #include "freeusd/usdVol/openVdbAsset.hpp"
+#include "freeusd/usdVol/volume.hpp"
 #include "freeusd/usdVol/tokens.hpp"
 #include "freeusd/version.hpp"
 #include "freeusd/vt/value.hpp"
@@ -2791,6 +2792,22 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
               return py::cast(name);
             },
             py::arg("time") = 1.0);
+
+    py::class_<freeusd::usdVol::Volume>(usdVol, "Volume")
+        .def(py::init<>())
+        .def(py::init<freeusd::usd::Prim>(), py::arg("prim"))
+        .def_readonly("prim", &freeusd::usdVol::Volume::prim)
+        .def_static(
+            "read_from_prim",
+            [](const std::shared_ptr<freeusd::usd::Stage>& stage, const freeusd::sdf::Path& path) {
+              return freeusd::usdVol::Volume::ReadFromPrim(stage, path);
+            },
+            py::arg("stage"),
+            py::arg("path"))
+        .def("__bool__", [](const freeusd::usdVol::Volume& volume) { return static_cast<bool>(volume); })
+        .def("is_volume", &freeusd::usdVol::Volume::IsVolume)
+        .def("get_field_relationship_targets", &freeusd::usdVol::Volume::GetFieldRelationshipTargets)
+        .def("get_open_vdb_field_assets", &freeusd::usdVol::Volume::GetOpenVDBFieldAssets);
   }
 
   {
@@ -3318,7 +3335,9 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def_readwrite("has_physics_scene", &freeusd::usdUtils::EngineSceneNode::has_physics_scene)
         .def_readwrite("has_open_vdb_asset", &freeusd::usdUtils::EngineSceneNode::has_open_vdb_asset)
         .def_readwrite("open_vdb_file_path", &freeusd::usdUtils::EngineSceneNode::open_vdb_file_path)
-        .def_readwrite("open_vdb_field_name", &freeusd::usdUtils::EngineSceneNode::open_vdb_field_name);
+        .def_readwrite("open_vdb_field_name", &freeusd::usdUtils::EngineSceneNode::open_vdb_field_name)
+        .def_readwrite("has_volume", &freeusd::usdUtils::EngineSceneNode::has_volume)
+        .def_readwrite("volume_field_asset_paths", &freeusd::usdUtils::EngineSceneNode::volume_field_asset_paths);
     py::class_<freeusd::usdUtils::EngineSceneSnapshot>(usdUtils, "EngineSceneSnapshot")
         .def(py::init<>())
         .def_readwrite("root_identifier", &freeusd::usdUtils::EngineSceneSnapshot::root_identifier)
@@ -3347,7 +3366,8 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def_readwrite("lux_light_paths", &freeusd::usdUtils::EngineSceneSnapshot::lux_light_paths)
         .def_readwrite("composed_kind_prim_paths", &freeusd::usdUtils::EngineSceneSnapshot::composed_kind_prim_paths)
         .def_readwrite("physics_scene_paths", &freeusd::usdUtils::EngineSceneSnapshot::physics_scene_paths)
-        .def_readwrite("open_vdb_asset_paths", &freeusd::usdUtils::EngineSceneSnapshot::open_vdb_asset_paths);
+        .def_readwrite("open_vdb_asset_paths", &freeusd::usdUtils::EngineSceneSnapshot::open_vdb_asset_paths)
+        .def_readwrite("volume_paths", &freeusd::usdUtils::EngineSceneSnapshot::volume_paths);
     py::class_<freeusd::usdUtils::EnginePrimEditorView>(usdUtils, "EnginePrimEditorView")
         .def(py::init<>())
         .def_readwrite("path", &freeusd::usdUtils::EnginePrimEditorView::path)
@@ -3396,6 +3416,7 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
                        &freeusd::usdUtils::EngineRuntimeSupportReport::uses_kind_active_through_arcs)
         .def_readwrite("uses_physics_scenes", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_physics_scenes)
         .def_readwrite("uses_open_vdb_assets", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_open_vdb_assets)
+        .def_readwrite("uses_volumes", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_volumes)
         .def_readwrite("warnings", &freeusd::usdUtils::EngineRuntimeSupportReport::warnings);
     py::class_<freeusd::usdUtils::FlattenOptions>(usdUtils, "FlattenOptions")
         .def(py::init<>())

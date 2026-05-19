@@ -3076,6 +3076,7 @@ int freeusd_usdutils_assess_engine_runtime_support(const FreeusdStage* stage, Fr
     out->uses_kind_active_through_arcs = report.uses_kind_active_through_arcs ? 1 : 0;
     out->uses_physics_scenes = report.uses_physics_scenes ? 1 : 0;
     out->uses_open_vdb_assets = report.uses_open_vdb_assets ? 1 : 0;
+    out->uses_volumes = report.uses_volumes ? 1 : 0;
     clear_error();
     return FREEUSD_OK;
   } catch (const std::exception& e) {

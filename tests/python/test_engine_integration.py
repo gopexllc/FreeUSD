@@ -118,3 +118,14 @@ def test_engine_editor_view_and_prebake_reports_bindings() -> None:
     assert smoke.open_vdb_field_name == "density"
     vol_report = assess_engine_runtime_support(vol_stage)
     assert vol_report.uses_open_vdb_assets
+
+    volume_stage = _open_stage("parity_vol_volume.usda")
+    volume_snapshot = build_engine_scene_snapshot(volume_stage, 1.0)
+    assert [path.text() for path in volume_snapshot.volume_paths] == ["/World/Cloud"]
+    assert [path.text() for path in volume_snapshot.open_vdb_asset_paths] == ["/World/Cloud/Smoke"]
+    cloud = next(node for node in volume_snapshot.nodes if node.path.text() == "/World/Cloud")
+    assert cloud.has_volume
+    assert [path.text() for path in cloud.volume_field_asset_paths] == ["/World/Cloud/Smoke"]
+    volume_report = assess_engine_runtime_support(volume_stage)
+    assert volume_report.uses_volumes
+    assert volume_report.uses_open_vdb_assets

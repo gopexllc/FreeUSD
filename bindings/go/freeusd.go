@@ -1441,6 +1441,7 @@ type EngineRuntimeSupport struct {
 	UsesKindActiveThroughArcs        bool
 	UsesPhysicsScenes                bool
 	UsesOpenVdbAssets                bool
+	UsesVolumes                      bool
 }
 
 // AssessEngineRuntimeSupport reports which engine integration mode fits the composed stage.
@@ -1479,6 +1480,7 @@ func (s *Stage) AssessEngineRuntimeSupport() (report EngineRuntimeSupport, rc in
 	report.UsesKindActiveThroughArcs = raw.uses_kind_active_through_arcs != 0
 	report.UsesPhysicsScenes = raw.uses_physics_scenes != 0
 	report.UsesOpenVdbAssets = raw.uses_open_vdb_assets != 0
+	report.UsesVolumes = raw.uses_volumes != 0
 	return report, 0
 }
 
