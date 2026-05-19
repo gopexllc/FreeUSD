@@ -12,6 +12,9 @@
 #include "freeusd/usdShade/tokens.hpp"
 #include "freeusd/usdLux/tokens.hpp"
 #include "freeusd/usdPhysics/tokens.hpp"
+#include "freeusd/usdVol/openVdbAsset.hpp"
+#include "freeusd/usdVol/volume.hpp"
+#include "freeusd/usdVol/tokens.hpp"
 #include "freeusd/usdSkel/skelBinding.hpp"
 #include "freeusd/usdSkel/skelBlendShapes.hpp"
 #include "freeusd/usdSkel/tokens.hpp"
@@ -133,6 +136,20 @@ EngineSceneNode build_scene_node(const std::shared_ptr<const freeusd::usd::Stage
   if (prim.HasPrimKind() && prim.GetPrimKind() == freeusd::usdPhysics::tokens::PhysicsScene()) {
     node.has_physics_scene = true;
   }
+  if (stage_ptr) {
+    const freeusd::usdVol::OpenVDBAsset open_vdb =
+        freeusd::usdVol::OpenVDBAsset::ReadFromPrim(stage_ptr, prim.GetPath());
+    if (open_vdb.IsOpenVDBAsset()) {
+      node.has_open_vdb_asset = true;
+      (void)open_vdb.GetFilePath(&node.open_vdb_file_path, time);
+      (void)open_vdb.GetFieldName(&node.open_vdb_field_name, time);
+    }
+    const freeusd::usdVol::Volume volume = freeusd::usdVol::Volume::ReadFromPrim(stage_ptr, prim.GetPath());
+    if (volume.IsVolume()) {
+      node.has_volume = true;
+      node.volume_field_asset_paths = volume.GetFieldRelationshipTargets();
+    }
+  }
   return node;
 }
 
@@ -182,6 +199,12 @@ EngineSceneSnapshot BuildEngineSceneSnapshot(const freeusd::usd::Stage& stage, d
     }
     if (node.has_physics_scene) {
       append_unique_path(&snapshot.physics_scene_paths, node.path);
+    }
+    if (node.has_open_vdb_asset) {
+      append_unique_path(&snapshot.open_vdb_asset_paths, node.path);
+    }
+    if (node.has_volume) {
+      append_unique_path(&snapshot.volume_paths, node.path);
     }
     if (node.has_prim_kind) {
       append_unique_path(&snapshot.composed_kind_prim_paths, node.path);
@@ -278,6 +301,12 @@ EngineRuntimeSupportReport AssessEngineRuntimeSupport(const freeusd::usd::Stage&
     }
     if (prim.HasPrimKind() && prim.GetPrimKind() == freeusd::usdPhysics::tokens::PhysicsScene()) {
       report.uses_physics_scenes = true;
+    }
+    if (freeusd::usdVol::OpenVDBAsset(prim).IsOpenVDBAsset()) {
+      report.uses_open_vdb_assets = true;
+    }
+    if (freeusd::usdVol::Volume(prim).IsVolume()) {
+      report.uses_volumes = true;
     }
     report.uses_composed_prim_kind = report.uses_composed_prim_kind || prim.HasPrimKind();
     report.uses_prim_active_opinions = report.uses_prim_active_opinions || prim.HasPrimActiveOpinion();
@@ -383,6 +412,14 @@ EngineRuntimeSupportReport AssessEngineRuntimeSupport(const freeusd::usd::Stage&
   if (report.uses_physics_scenes) {
     append_warning(&report.warnings, &seen_warnings,
                    "Scene uses PhysicsScene prims; bake gravity and simulation settings during offline import.");
+  }
+  if (report.uses_open_vdb_assets) {
+    append_warning(&report.warnings, &seen_warnings,
+                   "Scene uses OpenVDBAsset prims; resolve VDB files and field names during offline import.");
+  }
+  if (report.uses_volumes) {
+    append_warning(&report.warnings, &seen_warnings,
+                   "Scene uses Volume prims; resolve field assets and VDB paths during offline import.");
   }
 
   const bool requires_prebake = report.uses_composed_layer_stack || report.uses_references || report.uses_payloads ||

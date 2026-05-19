@@ -18,7 +18,7 @@ For **repository layout**, CMake target naming, and which upstream trees are out
 | `usdShade` | `freeusd::usdShade` | **Partial** runtime: `Material`, `Shader`, `PreviewSurface` (read/eval subset); generated **tokens**; Python **`freeusd.usdShade`** |
 | `usdLux` | `freeusd::usdLux` | **Partial** runtime: `DistantLight` intensity/color/angle readers; generated **tokens**; Python **`freeusd.usdLux`** |
 | `usdPhysics` | `freeusd::usdPhysics` | **Generated** schema **tokens**; no simulation |
-| `usdVol` | `freeusd::usdVol` | **Generated** schema **tokens**; no volume engine |
+| `usdVol` | `freeusd::usdVol` | **Generated** schema **tokens** plus partial `OpenVDBAsset` helper (`filePath`, `fieldName`) |
 | `usdSkel` | `freeusd::usdSkel` | **Generated** **`tokens.hpp`**; **`Skeleton`** / **`SkelAnimation`** read joints, bind/rest matrices, sampled TRS; **`SkelBinding`** / **`SkelRoot`** resolve skinning and animation links; **`BlendShape`** / **`SkelBlendShapes`** / **`MorphTargets`** apply CPU morphs; **`DeformPointsWithSkeleton`** LBS; **`gltfMapping`** parent indices + world bind helpers |
 | `usdMedia` | `freeusd::usdMedia` | **Generated** schema **tokens** |
 | `usdRender` | `freeusd::usdRender` | **Generated** schema **tokens** |

@@ -19,6 +19,8 @@
 #include "freeusd/usdLux/rectLight.hpp"
 #include "freeusd/usdLux/sphereLight.hpp"
 #include "freeusd/usdPhysics/physicsScene.hpp"
+#include "freeusd/usdVol/openVdbAsset.hpp"
+#include "freeusd/usdVol/volume.hpp"
 #include "freeusd/usdShade/material.hpp"
 #include "freeusd/usdShade/previewSurface.hpp"
 #include "freeusd/usdUtils/pipeline.hpp"
@@ -432,6 +434,43 @@ int main() {
     assert(gravity_dir.z() == -1.0f);
     float gravity_mag = 0.0f;
     assert(scene.GetGravityMagnitude(&gravity_mag, 1.0) && gravity_mag == 981.0f);
+  }
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_vol_openvdb.usda"),
+                                         freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const freeusd::usdVol::OpenVDBAsset field =
+        freeusd::usdVol::OpenVDBAsset::ReadFromPrim(stage, Path::FromString("/World/Smoke"));
+    assert(field && field.IsOpenVDBAsset());
+    std::string file_path;
+    assert(field.GetFilePath(&file_path, 1.0));
+    assert(file_path == "volumes/smoke.vdb");
+    std::string field_name;
+    assert(field.GetFieldName(&field_name, 1.0));
+    assert(field_name == "density");
+  }
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_vol_volume.usda"),
+                                         freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const freeusd::usdVol::Volume cloud =
+        freeusd::usdVol::Volume::ReadFromPrim(stage, Path::FromString("/World/Cloud"));
+    assert(cloud && cloud.IsVolume());
+    const std::vector<Path> field_targets = cloud.GetFieldRelationshipTargets();
+    assert(field_targets.size() == 1u);
+    assert(field_targets[0] == Path::FromString("/World/Cloud/Smoke"));
+    const std::vector<freeusd::usdVol::OpenVDBAsset> fields = cloud.GetOpenVDBFieldAssets();
+    assert(fields.size() == 1u && fields[0].IsOpenVDBAsset());
+    std::string file_path;
+    assert(fields[0].GetFilePath(&file_path, 1.0));
+    assert(file_path == "volumes/cloud/smoke.vdb");
+    std::string field_name;
+    assert(fields[0].GetFieldName(&field_name, 1.0));
+    assert(field_name == "density");
   }
 
   return 0;

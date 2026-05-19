@@ -64,6 +64,8 @@ Status vocabulary:
   `DistantLight` with `inputs:intensity`, `inputs:color`, and `inputs:angle`.
 - `tests/fixtures/parity_physics_scene.usda`
   `PhysicsScene` with `physics:gravityDirection` and `physics:gravityMagnitude`.
+- `tests/fixtures/parity_vol_openvdb.usda`
+  `OpenVDBAsset` with `filePath` and `fieldName`.
 
 ## Current Matrix
 
@@ -88,7 +90,8 @@ Status vocabulary:
 - `partial`: `usdShade::Material` resolves `outputs:surface` to a shader prim; `usdShade::Shader` / `PreviewSurface` read `info:id` and common `UsdPreviewSurface` inputs (`diffuseColor`, `emissiveColor`, `metallic`, `roughness`, `opacity`) with connection following (`parity_shade_preview.usda`); texture asset paths for `diffuseColor`, `normal`, `occlusion`, `metallic`, and `roughness` resolve through one connection hop to connected `inputs:file` (`parity_shade_texture.usda`, `parity_shade_pbr_textures.usda`).
 - `partial`: `usdLux::DistantLight` reads `inputs:intensity`, `inputs:color`, and `inputs:angle` at a time code (`parity_lux_distant.usda`); `usdLux::SphereLight` reads `inputs:intensity`, `inputs:color`, and `inputs:radius` (`parity_lux_sphere.usda`); `usdLux::RectLight` reads `inputs:intensity`, `inputs:color`, `inputs:width`, and `inputs:height` (`parity_lux_rect.usda`); `usdLux::DiskLight` reads `inputs:intensity`, `inputs:color`, and `inputs:radius` (`parity_lux_disk.usda`); `usdLux::CylinderLight` reads `inputs:intensity`, `inputs:color`, `inputs:length`, and `inputs:radius` (`parity_lux_cylinder.usda`); `usdLux::DomeLight` reads `inputs:intensity`, `inputs:color`, `inputs:texture:file`, and `inputs:texture:format` (`parity_lux_dome.usda`).
 - `partial`: `usdPhysics::PhysicsScene` reads `physics:gravityDirection` and `physics:gravityMagnitude` at a time code (`parity_physics_scene.usda`).
-- `token-only`: most other non-`usdGeom` / non-`usdSkel` / non-`usdShade` / non-`usdLux` / non-`usdPhysics` schema packages remain generated token surfaces only.
+- `partial`: `usdVol::OpenVDBAsset` reads `filePath` and `fieldName` at a time code (`parity_vol_openvdb.usda`).
+- `token-only`: most other non-`usdGeom` / non-`usdSkel` / non-`usdShade` / non-`usdLux` / non-`usdPhysics` / non-`usdVol` schema packages remain generated token surfaces only.
 
 ### ABI And Bindings
 
@@ -104,7 +107,7 @@ Status vocabulary:
 ### Engine Integration Contract
 
 - `implemented`: `docs/engine-supported-subset.md`, `docs/engine-integration.md`, clean-room/fixture/claim policy docs, `usdUtils::engineScene`, and focused engine integration tests freeze the USDA-first engine path.
-- `partial`: shipping runtime remains intentionally narrow; engine snapshots list material bindings, preview-surface materials, textured preview shaders, supported `usdLux` light families, `PhysicsScene` prims, and composed prim `kind` paths; `AssessEngineRuntimeSupport` reports `uses_material_bindings`, `uses_preview_surface`, `uses_preview_surface_textures`, `uses_lux_lights`, `uses_physics_scenes`, `uses_composed_prim_kind`, `uses_prim_active_opinions`, and `uses_kind_active_through_arcs`; arbitrary `.usdc` scene decode and broad live-stage runtime guarantees are still out of scope.
+- `partial`: shipping runtime remains intentionally narrow; engine snapshots list material bindings, preview-surface materials, textured preview shaders, supported `usdLux` light families, `PhysicsScene` prims, `OpenVDBAsset` prims (`open_vdb_asset_paths`), and composed prim `kind` paths; `AssessEngineRuntimeSupport` reports `uses_material_bindings`, `uses_preview_surface`, `uses_preview_surface_textures`, `uses_lux_lights`, `uses_physics_scenes`, `uses_open_vdb_assets`, `uses_composed_prim_kind`, `uses_prim_active_opinions`, and `uses_kind_active_through_arcs`; arbitrary `.usdc` scene decode and broad live-stage runtime guarantees are still out of scope.
 
 ## Acceptance Criteria
 

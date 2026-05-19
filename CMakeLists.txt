@@ -59,7 +59,8 @@ if(FREEUSD_BUILD_TESTS)
 
   add_executable(freeusd_parity_fixtures_test tests/parity_fixtures_test.cpp)
   target_link_libraries(freeusd_parity_fixtures_test PRIVATE freeusd::usd freeusd::usdUtils freeusd::usdGeom freeusd::usdSkel
-                                                                 freeusd::usdShade freeusd::usdLux freeusd::usdPhysics)
+                                                                 freeusd::usdShade freeusd::usdLux freeusd::usdPhysics
+                                                                 freeusd::usdVol)
   target_compile_definitions(
     freeusd_parity_fixtures_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
 
@@ -156,6 +157,16 @@ if(FREEUSD_BUILD_TESTS)
   target_compile_definitions(
     freeusd_usd_physics_scene_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
 
+  add_executable(freeusd_usd_vol_openvdb_test tests/usd_vol_openvdb_test.cpp)
+  target_link_libraries(freeusd_usd_vol_openvdb_test PRIVATE freeusd::usd freeusd::usdVol)
+  target_compile_definitions(
+    freeusd_usd_vol_openvdb_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+
+  add_executable(freeusd_usd_vol_volume_test tests/usd_vol_volume_test.cpp)
+  target_link_libraries(freeusd_usd_vol_volume_test PRIVATE freeusd::usd freeusd::usdVol)
+  target_compile_definitions(
+    freeusd_usd_vol_volume_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+
   add_executable(freeusd_ar_path_security_test tests/ar_path_security_test.cpp)
   target_link_libraries(freeusd_ar_path_security_test PRIVATE freeusd::ar)
 
@@ -230,6 +241,8 @@ if(FREEUSD_BUILD_TESTS)
   add_test(NAME freeusd_usd_lux_cylinder_light_test COMMAND freeusd_usd_lux_cylinder_light_test)
   add_test(NAME freeusd_usd_lux_dome_light_test COMMAND freeusd_usd_lux_dome_light_test)
   add_test(NAME freeusd_usd_physics_scene_test COMMAND freeusd_usd_physics_scene_test)
+  add_test(NAME freeusd_usd_vol_openvdb_test COMMAND freeusd_usd_vol_openvdb_test)
+  add_test(NAME freeusd_usd_vol_volume_test COMMAND freeusd_usd_vol_volume_test)
   add_test(NAME freeusd_ar_path_security_test COMMAND freeusd_ar_path_security_test)
   add_test(NAME freeusd_engine_integration_test COMMAND freeusd_engine_integration_test)
   add_test(NAME freeusd_schema_tokens_bundle_test COMMAND freeusd_schema_tokens_bundle_test)
@@ -365,6 +378,7 @@ if(FREEUSD_BUILD_TESTS)
     freeusd_usd_lux_cylinder_light_test
     freeusd_usd_lux_dome_light_test
     freeusd_usd_physics_scene_test
+    freeusd_usd_vol_openvdb_test
     freeusd_usd_skel_smoke_test
     freeusd_usd_skel_skinning_matrices_test
     freeusd_usd_shade_smoke_test

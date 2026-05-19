@@ -108,3 +108,13 @@ def test_engine_editor_view_and_prebake_reports_bindings() -> None:
     assert [path.text() for path in physics_snapshot.physics_scene_paths] == ["/World/Physics"]
     physics_report = assess_engine_runtime_support(physics_stage)
     assert physics_report.uses_physics_scenes
+
+    vol_stage = _open_stage("parity_vol_openvdb.usda")
+    vol_snapshot = build_engine_scene_snapshot(vol_stage, 1.0)
+    assert [path.text() for path in vol_snapshot.open_vdb_asset_paths] == ["/World/Smoke"]
+    smoke = next(node for node in vol_snapshot.nodes if node.path.text() == "/World/Smoke")
+    assert smoke.has_open_vdb_asset
+    assert smoke.open_vdb_file_path == "volumes/smoke.vdb"
+    assert smoke.open_vdb_field_name == "density"
+    vol_report = assess_engine_runtime_support(vol_stage)
+    assert vol_report.uses_open_vdb_assets

@@ -226,6 +226,37 @@ def test_parity_physics_scene_fixture_reads_gravity() -> None:
     assert scene.get_gravity_magnitude(1.0) == 981.0
 
 
+def test_parity_vol_volume_fixture_reads_field_relationship() -> None:
+    from freeusd.sdf import Path as SdfPath
+    from freeusd.usd import RootLayerSublayersPolicy, Stage
+    from freeusd.usdVol import Volume
+
+    stage = Stage.open_from_root_file(str(FIXTURES / "parity_vol_volume.usda"), RootLayerSublayersPolicy.none)
+    assert stage is not None
+    cloud = Volume.read_from_prim(stage, SdfPath.from_string("/World/Cloud"))
+    assert cloud.is_volume()
+    targets = cloud.get_field_relationship_targets()
+    assert [path.text() for path in targets] == ["/World/Cloud/Smoke"]
+    fields = cloud.get_open_vdb_field_assets()
+    assert len(fields) == 1
+    assert fields[0].is_open_vdb_asset()
+    assert fields[0].get_file_path(1.0) == "volumes/cloud/smoke.vdb"
+    assert fields[0].get_field_name(1.0) == "density"
+
+
+def test_parity_vol_openvdb_fixture_reads_field_asset() -> None:
+    from freeusd.sdf import Path as SdfPath
+    from freeusd.usd import RootLayerSublayersPolicy, Stage
+    from freeusd.usdVol import OpenVDBAsset
+
+    stage = Stage.open_from_root_file(str(FIXTURES / "parity_vol_openvdb.usda"), RootLayerSublayersPolicy.none)
+    assert stage is not None
+    field = OpenVDBAsset.read_from_prim(stage, SdfPath.from_string("/World/Smoke"))
+    assert field.is_open_vdb_asset()
+    assert field.get_file_path(1.0) == "volumes/smoke.vdb"
+    assert field.get_field_name(1.0) == "density"
+
+
 def test_parity_imageable_fixture_is_primary_scene_anchor() -> None:
     stage = Stage.open_from_root_file(str(FIXTURES / "parity_imageable.usda"), RootLayerSublayersPolicy.depth_first)
     assert stage is not None

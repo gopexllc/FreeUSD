@@ -73,6 +73,7 @@
 #include "freeusd/usdShade/tokens.hpp"
 #include "freeusd/usdSkel/tokens.hpp"
 #include "freeusd/usdUI/tokens.hpp"
+#include "freeusd/usdVol/openVdbAsset.hpp"
 #include "freeusd/usdVol/tokens.hpp"
 #include "freeusd/version.hpp"
 #include "freeusd/vt/value.hpp"
@@ -2756,6 +2757,40 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
     auto usdVol = m.def_submodule("usdVol");
     auto vol_tokens = usdVol.def_submodule("tokens");
 #include "generated/usdVol_tokens.inc"
+
+    py::class_<freeusd::usdVol::OpenVDBAsset>(usdVol, "OpenVDBAsset")
+        .def(py::init<>())
+        .def(py::init<freeusd::usd::Prim>(), py::arg("prim"))
+        .def_readonly("prim", &freeusd::usdVol::OpenVDBAsset::prim)
+        .def_static(
+            "read_from_prim",
+            [](const std::shared_ptr<freeusd::usd::Stage>& stage, const freeusd::sdf::Path& path) {
+              return freeusd::usdVol::OpenVDBAsset::ReadFromPrim(stage, path);
+            },
+            py::arg("stage"),
+            py::arg("path"))
+        .def("__bool__", [](const freeusd::usdVol::OpenVDBAsset& asset) { return static_cast<bool>(asset); })
+        .def("is_open_vdb_asset", &freeusd::usdVol::OpenVDBAsset::IsOpenVDBAsset)
+        .def(
+            "get_file_path",
+            [](const freeusd::usdVol::OpenVDBAsset& asset, double time) -> py::object {
+              std::string path;
+              if (!asset.GetFilePath(&path, time)) {
+                return py::none();
+              }
+              return py::cast(path);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_field_name",
+            [](const freeusd::usdVol::OpenVDBAsset& asset, double time) -> py::object {
+              std::string name;
+              if (!asset.GetFieldName(&name, time)) {
+                return py::none();
+              }
+              return py::cast(name);
+            },
+            py::arg("time") = 1.0);
   }
 
   {
@@ -3280,7 +3315,10 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def_readwrite("lux_light_type", &freeusd::usdUtils::EngineSceneNode::lux_light_type)
         .def_readwrite("has_preview_surface_textures",
                        &freeusd::usdUtils::EngineSceneNode::has_preview_surface_textures)
-        .def_readwrite("has_physics_scene", &freeusd::usdUtils::EngineSceneNode::has_physics_scene);
+        .def_readwrite("has_physics_scene", &freeusd::usdUtils::EngineSceneNode::has_physics_scene)
+        .def_readwrite("has_open_vdb_asset", &freeusd::usdUtils::EngineSceneNode::has_open_vdb_asset)
+        .def_readwrite("open_vdb_file_path", &freeusd::usdUtils::EngineSceneNode::open_vdb_file_path)
+        .def_readwrite("open_vdb_field_name", &freeusd::usdUtils::EngineSceneNode::open_vdb_field_name);
     py::class_<freeusd::usdUtils::EngineSceneSnapshot>(usdUtils, "EngineSceneSnapshot")
         .def(py::init<>())
         .def_readwrite("root_identifier", &freeusd::usdUtils::EngineSceneSnapshot::root_identifier)
@@ -3308,7 +3346,8 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
                        &freeusd::usdUtils::EngineSceneSnapshot::preview_surface_textured_shader_paths)
         .def_readwrite("lux_light_paths", &freeusd::usdUtils::EngineSceneSnapshot::lux_light_paths)
         .def_readwrite("composed_kind_prim_paths", &freeusd::usdUtils::EngineSceneSnapshot::composed_kind_prim_paths)
-        .def_readwrite("physics_scene_paths", &freeusd::usdUtils::EngineSceneSnapshot::physics_scene_paths);
+        .def_readwrite("physics_scene_paths", &freeusd::usdUtils::EngineSceneSnapshot::physics_scene_paths)
+        .def_readwrite("open_vdb_asset_paths", &freeusd::usdUtils::EngineSceneSnapshot::open_vdb_asset_paths);
     py::class_<freeusd::usdUtils::EnginePrimEditorView>(usdUtils, "EnginePrimEditorView")
         .def(py::init<>())
         .def_readwrite("path", &freeusd::usdUtils::EnginePrimEditorView::path)
@@ -3356,6 +3395,7 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def_readwrite("uses_kind_active_through_arcs",
                        &freeusd::usdUtils::EngineRuntimeSupportReport::uses_kind_active_through_arcs)
         .def_readwrite("uses_physics_scenes", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_physics_scenes)
+        .def_readwrite("uses_open_vdb_assets", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_open_vdb_assets)
         .def_readwrite("warnings", &freeusd::usdUtils::EngineRuntimeSupportReport::warnings);
     py::class_<freeusd::usdUtils::FlattenOptions>(usdUtils, "FlattenOptions")
         .def(py::init<>())

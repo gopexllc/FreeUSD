@@ -1,0 +1,18 @@
+#usda 1.0
+(
+    defaultPrim = "World"
+)
+
+def Xform "World"
+{
+    def Volume "Cloud"
+    {
+        rel field = </World/Cloud/Smoke>
+
+        def OpenVDBAsset "Smoke"
+        {
+            asset filePath = @volumes/cloud/smoke.vdb@
+            token fieldName = "density"
+        }
+    }
+}

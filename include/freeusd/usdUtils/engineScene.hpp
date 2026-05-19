@@ -74,6 +74,16 @@ struct FREEUSD_API EngineSceneNode {
   bool has_preview_surface_textures{false};
   /// True when the prim type name is ``PhysicsScene``.
   bool has_physics_scene{false};
+  /// True when the prim type name is ``OpenVDBAsset``.
+  bool has_open_vdb_asset{false};
+  /// Resolved ``filePath`` without surrounding ``@`` when @ref has_open_vdb_asset is true.
+  std::string open_vdb_file_path;
+  /// Resolved ``fieldName`` when @ref has_open_vdb_asset is true.
+  std::string open_vdb_field_name;
+  /// True when the prim type name is ``Volume``.
+  bool has_volume{false};
+  /// Composed ``field`` relationship targets when @ref has_volume is true.
+  std::vector<freeusd::sdf::Path> volume_field_asset_paths;
 };
 
 /// Stage-level snapshot for USDA-first import and engine/editor cache generation.
@@ -112,6 +122,10 @@ struct FREEUSD_API EngineSceneSnapshot {
   std::vector<freeusd::sdf::Path> composed_kind_prim_paths;
   /// ``PhysicsScene`` prims discovered during traversal.
   std::vector<freeusd::sdf::Path> physics_scene_paths;
+  /// ``OpenVDBAsset`` prims with resolved ``filePath`` and ``fieldName``.
+  std::vector<freeusd::sdf::Path> open_vdb_asset_paths;
+  /// ``Volume`` prims with composed ``field`` relationship targets.
+  std::vector<freeusd::sdf::Path> volume_paths;
 };
 
 /// Editor-facing inspection view for one prim in the validated subset.
@@ -154,6 +168,8 @@ struct FREEUSD_API EngineRuntimeSupportReport {
   /// ``kind`` or ``active`` resolved on prims that also carry reference, payload, or inherit arcs.
   bool uses_kind_active_through_arcs{false};
   bool uses_physics_scenes{false};
+  bool uses_open_vdb_assets{false};
+  bool uses_volumes{false};
   std::vector<std::string> warnings;
 };
 

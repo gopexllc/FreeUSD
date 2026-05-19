@@ -290,5 +290,23 @@ int main() {
     assert(report.recommended_mode == EngineRuntimeMode::ExperimentalLiveStage);
   }
 
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_vol_openvdb.usda"), RootLayerSublayersPolicy::DepthFirst,
+                                         &err);
+    assert(stage && err.empty());
+    const auto snapshot = BuildEngineSceneSnapshot(*stage, 1.0);
+    assert(snapshot.open_vdb_asset_paths.size() == 1u);
+    assert(snapshot.open_vdb_asset_paths[0] == Path::FromString("/World/Smoke"));
+    const auto* smoke = find_node(snapshot, Path::FromString("/World/Smoke"));
+    assert(smoke != nullptr && smoke->has_open_vdb_asset);
+    assert(smoke->open_vdb_file_path == "volumes/smoke.vdb");
+    assert(smoke->open_vdb_field_name == "density");
+
+    const auto report = AssessEngineRuntimeSupport(*stage);
+    assert(report.uses_open_vdb_assets);
+    assert(report.recommended_mode == EngineRuntimeMode::ExperimentalLiveStage);
+  }
+
   return 0;
 }

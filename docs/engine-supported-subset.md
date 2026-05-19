@@ -72,6 +72,7 @@ This document freezes the exact FreeUSD subset a GPL-compatible engine may rely 
 | preview-surface texture assets | `tests/fixtures/parity_shade_pbr_textures.usda` |
 | usdLux lights in engine snapshots | `tests/fixtures/parity_lux_sphere.usda` |
 | PhysicsScene in engine snapshots | `tests/fixtures/parity_physics_scene.usda` |
+| OpenVDBAsset in engine snapshots | `tests/fixtures/parity_vol_openvdb.usda` |
 | low-level crate tables | `tests/fixtures/parity_tables.usdc` |
 | narrow crate scene-open fallback | `tests/fixtures/parity_embedded_scene.usdc` |
 
