@@ -437,7 +437,9 @@ if(FREEUSD_BUILD_TESTS AND FREEUSD_TEST_INSTALL_INTEGRATION)
       "${CMAKE_COMMAND}" -E env "FREEUSD_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
       "FREEUSD_SCRATCH=${CMAKE_SOURCE_DIR}/.install_integration_scratch" "${CMAKE_COMMAND}" -P
       "${CMAKE_SOURCE_DIR}/tests/install_integration.cmake")
-  set_tests_properties(freeusd_install_integration PROPERTIES LABELS "install_integration" TIMEOUT 600)
+  set_tests_properties(
+    freeusd_install_integration
+    PROPERTIES LABELS "install_integration" TIMEOUT 600 RESOURCE_LOCK freeusd_install_scratch)
 endif()
 
 if(FREEUSD_BUILD_PYTHON)
