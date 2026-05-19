@@ -35,5 +35,14 @@ int main() {
   assert(body.GetMass(&mass, 1.0));
   assert(mass == 2.5f);
 
+  auto inherit_stage = Stage::OpenFromRootFile(fixture("parity_physics_rigid_body_inherit.usda"),
+                                               freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
+  assert(inherit_stage && err.empty());
+  const RigidBodyAPI inherited = RigidBodyAPI::ReadFromPrim(inherit_stage, Path::FromString("/World/Body"));
+  assert(inherited);
+  assert(inherited.IsRigidBodyAPI());
+  assert(inherited.GetMass(&mass, 1.0));
+  assert(mass == 4.0f);
+
   return 0;
 }

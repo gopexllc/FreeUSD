@@ -20,6 +20,8 @@
 #include "freeusd/usdLux/sphereLight.hpp"
 #include "freeusd/usdPhysics/physicsScene.hpp"
 #include "freeusd/usdPhysics/rigidBodyAPI.hpp"
+#include "freeusd/usdPhysics/tokens.hpp"
+#include "freeusd/usdPhysics/tokens.hpp"
 #include "freeusd/usdVol/openVdbAsset.hpp"
 #include "freeusd/usdVol/volume.hpp"
 #include "freeusd/usdShade/material.hpp"
@@ -478,6 +480,24 @@ int main() {
     assert(body && body.IsRigidBodyAPI());
     float mass = 0.0f;
     assert(body.GetMass(&mass, 1.0) && mass == 2.5f);
+  }
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_physics_rigid_body_inherit.usda"),
+                                         freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const freeusd::usdPhysics::RigidBodyAPI body =
+        freeusd::usdPhysics::RigidBodyAPI::ReadFromPrim(stage, Path::FromString("/World/Body"));
+    assert(body && body.IsRigidBodyAPI());
+    freeusd::vt::Value api_schemas;
+    assert(stage->ReadFieldAtEvaluatedTime(Path::FromString("/World/Body"), freeusd::tf::Token{"apiSchemas"}, 1.0,
+                                           &api_schemas));
+    std::vector<freeusd::tf::Token> schemas;
+    assert(api_schemas.GetTokenArray(&schemas) && schemas.size() == 1u);
+    assert(schemas[0] == freeusd::usdPhysics::tokens::PhysicsRigidBodyAPI());
+    float mass = 0.0f;
+    assert(body.GetMass(&mass, 1.0) && mass == 4.0f);
   }
 
   {

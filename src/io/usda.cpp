@@ -2360,6 +2360,22 @@ void apply_layer_metadata_blob(const std::string& blob, freeusd::sdf::Layer* lay
   }
 }
 
+void merge_prim_api_schemas_field(const std::shared_ptr<freeusd::sdf::Layer>& layer, const freeusd::sdf::Path& prim,
+                                  std::vector<freeusd::tf::Token> incoming, bool prepend) {
+  const freeusd::tf::Token kApiSchemas{"apiSchemas"};
+  std::vector<freeusd::tf::Token> cur;
+  freeusd::vt::Value existing;
+  if (layer->GetField(prim, kApiSchemas, &existing)) {
+    existing.GetTokenArray(&cur);
+  }
+  if (prepend) {
+    cur.insert(cur.begin(), incoming.begin(), incoming.end());
+  } else {
+    cur.insert(cur.end(), incoming.begin(), incoming.end());
+  }
+  layer->SetField(prim, kApiSchemas, freeusd::vt::Value::MakeTokenArray(std::move(cur)));
+}
+
 void apply_prim_metadata_blob(const std::string& blob,
                               const std::shared_ptr<freeusd::sdf::Layer>& layer,
                               const freeusd::sdf::Path& prim,
@@ -2434,6 +2450,16 @@ void apply_prim_metadata_blob(const std::string& blob,
         for (auto& pr : pays) {
           layer->AddPrimPayload(prim, std::move(pr));
         }
+      }
+    } else if (key_full == "prepend apischemas" || key_full == "append apischemas" || key_full == "apischemas") {
+      std::vector<freeusd::tf::Token> schemas;
+      if (!parse_usda_token_array_literal(trim(rhs), err, anchor_line, &schemas)) {
+        break;
+      }
+      if (key_full == "apischemas") {
+        layer->SetField(prim, freeusd::tf::Token{"apiSchemas"}, freeusd::vt::Value::MakeTokenArray(std::move(schemas)));
+      } else {
+        merge_prim_api_schemas_field(layer, prim, std::move(schemas), key_full == "prepend apischemas");
       }
     } else if (key_full == "active") {
       freeusd::vt::Value bv = parse_value(rhs, err, anchor_line);
@@ -3104,6 +3130,8 @@ std::string SaveToString(const freeusd::sdf::Layer& layer) {
         layer.GetField(p, freeusd::tf::Token{"doc"}, &pv_doc);
     freeusd::vt::Value pv_kind;
     const bool meta_kind = layer.GetField(p, freeusd::tf::Token{"kind"}, &pv_kind);
+    freeusd::vt::Value pv_api_schemas;
+    const bool meta_api_schemas = layer.GetField(p, freeusd::tf::Token{"apiSchemas"}, &pv_api_schemas);
     freeusd::vt::Value pv_inst;
     const bool meta_inst = layer.GetField(p, freeusd::tf::Token{"instanceable"}, &pv_inst);
     const std::vector<std::string> variant_set_names = layer.ListPrimVariantSetNames(p);
@@ -3114,8 +3142,8 @@ std::string SaveToString(const freeusd::sdf::Layer& layer) {
     const bool meta_custom = !custom_keys.empty();
 
     const bool emit_meta_paren = meta_active_off || !inh.empty() || !spe.empty() || !pays.empty() || !refs.empty() ||
-                                 meta_doc || meta_kind || meta_inst || meta_variant_sets || meta_variant_sel ||
-                                 meta_custom;
+                                 meta_doc || meta_kind || meta_api_schemas || meta_inst || meta_variant_sets ||
+                                 meta_variant_sel || meta_custom;
     os << pad << head.str();
     if (emit_meta_paren) {
       os << "\n" << pad << "(\n";
@@ -3139,6 +3167,9 @@ std::string SaveToString(const freeusd::sdf::Layer& layer) {
       }
       if (meta_kind) {
         os << pad << "    kind = " << value_to_usda(pv_kind) << "\n";
+      }
+      if (meta_api_schemas) {
+        os << pad << "    prepend apiSchemas = " << value_to_usda(pv_api_schemas) << "\n";
       }
       if (meta_inst) {
         os << pad << "    instanceable = " << value_to_usda(pv_inst) << "\n";
@@ -3211,6 +3242,9 @@ std::string SaveToString(const freeusd::sdf::Layer& layer) {
         continue;
       }
       if (emit_meta_paren && meta_kind && fn == "kind") {
+        continue;
+      }
+      if (emit_meta_paren && meta_api_schemas && fn == "apiSchemas") {
         continue;
       }
       if (emit_meta_paren && meta_inst && fn == "instanceable") {

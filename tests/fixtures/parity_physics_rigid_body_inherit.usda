@@ -1,0 +1,22 @@
+#usda 1.0
+(
+    defaultPrim = "World"
+)
+
+def Xform "World"
+{
+    class "RigidClass"
+    (
+        prepend apiSchemas = ["PhysicsRigidBodyAPI"]
+    )
+    {
+        float physics:mass = 4.0
+    }
+
+    def "Body"
+    (
+        prepend inherits = </World/RigidClass>
+    )
+    {
+    }
+}

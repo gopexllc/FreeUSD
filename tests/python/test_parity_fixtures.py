@@ -223,6 +223,24 @@ def test_parity_physics_rigid_body_fixture_reads_mass() -> None:
     assert body.get_mass(1.0) == 2.5
 
 
+def test_parity_physics_rigid_body_inherit_fixture_composes_api_schemas() -> None:
+    from freeusd.sdf import Path as SdfPath
+    from freeusd.tf import Token
+    from freeusd.usd import RootLayerSublayersPolicy, Stage
+    from freeusd.usdPhysics import RigidBodyAPI, tokens
+
+    stage = Stage.open_from_root_file(
+        str(FIXTURES / "parity_physics_rigid_body_inherit.usda"), RootLayerSublayersPolicy.none
+    )
+    assert stage is not None
+    body_path = SdfPath.from_string("/World/Body")
+    body = RigidBodyAPI.read_from_prim(stage, body_path)
+    assert body.is_rigid_body_api()
+    assert body.get_mass(1.0) == 4.0
+    schemas = stage.read_field_token_array(body_path, Token("apiSchemas"), 1.0)
+    assert [t.text() for t in schemas] == [tokens.PhysicsRigidBodyAPI().text()]
+
+
 def test_parity_physics_scene_fixture_reads_gravity() -> None:
     from freeusd.sdf import Path as SdfPath
     from freeusd.usd import RootLayerSublayersPolicy, Stage

@@ -11,7 +11,7 @@ class Stage;
 namespace freeusd::usdPhysics {
 
 /// ``PhysicsRigidBodyAPI``-shaped helper: read ``physics:mass`` at a time code.
-/// Detection uses composed ``physics:mass`` authorship (``apiSchemas`` metadata is not composed yet).
+/// Detection uses composed ``physics:mass`` authorship or composed ``apiSchemas`` listing ``PhysicsRigidBodyAPI``.
 struct FREEUSD_API RigidBodyAPI {
   freeusd::usd::Prim prim;
 
