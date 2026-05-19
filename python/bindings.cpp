@@ -61,7 +61,6 @@
 #include "freeusd/usdLux/tokens.hpp"
 #include "freeusd/usdPhysics/physicsScene.hpp"
 #include "freeusd/usdPhysics/rigidBodyAPI.hpp"
-#include "freeusd/usdPhysics/rigidBodyAPI.hpp"
 #include "freeusd/usdMedia/tokens.hpp"
 #include "freeusd/usdMtlx/tokens.hpp"
 #include "freeusd/usdPhysics/tokens.hpp"
@@ -2778,30 +2777,6 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
               return py::cast(mass);
             },
             py::arg("time") = 1.0);
-
-    py::class_<freeusd::usdPhysics::RigidBodyAPI>(usdPhysics, "RigidBodyAPI")
-        .def(py::init<>())
-        .def(py::init<freeusd::usd::Prim>(), py::arg("prim"))
-        .def_readonly("prim", &freeusd::usdPhysics::RigidBodyAPI::prim)
-        .def_static(
-            "read_from_prim",
-            [](const std::shared_ptr<freeusd::usd::Stage>& stage, const freeusd::sdf::Path& path) {
-              return freeusd::usdPhysics::RigidBodyAPI::ReadFromPrim(stage, path);
-            },
-            py::arg("stage"),
-            py::arg("path"))
-        .def("__bool__", [](const freeusd::usdPhysics::RigidBodyAPI& body) { return static_cast<bool>(body); })
-        .def("is_rigid_body_api", &freeusd::usdPhysics::RigidBodyAPI::IsRigidBodyAPI)
-        .def(
-            "get_mass",
-            [](const freeusd::usdPhysics::RigidBodyAPI& body, double time) -> py::object {
-              float mass = 0.0f;
-              if (!body.GetMass(&mass, time)) {
-                return py::none();
-              }
-              return py::cast(mass);
-            },
-            py::arg("time") = 1.0);
   }
 
   {
@@ -3383,6 +3358,7 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def_readwrite("has_preview_surface_textures",
                        &freeusd::usdUtils::EngineSceneNode::has_preview_surface_textures)
         .def_readwrite("has_physics_scene", &freeusd::usdUtils::EngineSceneNode::has_physics_scene)
+        .def_readwrite("has_rigid_body_api", &freeusd::usdUtils::EngineSceneNode::has_rigid_body_api)
         .def_readwrite("has_open_vdb_asset", &freeusd::usdUtils::EngineSceneNode::has_open_vdb_asset)
         .def_readwrite("open_vdb_file_path", &freeusd::usdUtils::EngineSceneNode::open_vdb_file_path)
         .def_readwrite("open_vdb_field_name", &freeusd::usdUtils::EngineSceneNode::open_vdb_field_name)
@@ -3416,6 +3392,7 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def_readwrite("lux_light_paths", &freeusd::usdUtils::EngineSceneSnapshot::lux_light_paths)
         .def_readwrite("composed_kind_prim_paths", &freeusd::usdUtils::EngineSceneSnapshot::composed_kind_prim_paths)
         .def_readwrite("physics_scene_paths", &freeusd::usdUtils::EngineSceneSnapshot::physics_scene_paths)
+        .def_readwrite("rigid_body_api_paths", &freeusd::usdUtils::EngineSceneSnapshot::rigid_body_api_paths)
         .def_readwrite("open_vdb_asset_paths", &freeusd::usdUtils::EngineSceneSnapshot::open_vdb_asset_paths)
         .def_readwrite("volume_paths", &freeusd::usdUtils::EngineSceneSnapshot::volume_paths);
     py::class_<freeusd::usdUtils::EnginePrimEditorView>(usdUtils, "EnginePrimEditorView")
@@ -3465,6 +3442,7 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def_readwrite("uses_kind_active_through_arcs",
                        &freeusd::usdUtils::EngineRuntimeSupportReport::uses_kind_active_through_arcs)
         .def_readwrite("uses_physics_scenes", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_physics_scenes)
+        .def_readwrite("uses_rigid_body_api", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_rigid_body_api)
         .def_readwrite("uses_open_vdb_assets", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_open_vdb_assets)
         .def_readwrite("uses_volumes", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_volumes)
         .def_readwrite("warnings", &freeusd::usdUtils::EngineRuntimeSupportReport::warnings);

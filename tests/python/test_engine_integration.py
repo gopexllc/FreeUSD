@@ -109,6 +109,14 @@ def test_engine_editor_view_and_prebake_reports_bindings() -> None:
     physics_report = assess_engine_runtime_support(physics_stage)
     assert physics_report.uses_physics_scenes
 
+    rigid_body_stage = _open_stage("parity_physics_rigid_body.usda")
+    rigid_body_snapshot = build_engine_scene_snapshot(rigid_body_stage, 1.0)
+    assert [path.text() for path in rigid_body_snapshot.rigid_body_api_paths] == ["/World/Body"]
+    body = next(node for node in rigid_body_snapshot.nodes if node.path.text() == "/World/Body")
+    assert body.has_rigid_body_api
+    rigid_body_report = assess_engine_runtime_support(rigid_body_stage)
+    assert rigid_body_report.uses_rigid_body_api
+
     vol_stage = _open_stage("parity_vol_openvdb.usda")
     vol_snapshot = build_engine_scene_snapshot(vol_stage, 1.0)
     assert [path.text() for path in vol_snapshot.open_vdb_asset_paths] == ["/World/Smoke"]

@@ -11,6 +11,7 @@
 #include "freeusd/usdShade/previewSurface.hpp"
 #include "freeusd/usdShade/tokens.hpp"
 #include "freeusd/usdLux/tokens.hpp"
+#include "freeusd/usdPhysics/rigidBodyAPI.hpp"
 #include "freeusd/usdPhysics/tokens.hpp"
 #include "freeusd/usdVol/openVdbAsset.hpp"
 #include "freeusd/usdVol/volume.hpp"
@@ -149,6 +150,11 @@ EngineSceneNode build_scene_node(const std::shared_ptr<const freeusd::usd::Stage
       node.has_volume = true;
       node.volume_field_asset_paths = volume.GetFieldRelationshipTargets();
     }
+    const freeusd::usdPhysics::RigidBodyAPI rigid_body =
+        freeusd::usdPhysics::RigidBodyAPI::ReadFromPrim(stage_ptr, prim.GetPath());
+    if (rigid_body.IsRigidBodyAPI()) {
+      node.has_rigid_body_api = true;
+    }
   }
   return node;
 }
@@ -199,6 +205,9 @@ EngineSceneSnapshot BuildEngineSceneSnapshot(const freeusd::usd::Stage& stage, d
     }
     if (node.has_physics_scene) {
       append_unique_path(&snapshot.physics_scene_paths, node.path);
+    }
+    if (node.has_rigid_body_api) {
+      append_unique_path(&snapshot.rigid_body_api_paths, node.path);
     }
     if (node.has_open_vdb_asset) {
       append_unique_path(&snapshot.open_vdb_asset_paths, node.path);
@@ -301,6 +310,9 @@ EngineRuntimeSupportReport AssessEngineRuntimeSupport(const freeusd::usd::Stage&
     }
     if (prim.HasPrimKind() && prim.GetPrimKind() == freeusd::usdPhysics::tokens::PhysicsScene()) {
       report.uses_physics_scenes = true;
+    }
+    if (freeusd::usdPhysics::RigidBodyAPI(prim).IsRigidBodyAPI()) {
+      report.uses_rigid_body_api = true;
     }
     if (freeusd::usdVol::OpenVDBAsset(prim).IsOpenVDBAsset()) {
       report.uses_open_vdb_assets = true;
@@ -412,6 +424,10 @@ EngineRuntimeSupportReport AssessEngineRuntimeSupport(const freeusd::usd::Stage&
   if (report.uses_physics_scenes) {
     append_warning(&report.warnings, &seen_warnings,
                    "Scene uses PhysicsScene prims; bake gravity and simulation settings during offline import.");
+  }
+  if (report.uses_rigid_body_api) {
+    append_warning(&report.warnings, &seen_warnings,
+                   "Scene uses PhysicsRigidBodyAPI prims; bake rigid-body mass during offline import.");
   }
   if (report.uses_open_vdb_assets) {
     append_warning(&report.warnings, &seen_warnings,

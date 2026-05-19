@@ -292,6 +292,22 @@ int main() {
 
   {
     std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_physics_rigid_body.usda"),
+                                         RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const auto snapshot = BuildEngineSceneSnapshot(*stage, 1.0);
+    assert(snapshot.rigid_body_api_paths.size() == 1u);
+    assert(snapshot.rigid_body_api_paths[0] == Path::FromString("/World/Body"));
+    const auto* body = find_node(snapshot, Path::FromString("/World/Body"));
+    assert(body != nullptr && body->has_rigid_body_api);
+
+    const auto report = AssessEngineRuntimeSupport(*stage);
+    assert(report.uses_rigid_body_api);
+    assert(report.recommended_mode == EngineRuntimeMode::ExperimentalLiveStage);
+  }
+
+  {
+    std::string err;
     auto stage = Stage::OpenFromRootFile(fixture("parity_vol_openvdb.usda"), RootLayerSublayersPolicy::DepthFirst,
                                          &err);
     assert(stage && err.empty());
