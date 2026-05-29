@@ -96,6 +96,8 @@ class FREEUSD_API Stage : public std::enable_shared_from_this<Stage> {
 
   /// Composed USDA \c class / \c over specifier: strongest local opinion wins; else via `inherits` / `specializes`.
   freeusd::sdf::Layer::PrimSpecifierKind ResolvePrimSpecifierKind(const freeusd::sdf::Path& prim_path) const;
+  /// Strongest local \c def / \c class / \c over opinion on the prim path only (no inherit/specialize fallback).
+  freeusd::sdf::Layer::PrimSpecifierKind GetAuthoredPrimSpecifierKind(const freeusd::sdf::Path& prim_path) const;
 
   /// Strongest local @c active opinion, else via references, payloads, @c inherits, and @c specializes (default @c true).
   bool ResolvePrimActive(const freeusd::sdf::Path& prim_path) const;

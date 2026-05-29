@@ -96,12 +96,36 @@ def test_engine_editor_view_and_prebake_reports_bindings() -> None:
     assert kind_report.uses_composed_prim_kind
     assert kind_report.recommended_mode == EngineRuntimeMode.pre_baked_assets_only
 
+    spec_kind_stage = _open_stage("parity_kind_active_specializes.usda")
+    spec_host = spec_kind_stage.prim_at(SdfPath.from_string("/World/SpecHost"))
+    assert spec_host.has_specializes()
+    assert spec_host.get_prim_kind().text() == "assembly"
+    assert not spec_host.is_active()
+    spec_kind_report = assess_engine_runtime_support(spec_kind_stage)
+    assert spec_kind_report.uses_specializes
+    assert spec_kind_report.uses_kind_active_through_arcs
+    assert spec_kind_report.recommended_mode == EngineRuntimeMode.pre_baked_assets_only
+
+    specializes_stage = _open_stage("parity_specializes.usda")
+    specializes_report = assess_engine_runtime_support(specializes_stage)
+    assert specializes_report.uses_specializes
+    assert specializes_report.recommended_mode == EngineRuntimeMode.pre_baked_assets_only
+
     custom_stage = _open_stage("parity_custom_data_inherit.usda")
     host = next(node for node in build_engine_scene_snapshot(custom_stage, 1.0).nodes if node.path.text() == "/World/Host")
     assert "role" in host.custom_data_keys
     custom_report = assess_engine_runtime_support(custom_stage)
     assert custom_report.uses_inherits
     assert custom_report.uses_custom_data
+    assert custom_report.uses_custom_data_through_arcs
+
+    refs_stage = _open_stage("parity_custom_data_refs.usda")
+    refs_report = assess_engine_runtime_support(refs_stage)
+    assert refs_report.uses_references
+    assert refs_report.uses_payloads
+    assert refs_report.uses_custom_data
+    assert refs_report.uses_custom_data_through_arcs
+    assert refs_report.recommended_mode == EngineRuntimeMode.pre_baked_assets_only
 
     physics_stage = _open_stage("parity_physics_scene.usda")
     physics_snapshot = build_engine_scene_snapshot(physics_stage, 1.0)
@@ -116,6 +140,30 @@ def test_engine_editor_view_and_prebake_reports_bindings() -> None:
     assert body.has_rigid_body_api
     rigid_body_report = assess_engine_runtime_support(rigid_body_stage)
     assert rigid_body_report.uses_rigid_body_api
+
+    collision_stage = _open_stage("parity_physics_collision.usda")
+    collision_snapshot = build_engine_scene_snapshot(collision_stage, 1.0)
+    assert [path.text() for path in collision_snapshot.collision_api_paths] == ["/World/Collider"]
+    collider = next(node for node in collision_snapshot.nodes if node.path.text() == "/World/Collider")
+    assert collider.has_collision_api
+    collision_report = assess_engine_runtime_support(collision_stage)
+    assert collision_report.uses_collision_api
+
+    collision_inherit_stage = _open_stage("parity_physics_collision_inherit.usda")
+    collision_inherit_snapshot = build_engine_scene_snapshot(collision_inherit_stage, 1.0)
+    assert [path.text() for path in collision_inherit_snapshot.collision_api_paths] == ["/World/Collider"]
+    assert assess_engine_runtime_support(collision_inherit_stage).uses_collision_api
+
+    joint_stage = _open_stage("parity_physics_fixed_joint.usda")
+    joint_snapshot = build_engine_scene_snapshot(joint_stage, 1.0)
+    assert [path.text() for path in joint_snapshot.physics_fixed_joint_paths] == ["/World/Anchor"]
+    anchor = next(node for node in joint_snapshot.nodes if node.path.text() == "/World/Anchor")
+    assert anchor.has_physics_fixed_joint
+    assert anchor.physics_fixed_joint_body0.text() == "/World/BodyA"
+    assert anchor.physics_fixed_joint_body1.text() == "/World/BodyB"
+    joint_report = assess_engine_runtime_support(joint_stage)
+    assert joint_report.uses_physics_fixed_joints
+    assert joint_report.uses_relationships
 
     vol_stage = _open_stage("parity_vol_openvdb.usda")
     vol_snapshot = build_engine_scene_snapshot(vol_stage, 1.0)

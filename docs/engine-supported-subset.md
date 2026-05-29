@@ -65,7 +65,9 @@ This document freezes the exact FreeUSD subset a GPL-compatible engine may rely 
 | sublayer expansion + sublayer offsets + time samples | `tests/fixtures/parity_stack_root.usda` |
 | references / payloads / relocates / prefix substitutions | `tests/fixtures/parity_namespace.usda` |
 | composed prim kind / active through arcs | `tests/fixtures/parity_kind_active_refs.usda` |
+| composed prim kind / active through specializes | `tests/fixtures/parity_kind_active_specializes.usda` |
 | composed prim customData through inherits | `tests/fixtures/parity_custom_data_inherit.usda` |
+| composed prim customData through references / payloads | `tests/fixtures/parity_custom_data_refs.usda` |
 | selected variant expansion | `tests/fixtures/parity_variants.usda` |
 | visibility / purpose / bounds / transforms | `tests/fixtures/parity_imageable.usda` |
 | material bindings / preview surface | `tests/fixtures/parity_shade_preview.usda` |
@@ -73,6 +75,13 @@ This document freezes the exact FreeUSD subset a GPL-compatible engine may rely 
 | usdLux lights in engine snapshots | `tests/fixtures/parity_lux_sphere.usda` |
 | PhysicsScene in engine snapshots | `tests/fixtures/parity_physics_scene.usda` |
 | PhysicsRigidBodyAPI (`physics:mass`) in engine snapshots | `tests/fixtures/parity_physics_rigid_body.usda` |
+| PhysicsRigidBodyAPI `physics:kinematicEnabled` reads | `tests/fixtures/parity_physics_rigid_body_kinematic.usda` |
+| PhysicsMassAPI (`physics:density`, `physics:centerOfMass`) | `tests/fixtures/parity_physics_mass.usda` |
+| PhysicsFixedJoint body relationships | `tests/fixtures/parity_physics_fixed_joint.usda` |
+| PhysicsFixedJoint in engine snapshots | `tests/fixtures/parity_physics_fixed_joint.usda` |
+| composed rigid-body mass through references | `tests/fixtures/parity_physics_rigid_body_refs.usda` |
+| PhysicsCollisionAPI (`physics:collisionEnabled`) in engine snapshots | `tests/fixtures/parity_physics_collision.usda` |
+| composed PhysicsCollisionAPI through inherits | `tests/fixtures/parity_physics_collision_inherit.usda` |
 | OpenVDBAsset in engine snapshots | `tests/fixtures/parity_vol_openvdb.usda` |
 | Volume + field rel in engine snapshots | `tests/fixtures/parity_vol_volume.usda` |
 | low-level crate tables | `tests/fixtures/parity_tables.usdc` |

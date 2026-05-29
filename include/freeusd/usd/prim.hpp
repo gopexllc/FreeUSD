@@ -71,8 +71,12 @@ class FREEUSD_API Prim {
 
   /// Composed prim specifier (\c def / \c class / \c over); \c Default means \c def-style.
   freeusd::sdf::Layer::PrimSpecifierKind GetSpecifierKind() const;
+  /// Local prim specifier on the layer stack only (no inherit/specialize fallback).
+  freeusd::sdf::Layer::PrimSpecifierKind GetAuthoredSpecifierKind() const;
   /// True if composed specifier is \c class (Usd \c IsAbstract).
   bool IsAbstract() const;
+  /// True when this prim is not locally declared as a \c class prim (engine instance targets).
+  bool IsInstancePrim() const;
 
   /// Effective authored **active**: strongest explicit opinion; default active if none.
   bool IsActive() const;

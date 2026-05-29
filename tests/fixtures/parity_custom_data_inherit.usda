@@ -8,7 +8,7 @@ def Xform "World"
     class "BaseClass"
     (
         customData = {
-            string role = "base"
+            string role = "base",
             int priority = 1
         }
     )
@@ -19,7 +19,7 @@ def Xform "World"
     (
         prepend inherits = </World/BaseClass>
         customData = {
-            int priority = 9
+            int priority = 9,
         }
     )
     {

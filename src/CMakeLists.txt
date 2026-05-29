@@ -93,7 +93,8 @@ set_target_properties(freeusd_usdLux PROPERTIES EXPORT_NAME usdLux)
 target_link_libraries(freeusd_usdUtils PUBLIC freeusd_usdSkel freeusd_usdShade freeusd_usdLux freeusd_usdPhysics
     freeusd_usdVol)
 
-add_library(freeusd_usdPhysics STATIC usdPhysics/physicsScene.cpp usdPhysics/rigidBodyAPI.cpp)
+add_library(freeusd_usdPhysics STATIC usdPhysics/physicsScene.cpp usdPhysics/rigidBodyAPI.cpp
+    usdPhysics/collisionAPI.cpp usdPhysics/massAPI.cpp usdPhysics/fixedJoint.cpp)
 add_library(freeusd::usdPhysics ALIAS freeusd_usdPhysics)
 target_include_directories(freeusd_usdPhysics PUBLIC "$<BUILD_INTERFACE:${FREEUSD_INC}>" "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
 target_link_libraries(freeusd_usdPhysics PUBLIC freeusd_usd freeusd_gf freeusd_vt freeusd_tf freeusd_build_settings)

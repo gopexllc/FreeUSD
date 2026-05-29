@@ -18,6 +18,9 @@
 #include "freeusd/usdLux/domeLight.hpp"
 #include "freeusd/usdLux/rectLight.hpp"
 #include "freeusd/usdLux/sphereLight.hpp"
+#include "freeusd/usdPhysics/collisionAPI.hpp"
+#include "freeusd/usdPhysics/fixedJoint.hpp"
+#include "freeusd/usdPhysics/massAPI.hpp"
 #include "freeusd/usdPhysics/physicsScene.hpp"
 #include "freeusd/usdPhysics/rigidBodyAPI.hpp"
 #include "freeusd/usdPhysics/tokens.hpp"
@@ -318,6 +321,30 @@ int main() {
 
   {
     std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_custom_data_refs.usda"),
+                                         freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const Path ref_host = Path::FromString("/World/RefHost");
+    const Path payload_host = Path::FromString("/World/PayloadHost");
+    freeusd::vt::Value v;
+    std::string role;
+    assert(stage->GetComposedPrimCustomData(ref_host, "role", &v));
+    assert(v.GetString(&role) && role == "from_ref");
+    std::int32_t priority = 0;
+    assert(stage->GetComposedPrimCustomData(ref_host, "priority", &v));
+    assert(v.GetInt32(&priority) && priority == 9);
+    assert(stage->GetComposedPrimCustomData(payload_host, "role", &v));
+    assert(v.GetString(&role) && role == "from_payload");
+    assert(stage->GetComposedPrimCustomData(payload_host, "priority", &v));
+    assert(v.GetInt32(&priority) && priority == 3);
+    const auto ref_keys = stage->ListComposedPrimCustomDataKeys(ref_host);
+    assert(ref_keys.size() == 2u);
+    const auto payload_keys = stage->ListComposedPrimCustomDataKeys(payload_host);
+    assert(payload_keys.size() == 2u);
+  }
+
+  {
+    std::string err;
     auto stage = Stage::OpenFromRootFile(fixture("parity_specializes.usda"),
                                          freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
     assert(stage && err.empty());
@@ -484,6 +511,62 @@ int main() {
 
   {
     std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_physics_rigid_body_kinematic.usda"),
+                                         freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const freeusd::usdPhysics::RigidBodyAPI body =
+        freeusd::usdPhysics::RigidBodyAPI::ReadFromPrim(stage, Path::FromString("/World/Body"));
+    assert(body && body.IsRigidBodyAPI());
+    bool kinematic_enabled = false;
+    assert(body.GetKinematicEnabled(&kinematic_enabled, 1.0) && kinematic_enabled);
+  }
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_physics_mass.usda"),
+                                         freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const freeusd::usdPhysics::MassAPI prop =
+        freeusd::usdPhysics::MassAPI::ReadFromPrim(stage, Path::FromString("/World/Prop"));
+    assert(prop && prop.IsMassAPI());
+    float density = 0.0f;
+    assert(prop.GetDensity(&density, 1.0) && density == 2.0f);
+    freeusd::gf::Vec3f com{};
+    assert(prop.GetCenterOfMass(&com, 1.0));
+    assert(com.y() == 0.5f);
+  }
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_physics_fixed_joint.usda"),
+                                         freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const freeusd::usdPhysics::FixedJoint joint =
+        freeusd::usdPhysics::FixedJoint::ReadFromPrim(stage, Path::FromString("/World/Anchor"));
+    assert(joint && joint.IsFixedJoint());
+    freeusd::sdf::Path body0;
+    freeusd::sdf::Path body1;
+    assert(joint.GetBody0(&body0) && joint.GetBody1(&body1));
+    assert(body0 == Path::FromString("/World/BodyA"));
+    assert(body1 == Path::FromString("/World/BodyB"));
+    bool enabled = false;
+    assert(joint.GetJointEnabled(&enabled, 1.0) && enabled);
+  }
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_physics_rigid_body_refs.usda"),
+                                         freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const freeusd::usdPhysics::RigidBodyAPI body =
+        freeusd::usdPhysics::RigidBodyAPI::ReadFromPrim(stage, Path::FromString("/World/RefHost"));
+    assert(body && body.IsRigidBodyAPI());
+    float mass = 0.0f;
+    assert(body.GetMass(&mass, 1.0) && mass == 7.0f);
+  }
+
+  {
+    std::string err;
     auto stage = Stage::OpenFromRootFile(fixture("parity_physics_rigid_body_inherit.usda"),
                                          freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
     assert(stage && err.empty());
@@ -498,6 +581,36 @@ int main() {
     assert(schemas[0] == freeusd::usdPhysics::tokens::PhysicsRigidBodyAPI());
     float mass = 0.0f;
     assert(body.GetMass(&mass, 1.0) && mass == 4.0f);
+  }
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_physics_collision.usda"),
+                                         freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const freeusd::usdPhysics::CollisionAPI collider =
+        freeusd::usdPhysics::CollisionAPI::ReadFromPrim(stage, Path::FromString("/World/Collider"));
+    assert(collider && collider.IsCollisionAPI());
+    bool enabled = true;
+    assert(collider.GetCollisionEnabled(&enabled, 1.0) && !enabled);
+  }
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_physics_collision_inherit.usda"),
+                                         freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const freeusd::usdPhysics::CollisionAPI collider =
+        freeusd::usdPhysics::CollisionAPI::ReadFromPrim(stage, Path::FromString("/World/Collider"));
+    assert(collider && collider.IsCollisionAPI());
+    bool enabled = true;
+    assert(collider.GetCollisionEnabled(&enabled, 1.0) && !enabled);
+    freeusd::vt::Value api_schemas;
+    assert(stage->ReadFieldAtEvaluatedTime(Path::FromString("/World/Collider"), freeusd::tf::Token{"apiSchemas"}, 1.0,
+                                           &api_schemas));
+    std::vector<freeusd::tf::Token> schemas;
+    assert(api_schemas.GetTokenArray(&schemas) && schemas.size() == 1u);
+    assert(schemas[0] == freeusd::usdPhysics::tokens::PhysicsCollisionAPI());
   }
 
   {

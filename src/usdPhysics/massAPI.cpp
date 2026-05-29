@@ -1,4 +1,4 @@
-#include "freeusd/usdPhysics/rigidBodyAPI.hpp"
+#include "freeusd/usdPhysics/massAPI.hpp"
 
 #include "freeusd/usd/stage.hpp"
 #include "freeusd/usdPhysics/tokens.hpp"
@@ -29,32 +29,32 @@ bool prim_has_composed_api_schema(const freeusd::usd::Prim& prim, const freeusd:
 
 }  // namespace
 
-RigidBodyAPI RigidBodyAPI::ReadFromPrim(const std::shared_ptr<const freeusd::usd::Stage>& stage,
-                                        const freeusd::sdf::Path& path) {
+MassAPI MassAPI::ReadFromPrim(const std::shared_ptr<const freeusd::usd::Stage>& stage,
+                              const freeusd::sdf::Path& path) {
   if (!stage) {
     return {};
   }
-  return RigidBodyAPI(stage->GetPrimAtPath(path));
+  return MassAPI(stage->GetPrimAtPath(path));
 }
 
-bool RigidBodyAPI::IsRigidBodyAPI() const {
+bool MassAPI::IsMassAPI() const {
   return prim.IsValid() &&
-         (prim.HasAttribute(tokens::physics_mass()) ||
-          prim_has_composed_api_schema(prim, tokens::PhysicsRigidBodyAPI()));
+         (prim.HasAttribute(tokens::physics_density()) || prim.HasAttribute(tokens::physics_centerOfMass()) ||
+          prim.HasAttribute(tokens::physics_mass()) || prim_has_composed_api_schema(prim, tokens::PhysicsMassAPI()));
 }
 
-bool RigidBodyAPI::GetMass(float* out, double time) const {
-  if (!out || !IsRigidBodyAPI()) {
+bool MassAPI::GetDensity(float* out, double time) const {
+  if (!out || !IsMassAPI()) {
     return false;
   }
-  return prim.GetAttribute(tokens::physics_mass(), time).GetFloat(out);
+  return prim.GetAttribute(tokens::physics_density(), time).GetFloat(out);
 }
 
-bool RigidBodyAPI::GetKinematicEnabled(bool* out, double time) const {
-  if (!out || !IsRigidBodyAPI()) {
+bool MassAPI::GetCenterOfMass(freeusd::gf::Vec3f* out, double time) const {
+  if (!out || !IsMassAPI()) {
     return false;
   }
-  return prim.GetAttribute(tokens::physics_kinematicEnabled(), time).GetBool(out);
+  return prim.GetAttribute(tokens::physics_centerOfMass(), time).GetVec3f(out);
 }
 
 }  // namespace freeusd::usdPhysics

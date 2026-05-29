@@ -1,0 +1,13 @@
+#usda 1.0
+(
+    defaultPrim = "PayloadRoot"
+)
+
+def "PayloadRoot" (
+    customData = {
+        string role = "from_payload",
+        int priority = 3
+    }
+)
+{
+}

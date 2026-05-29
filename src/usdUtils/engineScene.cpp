@@ -11,6 +11,8 @@
 #include "freeusd/usdShade/previewSurface.hpp"
 #include "freeusd/usdShade/tokens.hpp"
 #include "freeusd/usdLux/tokens.hpp"
+#include "freeusd/usdPhysics/collisionAPI.hpp"
+#include "freeusd/usdPhysics/fixedJoint.hpp"
 #include "freeusd/usdPhysics/rigidBodyAPI.hpp"
 #include "freeusd/usdPhysics/tokens.hpp"
 #include "freeusd/usdVol/openVdbAsset.hpp"
@@ -152,8 +154,20 @@ EngineSceneNode build_scene_node(const std::shared_ptr<const freeusd::usd::Stage
     }
     const freeusd::usdPhysics::RigidBodyAPI rigid_body =
         freeusd::usdPhysics::RigidBodyAPI::ReadFromPrim(stage_ptr, prim.GetPath());
-    if (rigid_body.IsRigidBodyAPI()) {
+    if (rigid_body.IsRigidBodyAPI() && prim.IsInstancePrim()) {
       node.has_rigid_body_api = true;
+    }
+    const freeusd::usdPhysics::CollisionAPI collision =
+        freeusd::usdPhysics::CollisionAPI::ReadFromPrim(stage_ptr, prim.GetPath());
+    if (collision.IsCollisionAPI() && prim.IsInstancePrim()) {
+      node.has_collision_api = true;
+    }
+    const freeusd::usdPhysics::FixedJoint joint =
+        freeusd::usdPhysics::FixedJoint::ReadFromPrim(stage_ptr, prim.GetPath());
+    if (joint.IsFixedJoint() && prim.IsInstancePrim()) {
+      node.has_physics_fixed_joint = true;
+      (void)joint.GetBody0(&node.physics_fixed_joint_body0);
+      (void)joint.GetBody1(&node.physics_fixed_joint_body1);
     }
   }
   return node;
@@ -208,6 +222,12 @@ EngineSceneSnapshot BuildEngineSceneSnapshot(const freeusd::usd::Stage& stage, d
     }
     if (node.has_rigid_body_api) {
       append_unique_path(&snapshot.rigid_body_api_paths, node.path);
+    }
+    if (node.has_collision_api) {
+      append_unique_path(&snapshot.collision_api_paths, node.path);
+    }
+    if (node.has_physics_fixed_joint) {
+      append_unique_path(&snapshot.physics_fixed_joint_paths, node.path);
     }
     if (node.has_open_vdb_asset) {
       append_unique_path(&snapshot.open_vdb_asset_paths, node.path);
@@ -311,8 +331,14 @@ EngineRuntimeSupportReport AssessEngineRuntimeSupport(const freeusd::usd::Stage&
     if (prim.HasPrimKind() && prim.GetPrimKind() == freeusd::usdPhysics::tokens::PhysicsScene()) {
       report.uses_physics_scenes = true;
     }
-    if (freeusd::usdPhysics::RigidBodyAPI(prim).IsRigidBodyAPI()) {
+    if (prim.IsInstancePrim() && freeusd::usdPhysics::RigidBodyAPI(prim).IsRigidBodyAPI()) {
       report.uses_rigid_body_api = true;
+    }
+    if (prim.IsInstancePrim() && freeusd::usdPhysics::CollisionAPI(prim).IsCollisionAPI()) {
+      report.uses_collision_api = true;
+    }
+    if (prim.IsInstancePrim() && freeusd::usdPhysics::FixedJoint(prim).IsFixedJoint()) {
+      report.uses_physics_fixed_joints = true;
     }
     if (freeusd::usdVol::OpenVDBAsset(prim).IsOpenVDBAsset()) {
       report.uses_open_vdb_assets = true;
@@ -322,10 +348,13 @@ EngineRuntimeSupportReport AssessEngineRuntimeSupport(const freeusd::usd::Stage&
     }
     report.uses_composed_prim_kind = report.uses_composed_prim_kind || prim.HasPrimKind();
     report.uses_prim_active_opinions = report.uses_prim_active_opinions || prim.HasPrimActiveOpinion();
-    const bool kind_active_arc_prim =
-        prim.HasReferences() || prim.HasPayloads() || prim.HasInherits();
-    if (kind_active_arc_prim && (prim.HasPrimKind() || prim.HasPrimActiveOpinion())) {
+    const bool metadata_arc_prim =
+        prim.HasReferences() || prim.HasPayloads() || prim.HasInherits() || prim.HasSpecializes();
+    if (metadata_arc_prim && (prim.HasPrimKind() || prim.HasPrimActiveOpinion())) {
       report.uses_kind_active_through_arcs = true;
+    }
+    if (metadata_arc_prim && !prim.ListCustomDataKeys().empty()) {
+      report.uses_custom_data_through_arcs = true;
     }
     report.uses_references = report.uses_references || prim.HasReferences();
     report.uses_payloads = report.uses_payloads || prim.HasPayloads();
@@ -419,7 +448,12 @@ EngineRuntimeSupportReport AssessEngineRuntimeSupport(const freeusd::usd::Stage&
   }
   if (report.uses_kind_active_through_arcs) {
     append_warning(&report.warnings, &seen_warnings,
-                   "Scene resolves prim kind or active through composition arcs; bake hierarchy metadata during import.");
+                   "Scene resolves prim kind or active through composition arcs (references, payloads, inherits, or "
+                   "specializes); bake hierarchy metadata during import.");
+  }
+  if (report.uses_custom_data_through_arcs) {
+    append_warning(&report.warnings, &seen_warnings,
+                   "Scene resolves prim customData through composition arcs; bake editor metadata during import.");
   }
   if (report.uses_physics_scenes) {
     append_warning(&report.warnings, &seen_warnings,
@@ -428,6 +462,14 @@ EngineRuntimeSupportReport AssessEngineRuntimeSupport(const freeusd::usd::Stage&
   if (report.uses_rigid_body_api) {
     append_warning(&report.warnings, &seen_warnings,
                    "Scene uses PhysicsRigidBodyAPI prims; bake rigid-body mass during offline import.");
+  }
+  if (report.uses_collision_api) {
+    append_warning(&report.warnings, &seen_warnings,
+                   "Scene uses PhysicsCollisionAPI prims; bake collision enabled flags during offline import.");
+  }
+  if (report.uses_physics_fixed_joints) {
+    append_warning(&report.warnings, &seen_warnings,
+                   "Scene uses PhysicsFixedJoint prims; bake joint body attachments during offline import.");
   }
   if (report.uses_open_vdb_assets) {
     append_warning(&report.warnings, &seen_warnings,

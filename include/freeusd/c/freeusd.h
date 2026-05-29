@@ -806,8 +806,11 @@ typedef struct FreeusdEngineRuntimeSupport {
   int uses_composed_prim_kind;
   int uses_prim_active_opinions;
   int uses_kind_active_through_arcs;
+  int uses_custom_data_through_arcs;
   int uses_physics_scenes;
   int uses_rigid_body_api;
+  int uses_collision_api;
+  int uses_physics_fixed_joints;
   int uses_open_vdb_assets;
   int uses_volumes;
 } FreeusdEngineRuntimeSupport;

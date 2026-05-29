@@ -711,6 +711,31 @@ freeusd::vt::Value parse_value(std::string_view t, ParseResult* err, std::size_t
   return freeusd::vt::Value::MakeToken(freeusd::tf::Token{t});
 }
 
+bool coerce_typed_bool_value(freeusd::vt::Value* v, ParseResult* err, std::size_t line) {
+  if (!v) {
+    return false;
+  }
+  if (v->HoldsBool()) {
+    return true;
+  }
+  std::int32_t i32 = 0;
+  if (v->GetInt32(&i32)) {
+    if (i32 == 0 || i32 == 1) {
+      *v = freeusd::vt::Value::MakeBool(i32 != 0);
+      return true;
+    }
+  }
+  std::int64_t i64 = 0;
+  if (v->GetInt64(&i64)) {
+    if (i64 == 0 || i64 == 1) {
+      *v = freeusd::vt::Value::MakeBool(i64 != 0);
+      return true;
+    }
+  }
+  set_err(err, line, "bool attribute requires true, false, 0, or 1");
+  return false;
+}
+
 bool value_scalar_to_double(const freeusd::vt::Value& v, double* out) {
   if (!out) {
     return false;
@@ -2942,6 +2967,9 @@ ParseResult LoadFromString(std::string_view text, const std::shared_ptr<freeusd:
 
     freeusd::vt::Value v = parse_value(fval, &r, line_no, typ_lc);
     if (!r.ok) {
+      return r;
+    }
+    if (typ_lc == "bool" && !coerce_typed_bool_value(&v, &r, line_no)) {
       return r;
     }
     layer->SetField(stack.back(), freeusd::tf::Token{fname}, v);

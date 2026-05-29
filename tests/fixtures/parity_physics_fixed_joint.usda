@@ -1,0 +1,22 @@
+#usda 1.0
+(
+    defaultPrim = "World"
+)
+
+def Xform "World"
+{
+    def Xform "BodyA"
+    {
+    }
+
+    def Xform "BodyB"
+    {
+    }
+
+    def PhysicsFixedJoint "Anchor"
+    {
+        rel physics:body0 = </World/BodyA>
+        rel physics:body1 = </World/BodyB>
+        bool physics:jointEnabled = 1
+    }
+}

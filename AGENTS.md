@@ -36,9 +36,9 @@ Module boundaries: [docs/openusd-map.md](docs/openusd-map.md). Repo layout: [doc
 - `2942708` — USDC `FIELDSETS`; lux lights; shade textures; mesh primvars.
 - `493ca1b` — continual-learning transcript index for agent memory.
 
-**On main today:** USDA load/save and composition subsets are strong; USDC has bootstrap/TOC plus validated `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` / `FIELDSETS` / `SPECS` (and matrix documents `VALUES` table decode on the fixture path). Schema helpers cover mesh, skel (glTF-oriented), preview materials, and lux light families at `partial` depth.
+**On main today:** USDA load/save and composition subsets are strong; USDC has bootstrap/TOC plus validated `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` / `FIELDSETS` / `SPECS` / `VALUES` on `parity_tables.usdc` (fixture typed kinds Int32/Float/TokenIndex/Bool only). Schema helpers cover mesh, skel (glTF-oriented), preview materials, lux, physics (`PhysicsScene`, `RigidBodyAPI`, `CollisionAPI`, `MassAPI`, `FixedJoint`), and volume families at `partial` depth. Composition includes composed `customData` through references/payloads/inherits/specializes and kind/active through specializes.
 
-**USDC `VALUES` on the parity branch:** opaque blob decode plus fixture-oriented **typed** kinds (Int32, Float, TokenIndex, Bool) in `ReadUsdCrateTypedValuesTableFromPath`, C ABI `freeusd_read_usdc_typed_values_table_from_path_utf8`, and cross-language bindings. Matrix `planned` next: arbitrary production `.usdc` value kinds and compression.
+**USDC `VALUES` next (matrix `planned`):** arbitrary production `.usdc` typed value kinds and compression beyond `parity_tables.usdc`.
 
 ## Agent work sequence (every slice)
 

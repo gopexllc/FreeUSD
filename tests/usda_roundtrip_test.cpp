@@ -105,6 +105,7 @@ def Xform "World"
             3: 30,
         }
         bool visible = true
+        bool flag01 = 0
         string doc = "hello"
         rel material:binding = </Materials/M>
         rel proxyPrim = </Materials/M>
@@ -213,6 +214,11 @@ def Xform "World"
   d = 0;
   assert(v.GetDouble(&d));
   assert(d == 2.5);
+
+  bool flag01 = true;
+  assert(layer->GetField(cube, Token("flag01"), &v));
+  assert(v.HoldsBool());
+  assert(v.GetBool(&flag01) && !flag01);
 
   std::vector<Token> xorder;
   assert(layer->GetField(cube, Token("xformOpOrder"), &v));

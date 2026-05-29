@@ -209,8 +209,20 @@ freeusd::sdf::Layer::PrimSpecifierKind Prim::GetSpecifierKind() const {
   return st->ResolvePrimSpecifierKind(path_);
 }
 
+freeusd::sdf::Layer::PrimSpecifierKind Prim::GetAuthoredSpecifierKind() const {
+  const auto st = lock_stage();
+  if (!st) {
+    return freeusd::sdf::Layer::PrimSpecifierKind::Default;
+  }
+  return st->GetAuthoredPrimSpecifierKind(path_);
+}
+
 bool Prim::IsAbstract() const {
   return GetSpecifierKind() == freeusd::sdf::Layer::PrimSpecifierKind::Class;
+}
+
+bool Prim::IsInstancePrim() const {
+  return GetAuthoredSpecifierKind() != freeusd::sdf::Layer::PrimSpecifierKind::Class;
 }
 
 bool Prim::IsActive() const {

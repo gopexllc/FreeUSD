@@ -60,6 +60,9 @@
 #include "freeusd/usdLux/sphereLight.hpp"
 #include "freeusd/usdLux/tokens.hpp"
 #include "freeusd/usdPhysics/physicsScene.hpp"
+#include "freeusd/usdPhysics/collisionAPI.hpp"
+#include "freeusd/usdPhysics/fixedJoint.hpp"
+#include "freeusd/usdPhysics/massAPI.hpp"
 #include "freeusd/usdPhysics/rigidBodyAPI.hpp"
 #include "freeusd/usdMedia/tokens.hpp"
 #include "freeusd/usdMtlx/tokens.hpp"
@@ -2140,7 +2143,9 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def("get_prim_kind", &freeusd::usd::Prim::GetPrimKind)
         .def("has_prim_kind", &freeusd::usd::Prim::HasPrimKind)
         .def("specifier_kind", &freeusd::usd::Prim::GetSpecifierKind)
+        .def("authored_specifier_kind", &freeusd::usd::Prim::GetAuthoredSpecifierKind)
         .def("is_abstract", &freeusd::usd::Prim::IsAbstract)
+        .def("is_instance_prim", &freeusd::usd::Prim::IsInstancePrim)
         .def("is_active", &freeusd::usd::Prim::IsActive)
         .def("has_prim_active_opinion", &freeusd::usd::Prim::HasPrimActiveOpinion)
         .def("has_custom_data_key", &freeusd::usd::Prim::HasCustomDataKey)
@@ -2776,6 +2781,116 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
               }
               return py::cast(mass);
             },
+            py::arg("time") = 1.0)
+        .def(
+            "get_kinematic_enabled",
+            [](const freeusd::usdPhysics::RigidBodyAPI& body, double time) -> py::object {
+              bool enabled = false;
+              if (!body.GetKinematicEnabled(&enabled, time)) {
+                return py::none();
+              }
+              return py::cast(enabled);
+            },
+            py::arg("time") = 1.0);
+
+    py::class_<freeusd::usdPhysics::CollisionAPI>(usdPhysics, "CollisionAPI")
+        .def(py::init<>())
+        .def(py::init<freeusd::usd::Prim>(), py::arg("prim"))
+        .def_readonly("prim", &freeusd::usdPhysics::CollisionAPI::prim)
+        .def_static(
+            "read_from_prim",
+            [](const std::shared_ptr<freeusd::usd::Stage>& stage, const freeusd::sdf::Path& path) {
+              return freeusd::usdPhysics::CollisionAPI::ReadFromPrim(stage, path);
+            },
+            py::arg("stage"),
+            py::arg("path"))
+        .def("__bool__", [](const freeusd::usdPhysics::CollisionAPI& collider) { return static_cast<bool>(collider); })
+        .def("is_collision_api", &freeusd::usdPhysics::CollisionAPI::IsCollisionAPI)
+        .def(
+            "get_collision_enabled",
+            [](const freeusd::usdPhysics::CollisionAPI& collider, double time) -> py::object {
+              bool enabled = false;
+              if (!collider.GetCollisionEnabled(&enabled, time)) {
+                return py::none();
+              }
+              return py::cast(enabled);
+            },
+            py::arg("time") = 1.0);
+
+    py::class_<freeusd::usdPhysics::MassAPI>(usdPhysics, "MassAPI")
+        .def(py::init<>())
+        .def(py::init<freeusd::usd::Prim>(), py::arg("prim"))
+        .def_readonly("prim", &freeusd::usdPhysics::MassAPI::prim)
+        .def_static(
+            "read_from_prim",
+            [](const std::shared_ptr<freeusd::usd::Stage>& stage, const freeusd::sdf::Path& path) {
+              return freeusd::usdPhysics::MassAPI::ReadFromPrim(stage, path);
+            },
+            py::arg("stage"),
+            py::arg("path"))
+        .def("__bool__", [](const freeusd::usdPhysics::MassAPI& mass) { return static_cast<bool>(mass); })
+        .def("is_mass_api", &freeusd::usdPhysics::MassAPI::IsMassAPI)
+        .def(
+            "get_density",
+            [](const freeusd::usdPhysics::MassAPI& mass, double time) -> py::object {
+              float density = 0.0f;
+              if (!mass.GetDensity(&density, time)) {
+                return py::none();
+              }
+              return py::cast(density);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_center_of_mass",
+            [](const freeusd::usdPhysics::MassAPI& mass, double time) -> py::object {
+              freeusd::gf::Vec3f com{};
+              if (!mass.GetCenterOfMass(&com, time)) {
+                return py::none();
+              }
+              return py::cast(com);
+            },
+            py::arg("time") = 1.0);
+
+    py::class_<freeusd::usdPhysics::FixedJoint>(usdPhysics, "FixedJoint")
+        .def(py::init<>())
+        .def(py::init<freeusd::usd::Prim>(), py::arg("prim"))
+        .def_readonly("prim", &freeusd::usdPhysics::FixedJoint::prim)
+        .def_static(
+            "read_from_prim",
+            [](const std::shared_ptr<freeusd::usd::Stage>& stage, const freeusd::sdf::Path& path) {
+              return freeusd::usdPhysics::FixedJoint::ReadFromPrim(stage, path);
+            },
+            py::arg("stage"),
+            py::arg("path"))
+        .def("__bool__", [](const freeusd::usdPhysics::FixedJoint& joint) { return static_cast<bool>(joint); })
+        .def("is_fixed_joint", &freeusd::usdPhysics::FixedJoint::IsFixedJoint)
+        .def(
+            "get_body0",
+            [](const freeusd::usdPhysics::FixedJoint& joint) -> py::object {
+              freeusd::sdf::Path path;
+              if (!joint.GetBody0(&path)) {
+                return py::none();
+              }
+              return py::cast(path);
+            })
+        .def(
+            "get_body1",
+            [](const freeusd::usdPhysics::FixedJoint& joint) -> py::object {
+              freeusd::sdf::Path path;
+              if (!joint.GetBody1(&path)) {
+                return py::none();
+              }
+              return py::cast(path);
+            })
+        .def(
+            "get_joint_enabled",
+            [](const freeusd::usdPhysics::FixedJoint& joint, double time) -> py::object {
+              bool enabled = false;
+              if (!joint.GetJointEnabled(&enabled, time)) {
+                return py::none();
+              }
+              return py::cast(enabled);
+            },
             py::arg("time") = 1.0);
   }
 
@@ -3359,6 +3474,12 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
                        &freeusd::usdUtils::EngineSceneNode::has_preview_surface_textures)
         .def_readwrite("has_physics_scene", &freeusd::usdUtils::EngineSceneNode::has_physics_scene)
         .def_readwrite("has_rigid_body_api", &freeusd::usdUtils::EngineSceneNode::has_rigid_body_api)
+        .def_readwrite("has_collision_api", &freeusd::usdUtils::EngineSceneNode::has_collision_api)
+        .def_readwrite("has_physics_fixed_joint", &freeusd::usdUtils::EngineSceneNode::has_physics_fixed_joint)
+        .def_readwrite("physics_fixed_joint_body0",
+                       &freeusd::usdUtils::EngineSceneNode::physics_fixed_joint_body0)
+        .def_readwrite("physics_fixed_joint_body1",
+                       &freeusd::usdUtils::EngineSceneNode::physics_fixed_joint_body1)
         .def_readwrite("has_open_vdb_asset", &freeusd::usdUtils::EngineSceneNode::has_open_vdb_asset)
         .def_readwrite("open_vdb_file_path", &freeusd::usdUtils::EngineSceneNode::open_vdb_file_path)
         .def_readwrite("open_vdb_field_name", &freeusd::usdUtils::EngineSceneNode::open_vdb_field_name)
@@ -3393,6 +3514,9 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def_readwrite("composed_kind_prim_paths", &freeusd::usdUtils::EngineSceneSnapshot::composed_kind_prim_paths)
         .def_readwrite("physics_scene_paths", &freeusd::usdUtils::EngineSceneSnapshot::physics_scene_paths)
         .def_readwrite("rigid_body_api_paths", &freeusd::usdUtils::EngineSceneSnapshot::rigid_body_api_paths)
+        .def_readwrite("collision_api_paths", &freeusd::usdUtils::EngineSceneSnapshot::collision_api_paths)
+        .def_readwrite("physics_fixed_joint_paths",
+                       &freeusd::usdUtils::EngineSceneSnapshot::physics_fixed_joint_paths)
         .def_readwrite("open_vdb_asset_paths", &freeusd::usdUtils::EngineSceneSnapshot::open_vdb_asset_paths)
         .def_readwrite("volume_paths", &freeusd::usdUtils::EngineSceneSnapshot::volume_paths);
     py::class_<freeusd::usdUtils::EnginePrimEditorView>(usdUtils, "EnginePrimEditorView")
@@ -3441,8 +3565,13 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
                        &freeusd::usdUtils::EngineRuntimeSupportReport::uses_prim_active_opinions)
         .def_readwrite("uses_kind_active_through_arcs",
                        &freeusd::usdUtils::EngineRuntimeSupportReport::uses_kind_active_through_arcs)
+        .def_readwrite("uses_custom_data_through_arcs",
+                       &freeusd::usdUtils::EngineRuntimeSupportReport::uses_custom_data_through_arcs)
         .def_readwrite("uses_physics_scenes", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_physics_scenes)
         .def_readwrite("uses_rigid_body_api", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_rigid_body_api)
+        .def_readwrite("uses_collision_api", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_collision_api)
+        .def_readwrite("uses_physics_fixed_joints",
+                       &freeusd::usdUtils::EngineRuntimeSupportReport::uses_physics_fixed_joints)
         .def_readwrite("uses_open_vdb_assets", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_open_vdb_assets)
         .def_readwrite("uses_volumes", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_volumes)
         .def_readwrite("warnings", &freeusd::usdUtils::EngineRuntimeSupportReport::warnings);

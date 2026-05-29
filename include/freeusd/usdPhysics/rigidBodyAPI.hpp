@@ -10,7 +10,7 @@ class Stage;
 
 namespace freeusd::usdPhysics {
 
-/// ``PhysicsRigidBodyAPI``-shaped helper: read ``physics:mass`` at a time code.
+/// ``PhysicsRigidBodyAPI``-shaped helper: read ``physics:mass`` and ``physics:kinematicEnabled`` at a time code.
 /// Detection uses composed ``physics:mass`` authorship or composed ``apiSchemas`` listing ``PhysicsRigidBodyAPI``.
 struct FREEUSD_API RigidBodyAPI {
   freeusd::usd::Prim prim;
@@ -26,6 +26,8 @@ struct FREEUSD_API RigidBodyAPI {
   bool IsRigidBodyAPI() const;
 
   bool GetMass(float* out, double time = 1.0) const;
+
+  bool GetKinematicEnabled(bool* out, double time = 1.0) const;
 };
 
 }  // namespace freeusd::usdPhysics

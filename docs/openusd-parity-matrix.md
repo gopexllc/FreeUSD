@@ -28,10 +28,14 @@ Status vocabulary:
   Schema-facing `purpose` / `visibility` behavior for `usdGeom::Imageable` and cube-like bounds via `usdGeom::Boundable`.
 - `tests/fixtures/parity_custom_data_inherit.usda`
   Composed prim `customData` through `inherits` arcs (local strongest-wins override plus inherited keys).
+- `tests/fixtures/parity_custom_data_refs.usda`
+  Composed prim `customData` through `references` and `payloads` (`parity_custom_data_ref.usda`, `parity_custom_data_payload.usda`; local override on reference host).
 - `tests/fixtures/parity_specializes.usda`
   Composed attribute reads through `specializes` arcs (arc-sourced defaults plus local strongest-wins override).
 - `tests/fixtures/parity_kind_active_refs.usda`
   Composed prim `kind` and `active` through `references`, `payloads`, and `inherits` (`parity_kind_active_ref.usda`, `parity_kind_active_payload.usda`).
+- `tests/fixtures/parity_kind_active_specializes.usda`
+  Composed prim `kind` and `active` through `specializes` from a `class` prim.
 - `tests/fixtures/parity_tables.usdc`
   Shared binary crate fixture for bootstrap, TOC, raw section payloads, and validated `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` / `FIELDSETS` / `SPECS` / `VALUES` table decode (regenerate with `scripts/gen_parity_tables_usdc.py`).
 - `tests/fixtures/parity_geom_mesh.usda`
@@ -70,6 +74,18 @@ Status vocabulary:
   `PhysicsRigidBodyAPI` with authored `physics:mass` on an `Xform` prim.
 - `tests/fixtures/parity_physics_rigid_body_inherit.usda`
   Composed `apiSchemas` and `physics:mass` through `inherits` from a `class` prim.
+- `tests/fixtures/parity_physics_rigid_body_kinematic.usda`
+  `PhysicsRigidBodyAPI` with `physics:mass` and `physics:kinematicEnabled` (`1` literal coerced to bool).
+- `tests/fixtures/parity_physics_mass.usda`
+  `PhysicsMassAPI` with `physics:density` and `vector3f` `physics:centerOfMass`.
+- `tests/fixtures/parity_physics_fixed_joint.usda`
+  `PhysicsFixedJoint` with `physics:body0` / `physics:body1` relationships and `physics:jointEnabled`.
+- `tests/fixtures/parity_physics_rigid_body_refs.usda`
+  Composed `physics:mass` through `references` (`parity_physics_rigid_body_ref.usda`).
+- `tests/fixtures/parity_physics_collision.usda`
+  `PhysicsCollisionAPI` with authored `physics:collisionEnabled` (`0` literal coerced to bool).
+- `tests/fixtures/parity_physics_collision_inherit.usda`
+  Composed `apiSchemas` and `physics:collisionEnabled` through `inherits` from a `class` prim.
 - `tests/fixtures/parity_vol_openvdb.usda`
   `OpenVDBAsset` with `filePath` and `fieldName`.
 - `tests/fixtures/parity_vol_volume.usda`
@@ -79,14 +95,14 @@ Status vocabulary:
 
 ### Formats And Data Model
 
-- `implemented`: USDA load/save, typed scalar/vector/quaternion/matrix values (including `vector3f` tuple literals), layer metadata, references/payload/inherits/specializes storage, relationship targets, and time-sample evaluation.
-- `partial`: USDC bootstrap parsing, TOC parsing, raw section-payload reads, validated `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` / `FIELDSETS` / `SPECS` / `VALUES` table decode (fixture-oriented typed kinds: Int32, Float, TokenIndex, Bool, plus opaque), and a narrow embedded-`USDA` stage-open fallback are available in C++; the C ABI follows the same validated open/query slice.
+- `implemented`: USDA load/save, typed scalar/vector/quaternion/matrix values (including `vector3f` tuple literals and `bool` attributes with `true`/`false` or `0`/`1` literals), layer metadata, references/payload/inherits/specializes storage, relationship targets, and time-sample evaluation.
+- `partial`: USDC bootstrap parsing, TOC parsing, raw section-payload reads, validated `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` / `FIELDSETS` / `SPECS` / `VALUES` table decode on `parity_tables.usdc` (fixture typed kinds: Int32=42, Float=1.5, TokenIndex=0, Bool=true, plus opaque section payloads), and a narrow embedded-`USDA` stage-open fallback are available in C++; the C ABI follows the same validated open/query slice (`freeusd_read_usdc_typed_values_table_from_path_utf8`).
 - `planned`: arbitrary OpenUSD `.usdc` typed value payloads beyond the parity fixture kinds, production compression, and full embedded-`USDA` bridge.
 
 ### Composition Semantics
 
 - `implemented`: strongest-wins field reads, concatenated relationship lists, composed field/relationship/prim-path unions, relocated prim-path query behavior, and prefix-substituted reference/payload asset paths.
-- `partial`: `subLayerOffsets` now remap composed sample times and file-backed reads; selected variants plus reference/payload/inherit/specialize arcs now affect file-backed field and prim-path queries (`parity_specializes.usda` for composed doubles through `specializes`); composed prim `kind` / `active`, `customData`, and USDA `class` / `over` specifier resolution follow references, payloads, and `inherits` / `specializes` (local layer stack still wins when authored), but other metadata propagation through every arc type remains incomplete.
+- `partial`: `subLayerOffsets` now remap composed sample times and file-backed reads; selected variants plus reference/payload/inherit/specialize arcs now affect file-backed field and prim-path queries (`parity_specializes.usda` for composed doubles through `specializes`); composed prim `kind` / `active`, `customData`, and USDA `class` / `over` specifier resolution follow references, payloads, and `inherits` / `specializes` (local layer stack still wins when authored; `parity_custom_data_refs.usda` for `customData` through references/payloads), but other metadata propagation through every arc type remains incomplete.
 - `planned`: broader resolver-aware arc expansion for the remaining composed query families.
 
 ### Schema And Runtime Helpers
@@ -97,7 +113,7 @@ Status vocabulary:
 - `partial`: `usdSkel::Skeleton` and `usdSkel::SkelAnimation` read joints, bind/rest matrices, and sampled TRS arrays from USDA; glTF mapping helpers build parent indices and world bind matrices; `SkelBinding` resolves `skel:skeleton` plus `primvars:skel:jointIndices` / `jointWeights`; `SkelRoot` finds skeleton and `skel:animationSource` under a scope (`parity_skel_binding.usda`); `BlendShape` / `SkelBlendShapes` / `MorphTargets` read morph offsets, remap animation weights, and apply CPU morph accumulation (`parity_skel_blend_shapes.usda`; glTF `mesh.weights` + morph target POSITION deltas); `DeformPointsWithSkeleton` performs CPU LBS from joint world matrices and inverse bind transforms (`parity_skel_skinning.usda`).
 - `partial`: `usdShade::Material` resolves `outputs:surface` to a shader prim; `usdShade::Shader` / `PreviewSurface` read `info:id` and common `UsdPreviewSurface` inputs (`diffuseColor`, `emissiveColor`, `metallic`, `roughness`, `opacity`) with connection following (`parity_shade_preview.usda`); texture asset paths for `diffuseColor`, `normal`, `occlusion`, `metallic`, and `roughness` resolve through one connection hop to connected `inputs:file` (`parity_shade_texture.usda`, `parity_shade_pbr_textures.usda`).
 - `partial`: `usdLux::DistantLight` reads `inputs:intensity`, `inputs:color`, and `inputs:angle` at a time code (`parity_lux_distant.usda`); `usdLux::SphereLight` reads `inputs:intensity`, `inputs:color`, and `inputs:radius` (`parity_lux_sphere.usda`); `usdLux::RectLight` reads `inputs:intensity`, `inputs:color`, `inputs:width`, and `inputs:height` (`parity_lux_rect.usda`); `usdLux::DiskLight` reads `inputs:intensity`, `inputs:color`, and `inputs:radius` (`parity_lux_disk.usda`); `usdLux::CylinderLight` reads `inputs:intensity`, `inputs:color`, `inputs:length`, and `inputs:radius` (`parity_lux_cylinder.usda`); `usdLux::DomeLight` reads `inputs:intensity`, `inputs:color`, `inputs:texture:file`, and `inputs:texture:format` (`parity_lux_dome.usda`).
-- `partial`: `usdPhysics::PhysicsScene` reads `physics:gravityDirection` and `physics:gravityMagnitude` at a time code (`parity_physics_scene.usda`); `usdPhysics::RigidBodyAPI` reads composed `physics:mass` and detects `PhysicsRigidBodyAPI` via composed `apiSchemas` (`parity_physics_rigid_body.usda`, `parity_physics_rigid_body_inherit.usda`).
+- `partial`: `usdPhysics::PhysicsScene` reads `physics:gravityDirection` and `physics:gravityMagnitude` at a time code (`parity_physics_scene.usda`); `usdPhysics::RigidBodyAPI` reads composed `physics:mass`, `physics:kinematicEnabled`, and detects `PhysicsRigidBodyAPI` via composed `apiSchemas` (`parity_physics_rigid_body.usda`, `parity_physics_rigid_body_inherit.usda`, `parity_physics_rigid_body_kinematic.usda`, `parity_physics_rigid_body_refs.usda`); `usdPhysics::CollisionAPI` reads composed `physics:collisionEnabled` and detects `PhysicsCollisionAPI` via composed `apiSchemas` (`parity_physics_collision.usda`, `parity_physics_collision_inherit.usda`); `usdPhysics::MassAPI` reads `physics:density` and `physics:centerOfMass` and detects `PhysicsMassAPI` via composed `apiSchemas` (`parity_physics_mass.usda`); `usdPhysics::FixedJoint` reads `physics:body0` / `physics:body1` relationship targets and `physics:jointEnabled` (`parity_physics_fixed_joint.usda`).
 - `partial`: `usdVol::OpenVDBAsset` reads `filePath` and `fieldName` at a time code (`parity_vol_openvdb.usda`); `usdVol::Volume` reads prim kind and composed `field` relationship targets, resolving child `OpenVDBAsset` field prims (`parity_vol_volume.usda`).
 - `token-only`: most other non-`usdGeom` / non-`usdSkel` / non-`usdShade` / non-`usdLux` / non-`usdPhysics` / non-`usdVol` schema packages remain generated token surfaces only.
 
@@ -115,7 +131,7 @@ Status vocabulary:
 ### Engine Integration Contract
 
 - `implemented`: `docs/engine-supported-subset.md`, `docs/engine-integration.md`, clean-room/fixture/claim policy docs, `usdUtils::engineScene`, and focused engine integration tests freeze the USDA-first engine path.
-- `partial`: shipping runtime remains intentionally narrow; engine snapshots list material bindings, preview-surface materials, textured preview shaders, supported `usdLux` light families, `PhysicsScene` prims, `PhysicsRigidBodyAPI`-shaped prims with composed `physics:mass` (`rigid_body_api_paths`), `OpenVDBAsset` prims (`open_vdb_asset_paths`), `Volume` prims (`volume_paths`), and composed prim `kind` paths; `AssessEngineRuntimeSupport` reports `uses_material_bindings`, `uses_preview_surface`, `uses_preview_surface_textures`, `uses_lux_lights`, `uses_physics_scenes`, `uses_rigid_body_api`, `uses_open_vdb_assets`, `uses_volumes`, `uses_composed_prim_kind`, `uses_prim_active_opinions`, and `uses_kind_active_through_arcs`; arbitrary `.usdc` scene decode and broad live-stage runtime guarantees are still out of scope.
+- `partial`: shipping runtime remains intentionally narrow; engine snapshots list material bindings, preview-surface materials, textured preview shaders, supported `usdLux` light families, `PhysicsScene` prims, `PhysicsRigidBodyAPI`-shaped prims with composed `physics:mass` (`rigid_body_api_paths`), `PhysicsCollisionAPI`-shaped prims (`collision_api_paths`), `PhysicsFixedJoint` prims (`physics_fixed_joint_paths`), `OpenVDBAsset` prims (`open_vdb_asset_paths`), `Volume` prims (`volume_paths`), and composed prim `kind` paths; `AssessEngineRuntimeSupport` reports `uses_material_bindings`, `uses_preview_surface`, `uses_preview_surface_textures`, `uses_lux_lights`, `uses_physics_scenes`, `uses_rigid_body_api`, `uses_collision_api`, `uses_physics_fixed_joints`, `uses_open_vdb_assets`, `uses_volumes`, `uses_composed_prim_kind`, `uses_prim_active_opinions`, `uses_specializes`, `uses_kind_active_through_arcs` (including `specializes` arcs; see `parity_kind_active_specializes.usda`), and `uses_custom_data_through_arcs`; arbitrary `.usdc` scene decode and broad live-stage runtime guarantees are still out of scope.
 
 ## Acceptance Criteria
 

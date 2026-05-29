@@ -3074,8 +3074,11 @@ int freeusd_usdutils_assess_engine_runtime_support(const FreeusdStage* stage, Fr
     out->uses_composed_prim_kind = report.uses_composed_prim_kind ? 1 : 0;
     out->uses_prim_active_opinions = report.uses_prim_active_opinions ? 1 : 0;
     out->uses_kind_active_through_arcs = report.uses_kind_active_through_arcs ? 1 : 0;
+    out->uses_custom_data_through_arcs = report.uses_custom_data_through_arcs ? 1 : 0;
     out->uses_physics_scenes = report.uses_physics_scenes ? 1 : 0;
     out->uses_rigid_body_api = report.uses_rigid_body_api ? 1 : 0;
+    out->uses_collision_api = report.uses_collision_api ? 1 : 0;
+    out->uses_physics_fixed_joints = report.uses_physics_fixed_joints ? 1 : 0;
     out->uses_open_vdb_assets = report.uses_open_vdb_assets ? 1 : 0;
     out->uses_volumes = report.uses_volumes ? 1 : 0;
     clear_error();

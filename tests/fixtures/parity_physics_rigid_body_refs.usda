@@ -1,0 +1,14 @@
+#usda 1.0
+(
+    defaultPrim = "World"
+)
+
+def Xform "World"
+{
+    def "RefHost"
+    (
+        prepend references = @./parity_physics_rigid_body_ref.usda@
+    )
+    {
+    }
+}

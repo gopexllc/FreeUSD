@@ -111,3 +111,30 @@ def test_parity_custom_data_and_specifier_through_inherits() -> None:
     assert set(st.list_composed_prim_custom_data_keys(host)) == {"priority", "role"}
     assert st.resolve_prim_specifier_kind(host) == PrimSpecifierKind.class_
     assert prim.is_abstract()
+
+
+def test_parity_custom_data_through_references_and_payloads() -> None:
+    path = os.path.normpath(os.path.join(_FIXTURES, "parity_custom_data_refs.usda"))
+    st = usd.Stage.open_from_root_file(path)
+    assert st is not None
+    ref_host = Path.from_string("/World/RefHost")
+    payload_host = Path.from_string("/World/PayloadHost")
+    ref_prim = st.prim_at(ref_host)
+    payload_prim = st.prim_at(payload_host)
+    assert ref_prim.get_custom_data("role").as_string() == "from_ref"
+    assert ref_prim.get_custom_data("priority").as_int32() == 9
+    assert payload_prim.get_custom_data("role").as_string() == "from_payload"
+    assert payload_prim.get_custom_data("priority").as_int32() == 3
+    assert set(st.list_composed_prim_custom_data_keys(ref_host)) == {"priority", "role"}
+    assert set(st.list_composed_prim_custom_data_keys(payload_host)) == {"priority", "role"}
+
+
+def test_inherit_instance_prim_authored_specifier_not_class() -> None:
+    path = os.path.normpath(os.path.join(_FIXTURES, "parity_physics_collision_inherit.usda"))
+    st = usd.Stage.open_from_root_file(path)
+    assert st is not None
+    collider = st.prim_at(Path.from_string("/World/Collider"))
+    collision_class = st.prim_at(Path.from_string("/World/CollisionClass"))
+    assert collision_class.is_abstract()
+    assert not collision_class.is_instance_prim()
+    assert collider.is_instance_prim()

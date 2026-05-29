@@ -1439,8 +1439,11 @@ type EngineRuntimeSupport struct {
 	UsesComposedPrimKind             bool
 	UsesPrimActiveOpinions           bool
 	UsesKindActiveThroughArcs        bool
+	UsesCustomDataThroughArcs        bool
 	UsesPhysicsScenes                bool
 	UsesRigidBodyAPI                 bool
+	UsesCollisionAPI                 bool
+	UsesPhysicsFixedJoints           bool
 	UsesOpenVdbAssets                bool
 	UsesVolumes                      bool
 }
@@ -1479,8 +1482,11 @@ func (s *Stage) AssessEngineRuntimeSupport() (report EngineRuntimeSupport, rc in
 	report.UsesComposedPrimKind = raw.uses_composed_prim_kind != 0
 	report.UsesPrimActiveOpinions = raw.uses_prim_active_opinions != 0
 	report.UsesKindActiveThroughArcs = raw.uses_kind_active_through_arcs != 0
+	report.UsesCustomDataThroughArcs = raw.uses_custom_data_through_arcs != 0
 	report.UsesPhysicsScenes = raw.uses_physics_scenes != 0
 	report.UsesRigidBodyAPI = raw.uses_rigid_body_api != 0
+	report.UsesCollisionAPI = raw.uses_collision_api != 0
+	report.UsesPhysicsFixedJoints = raw.uses_physics_fixed_joints != 0
 	report.UsesOpenVdbAssets = raw.uses_open_vdb_assets != 0
 	report.UsesVolumes = raw.uses_volumes != 0
 	return report, 0

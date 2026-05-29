@@ -223,6 +223,59 @@ def test_parity_physics_rigid_body_fixture_reads_mass() -> None:
     assert body.get_mass(1.0) == 2.5
 
 
+def test_parity_physics_fixed_joint_fixture_reads_body_rels() -> None:
+    from freeusd.sdf import Path as SdfPath
+    from freeusd.usdPhysics import FixedJoint
+
+    stage = Stage.open_from_root_file(str(FIXTURES / "parity_physics_fixed_joint.usda"), RootLayerSublayersPolicy.none)
+    assert stage is not None
+    joint = FixedJoint.read_from_prim(stage, SdfPath.from_string("/World/Anchor"))
+    assert joint.is_fixed_joint()
+    assert joint.get_body0().text() == "/World/BodyA"
+    assert joint.get_body1().text() == "/World/BodyB"
+    assert joint.get_joint_enabled(1.0) is True
+
+
+def test_parity_physics_mass_fixture_reads_density_and_center_of_mass() -> None:
+    from freeusd.gf import Vec3f
+    from freeusd.sdf import Path as SdfPath
+    from freeusd.usdPhysics import MassAPI
+
+    stage = Stage.open_from_root_file(str(FIXTURES / "parity_physics_mass.usda"), RootLayerSublayersPolicy.none)
+    assert stage is not None
+    prop = MassAPI.read_from_prim(stage, SdfPath.from_string("/World/Prop"))
+    assert prop.is_mass_api()
+    assert prop.get_density(1.0) == 2.0
+    com = prop.get_center_of_mass(1.0)
+    assert isinstance(com, Vec3f)
+    assert abs(com.y() - 0.5) < 1e-5
+
+
+def test_parity_physics_rigid_body_kinematic_fixture_reads_kinematic_enabled() -> None:
+    from freeusd.sdf import Path as SdfPath
+    from freeusd.usdPhysics import RigidBodyAPI
+
+    stage = Stage.open_from_root_file(
+        str(FIXTURES / "parity_physics_rigid_body_kinematic.usda"), RootLayerSublayersPolicy.none
+    )
+    assert stage is not None
+    body = RigidBodyAPI.read_from_prim(stage, SdfPath.from_string("/World/Body"))
+    assert body
+    assert body.is_rigid_body_api()
+    assert body.get_kinematic_enabled(1.0) is True
+
+
+def test_parity_physics_rigid_body_refs_fixture_composes_mass() -> None:
+    from freeusd.sdf import Path as SdfPath
+    from freeusd.usdPhysics import RigidBodyAPI
+
+    stage = Stage.open_from_root_file(str(FIXTURES / "parity_physics_rigid_body_refs.usda"), RootLayerSublayersPolicy.none)
+    assert stage is not None
+    body = RigidBodyAPI.read_from_prim(stage, SdfPath.from_string("/World/RefHost"))
+    assert body.is_rigid_body_api()
+    assert body.get_mass(1.0) == 7.0
+
+
 def test_parity_physics_rigid_body_inherit_fixture_composes_api_schemas() -> None:
     from freeusd.sdf import Path as SdfPath
     from freeusd.tf import Token

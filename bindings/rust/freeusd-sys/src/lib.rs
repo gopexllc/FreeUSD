@@ -574,8 +574,11 @@ pub struct FreeusdEngineRuntimeSupport {
     pub uses_composed_prim_kind: c_int,
     pub uses_prim_active_opinions: c_int,
     pub uses_kind_active_through_arcs: c_int,
+    pub uses_custom_data_through_arcs: c_int,
     pub uses_physics_scenes: c_int,
     pub uses_rigid_body_api: c_int,
+    pub uses_collision_api: c_int,
+    pub uses_physics_fixed_joints: c_int,
     pub uses_open_vdb_assets: c_int,
     pub uses_volumes: c_int,
 }

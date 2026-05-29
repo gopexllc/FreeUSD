@@ -3,8 +3,10 @@
 #include <string>
 
 #include "freeusd/sdf/path.hpp"
+#include "freeusd/tf/token.hpp"
 #include "freeusd/usd/stage.hpp"
 #include "freeusd/usdUtils/engineScene.hpp"
+#include "freeusd/vt/value.hpp"
 
 #ifndef FREEUSD_TEST_FIXTURES_DIR
 #error "FREEUSD_TEST_FIXTURES_DIR must be set by CMake for engine_integration_test"
@@ -272,6 +274,64 @@ int main() {
     const auto report = AssessEngineRuntimeSupport(*stage);
     assert(report.uses_inherits);
     assert(report.uses_custom_data);
+    assert(report.uses_custom_data_through_arcs);
+  }
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_kind_active_specializes.usda"),
+                                         RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const Path spec_host = Path::FromString("/World/SpecHost");
+    const auto host_prim = stage->GetPrimAtPath(spec_host);
+    assert(host_prim.IsValid());
+    assert(host_prim.HasSpecializes());
+    assert(host_prim.HasPrimKind());
+    assert(host_prim.GetPrimKind().GetText() == std::string("assembly"));
+    assert(host_prim.HasPrimActiveOpinion());
+    assert(!host_prim.IsActive());
+
+    const auto report = AssessEngineRuntimeSupport(*stage);
+    assert(report.uses_specializes);
+    assert(report.uses_kind_active_through_arcs);
+    assert(report.uses_composed_prim_kind);
+    assert(report.uses_prim_active_opinions);
+    assert(report.recommended_mode == EngineRuntimeMode::PreBakedAssetsOnly);
+    assert(std::find(report.warnings.begin(), report.warnings.end(),
+                     "Scene resolves prim kind or active through composition arcs (references, payloads, inherits, or "
+                     "specializes); bake hierarchy metadata during import.") != report.warnings.end());
+  }
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_specializes.usda"), RootLayerSublayersPolicy::DepthFirst,
+                                         &err);
+    assert(stage && err.empty());
+    const auto host_prim = stage->GetPrimAtPath(Path::FromString("/World/Host"));
+    assert(host_prim.IsValid());
+    assert(host_prim.HasSpecializes());
+
+    const auto report = AssessEngineRuntimeSupport(*stage);
+    assert(report.uses_specializes);
+    assert(report.recommended_mode == EngineRuntimeMode::PreBakedAssetsOnly);
+  }
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_custom_data_refs.usda"), RootLayerSublayersPolicy::DepthFirst,
+                                         &err);
+    assert(stage && err.empty());
+    const Path ref_host = Path::FromString("/World/RefHost");
+    const auto ref_prim = stage->GetPrimAtPath(ref_host);
+    assert(ref_prim.IsValid());
+    assert(ref_prim.HasReferences());
+    assert(ref_prim.HasCustomDataKey("role"));
+    const auto report = AssessEngineRuntimeSupport(*stage);
+    assert(report.uses_references);
+    assert(report.uses_payloads);
+    assert(report.uses_custom_data);
+    assert(report.uses_custom_data_through_arcs);
+    assert(report.recommended_mode == EngineRuntimeMode::PreBakedAssetsOnly);
   }
 
   {
@@ -308,6 +368,52 @@ int main() {
 
   {
     std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_physics_collision.usda"),
+                                         RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const auto snapshot = BuildEngineSceneSnapshot(*stage, 1.0);
+    assert(snapshot.collision_api_paths.size() == 1u);
+    assert(snapshot.collision_api_paths[0] == Path::FromString("/World/Collider"));
+    const auto* collider = find_node(snapshot, Path::FromString("/World/Collider"));
+    assert(collider != nullptr && collider->has_collision_api);
+
+    const auto report = AssessEngineRuntimeSupport(*stage);
+    assert(report.uses_collision_api);
+    assert(report.recommended_mode == EngineRuntimeMode::ExperimentalLiveStage);
+  }
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_physics_collision_inherit.usda"),
+                                         RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const auto snapshot = BuildEngineSceneSnapshot(*stage, 1.0);
+    assert(snapshot.collision_api_paths.size() == 1u);
+    assert(snapshot.collision_api_paths[0] == Path::FromString("/World/Collider"));
+    assert(AssessEngineRuntimeSupport(*stage).uses_collision_api);
+  }
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_physics_fixed_joint.usda"),
+                                         RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const auto snapshot = BuildEngineSceneSnapshot(*stage, 1.0);
+    assert(snapshot.physics_fixed_joint_paths.size() == 1u);
+    assert(snapshot.physics_fixed_joint_paths[0] == Path::FromString("/World/Anchor"));
+    const auto* anchor = find_node(snapshot, Path::FromString("/World/Anchor"));
+    assert(anchor != nullptr && anchor->has_physics_fixed_joint);
+    assert(anchor->physics_fixed_joint_body0 == Path::FromString("/World/BodyA"));
+    assert(anchor->physics_fixed_joint_body1 == Path::FromString("/World/BodyB"));
+
+    const auto report = AssessEngineRuntimeSupport(*stage);
+    assert(report.uses_physics_fixed_joints);
+    assert(report.uses_relationships);
+    assert(report.recommended_mode == EngineRuntimeMode::HybridMetadata);
+  }
+
+  {
+    std::string err;
     auto stage = Stage::OpenFromRootFile(fixture("parity_vol_openvdb.usda"), RootLayerSublayersPolicy::DepthFirst,
                                          &err);
     assert(stage && err.empty());
@@ -322,6 +428,24 @@ int main() {
     const auto report = AssessEngineRuntimeSupport(*stage);
     assert(report.uses_open_vdb_assets);
     assert(report.recommended_mode == EngineRuntimeMode::ExperimentalLiveStage);
+  }
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_vol_volume.usda"), RootLayerSublayersPolicy::DepthFirst,
+                                         &err);
+    assert(stage && err.empty());
+    const auto snapshot = BuildEngineSceneSnapshot(*stage, 1.0);
+    assert(snapshot.volume_paths.size() == 1u);
+    assert(snapshot.volume_paths[0] == Path::FromString("/World/Cloud"));
+    const auto* cloud = find_node(snapshot, Path::FromString("/World/Cloud"));
+    assert(cloud != nullptr && cloud->has_volume);
+
+    const auto report = AssessEngineRuntimeSupport(*stage);
+    assert(report.uses_volumes);
+    assert(report.uses_open_vdb_assets);
+    assert(report.uses_relationships);
+    assert(report.recommended_mode == EngineRuntimeMode::HybridMetadata);
   }
 
   return 0;

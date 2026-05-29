@@ -44,5 +44,14 @@ int main() {
   assert(inherited.GetMass(&mass, 1.0));
   assert(mass == 4.0f);
 
+  auto kinematic_stage = Stage::OpenFromRootFile(fixture("parity_physics_rigid_body_kinematic.usda"),
+                                                  freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
+  assert(kinematic_stage && err.empty());
+  const RigidBodyAPI kinematic = RigidBodyAPI::ReadFromPrim(kinematic_stage, Path::FromString("/World/Body"));
+  assert(kinematic && kinematic.IsRigidBodyAPI());
+  bool kinematic_enabled = false;
+  assert(kinematic.GetKinematicEnabled(&kinematic_enabled, 1.0));
+  assert(kinematic_enabled);
+
   return 0;
 }

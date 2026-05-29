@@ -65,5 +65,17 @@ int main() {
     assert(!refs_stage->ResolveHasPrimActiveOpinion(inherit_host));
   }
 
+  {
+    std::string err;
+    auto spec_stage = Stage::OpenFromRootFile(fixture("parity_kind_active_specializes.usda"),
+                                              freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(spec_stage && err.empty());
+    const Path spec_host = Path::FromString("/World/SpecHost");
+    assert(spec_stage->ResolveHasPrimKind(spec_host));
+    assert(spec_stage->ResolvePrimKind(spec_host).GetText() == std::string("assembly"));
+    assert(spec_stage->ResolveHasPrimActiveOpinion(spec_host));
+    assert(!spec_stage->ResolvePrimActive(spec_host));
+  }
+
   return 0;
 }

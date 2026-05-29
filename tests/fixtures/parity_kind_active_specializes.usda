@@ -1,0 +1,21 @@
+#usda 1.0
+(
+    defaultPrim = "World"
+)
+
+def Xform "World"
+{
+    class "KindSpec" (
+        kind = "assembly"
+        active = false
+    )
+    {
+    }
+
+    def "SpecHost"
+    (
+        prepend specializes = </World/KindSpec>
+    )
+    {
+    }
+}

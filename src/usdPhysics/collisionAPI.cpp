@@ -1,4 +1,4 @@
-#include "freeusd/usdPhysics/rigidBodyAPI.hpp"
+#include "freeusd/usdPhysics/collisionAPI.hpp"
 
 #include "freeusd/usd/stage.hpp"
 #include "freeusd/usdPhysics/tokens.hpp"
@@ -29,32 +29,25 @@ bool prim_has_composed_api_schema(const freeusd::usd::Prim& prim, const freeusd:
 
 }  // namespace
 
-RigidBodyAPI RigidBodyAPI::ReadFromPrim(const std::shared_ptr<const freeusd::usd::Stage>& stage,
+CollisionAPI CollisionAPI::ReadFromPrim(const std::shared_ptr<const freeusd::usd::Stage>& stage,
                                         const freeusd::sdf::Path& path) {
   if (!stage) {
     return {};
   }
-  return RigidBodyAPI(stage->GetPrimAtPath(path));
+  return CollisionAPI(stage->GetPrimAtPath(path));
 }
 
-bool RigidBodyAPI::IsRigidBodyAPI() const {
+bool CollisionAPI::IsCollisionAPI() const {
   return prim.IsValid() &&
-         (prim.HasAttribute(tokens::physics_mass()) ||
-          prim_has_composed_api_schema(prim, tokens::PhysicsRigidBodyAPI()));
+         (prim.HasAttribute(tokens::physics_collisionEnabled()) ||
+          prim_has_composed_api_schema(prim, tokens::PhysicsCollisionAPI()));
 }
 
-bool RigidBodyAPI::GetMass(float* out, double time) const {
-  if (!out || !IsRigidBodyAPI()) {
+bool CollisionAPI::GetCollisionEnabled(bool* out, double time) const {
+  if (!out || !IsCollisionAPI()) {
     return false;
   }
-  return prim.GetAttribute(tokens::physics_mass(), time).GetFloat(out);
-}
-
-bool RigidBodyAPI::GetKinematicEnabled(bool* out, double time) const {
-  if (!out || !IsRigidBodyAPI()) {
-    return false;
-  }
-  return prim.GetAttribute(tokens::physics_kinematicEnabled(), time).GetBool(out);
+  return prim.GetAttribute(tokens::physics_collisionEnabled(), time).GetBool(out);
 }
 
 }  // namespace freeusd::usdPhysics

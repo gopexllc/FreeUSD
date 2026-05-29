@@ -162,6 +162,21 @@ if(FREEUSD_BUILD_TESTS)
   target_compile_definitions(
     freeusd_usd_physics_rigid_body_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
 
+  add_executable(freeusd_usd_physics_collision_test tests/usd_physics_collision_test.cpp)
+  target_link_libraries(freeusd_usd_physics_collision_test PRIVATE freeusd::usd freeusd::usdPhysics)
+  target_compile_definitions(
+    freeusd_usd_physics_collision_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+
+  add_executable(freeusd_usd_physics_mass_test tests/usd_physics_mass_test.cpp)
+  target_link_libraries(freeusd_usd_physics_mass_test PRIVATE freeusd::usd freeusd::usdPhysics)
+  target_compile_definitions(
+    freeusd_usd_physics_mass_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+
+  add_executable(freeusd_usd_physics_fixed_joint_test tests/usd_physics_fixed_joint_test.cpp)
+  target_link_libraries(freeusd_usd_physics_fixed_joint_test PRIVATE freeusd::usd freeusd::usdPhysics)
+  target_compile_definitions(
+    freeusd_usd_physics_fixed_joint_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+
   add_executable(freeusd_usd_vol_openvdb_test tests/usd_vol_openvdb_test.cpp)
   target_link_libraries(freeusd_usd_vol_openvdb_test PRIVATE freeusd::usd freeusd::usdVol)
   target_compile_definitions(
@@ -247,6 +262,9 @@ if(FREEUSD_BUILD_TESTS)
   add_test(NAME freeusd_usd_lux_dome_light_test COMMAND freeusd_usd_lux_dome_light_test)
   add_test(NAME freeusd_usd_physics_scene_test COMMAND freeusd_usd_physics_scene_test)
   add_test(NAME freeusd_usd_physics_rigid_body_test COMMAND freeusd_usd_physics_rigid_body_test)
+  add_test(NAME freeusd_usd_physics_collision_test COMMAND freeusd_usd_physics_collision_test)
+  add_test(NAME freeusd_usd_physics_mass_test COMMAND freeusd_usd_physics_mass_test)
+  add_test(NAME freeusd_usd_physics_fixed_joint_test COMMAND freeusd_usd_physics_fixed_joint_test)
   add_test(NAME freeusd_usd_vol_openvdb_test COMMAND freeusd_usd_vol_openvdb_test)
   add_test(NAME freeusd_usd_vol_volume_test COMMAND freeusd_usd_vol_volume_test)
   add_test(NAME freeusd_ar_path_security_test COMMAND freeusd_ar_path_security_test)
@@ -385,6 +403,9 @@ if(FREEUSD_BUILD_TESTS)
     freeusd_usd_lux_dome_light_test
     freeusd_usd_physics_scene_test
     freeusd_usd_physics_rigid_body_test
+    freeusd_usd_physics_collision_test
+    freeusd_usd_physics_mass_test
+    freeusd_usd_physics_fixed_joint_test
     freeusd_usd_vol_openvdb_test
     freeusd_usd_vol_volume_test
     freeusd_usd_skel_smoke_test

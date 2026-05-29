@@ -76,6 +76,12 @@ struct FREEUSD_API EngineSceneNode {
   bool has_physics_scene{false};
   /// True when composed ``physics:mass`` is authored (``PhysicsRigidBodyAPI``-shaped).
   bool has_rigid_body_api{false};
+  /// True when composed ``physics:collisionEnabled`` is authored (``PhysicsCollisionAPI``-shaped).
+  bool has_collision_api{false};
+  /// True when the prim type name is ``PhysicsFixedJoint`` with body relationships.
+  bool has_physics_fixed_joint{false};
+  freeusd::sdf::Path physics_fixed_joint_body0{};
+  freeusd::sdf::Path physics_fixed_joint_body1{};
   /// True when the prim type name is ``OpenVDBAsset``.
   bool has_open_vdb_asset{false};
   /// Resolved ``filePath`` without surrounding ``@`` when @ref has_open_vdb_asset is true.
@@ -126,6 +132,10 @@ struct FREEUSD_API EngineSceneSnapshot {
   std::vector<freeusd::sdf::Path> physics_scene_paths;
   /// Prims with composed ``physics:mass`` (``PhysicsRigidBodyAPI``-shaped).
   std::vector<freeusd::sdf::Path> rigid_body_api_paths;
+  /// Prims with composed ``physics:collisionEnabled`` (``PhysicsCollisionAPI``-shaped).
+  std::vector<freeusd::sdf::Path> collision_api_paths;
+  /// ``PhysicsFixedJoint`` prims with resolved body relationships.
+  std::vector<freeusd::sdf::Path> physics_fixed_joint_paths;
   /// ``OpenVDBAsset`` prims with resolved ``filePath`` and ``fieldName``.
   std::vector<freeusd::sdf::Path> open_vdb_asset_paths;
   /// ``Volume`` prims with composed ``field`` relationship targets.
@@ -171,8 +181,12 @@ struct FREEUSD_API EngineRuntimeSupportReport {
   bool uses_prim_active_opinions{false};
   /// ``kind`` or ``active`` resolved on prims that also carry reference, payload, or inherit arcs.
   bool uses_kind_active_through_arcs{false};
+  /// Composed ``customData`` on prims that also carry reference, payload, inherit, or specialize arcs.
+  bool uses_custom_data_through_arcs{false};
   bool uses_physics_scenes{false};
   bool uses_rigid_body_api{false};
+  bool uses_collision_api{false};
+  bool uses_physics_fixed_joints{false};
   bool uses_open_vdb_assets{false};
   bool uses_volumes{false};
   std::vector<std::string> warnings;

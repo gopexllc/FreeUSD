@@ -1030,6 +1030,16 @@ bool Stage::ResolveHasPrimKind(const freeusd::sdf::Path& prim_path) const {
   });
 }
 
+freeusd::sdf::Layer::PrimSpecifierKind Stage::GetAuthoredPrimSpecifierKind(const freeusd::sdf::Path& prim_path) const {
+  const freeusd::sdf::Path authored = map_composed_to_authored_path(compose_, prim_path);
+  for (const std::shared_ptr<freeusd::sdf::Layer>& L : compose_) {
+    if (L && L->HasPrimSpecifierOpinion(authored)) {
+      return L->GetPrimSpecifier(authored);
+    }
+  }
+  return freeusd::sdf::Layer::PrimSpecifierKind::Default;
+}
+
 freeusd::sdf::Layer::PrimSpecifierKind Stage::ResolvePrimSpecifierKind(const freeusd::sdf::Path& prim_path) const {
   const freeusd::sdf::Path authored = map_composed_to_authored_path(compose_, prim_path);
   if (map_authored_to_composed_path(compose_, authored) != prim_path) {
@@ -1145,8 +1155,8 @@ bool Stage::GetComposedPrimCustomData(const freeusd::sdf::Path& prim_path, const
     }
   }
   freeusd::vt::Value tmp;
-  const bool found = VisitInternalArcMappedPrimPaths(authored, [&](const freeusd::sdf::Path& mapped_composed) {
-    return GetComposedPrimCustomData(mapped_composed, key, &tmp);
+  const bool found = visit_composition_arc_prim_paths(*this, compose_, authored, [&](const Stage& stage, const freeusd::sdf::Path& p) {
+    return stage.GetComposedPrimCustomData(p, key, &tmp);
   });
   if (found) {
     *out = std::move(tmp);
@@ -1167,8 +1177,8 @@ bool Stage::PrimCustomDataKeyInAnyLayer(const freeusd::sdf::Path& prim_path, con
       return true;
     }
   }
-  return VisitInternalArcMappedPrimPaths(authored, [&](const freeusd::sdf::Path& mapped_composed) {
-    return PrimCustomDataKeyInAnyLayer(mapped_composed, key);
+  return visit_composition_arc_prim_paths(*this, compose_, authored, [&](const Stage& stage, const freeusd::sdf::Path& p) {
+    return stage.PrimCustomDataKeyInAnyLayer(p, key);
   });
 }
 
@@ -1186,8 +1196,8 @@ std::vector<std::string> Stage::ListComposedPrimCustomDataKeys(const freeusd::sd
       keys.insert(k);
     }
   }
-  VisitInternalArcMappedPrimPaths(authored, [&](const freeusd::sdf::Path& mapped_composed) {
-    for (const std::string& k : ListComposedPrimCustomDataKeys(mapped_composed)) {
+  visit_composition_arc_prim_paths(*this, compose_, authored, [&](const Stage& stage, const freeusd::sdf::Path& p) {
+    for (const std::string& k : stage.ListComposedPrimCustomDataKeys(p)) {
       keys.insert(k);
     }
     return false;
