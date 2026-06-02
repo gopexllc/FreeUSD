@@ -10,7 +10,7 @@ FreeUSD is an independent project and is not endorsed by or affiliated with Pixa
 
 ## Licensing
 
-All **FreeUSD** library and tool sources in this repository are licensed under the **GNU General Public License v3.0 or later**; see [`LICENSE`](LICENSE).
+All **FreeUSD** library and tool sources in this repository are licensed under the **GNU General Public License v2.0 or later**; see [`LICENSE`](LICENSE).
 
 Implementation is **clean-room** relative to Pixar’s OpenUSD sources: **do not copy upstream OpenUSD/AOUSD code** into this repository; only independent implementations. See [docs/openusd-repo-alignment.md](docs/openusd-repo-alignment.md). Compatibility targets **published formats and behavior**, not upstream source.
 
