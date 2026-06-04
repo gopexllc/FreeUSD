@@ -35,8 +35,10 @@ Module boundaries: [docs/openusd-map.md](docs/openusd-map.md). Repo layout: [doc
 - `c302408` — USDC `SPECS` table decode; `UsdGeom::Mesh` parity helpers.
 - `2942708` — USDC `FIELDSETS`; lux lights; shade textures; mesh primvars.
 - `493ca1b` — continual-learning transcript index for agent memory.
+- `505dce2` — LZ4 USDC, variantSets via refs, skel glTF pipeline.
+- `d4959ec` — DoubleArray USDC kind; zlib embedded USDA scene.
 
-**On main today:** USDA load/save and composition subsets are strong; USDC has bootstrap/TOC plus validated `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` / `FIELDSETS` / `SPECS` / `VALUES` on `parity_tables.usdc` (fixture typed kinds Int32/Float/TokenIndex/Bool only). Schema helpers cover mesh, skel (glTF-oriented), preview materials, lux, physics (`PhysicsScene`, `RigidBodyAPI`, `CollisionAPI`, `MassAPI`, `FixedJoint`), and volume families at `partial` depth. Composition includes composed `customData` through references/payloads/inherits/specializes and kind/active through specializes.
+**On main today:** USDA load/save and composition subsets are strong; USDC has bootstrap/TOC plus 13 typed `VALUES` kinds on `parity_tables.usdc` (through `DoubleArray`), fixture zlib/LZ4 on `VALUES`, and zlib-wrapped embedded USDA (`parity_embedded_scene_zlib.usdc`). Composition includes composed `variantSelection`/`variantSets` through refs plus `customData` through arcs. Schema: mesh, skel glTF pipeline (`parity_skel_gltf_pipeline.usda`), shade, lux, physics, volume at `partial` depth.
 
 **USDC `VALUES` next (matrix `planned`):** arbitrary production `.usdc` typed value kinds and compression beyond `parity_tables.usdc`.
 
