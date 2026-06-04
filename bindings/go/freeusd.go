@@ -10,8 +10,8 @@ package freeusd
 
 /*
 #cgo CFLAGS: -I${SRCDIR}/../../include
-#cgo linux LDFLAGS: -L${SRCDIR}/../../build/src -lfreeusd_c -lfreeusd_base -lfreeusd_usdUtils -lfreeusd_usdSkel -lfreeusd_usdGeom -lfreeusd_usd -lfreeusd_ar -lfreeusd_io -lfreeusd_pcp -lfreeusd_sdf -lfreeusd_vt -lfreeusd_tf -lfreeusd_gf -lfreeusd_plug -lstdc++ -lm
-#cgo darwin LDFLAGS: -L${SRCDIR}/../../build/src -lfreeusd_c -lfreeusd_base -lfreeusd_usdUtils -lfreeusd_usdSkel -lfreeusd_usdGeom -lfreeusd_usd -lfreeusd_ar -lfreeusd_io -lfreeusd_pcp -lfreeusd_sdf -lfreeusd_vt -lfreeusd_tf -lfreeusd_gf -lfreeusd_plug -lc++ -lm
+#cgo linux LDFLAGS: -L${SRCDIR}/../../build/src -lfreeusd_c -lfreeusd_base -lfreeusd_usdUtils -lfreeusd_usdSkel -lfreeusd_usdShade -lfreeusd_usdLux -lfreeusd_usdPhysics -lfreeusd_usdVol -lfreeusd_usdGeom -lfreeusd_usd -lfreeusd_ar -lfreeusd_io -lfreeusd_pcp -lfreeusd_sdf -lfreeusd_vt -lfreeusd_tf -lfreeusd_gf -lfreeusd_plug -lstdc++ -lm -lz -llz4
+#cgo darwin LDFLAGS: -L${SRCDIR}/../../build/src -lfreeusd_c -lfreeusd_base -lfreeusd_usdUtils -lfreeusd_usdSkel -lfreeusd_usdShade -lfreeusd_usdLux -lfreeusd_usdPhysics -lfreeusd_usdVol -lfreeusd_usdGeom -lfreeusd_usd -lfreeusd_ar -lfreeusd_io -lfreeusd_pcp -lfreeusd_sdf -lfreeusd_vt -lfreeusd_tf -lfreeusd_gf -lfreeusd_plug -lc++ -lm -lz -llz4
 #include <stdlib.h>
 #include <freeusd/c/freeusd.h>
 */
@@ -153,15 +153,22 @@ func ReadUsdcSectionBytesFromPath(path, sectionName string, maxBytes uint64) (pa
 	return C.GoBytes(unsafe.Pointer(raw), C.int(n)), 0
 }
 
-func readUsdcStringList(path string, maxEntries uint64, maxTotalBytes uint64,
-	call func(*C.char, C.uint64_t, C.uint64_t, ***C.char, *C.size_t) C.int) ([]string, int) {
+func readUsdcCStringTable(path string, maxEntries uint64, maxTotalBytes uint64, tableKind int) ([]string, int) {
 	cs := C.CString(path)
 	defer C.free(unsafe.Pointer(cs))
 	var raw **C.char
 	var n C.size_t
-	rc := int(call(cs, C.uint64_t(maxEntries), C.uint64_t(maxTotalBytes), &raw, &n))
-	if rc != 0 {
-		return nil, rc
+	var rc C.int
+	switch tableKind {
+	case 0:
+		rc = C.freeusd_read_usdc_token_table_from_path_utf8(cs, C.uint64_t(maxEntries), C.uint64_t(maxTotalBytes), &raw, &n)
+	case 1:
+		rc = C.freeusd_read_usdc_string_table_from_path_utf8(cs, C.uint64_t(maxEntries), C.uint64_t(maxTotalBytes), &raw, &n)
+	default:
+		rc = C.freeusd_read_usdc_path_table_from_path_utf8(cs, C.uint64_t(maxEntries), C.uint64_t(maxTotalBytes), &raw, &n)
+	}
+	if int(rc) != 0 {
+		return nil, int(rc)
 	}
 	if raw == nil || n == 0 {
 		return []string{}, 0
@@ -180,17 +187,17 @@ func readUsdcStringList(path string, maxEntries uint64, maxTotalBytes uint64,
 
 // ReadUsdcTokenTableFromPath reads the validated TOKENS table from a shared crate fixture.
 func ReadUsdcTokenTableFromPath(path string, maxEntries uint64, maxTotalBytes uint64) ([]string, int) {
-	return readUsdcStringList(path, maxEntries, maxTotalBytes, C.freeusd_read_usdc_token_table_from_path_utf8)
+	return readUsdcCStringTable(path, maxEntries, maxTotalBytes, 0)
 }
 
 // ReadUsdcStringTableFromPath reads the validated STRINGS table from a shared crate fixture.
 func ReadUsdcStringTableFromPath(path string, maxEntries uint64, maxTotalBytes uint64) ([]string, int) {
-	return readUsdcStringList(path, maxEntries, maxTotalBytes, C.freeusd_read_usdc_string_table_from_path_utf8)
+	return readUsdcCStringTable(path, maxEntries, maxTotalBytes, 1)
 }
 
 // ReadUsdcPathTableFromPath reads the validated PATHS table from a shared crate fixture.
 func ReadUsdcPathTableFromPath(path string, maxEntries uint64, maxTotalBytes uint64) ([]string, int) {
-	return readUsdcStringList(path, maxEntries, maxTotalBytes, C.freeusd_read_usdc_path_table_from_path_utf8)
+	return readUsdcCStringTable(path, maxEntries, maxTotalBytes, 2)
 }
 
 // UsdcFieldEntry is one row from the validated FIELDS table (matches C FreeusdUsdcFieldEntry).
@@ -320,6 +327,9 @@ type UsdcTypedValue struct {
 	Vec3dValue     [3]float64
 	Int32Array     []int32
 	FloatArray     []float32
+	DoubleArray    []float64
+	Vec2fValue     [2]float32
+	Vec4fValue     [4]float32
 }
 
 // ReadUsdcTypedValuesTableFromPath reads the validated typed VALUES table from a shared crate fixture.
@@ -361,7 +371,7 @@ func ReadUsdcTypedValuesTableFromPath(path string, maxEntries uint64, maxTotalBy
 			StringUtf8:  stringUtf8,
 			Vec3fValue:  [3]float32{float32(entry.vec3f_value[0]), float32(entry.vec3f_value[1]), float32(entry.vec3f_value[2])},
 			StringIndex: uint64(entry.string_index),
-			Vec3dValue: [3]float64{entry.vec3d_value[0], entry.vec3d_value[1], entry.vec3d_value[2]},
+			Vec3dValue: [3]float64{float64(entry.vec3d_value[0]), float64(entry.vec3d_value[1]), float64(entry.vec3d_value[2])},
 			Int32Array: func() []int32 {
 				n := int(entry.int32_array_count)
 				if n == 0 || entry.int32_array == nil {
@@ -386,6 +396,20 @@ func ReadUsdcTypedValuesTableFromPath(path string, maxEntries uint64, maxTotalBy
 				}
 				return out
 			}(),
+			DoubleArray: func() []float64 {
+				n := int(entry.double_array_count)
+				if n == 0 || entry.double_array == nil {
+					return nil
+				}
+				out := make([]float64, n)
+				for j := 0; j < n; j++ {
+					v := *(*float64)(unsafe.Pointer(uintptr(unsafe.Pointer(entry.double_array)) + uintptr(j)*unsafe.Sizeof(float64(0))))
+					out[j] = v
+				}
+				return out
+			}(),
+			Vec2fValue: [2]float32{float32(entry.vec2f_value[0]), float32(entry.vec2f_value[1])},
+			Vec4fValue: [4]float32{float32(entry.vec4f_value[0]), float32(entry.vec4f_value[1]), float32(entry.vec4f_value[2]), float32(entry.vec4f_value[3])},
 		}
 	}
 	return out, 0
@@ -1287,7 +1311,7 @@ func (s *Stage) GetAttributeConnectionTarget(primPath, attrName string) (target 
 	return C.GoString(out), 0
 }
 
-func (s *Stage) listPrimPathStrings(primPath string, listFn func(*C.FreeusdStage, *C.char, ***C.char, *C.size_t) C.int) ([]string, int) {
+func (s *Stage) listPrimPathStrings(primPath string, kind primPathListKind) ([]string, int) {
 	if s == nil || s.ptr == nil {
 		return nil, 1
 	}
@@ -1295,9 +1319,19 @@ func (s *Stage) listPrimPathStrings(primPath string, listFn func(*C.FreeusdStage
 	defer C.free(unsafe.Pointer(pp))
 	var arr **C.char
 	var n C.size_t
-	rc := int(listFn(s.ptr, pp, &arr, &n))
-	if rc != 0 {
-		return nil, rc
+	var rc C.int
+	switch kind {
+	case primPathListReferences:
+		rc = C.freeusd_stage_list_prim_references(s.ptr, pp, &arr, &n)
+	case primPathListInherits:
+		rc = C.freeusd_stage_list_prim_inherits(s.ptr, pp, &arr, &n)
+	case primPathListSpecializes:
+		rc = C.freeusd_stage_list_prim_specializes(s.ptr, pp, &arr, &n)
+	default:
+		rc = C.freeusd_stage_list_prim_payloads(s.ptr, pp, &arr, &n)
+	}
+	if int(rc) != 0 {
+		return nil, int(rc)
 	}
 	if n == 0 || arr == nil {
 		return []string{}, 0
@@ -1313,9 +1347,18 @@ func (s *Stage) listPrimPathStrings(primPath string, listFn func(*C.FreeusdStage
 	return out, 0
 }
 
+type primPathListKind int
+
+const (
+	primPathListReferences primPathListKind = iota
+	primPathListInherits
+	primPathListSpecializes
+	primPathListPayloads
+)
+
 // ListPrimReferences returns composed reference entries (USDA-authored encoding).
 func (s *Stage) ListPrimReferences(primPath string) ([]string, int) {
-	return s.listPrimPathStrings(primPath, C.freeusd_stage_list_prim_references)
+	return s.listPrimPathStrings(primPath, primPathListReferences)
 }
 
 // HasPrimReferences returns 1 if the prim has composed references, 0 if not, negative on error.
@@ -1330,7 +1373,7 @@ func (s *Stage) HasPrimReferences(primPath string) int {
 
 // ListPrimInherits returns composed inherit target prim paths.
 func (s *Stage) ListPrimInherits(primPath string) ([]string, int) {
-	return s.listPrimPathStrings(primPath, C.freeusd_stage_list_prim_inherits)
+	return s.listPrimPathStrings(primPath, primPathListInherits)
 }
 
 // HasPrimInherits returns 1 if the prim has composed inherits, 0 if not, negative on error.
@@ -1345,7 +1388,7 @@ func (s *Stage) HasPrimInherits(primPath string) int {
 
 // ListPrimSpecializes returns composed specialize target prim paths.
 func (s *Stage) ListPrimSpecializes(primPath string) ([]string, int) {
-	return s.listPrimPathStrings(primPath, C.freeusd_stage_list_prim_specializes)
+	return s.listPrimPathStrings(primPath, primPathListSpecializes)
 }
 
 // HasPrimSpecializes returns 1 if the prim has composed specializes, 0 if not, negative on error.
@@ -1360,7 +1403,7 @@ func (s *Stage) HasPrimSpecializes(primPath string) int {
 
 // ListPrimPayloads returns composed payload entries (USDA-authored encoding).
 func (s *Stage) ListPrimPayloads(primPath string) ([]string, int) {
-	return s.listPrimPathStrings(primPath, C.freeusd_stage_list_prim_payloads)
+	return s.listPrimPathStrings(primPath, primPathListPayloads)
 }
 
 // HasPrimPayloads returns 1 if the prim has composed payloads, 0 if not, negative on error.

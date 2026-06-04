@@ -38,6 +38,9 @@ fn main() {
         "freeusd_usdUtils",
         "freeusd_usdSkel",
         "freeusd_usdShade",
+        "freeusd_usdLux",
+        "freeusd_usdPhysics",
+        "freeusd_usdVol",
         "freeusd_usdGeom",
         "freeusd_usd",
         "freeusd_ar",
@@ -57,4 +60,7 @@ fn main() {
     } else {
         println!("cargo:rustc-link-lib=stdc++");
     }
+    // USDC fixture compression in freeusd_usd (zlib + LZ4).
+    println!("cargo:rustc-link-lib=z");
+    println!("cargo:rustc-link-lib=lz4");
 }
