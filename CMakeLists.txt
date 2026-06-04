@@ -104,6 +104,11 @@ if(FREEUSD_BUILD_TESTS)
   target_compile_definitions(
     freeusd_usd_skel_blend_shapes_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
 
+  add_executable(freeusd_usd_skel_pipeline_test tests/usd_skel_pipeline_test.cpp)
+  target_link_libraries(freeusd_usd_skel_pipeline_test PRIVATE freeusd::usd freeusd::usdSkel freeusd::gf)
+  target_compile_definitions(
+    freeusd_usd_skel_pipeline_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+
   add_executable(freeusd_usd_skel_skinning_matrices_test tests/usd_skel_skinning_matrices_test.cpp)
   target_link_libraries(freeusd_usd_skel_skinning_matrices_test PRIVATE freeusd::usdSkel freeusd::gf)
 
@@ -250,6 +255,7 @@ if(FREEUSD_BUILD_TESTS)
   add_test(NAME freeusd_usd_skel_smoke_test COMMAND freeusd_usd_skel_smoke_test)
   add_test(NAME freeusd_usd_shade_smoke_test COMMAND freeusd_usd_shade_smoke_test)
   add_test(NAME freeusd_usd_skel_blend_shapes_test COMMAND freeusd_usd_skel_blend_shapes_test)
+  add_test(NAME freeusd_usd_skel_pipeline_test COMMAND freeusd_usd_skel_pipeline_test)
   add_test(NAME freeusd_usd_skel_skinning_matrices_test COMMAND freeusd_usd_skel_skinning_matrices_test)
   add_test(NAME freeusd_stage_kind_active_test COMMAND freeusd_stage_kind_active_test)
   add_test(NAME freeusd_usd_lux_distant_light_test COMMAND freeusd_usd_lux_distant_light_test)

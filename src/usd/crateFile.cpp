@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <zlib.h>
+#include <lz4.h>
 
 namespace freeusd::usd::crate {
 
@@ -297,6 +298,32 @@ bool readFieldSetsTableSection(const std::string& path, std::vector<UsdcCrateFie
 }
 
 
+bool try_unwrap_fixture_lz4_payload(std::vector<std::uint8_t>* bytes, std::string* err_out) {
+  if (!bytes || bytes->size() < 16u) {
+    return true;
+  }
+  static constexpr char kMagic[] = {'F', 'U', 'S', 'D', 'Z', 'L', '\x01'};
+  if (bytes->size() < sizeof(kMagic) + 8u || !std::equal(std::begin(kMagic), std::end(kMagic), bytes->begin())) {
+    return true;
+  }
+  const std::uint64_t expected = readLeU64(bytes->data() + sizeof(kMagic));
+  if (expected == 0u || expected > 64u * 1024u * 1024u) {
+    set_detail(err_out, "USDC fixture lz4 uncompressed size out of range");
+    return false;
+  }
+  const std::size_t compressed_offset = sizeof(kMagic) + 8u;
+  const std::size_t compressed_size = bytes->size() - compressed_offset;
+  std::vector<std::uint8_t> out(static_cast<std::size_t>(expected));
+  const int decoded = LZ4_decompress_safe(reinterpret_cast<const char*>(bytes->data() + compressed_offset),
+                                          reinterpret_cast<char*>(out.data()),
+                                          static_cast<int>(compressed_size), static_cast<int>(out.size()));
+  if (decoded < 0 || static_cast<std::size_t>(decoded) != expected) {
+    set_detail(err_out, "USDC fixture lz4 decompress failed");
+    return false;
+  }
+  *bytes = std::move(out);
+  return true;
+}
 bool try_unwrap_fixture_zlib_payload(std::vector<std::uint8_t>* bytes, std::string* err_out) {
   if (!bytes || bytes->size() < 16u) {
     return true;
@@ -324,6 +351,14 @@ bool try_unwrap_fixture_zlib_payload(std::vector<std::uint8_t>* bytes, std::stri
   *bytes = std::move(out);
   return true;
 }
+
+bool try_unwrap_fixture_compression_payload(std::vector<std::uint8_t>* bytes, std::string* err_out) {
+  if (!try_unwrap_fixture_lz4_payload(bytes, err_out)) {
+    return false;
+  }
+  return try_unwrap_fixture_zlib_payload(bytes, err_out);
+}
+
 
 }  // namespace
 
@@ -522,7 +557,7 @@ bool ReadUsdCrateSectionBytesFromPath(const std::string& path, std::string_view 
     set_detail(err_out, "short read on USDC section payload");
     return false;
   }
-  return try_unwrap_fixture_zlib_payload(&out_bytes, err_out);
+  return try_unwrap_fixture_compression_payload(&out_bytes, err_out);
 }
 
 bool ReadUsdCrateUsdaSectionFromPath(const std::string& path, std::string& out_text, std::size_t max_text_bytes,

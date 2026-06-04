@@ -1,0 +1,59 @@
+#usda 1.0
+(
+    defaultPrim = "World"
+)
+
+# glTF-shaped pipeline: SkelRoot + skeleton + animation + skinned mesh + one morph target.
+# parity_skel_gltf_pipeline.usda
+
+def Xform "World"
+{
+    def SkelRoot "Character"
+    {
+        rel skel:animationSource = </World/Character/Anim>
+
+        def Skeleton "Skeleton"
+        {
+            token[] joints = [@Root, @Root/Hip]
+            matrix4d[] bindTransforms = [((1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1)), ((1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 1, 0, 1))]
+            matrix4d[] restTransforms = [((1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1)), ((1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 1, 0, 1))]
+        }
+
+        def SkelAnimation "Anim"
+        {
+            token[] joints = [@Root, @Root/Hip]
+            float3[] translations = [(0, 0, 0), (0, 1, 0)]
+            quatf[] rotations = [(1, 0, 0, 0), (1, 0, 0, 0)]
+            float3[] scales = [(1, 1, 1), (1, 1, 1)]
+
+            float3[] translations.timeSamples = {
+                0: [(0, 0, 0), (0, 1, 0)],
+                1: [(0, 0, 0), (0, 2, 0)],
+            }
+        }
+
+        def Mesh "Body"
+        {
+            rel skel:skeleton = </World/Character/Skeleton>
+            point3f[] points = [(0, 1, 0)]
+            int[] primvars:skel:jointIndices = [1]
+            float[] primvars:skel:jointWeights = [1.0]
+
+            token[] skel:blendShapes = ["Smile"]
+            rel skel:blendShapeTargets = </World/Character/BlendShapes/Smile>
+            float[] blendShapeWeights = [0]
+            float[] blendShapeWeights.timeSamples = {
+                0: [0],
+                1: [1],
+            }
+        }
+
+        def Scope "BlendShapes"
+        {
+            def BlendShape "Smile"
+            {
+                point3f[] offsets = [(0, 0.5, 0)]
+            }
+        }
+    }
+}

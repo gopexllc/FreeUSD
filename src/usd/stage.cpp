@@ -1322,6 +1322,12 @@ std::vector<std::string> Stage::ListComposedPrimVariantSetNames(const freeusd::s
       names.insert(n);
     }
   }
+  visit_composition_arc_prim_paths(*this, compose_, authored, [&](const Stage& stage, const freeusd::sdf::Path& p) {
+    for (const std::string& n : stage.ListComposedPrimVariantSetNames(p)) {
+      names.insert(n);
+    }
+    return false;
+  });
   return std::vector<std::string>(names.begin(), names.end());
 }
 
@@ -1339,7 +1345,9 @@ bool Stage::PrimVariantSetDeclaredInAnyLayer(const freeusd::sdf::Path& prim_path
       return true;
     }
   }
-  return false;
+  return visit_composition_arc_prim_paths(*this, compose_, authored, [&](const Stage& stage, const freeusd::sdf::Path& p) {
+    return stage.PrimVariantSetDeclaredInAnyLayer(p, variantSetName);
+  });
 }
 
 std::vector<std::string> Stage::GetComposedPrimVariantNames(const freeusd::sdf::Path& prim_path,
@@ -1356,7 +1364,12 @@ std::vector<std::string> Stage::GetComposedPrimVariantNames(const freeusd::sdf::
       return L->ListPrimVariantNames(authored, variantSetName);
     }
   }
-  return {};
+  std::vector<std::string> arc_names;
+  visit_composition_arc_prim_paths(*this, compose_, authored, [&](const Stage& stage, const freeusd::sdf::Path& p) {
+    arc_names = stage.GetComposedPrimVariantNames(p, variantSetName);
+    return !arc_names.empty();
+  });
+  return arc_names;
 }
 
 std::vector<std::string> Stage::ListComposedFieldNames(const freeusd::sdf::Path& prim_path) const {

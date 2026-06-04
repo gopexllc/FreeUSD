@@ -36,7 +36,7 @@ Module boundaries: [docs/openusd-map.md](docs/openusd-map.md). Repo layout: [doc
 - `2942708` — USDC `FIELDSETS`; lux lights; shade textures; mesh primvars.
 - `493ca1b` — continual-learning transcript index for agent memory.
 
-**On main today:** USDA load/save and composition subsets are strong; USDC has bootstrap/TOC plus validated `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` / `FIELDSETS` / `SPECS` / `VALUES` on `parity_tables.usdc` (fixture typed kinds through Vec3d and Int32Array; production compression still `planned`). Schema helpers cover mesh, skel (glTF-oriented), preview materials, lux, physics (`PhysicsScene`, `RigidBodyAPI`, `CollisionAPI`, `MassAPI`, `FixedJoint`), and volume families at `partial` depth. Composition includes composed `customData` through references/payloads/inherits/specializes and kind/active through specializes.
+**On main today:** USDA load/save and composition subsets are strong; USDC has bootstrap/TOC plus validated `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` / `FIELDSETS` / `SPECS` / `VALUES` on `parity_tables.usdc` (fixture typed kinds Int32/Float/TokenIndex/Bool only). Schema helpers cover mesh, skel (glTF-oriented), preview materials, lux, physics (`PhysicsScene`, `RigidBodyAPI`, `CollisionAPI`, `MassAPI`, `FixedJoint`), and volume families at `partial` depth. Composition includes composed `customData` through references/payloads/inherits/specializes and kind/active through specializes.
 
 **USDC `VALUES` next (matrix `planned`):** arbitrary production `.usdc` typed value kinds and compression beyond `parity_tables.usdc`.
 
@@ -113,37 +113,6 @@ Agents propose changes; **CI and ctest remain the source of truth** for merge qu
 
 Follow [docs/compatibility-claims.md](docs/compatibility-claims.md). Never claim full OpenUSD parity or arbitrary `.usdc` decode beyond tested fixtures.
 
-## Cursor Cloud specific instructions
-
-FreeUSD is a **native C++ library** (no long-running server). Cloud agents validate work with **CMake + Ninja + ctest**, not a dev server.
-
-### One-time VM packages (not in the update script)
-
-Ubuntu images may default `/usr/bin/c++` to **Clang** without `libstdc++`. Install GCC toolchain pieces before the first configure:
-
-```bash
-sudo apt-get install -y build-essential ninja-build python3-dev python3-pip python3-venv g++ libstdc++-13-dev
-```
-
-Always configure and test with **GCC** (also required for `freeusd_install_integration` and Rust/CGO link steps that pull `-lstdc++`):
-
-```bash
-export CC=gcc CXX=g++
-# Rust bindings: RUSTFLAGS="-C linker=g++"
-```
-
-### After the update script (typical agent session)
-
-1. `source .venv/bin/activate` and `export CC=gcc CXX=g++`.
-2. If `build/CMakeCache.txt` is missing or CMake options changed, configure per [README.md](README.md) (Ninja, Python + tests ON).
-3. `cmake --build build --parallel "$(nproc)"` then `ctest --test-dir build --output-on-failure`.
-4. Optional full CI mirror when GitHub Actions is blocked: `./scripts/run_ci_locally.sh`.
-5. Optional agent SDK (Node 20+): `cd tools/agent && npm ci` (needs `CURSOR_API_KEY` only for cloud agent runs).
-
-Python: `pip install -e ".[dev]"` in `.venv`; use `PYTHONPATH=/workspace` or the venv so `freeusd._native` matches the last C++ build. Quick behavioral check: `tests/python/test_usd_cross_language.py` (USDA load, stage attach, time-sampled `mass`).
-
-Go/Rust binding tests are optional; they need a built `build/src/libfreeusd_*.a` and the same `CC`/`CXX` (and `RUSTFLAGS="-C linker=g++"` for cargo). See [bindings/README.md](bindings/README.md).
-
 ## Learned User Preferences
 
 - Build the full OpenUSD-shaped stack under GPL-3.0-or-later with clean-room implementation only (no Pixar/AOUSD source copies).
@@ -168,3 +137,10 @@ Go/Rust binding tests are optional; they need a built `build/src/libfreeusd_*.a`
 - C/C++ test targets keep runtime assertions enabled in Release builds so `assert`-based tests are meaningful.
 - Optional cloud agents use `.github/workflows/cursor-agent.yml` with `CURSOR_API_KEY`; they do not replace merge gates.
 - Most non-core schema packages remain token-only until a fixture-backed runtime slice lands.
+
+## Cursor Cloud specific instructions
+
+- Use **GCC** for C++ builds: `export CC=gcc CXX=g++` (Clang against the default libstdc++ can fail on this image).
+- `freeusd_usd` links **zlib** and **liblz4** privately; install `zlib1g-dev` and `liblz4-dev` before CMake configure if linking fails.
+- Regenerate USDC compression fixtures with `scripts/gen_parity_compressed_usdc.py` (zlib) and `scripts/gen_parity_lz4_usdc.py` (needs Python `lz4` in `.venv`); layout is documented in `docs/usdc-fixture-compression.md`.
+- Standard validate loop: `cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DFREEUSD_BUILD_TESTS=ON`, `cmake --build build --parallel`, `ctest --test-dir build --output-on-failure` (or `./scripts/run_ci_locally.sh` when GitHub Actions is billing-blocked).

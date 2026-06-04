@@ -163,6 +163,10 @@ int main() {
     assert(freeusd::usd::crate::ReadUsdCrateTypedValuesTableFromPath(
         fixture("parity_tables_zlib.usdc"), typed_values, 16, 1024, &err));
     assert(typed_values.entries.size() == 12u);
+    assert(freeusd::usd::crate::ReadUsdCrateTypedValuesTableFromPath(
+        fixture("parity_tables_lz4.usdc"), typed_values, 16, 1024, &err));
+    assert(typed_values.entries.size() == 12u);
+    assert(typed_values.entries[11].float_array.size() == 2u);
     assert(freeusd::usd::crate::ReadUsdCrateSpecsTableFromPath(fixture("parity_tables.usdc"), specs, 8, 1024, &err));
     assert(specs.entries.size() == 2u);
     assert(specs.entries[0].path_index == 0u && specs.entries[0].field_set_index == 0u &&
@@ -394,6 +398,27 @@ int main() {
     assert(v.GetDouble(&d) && d == 9.0);
   }
 
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_variant_sets_refs.usda"),
+                                         freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const Path ref_host = Path::FromString("/World/RefHost");
+    const auto set_names = stage->ListComposedPrimVariantSetNames(ref_host);
+    assert(set_names.size() == 1u && set_names[0] == "modelVariant");
+    assert(stage->PrimVariantSetDeclaredInAnyLayer(ref_host, "modelVariant"));
+    const auto variant_names = stage->GetComposedPrimVariantNames(ref_host, "modelVariant");
+    assert(variant_names.size() == 2u);
+    assert(variant_names[0] == "A" && variant_names[1] == "B");
+    std::string variant;
+    assert(stage->GetComposedPrimVariantSelection(ref_host, "modelVariant", &variant));
+    assert(variant == "B");
+    freeusd::vt::Value v;
+    assert(stage->ReadFieldAtEvaluatedTime(ref_host, Token("variantValue"), 1.0, &v));
+    double d = 0.0;
+    assert(v.GetDouble(&d) && d == 9.0);
+  }
   {
     std::string err;
     auto stage = Stage::OpenFromRootFile(fixture("parity_specializes.usda"),

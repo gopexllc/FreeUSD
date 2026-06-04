@@ -1,0 +1,14 @@
+#usda 1.0
+(
+    defaultPrim = "World"
+)
+
+def Xform "World"
+{
+    def "RefHost"
+    (
+        prepend references = @./parity_variant_sets_ref.usda@
+    )
+    {
+    }
+}
