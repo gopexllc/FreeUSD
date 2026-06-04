@@ -63,6 +63,7 @@ VALUE_KIND_INT32_ARRAY = 11
 VALUE_KIND_FLOAT_ARRAY = 12
 VALUE_KIND_DOUBLE_ARRAY = 13
 VALUE_KIND_VEC2F = 14
+VALUE_KIND_VEC4F = 15
 
 
 def typed_values_table_payload(entries: list[tuple[int, bytes]]) -> bytes:
@@ -100,6 +101,7 @@ def parity_values_entries():
         (VALUE_KIND_FLOAT_ARRAY, le_u64(2) + struct.pack("<ff", 0.25, 0.75)),
         (VALUE_KIND_DOUBLE_ARRAY, le_u64(2) + struct.pack("<dd", 1.0, 2.0)),
         (VALUE_KIND_VEC2F, struct.pack("<ff", 0.5, 1.25)),
+        (VALUE_KIND_VEC4F, struct.pack("<ffff", 1.0, 2.0, 3.0, 4.0)),
     ]
 
 
