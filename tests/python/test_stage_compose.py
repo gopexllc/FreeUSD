@@ -129,6 +129,30 @@ def test_parity_custom_data_through_references_and_payloads() -> None:
     assert set(st.list_composed_prim_custom_data_keys(payload_host)) == {"priority", "role"}
 
 
+def test_parity_variant_selection_through_reference() -> None:
+    path = os.path.normpath(os.path.join(_FIXTURES, "parity_variant_selection_refs.usda"))
+    st = usd.Stage.open_from_root_file(path)
+    assert st is not None
+    ref_host = Path.from_string("/World/RefHost")
+    prim = st.prim_at(ref_host)
+    assert prim.get_variant_selection("modelVariant") == "B"
+    assert st.list_composed_prim_variant_selection_sets(ref_host) == ["modelVariant"]
+    assert st.read_field_double(ref_host, Token("variantValue"), 1.0) == 9.0
+
+
+def test_parity_variant_sets_through_reference() -> None:
+    path = os.path.normpath(os.path.join(_FIXTURES, "parity_variant_sets_refs.usda"))
+    st = usd.Stage.open_from_root_file(path)
+    assert st is not None
+    ref_host = Path.from_string("/World/RefHost")
+    prim = st.prim_at(ref_host)
+    assert prim.list_variant_set_names() == ["modelVariant"]
+    assert prim.has_variant_set("modelVariant")
+    assert prim.list_variant_names("modelVariant") == ["A", "B"]
+    assert prim.get_variant_selection("modelVariant") == "B"
+    assert st.read_field_double(ref_host, Token("variantValue"), 1.0) == 9.0
+
+
 def test_inherit_instance_prim_authored_specifier_not_class() -> None:
     path = os.path.normpath(os.path.join(_FIXTURES, "parity_physics_collision_inherit.usda"))
     st = usd.Stage.open_from_root_file(path)
