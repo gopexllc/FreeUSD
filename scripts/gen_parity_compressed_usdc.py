@@ -8,6 +8,7 @@ import zlib
 from pathlib import Path
 
 from gen_parity_tables_usdc import (  # type: ignore
+    parity_values_entries,
     BOOT_SIZE,
     TOC_RECORD,
     fieldsets_table_payload,
@@ -37,22 +38,6 @@ FUSDZC_MAGIC = b"FUSDZC\x01"
 def wrap_fixture_zlib(uncompressed: bytes) -> bytes:
     return FUSDZC_MAGIC + le_u64(len(uncompressed)) + zlib.compress(uncompressed, level=9)
 
-
-def values_entries() -> list[tuple[int, bytes]]:
-    return [
-        (VALUE_KIND_INT32, struct.pack("<i", 42)),
-        (VALUE_KIND_FLOAT, struct.pack("<f", 1.5)),
-        (VALUE_KIND_TOKEN_INDEX, le_u64(0)),
-        (VALUE_KIND_BOOL, b"\x01"),
-        (VALUE_KIND_DOUBLE, struct.pack("<d", 3.25)),
-        (VALUE_KIND_INT64, struct.pack("<q", -9007199254740991)),
-        (VALUE_KIND_STRING_UTF8, b"parity"),
-        (VALUE_KIND_VEC3F, struct.pack("<fff", 1.0, 2.0, 3.0)),
-        (VALUE_KIND_STRING_INDEX, le_u64(1)),
-        (VALUE_KIND_VEC3D, struct.pack("<ddd", 4.0, 5.0, 6.0)),
-        (VALUE_KIND_INT32_ARRAY, le_u64(3) + struct.pack("<iii", 7, 8, 9)),
-        (VALUE_KIND_FLOAT_ARRAY, le_u64(2) + struct.pack("<ff", 0.25, 0.75)),
-    ]
 
 
 def build_crate(values_payload: bytes) -> bytes:
@@ -85,7 +70,7 @@ def build_crate(values_payload: bytes) -> bytes:
 
 
 def main() -> None:
-    plain = typed_values_table_payload(values_entries())
+    plain = typed_values_table_payload(parity_values_entries())
     wrapped = wrap_fixture_zlib(plain)
     out = Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "parity_tables_zlib.usdc"
     out.write_bytes(build_crate(wrapped))

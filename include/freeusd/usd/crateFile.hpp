@@ -163,6 +163,7 @@ enum class UsdcCrateTypedValueKind : std::uint64_t {
   Vec3d = 10,
   Int32Array = 11,
   FloatArray = 12,
+  DoubleArray = 13,
 };
 
 /// One decoded typed value from the fixture ``VALUES`` table.
@@ -181,6 +182,7 @@ struct UsdcCrateTypedValue {
   freeusd::gf::Vec3d vec3d_value{};
   std::vector<std::int32_t> int32_array;
   std::vector<float> float_array;
+  std::vector<double> double_array;
 };
 
 struct UsdcCrateTypedValuesTable {

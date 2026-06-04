@@ -665,6 +665,19 @@ int freeusd_read_usdc_typed_values_table_from_path_utf8(const char* path_utf8, u
         std::memcpy(values[i].float_array, src.float_array.data(),
                     values[i].float_array_count * sizeof(float));
       }
+      values[i].double_array_count = src.double_array.size();
+      values[i].double_array = nullptr;
+      if (!src.double_array.empty()) {
+        values[i].double_array =
+            static_cast<double*>(std::malloc(values[i].double_array_count * sizeof(double)));
+        if (!values[i].double_array) {
+          freeusd_usdc_typed_values_free(values, i);
+          set_error("out of memory");
+          return FREEUSD_ERR_INTERNAL;
+        }
+        std::memcpy(values[i].double_array, src.double_array.data(),
+                    values[i].double_array_count * sizeof(double));
+      }
       if (values[i].byte_count == 0u) {
         values[i].bytes = nullptr;
         continue;
@@ -731,6 +744,7 @@ void freeusd_usdc_typed_values_free(FreeusdUsdcTypedValue* values, size_t count)
     std::free(values[i].string_utf8);
     std::free(values[i].int32_array);
     std::free(values[i].float_array);
+    std::free(values[i].double_array);
   }
   std::free(values);
 }

@@ -20,12 +20,14 @@ Bytes after the 12-byte header are the compressed payload only.
 | `tests/fixtures/parity_tables.usdc` | `VALUES` | none (plain typed table) |
 | `tests/fixtures/parity_tables_zlib.usdc` | `VALUES` | `FUSDZC` |
 | `tests/fixtures/parity_tables_lz4.usdc` | `VALUES` | `FUSDZL` |
+| `tests/fixtures/parity_embedded_scene_zlib.usdc` | `USDA` | `FUSDZC` |
 
 Regenerate with:
 
 - `scripts/gen_parity_tables_usdc.py`
 - `scripts/gen_parity_compressed_usdc.py`
 - `scripts/gen_parity_lz4_usdc.py`
+- `scripts/gen_parity_embedded_scene_zlib_usdc.py`
 
 ## Claims
 

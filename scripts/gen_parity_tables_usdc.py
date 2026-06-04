@@ -61,6 +61,7 @@ VALUE_KIND_STRING_INDEX = 9
 VALUE_KIND_VEC3D = 10
 VALUE_KIND_INT32_ARRAY = 11
 VALUE_KIND_FLOAT_ARRAY = 12
+VALUE_KIND_DOUBLE_ARRAY = 13
 
 
 def typed_values_table_payload(entries: list[tuple[int, bytes]]) -> bytes:
@@ -81,6 +82,25 @@ def fieldsets_table_payload(sets: list[list[int]]) -> bytes:
     return bytes(out)
 
 
+def parity_values_entries():
+    import struct
+    return [
+        (VALUE_KIND_INT32, struct.pack("<i", 42)),
+        (VALUE_KIND_FLOAT, struct.pack("<f", 1.5)),
+        (VALUE_KIND_TOKEN_INDEX, le_u64(0)),
+        (VALUE_KIND_BOOL, b"\x01"),
+        (VALUE_KIND_DOUBLE, struct.pack("<d", 3.25)),
+        (VALUE_KIND_INT64, struct.pack("<q", -9007199254740991)),
+        (VALUE_KIND_STRING_UTF8, b"parity"),
+        (VALUE_KIND_VEC3F, struct.pack("<fff", 1.0, 2.0, 3.0)),
+        (VALUE_KIND_STRING_INDEX, le_u64(1)),
+        (VALUE_KIND_VEC3D, struct.pack("<ddd", 4.0, 5.0, 6.0)),
+        (VALUE_KIND_INT32_ARRAY, le_u64(3) + struct.pack("<iii", 7, 8, 9)),
+        (VALUE_KIND_FLOAT_ARRAY, le_u64(2) + struct.pack("<ff", 0.25, 0.75)),
+        (VALUE_KIND_DOUBLE_ARRAY, le_u64(2) + struct.pack("<dd", 1.0, 2.0)),
+    ]
+
+
 def build_crate() -> bytes:
     sections: list[tuple[str, bytes]] = [
         ("TOKENS", string_table_payload(["render", "invisible"])),
@@ -91,22 +111,7 @@ def build_crate() -> bytes:
         ("SPECS", specs_table_payload([(0, 0, 1), (1, 1, 2)])),
         (
             "VALUES",
-            typed_values_table_payload(
-                [
-                    (VALUE_KIND_INT32, struct.pack("<i", 42)),
-                    (VALUE_KIND_FLOAT, struct.pack("<f", 1.5)),
-                    (VALUE_KIND_TOKEN_INDEX, le_u64(0)),
-                    (VALUE_KIND_BOOL, b"\x01"),
-                    (VALUE_KIND_DOUBLE, struct.pack("<d", 3.25)),
-                    (VALUE_KIND_INT64, struct.pack("<q", -9007199254740991)),
-                    (VALUE_KIND_STRING_UTF8, b"parity"),
-                    (VALUE_KIND_VEC3F, struct.pack("<fff", 1.0, 2.0, 3.0)),
-                    (VALUE_KIND_STRING_INDEX, le_u64(1)),
-                    (VALUE_KIND_VEC3D, struct.pack("<ddd", 4.0, 5.0, 6.0)),
-                    (VALUE_KIND_INT32_ARRAY, le_u64(3) + struct.pack("<iii", 7, 8, 9)),
-                    (VALUE_KIND_FLOAT_ARRAY, le_u64(2) + struct.pack("<ff", 0.25, 0.75)),
-                ]
-            ),
+            typed_values_table_payload(parity_values_entries()),
         ),
     ]
 

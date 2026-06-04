@@ -756,6 +756,26 @@ bool parse_typed_value_payload(UsdcCrateTypedValueKind kind, const std::vector<s
       }
       return true;
     }
+    case UsdcCrateTypedValueKind::DoubleArray: {
+      if (bytes.size() < 8u) {
+        set_detail(err_out, "USDC typed DoubleArray payload too small for count");
+        return false;
+      }
+      const std::uint64_t count = readLeU64(bytes.data());
+      const std::size_t expected = 8u + static_cast<std::size_t>(count) * 8u;
+      if (bytes.size() != expected) {
+        set_detail(err_out, "USDC typed DoubleArray payload size mismatch");
+        return false;
+      }
+      out->double_array.clear();
+      out->double_array.reserve(static_cast<std::size_t>(count));
+      for (std::uint64_t i = 0; i < count; ++i) {
+        double v = 0.0;
+        std::memcpy(&v, bytes.data() + 8u + i * 8u, 8u);
+        out->double_array.push_back(v);
+      }
+      return true;
+    }
   }
   set_detail(err_out, "USDC typed value kind out of range");
   return false;
@@ -802,7 +822,7 @@ bool ReadUsdCrateTypedValuesTableFromPath(const std::string& path, UsdcCrateType
     const std::vector<std::uint8_t> payload(section.begin() + static_cast<std::ptrdiff_t>(cursor),
                                             section.begin() + static_cast<std::ptrdiff_t>(cursor + len));
     cursor += static_cast<std::size_t>(len);
-    if (kind_raw > static_cast<std::uint64_t>(UsdcCrateTypedValueKind::FloatArray)) {
+    if (kind_raw > static_cast<std::uint64_t>(UsdcCrateTypedValueKind::DoubleArray)) {
       set_detail(err_out, "USDC VALUES typed kind out of range");
       return false;
     }

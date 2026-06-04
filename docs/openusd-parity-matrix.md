@@ -66,6 +66,8 @@ Status vocabulary:
 - `tests/fixtures/parity_lux_dome.usda`
   `DomeLight` with `inputs:intensity`, `inputs:color`, `inputs:texture:file`, and `inputs:texture:format`.
 - `tests/fixtures/parity_embedded_scene.usdc`
+- `tests/fixtures/parity_embedded_scene_zlib.usdc`
+  Same embedded USDA scene with zlib-wrapped `USDA` section (`FUSDZC`; regenerate with `scripts/gen_parity_embedded_scene_zlib_usdc.py`).
 - `scripts/gen_parity_embedded_scene_usdc.py`
   Regenerates `parity_embedded_scene.usdc` (embedded `USDA` section).
   Narrow crate scene-open fallback through an embedded `USDA` section for controlled engine pipelines and fixtures.
@@ -112,7 +114,7 @@ Status vocabulary:
 
 - `implemented`: USDA load/save, typed scalar/vector/quaternion/matrix values (including `vector3f` tuple literals and `bool` attributes with `true`/`false` or `0`/`1` literals), layer metadata, references/payload/inherits/specializes storage, relationship targets, and time-sample evaluation.
 - `partial`: USDC bootstrap parsing, TOC parsing, raw section-payload reads, validated `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` / `FIELDSETS` / `SPECS` / `VALUES` table decode on `parity_tables.usdc` (fixture typed kinds: Int32=42, Float=1.5, TokenIndex=0, Bool=true, Double=3.25, Int64=-9007199254740991, StringUtf8=`parity`, Vec3f=(1,2,3), StringIndex=1 via `STRINGS`/`world`, plus opaque section payloads), and a narrow embedded-`USDA` stage-open fallback are available in C++; the C ABI follows the same validated open/query slice (`freeusd_read_usdc_typed_values_table_from_path_utf8`).
-- `partial`: fixture zlib (`FUSDZC`) and LZ4 block (`FUSDZL`) decompression for wrapped section payloads (`parity_tables_zlib.usdc`, `parity_tables_lz4.usdc`; see `docs/usdc-fixture-compression.md`); `FloatArray` typed kind (12) on `parity_tables.usdc`; C ABI `freeusd_read_usdc_usda_section_from_path_utf8` for embedded layer text.
+- `partial`: fixture zlib (`FUSDZC`) and LZ4 block (`FUSDZL`) decompression for wrapped section payloads (`parity_tables_zlib.usdc`, `parity_tables_lz4.usdc`; see `docs/usdc-fixture-compression.md`); `FloatArray` (12) and `DoubleArray` (13) typed kinds on `parity_tables.usdc`; C ABI `freeusd_read_usdc_usda_section_from_path_utf8` for embedded layer text (including zlib-wrapped `USDA` on `parity_embedded_scene_zlib.usdc`).
 - `planned`: production USDC compression beyond the fixture wrapper, broader production value kinds, and full embedded-`USDA` scene bridge.
 
 ### Composition Semantics

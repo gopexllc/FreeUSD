@@ -1615,6 +1615,7 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
                                                   entry.vec3d_value.data[2]);
               row["int32_array"] = entry.int32_array;
               row["float_array"] = entry.float_array;
+              row["double_array"] = entry.double_array;
               items.append(row);
             }
             return py::make_tuple(true, items, std::string{});
