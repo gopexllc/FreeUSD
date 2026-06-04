@@ -62,46 +62,51 @@ def test_parity_variant_fixture_executes_selected_variant_payload() -> None:
 
 def test_parity_tables_fixture_decodes_structured_usdc_tables() -> None:
     usdc = str(FIXTURES / "parity_tables.usdc")
-    ok, tokens, err = read_usdc_token_table_from_path(usdc, 8, 1024)
+    ok, tokens, err = read_usdc_token_table_from_path(usdc, 16, 1024)
     assert ok and err == ""
     assert tokens == ["render", "invisible"]
 
-    ok, strings, err = read_usdc_string_table_from_path(usdc, 8, 1024)
+    ok, strings, err = read_usdc_string_table_from_path(usdc, 16, 1024)
     assert ok and err == ""
     assert strings == ["hello", "world"]
 
-    ok, paths, err = read_usdc_path_table_from_path(usdc, 8, 1024)
+    ok, paths, err = read_usdc_path_table_from_path(usdc, 16, 1024)
     assert ok and err == ""
     assert [p.text() for p in paths] == ["/World", "/World/Cube"]
 
-    ok, fields, err = read_usdc_fields_table_from_path(usdc, 8, 1024)
+    ok, fields, err = read_usdc_fields_table_from_path(usdc, 16, 1024)
     assert ok and err == ""
     assert fields == [
         {"token_index": 0, "value_type_token_index": 1},
         {"token_index": 1, "value_type_token_index": 0},
     ]
 
-    ok, specs, err = read_usdc_specs_table_from_path(usdc, 8, 1024)
+    ok, specs, err = read_usdc_specs_table_from_path(usdc, 16, 1024)
     assert ok and err == ""
     assert specs == [
         {"path_index": 0, "field_set_index": 0, "spec_type": 1},
         {"path_index": 1, "field_set_index": 1, "spec_type": 2},
     ]
 
-    ok, fieldsets, err = read_usdc_fieldsets_table_from_path(usdc, 8, 8, 1024)
+    ok, fieldsets, err = read_usdc_fieldsets_table_from_path(usdc, 8, 16, 1024)
     assert ok and err == ""
     assert fieldsets == [[0, 1], [1]]
 
-    ok, typed, err = read_usdc_typed_values_table_from_path(usdc, 8, 1024)
+    ok, typed, err = read_usdc_typed_values_table_from_path(usdc, 16, 1024)
     assert ok and err == ""
     assert typed[0]["kind"] == 1 and typed[0]["int32_value"] == 42
     assert typed[1]["kind"] == 2 and abs(typed[1]["float_value"] - 1.5) < 1e-5
     assert typed[2]["kind"] == 3 and typed[2]["token_index"] == 0
     assert typed[3]["kind"] == 4 and typed[3]["bool_value"] is True
+    assert typed[4]["kind"] == 5 and abs(typed[4]["double_value"] - 3.25) < 1e-12
+    assert typed[5]["kind"] == 6 and typed[5]["int64_value"] == -9007199254740991
+    assert typed[6]["kind"] == 7 and typed[6]["string_utf8"] == "parity"
+    assert typed[7]["kind"] == 8 and typed[7]["vec3f_value"] == (1.0, 2.0, 3.0)
+    assert typed[8]["kind"] == 9 and typed[8]["string_index"] == 1
 
-    ok, values, err = read_usdc_values_table_from_path(usdc, 8, 1024)
+    ok, values, err = read_usdc_values_table_from_path(usdc, 16, 1024)
     assert ok and err == ""
-    assert len(values) == 4
+    assert len(values) == 9
 
 
 def test_parity_geom_mesh_fixture_reads_points() -> None:

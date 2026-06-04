@@ -1605,6 +1605,11 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
               row["float_value"] = entry.float_value;
               row["token_index"] = entry.token_index;
               row["bool_value"] = entry.bool_value;
+              row["double_value"] = entry.double_value;
+              row["int64_value"] = entry.int64_value;
+              row["string_utf8"] = entry.string_utf8;
+              row["vec3f_value"] = py::make_tuple(entry.vec3f_value.data[0], entry.vec3f_value.data[1], entry.vec3f_value.data[2]);
+              row["string_index"] = entry.string_index;
               items.append(row);
             }
             return py::make_tuple(true, items, std::string{});

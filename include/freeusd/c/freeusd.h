@@ -242,6 +242,11 @@ typedef enum FreeusdUsdcTypedValueKind {
   FREEUSD_USDC_VALUE_FLOAT = 2,
   FREEUSD_USDC_VALUE_TOKEN_INDEX = 3,
   FREEUSD_USDC_VALUE_BOOL = 4,
+  FREEUSD_USDC_VALUE_DOUBLE = 5,
+  FREEUSD_USDC_VALUE_INT64 = 6,
+  FREEUSD_USDC_VALUE_STRING_UTF8 = 7,
+  FREEUSD_USDC_VALUE_VEC3F = 8,
+  FREEUSD_USDC_VALUE_STRING_INDEX = 9,
 } FreeusdUsdcTypedValueKind;
 
 typedef struct FreeusdUsdcTypedValue {
@@ -252,6 +257,11 @@ typedef struct FreeusdUsdcTypedValue {
   float float_value;
   uint64_t token_index;
   int bool_value;
+  double double_value;
+  int64_t int64_value;
+  char* string_utf8;
+  float vec3f_value[3];
+  uint64_t string_index;
 } FreeusdUsdcTypedValue;
 
 FREEUSD_C_API int freeusd_read_usdc_typed_values_table_from_path_utf8(const char* path_utf8, uint64_t max_entries,

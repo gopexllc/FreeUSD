@@ -96,7 +96,7 @@ Status vocabulary:
 ### Formats And Data Model
 
 - `implemented`: USDA load/save, typed scalar/vector/quaternion/matrix values (including `vector3f` tuple literals and `bool` attributes with `true`/`false` or `0`/`1` literals), layer metadata, references/payload/inherits/specializes storage, relationship targets, and time-sample evaluation.
-- `partial`: USDC bootstrap parsing, TOC parsing, raw section-payload reads, validated `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` / `FIELDSETS` / `SPECS` / `VALUES` table decode on `parity_tables.usdc` (fixture typed kinds: Int32=42, Float=1.5, TokenIndex=0, Bool=true, plus opaque section payloads), and a narrow embedded-`USDA` stage-open fallback are available in C++; the C ABI follows the same validated open/query slice (`freeusd_read_usdc_typed_values_table_from_path_utf8`).
+- `partial`: USDC bootstrap parsing, TOC parsing, raw section-payload reads, validated `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` / `FIELDSETS` / `SPECS` / `VALUES` table decode on `parity_tables.usdc` (fixture typed kinds: Int32=42, Float=1.5, TokenIndex=0, Bool=true, Double=3.25, Int64=-9007199254740991, StringUtf8=`parity`, Vec3f=(1,2,3), StringIndex=1 via `STRINGS`/`world`, plus opaque section payloads), and a narrow embedded-`USDA` stage-open fallback are available in C++; the C ABI follows the same validated open/query slice (`freeusd_read_usdc_typed_values_table_from_path_utf8`).
 - `planned`: arbitrary OpenUSD `.usdc` typed value payloads beyond the parity fixture kinds, production compression, and full embedded-`USDA` bridge.
 
 ### Composition Semantics
