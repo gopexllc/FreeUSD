@@ -4,6 +4,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef FREEUSD_TEST_FIXTURES_DIR
+#error "FREEUSD_TEST_FIXTURES_DIR must be set by CMake for c_stage_variant"
+#endif
+
 int main(void) {
   const char usda[] =
       "#usda 1.0\n"
