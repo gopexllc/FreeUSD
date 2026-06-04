@@ -27,7 +27,7 @@ int main() {
     assert(freeusd::usd::crate::ReadUsdCrateTypedValuesTableFromPath(fixture("parity_tables.usdc"), typed, 16, 1024,
                                                                     &err));
     assert(err.empty());
-    assert(typed.entries.size() == 9u);
+    assert(typed.entries.size() == 11u);
     assert(typed.entries[0].kind == UsdcCrateTypedValueKind::Int32);
     assert(typed.entries[0].int32_value == 42);
     assert(typed.entries[1].kind == UsdcCrateTypedValueKind::Float);
@@ -48,6 +48,15 @@ int main() {
     assert(std::fabs(typed.entries[7].vec3f_value.data[2] - 3.0f) < 1e-5f);
     assert(typed.entries[8].kind == UsdcCrateTypedValueKind::StringIndex);
     assert(typed.entries[8].string_index == 1u);
+    assert(typed.entries[9].kind == UsdcCrateTypedValueKind::Vec3d);
+    assert(std::fabs(typed.entries[9].vec3d_value.data[0] - 4.0) < 1e-12);
+    assert(std::fabs(typed.entries[9].vec3d_value.data[1] - 5.0) < 1e-12);
+    assert(std::fabs(typed.entries[9].vec3d_value.data[2] - 6.0) < 1e-12);
+    assert(typed.entries[10].kind == UsdcCrateTypedValueKind::Int32Array);
+    assert(typed.entries[10].int32_array.size() == 3u);
+    assert(typed.entries[10].int32_array[0] == 7);
+    assert(typed.entries[10].int32_array[1] == 8);
+    assert(typed.entries[10].int32_array[2] == 9);
 
     freeusd::usd::crate::UsdcCrateStringTable strings{};
     assert(freeusd::usd::crate::ReadUsdCrateStringTableFromPath(fixture("parity_tables.usdc"), strings, 16, 1024, &err));
@@ -60,7 +69,7 @@ int main() {
     UsdcCrateValuesTable opaque{};
     assert(freeusd::usd::crate::ReadUsdCrateValuesTableFromPath(fixture("parity_tables.usdc"), opaque, 16, 1024, &err));
     assert(err.empty());
-    assert(opaque.entries.size() == 9u);
+    assert(opaque.entries.size() == 11u);
     assert(opaque.entries[0].bytes.size() == 4u);
   }
 

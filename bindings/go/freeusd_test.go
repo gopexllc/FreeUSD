@@ -211,20 +211,20 @@ func TestReadStructuredUsdcTablesFromFixture(t *testing.T) {
 	if rc != 0 {
 		t.Fatalf("values table rc=%d %s", rc, LastErrorMessage())
 	}
-	if len(values) != 9 || len(values[0].Bytes) != 4 {
+	if len(values) != 11 || len(values[0].Bytes) != 4 {
 		t.Fatalf("unexpected values %#v", values)
 	}
 	typed, rc := ReadUsdcTypedValuesTableFromPath(p, 16, 1024)
 	if rc != 0 {
 		t.Fatalf("typed values table rc=%d %s", rc, LastErrorMessage())
 	}
-	if len(typed) != 9 || typed[0].Kind != 1 || typed[0].Int32Value != 42 || typed[1].Kind != 2 ||
+	if len(typed) != 11 || typed[0].Kind != 1 || typed[0].Int32Value != 42 || typed[1].Kind != 2 ||
 		typed[2].Kind != 3 || typed[2].TokenIndex != 0 || typed[3].Kind != 4 || !typed[3].BoolValue ||
 		typed[4].Kind != 5 || typed[4].DoubleValue < 3.24 || typed[4].DoubleValue > 3.26 ||
 		typed[5].Kind != 6 || typed[5].Int64Value != -9007199254740991 ||
 		typed[6].Kind != 7 || typed[6].StringUtf8 != "parity" ||
 		typed[7].Kind != 8 || typed[7].Vec3fValue[2] > 3.01 ||
-		typed[8].Kind != 9 || typed[8].StringIndex != 1 {
+		typed[8].Kind != 9 || typed[8].StringIndex != 1 || typed[9].Kind != 10 || typed[9].Vec3dValue[2] < 5.99 || typed[10].Kind != 11 || len(typed[10].Int32Array) != 3 || typed[10].Int32Array[2] != 9 {
 		t.Fatalf("unexpected typed values %#v", typed)
 	}
 }

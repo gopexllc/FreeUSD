@@ -317,6 +317,8 @@ type UsdcTypedValue struct {
 	StringUtf8   string
 	Vec3fValue   [3]float32
 	StringIndex  uint64
+	Vec3dValue     [3]float64
+	Int32Array     []int32
 }
 
 // ReadUsdcTypedValuesTableFromPath reads the validated typed VALUES table from a shared crate fixture.
@@ -358,6 +360,19 @@ func ReadUsdcTypedValuesTableFromPath(path string, maxEntries uint64, maxTotalBy
 			StringUtf8:  stringUtf8,
 			Vec3fValue:  [3]float32{float32(entry.vec3f_value[0]), float32(entry.vec3f_value[1]), float32(entry.vec3f_value[2])},
 			StringIndex: uint64(entry.string_index),
+			Vec3dValue: [3]float64{entry.vec3d_value[0], entry.vec3d_value[1], entry.vec3d_value[2]},
+			Int32Array: func() []int32 {
+				n := int(entry.int32_array_count)
+				if n == 0 || entry.int32_array == nil {
+					return nil
+				}
+				out := make([]int32, n)
+				for j := 0; j < n; j++ {
+					v := *(*int32)(unsafe.Pointer(uintptr(unsafe.Pointer(entry.int32_array)) + uintptr(j)*unsafe.Sizeof(int32(0))))
+					out[j] = v
+				}
+				return out
+			}(),
 		}
 	}
 	return out, 0

@@ -643,6 +643,33 @@ bool parse_typed_value_payload(UsdcCrateTypedValueKind kind, const std::vector<s
       }
       out->string_index = readLeU64(bytes.data());
       return true;
+    case UsdcCrateTypedValueKind::Vec3d:
+      if (bytes.size() != 24u) {
+        set_detail(err_out, "USDC typed Vec3d payload must be 24 bytes");
+        return false;
+      }
+      std::memcpy(out->vec3d_value.data, bytes.data(), 24u);
+      return true;
+    case UsdcCrateTypedValueKind::Int32Array: {
+      if (bytes.size() < 8u) {
+        set_detail(err_out, "USDC typed Int32Array payload too small for count");
+        return false;
+      }
+      const std::uint64_t count = readLeU64(bytes.data());
+      const std::size_t expected = 8u + static_cast<std::size_t>(count) * 4u;
+      if (bytes.size() != expected) {
+        set_detail(err_out, "USDC typed Int32Array payload size mismatch");
+        return false;
+      }
+      out->int32_array.clear();
+      out->int32_array.reserve(static_cast<std::size_t>(count));
+      for (std::uint64_t i = 0; i < count; ++i) {
+        std::int32_t v = 0;
+        std::memcpy(&v, bytes.data() + 8u + i * 4u, 4u);
+        out->int32_array.push_back(v);
+      }
+      return true;
+    }
   }
   set_detail(err_out, "USDC typed value kind out of range");
   return false;
@@ -689,7 +716,7 @@ bool ReadUsdCrateTypedValuesTableFromPath(const std::string& path, UsdcCrateType
     const std::vector<std::uint8_t> payload(section.begin() + static_cast<std::ptrdiff_t>(cursor),
                                             section.begin() + static_cast<std::ptrdiff_t>(cursor + len));
     cursor += static_cast<std::size_t>(len);
-    if (kind_raw > static_cast<std::uint64_t>(UsdcCrateTypedValueKind::StringIndex)) {
+    if (kind_raw > static_cast<std::uint64_t>(UsdcCrateTypedValueKind::Int32Array)) {
       set_detail(err_out, "USDC VALUES typed kind out of range");
       return false;
     }

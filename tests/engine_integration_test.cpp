@@ -336,6 +336,25 @@ int main() {
 
   {
     std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_custom_data_specializes.usda"),
+                                         RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const Path host = Path::FromString("/World/Host");
+    freeusd::vt::Value v;
+    std::string role;
+    assert(stage->GetComposedPrimCustomData(host, "role", &v));
+    assert(v.GetString(&role) && role == "from_spec");
+    std::int32_t priority = 0;
+    assert(stage->GetComposedPrimCustomData(host, "priority", &v));
+    assert(v.GetInt32(&priority) && priority == 9);
+    const auto report = AssessEngineRuntimeSupport(*stage);
+    assert(report.uses_specializes);
+    assert(report.uses_custom_data);
+    assert(report.uses_custom_data_through_arcs);
+  }
+
+  {
+    std::string err;
     auto stage = Stage::OpenFromRootFile(fixture("parity_physics_scene.usda"), RootLayerSublayersPolicy::DepthFirst,
                                          &err);
     assert(stage && err.empty());

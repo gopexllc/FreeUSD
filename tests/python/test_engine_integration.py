@@ -127,6 +127,16 @@ def test_engine_editor_view_and_prebake_reports_bindings() -> None:
     assert refs_report.uses_custom_data_through_arcs
     assert refs_report.recommended_mode == EngineRuntimeMode.pre_baked_assets_only
 
+    spec_custom_stage = _open_stage("parity_custom_data_specializes.usda")
+    spec_host = next(
+        node for node in build_engine_scene_snapshot(spec_custom_stage, 1.0).nodes if node.path.text() == "/World/Host"
+    )
+    assert "role" in spec_host.custom_data_keys
+    spec_custom_report = assess_engine_runtime_support(spec_custom_stage)
+    assert spec_custom_report.uses_specializes
+    assert spec_custom_report.uses_custom_data
+    assert spec_custom_report.uses_custom_data_through_arcs
+
     physics_stage = _open_stage("parity_physics_scene.usda")
     physics_snapshot = build_engine_scene_snapshot(physics_stage, 1.0)
     assert [path.text() for path in physics_snapshot.physics_scene_paths] == ["/World/Physics"]

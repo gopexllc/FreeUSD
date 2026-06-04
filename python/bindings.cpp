@@ -1608,8 +1608,12 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
               row["double_value"] = entry.double_value;
               row["int64_value"] = entry.int64_value;
               row["string_utf8"] = entry.string_utf8;
-              row["vec3f_value"] = py::make_tuple(entry.vec3f_value.data[0], entry.vec3f_value.data[1], entry.vec3f_value.data[2]);
+              row["vec3f_value"] = py::make_tuple(entry.vec3f_value.data[0], entry.vec3f_value.data[1],
+                                                    entry.vec3f_value.data[2]);
               row["string_index"] = entry.string_index;
+              row["vec3d_value"] = py::make_tuple(entry.vec3d_value.data[0], entry.vec3d_value.data[1],
+                                                  entry.vec3d_value.data[2]);
+              row["int32_array"] = entry.int32_array;
               items.append(row);
             }
             return py::make_tuple(true, items, std::string{});
@@ -2208,6 +2212,26 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
                 return py::none();
               }
               return py::cast(opacity);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_extent",
+            [](const freeusd::usdGeom::Mesh& mesh, double time) -> py::object {
+              freeusd::gf::Vec3f mn, mx;
+              if (!mesh.GetExtent(&mn, &mx, time)) {
+                return py::none();
+              }
+              return py::make_tuple(mn, mx);
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "get_subdivision_scheme",
+            [](const freeusd::usdGeom::Mesh& mesh, double time) -> py::object {
+              std::string scheme;
+              if (!mesh.GetSubdivisionScheme(&scheme, time)) {
+                return py::none();
+              }
+              return py::cast(scheme);
             },
             py::arg("time") = 1.0);
     py::class_<freeusd::usdGeom::Xformable>(geom, "Xformable")

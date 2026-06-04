@@ -147,15 +147,17 @@ int main() {
     freeusd::usd::crate::UsdcCrateTypedValuesTable typed_values{};
     assert(freeusd::usd::crate::ReadUsdCrateTypedValuesTableFromPath(fixture("parity_tables.usdc"), typed_values, 16,
                                                                      1024, &err));
-    assert(typed_values.entries.size() == 9u);
+    assert(typed_values.entries.size() == 11u);
     assert(typed_values.entries[0].int32_value == 42);
     assert(typed_values.entries[4].double_value > 3.24 && typed_values.entries[4].double_value < 3.26);
     assert(typed_values.entries[5].int64_value == -9007199254740991LL);
     assert(typed_values.entries[6].string_utf8 == "parity");
     assert(typed_values.entries[7].vec3f_value.data[2] > 2.99f);
     assert(typed_values.entries[8].string_index == 1u);
+    assert(typed_values.entries[9].vec3d_value.data[2] > 5.99);
+    assert(typed_values.entries[10].int32_array.size() == 3u);
     assert(freeusd::usd::crate::ReadUsdCrateValuesTableFromPath(fixture("parity_tables.usdc"), values, 16, 1024, &err));
-    assert(values.entries.size() == 9u);
+    assert(values.entries.size() == 11u);
     assert(values.entries[0].bytes.size() == 4u);
     assert(freeusd::usd::crate::ReadUsdCrateSpecsTableFromPath(fixture("parity_tables.usdc"), specs, 8, 1024, &err));
     assert(specs.entries.size() == 2u);
@@ -191,6 +193,12 @@ int main() {
     assert(st.size() == 3u);
     float opacity = 0.0f;
     assert(mesh.GetDisplayOpacity(&opacity, 1.0) && opacity == 0.75f);
+    freeusd::gf::Vec3f ext_min{};
+    freeusd::gf::Vec3f ext_max{};
+    assert(mesh.GetExtent(&ext_min, &ext_max, 1.0));
+    assert(ext_max.x() == 1.0f && ext_max.y() == 1.0f);
+    std::string scheme;
+    assert(mesh.GetSubdivisionScheme(&scheme, 1.0) && scheme == "none");
   }
 
   {
@@ -346,6 +354,23 @@ int main() {
     assert(ref_keys.size() == 2u);
     const auto payload_keys = stage->ListComposedPrimCustomDataKeys(payload_host);
     assert(payload_keys.size() == 2u);
+  }
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_custom_data_specializes.usda"),
+                                         freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const Path host = Path::FromString("/World/Host");
+    freeusd::vt::Value v;
+    std::string role;
+    assert(stage->GetComposedPrimCustomData(host, "role", &v));
+    assert(v.GetString(&role) && role == "from_spec");
+    std::int32_t priority = 0;
+    assert(stage->GetComposedPrimCustomData(host, "priority", &v));
+    assert(v.GetInt32(&priority) && priority == 9);
+    const auto keys = stage->ListComposedPrimCustomDataKeys(host);
+    assert(keys.size() == 2u);
   }
 
   {

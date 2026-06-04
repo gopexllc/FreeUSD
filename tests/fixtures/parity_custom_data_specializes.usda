@@ -1,0 +1,27 @@
+#usda 1.0
+(
+    defaultPrim = "World"
+)
+
+def Xform "World"
+{
+    class "BaseSpec"
+    (
+        customData = {
+            string role = "from_spec",
+            int priority = 1
+        }
+    )
+    {
+    }
+
+    def "Host"
+    (
+        prepend specializes = </World/BaseSpec>
+        customData = {
+            int priority = 9,
+        }
+    )
+    {
+    }
+}

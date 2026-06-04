@@ -75,5 +75,15 @@ int main() {
   assert(mesh.GetDisplayOpacity(&opacity, 1.0));
   assert(near(opacity, 0.75f));
 
+  freeusd::gf::Vec3f ext_min{};
+  freeusd::gf::Vec3f ext_max{};
+  assert(mesh.GetExtent(&ext_min, &ext_max, 1.0));
+  assert(near(ext_min.x(), 0.0f) && near(ext_min.y(), 0.0f) && near(ext_min.z(), 0.0f));
+  assert(near(ext_max.x(), 1.0f) && near(ext_max.y(), 1.0f) && near(ext_max.z(), 0.0f));
+
+  std::string scheme;
+  assert(mesh.GetSubdivisionScheme(&scheme, 1.0));
+  assert(scheme == "none");
+
   return 0;
 }

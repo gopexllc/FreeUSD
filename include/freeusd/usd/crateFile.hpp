@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include "freeusd/gf/vec3d.hpp"
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -159,6 +160,8 @@ enum class UsdcCrateTypedValueKind : std::uint64_t {
   StringUtf8 = 7,
   Vec3f = 8,
   StringIndex = 9,
+  Vec3d = 10,
+  Int32Array = 11,
 };
 
 /// One decoded typed value from the fixture ``VALUES`` table.
@@ -174,6 +177,8 @@ struct UsdcCrateTypedValue {
   std::string string_utf8;
   freeusd::gf::Vec3f vec3f_value{};
   std::uint64_t string_index{0};
+  freeusd::gf::Vec3d vec3d_value{};
+  std::vector<std::int32_t> int32_array;
 };
 
 struct UsdcCrateTypedValuesTable {

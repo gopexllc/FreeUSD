@@ -2,6 +2,8 @@
 
 #include "freeusd/tf/token.hpp"
 #include "freeusd/usdGeom/tokens.hpp"
+
+#include <string>
 #include "freeusd/vt/value.hpp"
 
 namespace freeusd::usdGeom {
@@ -155,6 +157,33 @@ bool Mesh::GetDisplayOpacity(float* out, double time) const {
     return true;
   }
   return false;
+}
+
+bool Mesh::GetExtent(freeusd::gf::Vec3f* min_out, freeusd::gf::Vec3f* max_out, double time) const {
+  if (!min_out || !max_out || !prim.IsValid()) {
+    return false;
+  }
+  const freeusd::vt::Value v = prim.GetAttribute(tokens::extent(), time);
+  std::vector<freeusd::gf::Vec3f> corners;
+  if (!read_vec3f_array(v, &corners) || corners.size() < 2u) {
+    return false;
+  }
+  *min_out = corners[0];
+  *max_out = corners[1];
+  return true;
+}
+
+bool Mesh::GetSubdivisionScheme(std::string* out, double time) const {
+  if (!out || !prim.IsValid()) {
+    return false;
+  }
+  const freeusd::vt::Value v = prim.GetAttribute(tokens::subdivisionScheme(), time);
+  freeusd::tf::Token token;
+  if (v.GetToken(&token)) {
+    *out = token.GetText();
+    return true;
+  }
+  return v.GetString(out);
 }
 
 }  // namespace freeusd::usdGeom

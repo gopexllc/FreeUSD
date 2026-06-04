@@ -43,6 +43,12 @@ struct FREEUSD_API Mesh {
 
   /// Composed ``primvars:displayOpacity`` scalar or first element of a float array at @p time.
   bool GetDisplayOpacity(float* out, double time = 1.0) const;
+
+  /// Composed ``float3[]`` / ``extent`` min and max at @p time (false if missing or unsupported).
+  bool GetExtent(freeusd::gf::Vec3f* min_out, freeusd::gf::Vec3f* max_out, double time = 1.0) const;
+
+  /// Composed ``token`` / ``subdivisionScheme`` at @p time (false if missing).
+  bool GetSubdivisionScheme(std::string* out, double time = 1.0) const;
 };
 
 }  // namespace freeusd::usdGeom

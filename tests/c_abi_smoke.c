@@ -349,7 +349,7 @@ int main(void) {
       fprintf(stderr, "read values table failed: %s\n", freeusd_last_error_message());
       return 1;
     }
-    if (!value_blobs || count != 9u || value_blobs[0].byte_count != 4u) {
+    if (!value_blobs || count != 11u || value_blobs[0].byte_count != 4u) {
       fprintf(stderr, "unexpected values table\n");
       freeusd_usdc_values_blobs_free(value_blobs, count);
       return 1;
@@ -362,7 +362,7 @@ int main(void) {
       fprintf(stderr, "read typed values table failed: %s\n", freeusd_last_error_message());
       return 1;
     }
-    if (!typed_values || count != 9u || typed_values[0].kind != FREEUSD_USDC_VALUE_INT32 ||
+    if (!typed_values || count != 11u || typed_values[0].kind != FREEUSD_USDC_VALUE_INT32 ||
         typed_values[0].int32_value != 42 || typed_values[1].kind != FREEUSD_USDC_VALUE_FLOAT ||
         typed_values[2].kind != FREEUSD_USDC_VALUE_TOKEN_INDEX || typed_values[2].token_index != 0u ||
         typed_values[3].kind != FREEUSD_USDC_VALUE_BOOL || !typed_values[3].bool_value ||
@@ -372,7 +372,11 @@ int main(void) {
         !typed_values[6].string_utf8 || strcmp(typed_values[6].string_utf8, "parity") != 0 ||
         typed_values[7].kind != FREEUSD_USDC_VALUE_VEC3F ||
         typed_values[7].vec3f_value[0] < 0.99f || typed_values[7].vec3f_value[2] > 3.01f ||
-        typed_values[8].kind != FREEUSD_USDC_VALUE_STRING_INDEX || typed_values[8].string_index != 1u) {
+        typed_values[8].kind != FREEUSD_USDC_VALUE_STRING_INDEX || typed_values[8].string_index != 1u ||
+        typed_values[9].kind != FREEUSD_USDC_VALUE_VEC3D || typed_values[9].vec3d_value[0] < 3.99 ||
+        typed_values[9].vec3d_value[2] > 6.01 || typed_values[10].kind != FREEUSD_USDC_VALUE_INT32_ARRAY ||
+        typed_values[10].int32_array_count != 3u || typed_values[10].int32_array[0] != 7 ||
+        typed_values[10].int32_array[2] != 9) {
       fprintf(stderr, "unexpected typed values table\n");
       freeusd_usdc_typed_values_free(typed_values, count);
       return 1;

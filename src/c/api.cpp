@@ -636,6 +636,22 @@ int freeusd_read_usdc_typed_values_table_from_path_utf8(const char* path_utf8, u
       values[i].vec3f_value[1] = src.vec3f_value.data[1];
       values[i].vec3f_value[2] = src.vec3f_value.data[2];
       values[i].string_index = src.string_index;
+      values[i].vec3d_value[0] = src.vec3d_value.data[0];
+      values[i].vec3d_value[1] = src.vec3d_value.data[1];
+      values[i].vec3d_value[2] = src.vec3d_value.data[2];
+      values[i].int32_array_count = src.int32_array.size();
+      values[i].int32_array = nullptr;
+      if (!src.int32_array.empty()) {
+        values[i].int32_array =
+            static_cast<int32_t*>(std::malloc(values[i].int32_array_count * sizeof(int32_t)));
+        if (!values[i].int32_array) {
+          freeusd_usdc_typed_values_free(values, i);
+          set_error("out of memory");
+          return FREEUSD_ERR_INTERNAL;
+        }
+        std::memcpy(values[i].int32_array, src.int32_array.data(),
+                    values[i].int32_array_count * sizeof(int32_t));
+      }
       if (values[i].byte_count == 0u) {
         values[i].bytes = nullptr;
         continue;
@@ -666,6 +682,7 @@ void freeusd_usdc_typed_values_free(FreeusdUsdcTypedValue* values, size_t count)
   for (size_t i = 0; i < count; ++i) {
     std::free(values[i].bytes);
     std::free(values[i].string_utf8);
+    std::free(values[i].int32_array);
   }
   std::free(values);
 }

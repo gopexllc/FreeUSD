@@ -28,6 +28,8 @@ Status vocabulary:
   Schema-facing `purpose` / `visibility` behavior for `usdGeom::Imageable` and cube-like bounds via `usdGeom::Boundable`.
 - `tests/fixtures/parity_custom_data_inherit.usda`
   Composed prim `customData` through `inherits` arcs (local strongest-wins override plus inherited keys).
+- `tests/fixtures/parity_custom_data_specializes.usda`
+  Composed prim `customData` through `specializes` from a `class` prim (local override on specialize host).
 - `tests/fixtures/parity_custom_data_refs.usda`
   Composed prim `customData` through `references` and `payloads` (`parity_custom_data_ref.usda`, `parity_custom_data_payload.usda`; local override on reference host).
 - `tests/fixtures/parity_specializes.usda`
@@ -102,13 +104,13 @@ Status vocabulary:
 ### Composition Semantics
 
 - `implemented`: strongest-wins field reads, concatenated relationship lists, composed field/relationship/prim-path unions, relocated prim-path query behavior, and prefix-substituted reference/payload asset paths.
-- `partial`: `subLayerOffsets` now remap composed sample times and file-backed reads; selected variants plus reference/payload/inherit/specialize arcs now affect file-backed field and prim-path queries (`parity_specializes.usda` for composed doubles through `specializes`); composed prim `kind` / `active`, `customData`, and USDA `class` / `over` specifier resolution follow references, payloads, and `inherits` / `specializes` (local layer stack still wins when authored; `parity_custom_data_refs.usda` for `customData` through references/payloads), but other metadata propagation through every arc type remains incomplete.
+- `partial`: `subLayerOffsets` now remap composed sample times and file-backed reads; selected variants plus reference/payload/inherit/specialize arcs now affect file-backed field and prim-path queries (`parity_specializes.usda` for composed doubles through `specializes`); composed prim `kind` / `active`, `customData`, and USDA `class` / `over` specifier resolution follow references, payloads, and `inherits` / `specializes` (local layer stack still wins when authored; `parity_custom_data_refs.usda` for `customData` through references/payloads; `parity_custom_data_specializes.usda` for `customData` through specializes), but other metadata propagation through every arc type remains incomplete.
 - `planned`: broader resolver-aware arc expansion for the remaining composed query families.
 
 ### Schema And Runtime Helpers
 
 - `implemented`: `usdGeom::Xformable`, `usdGeom::Imageable`, `usdGeom::Boundable`, `usdUtils::FlattenStageAtTime`, and `usdUtils` engine-scene helpers for importer/editor/runtime subset inspection.
-- `partial`: `usdGeom::Mesh` reads composed `points`, `faceVertexCounts`, `faceVertexIndices`, `normals`, `primvars:st`, `primvars:displayOpacity`, and `primvars:displayColor` (`parity_geom_mesh.usda`); USDA load/save accepts `texCoord2f` / `float2` and `vector3f` tuple literals.
+- `partial`: `usdGeom::Mesh` reads composed `points`, `extent`, `subdivisionScheme`, `faceVertexCounts`, `faceVertexIndices`, `normals`, `primvars:st`, `primvars:displayOpacity`, and `primvars:displayColor` (`parity_geom_mesh.usda`); USDA load/save accepts `texCoord2f` / `float2` and `vector3f` tuple literals.
 - `partial`: flattening now preserves evaluated defaults plus composed sample times, but it does not yet reconstruct full authored layer provenance for every arc source.
 - `partial`: `usdSkel::Skeleton` and `usdSkel::SkelAnimation` read joints, bind/rest matrices, and sampled TRS arrays from USDA; glTF mapping helpers build parent indices and world bind matrices; `SkelBinding` resolves `skel:skeleton` plus `primvars:skel:jointIndices` / `jointWeights`; `SkelRoot` finds skeleton and `skel:animationSource` under a scope (`parity_skel_binding.usda`); `BlendShape` / `SkelBlendShapes` / `MorphTargets` read morph offsets, remap animation weights, and apply CPU morph accumulation (`parity_skel_blend_shapes.usda`; glTF `mesh.weights` + morph target POSITION deltas); `DeformPointsWithSkeleton` performs CPU LBS from joint world matrices and inverse bind transforms (`parity_skel_skinning.usda`).
 - `partial`: `usdShade::Material` resolves `outputs:surface` to a shader prim; `usdShade::Shader` / `PreviewSurface` read `info:id` and common `UsdPreviewSurface` inputs (`diffuseColor`, `emissiveColor`, `metallic`, `roughness`, `opacity`) with connection following (`parity_shade_preview.usda`); texture asset paths for `diffuseColor`, `normal`, `occlusion`, `metallic`, and `roughness` resolve through one connection hop to connected `inputs:file` (`parity_shade_texture.usda`, `parity_shade_pbr_textures.usda`).

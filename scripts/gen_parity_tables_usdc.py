@@ -58,6 +58,8 @@ VALUE_KIND_INT64 = 6
 VALUE_KIND_STRING_UTF8 = 7
 VALUE_KIND_VEC3F = 8
 VALUE_KIND_STRING_INDEX = 9
+VALUE_KIND_VEC3D = 10
+VALUE_KIND_INT32_ARRAY = 11
 
 
 def typed_values_table_payload(entries: list[tuple[int, bytes]]) -> bytes:
@@ -99,6 +101,8 @@ def build_crate() -> bytes:
                     (VALUE_KIND_STRING_UTF8, b"parity"),
                     (VALUE_KIND_VEC3F, struct.pack("<fff", 1.0, 2.0, 3.0)),
                     (VALUE_KIND_STRING_INDEX, le_u64(1)),
+                    (VALUE_KIND_VEC3D, struct.pack("<ddd", 4.0, 5.0, 6.0)),
+                    (VALUE_KIND_INT32_ARRAY, le_u64(3) + struct.pack("<iii", 7, 8, 9)),
                 ]
             ),
         ),
