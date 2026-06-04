@@ -249,6 +249,7 @@ typedef enum FreeusdUsdcTypedValueKind {
   FREEUSD_USDC_VALUE_STRING_INDEX = 9,
   FREEUSD_USDC_VALUE_VEC3D = 10,
   FREEUSD_USDC_VALUE_INT32_ARRAY = 11,
+  FREEUSD_USDC_VALUE_FLOAT_ARRAY = 12,
 } FreeusdUsdcTypedValueKind;
 
 typedef struct FreeusdUsdcTypedValue {
@@ -267,6 +268,8 @@ typedef struct FreeusdUsdcTypedValue {
   double vec3d_value[3];
   int32_t* int32_array;
   size_t int32_array_count;
+  float* float_array;
+  size_t float_array_count;
 } FreeusdUsdcTypedValue;
 
 FREEUSD_C_API int freeusd_read_usdc_typed_values_table_from_path_utf8(const char* path_utf8, uint64_t max_entries,
@@ -275,6 +278,10 @@ FREEUSD_C_API int freeusd_read_usdc_typed_values_table_from_path_utf8(const char
                                                                       size_t* out_count);
 
 FREEUSD_C_API void freeusd_usdc_typed_values_free(FreeusdUsdcTypedValue* values, size_t count);
+
+/** Reads the embedded ``USDA`` crate section as UTF-8 text (fixture-oriented bridge). */
+FREEUSD_C_API int freeusd_read_usdc_usda_section_from_path_utf8(const char* path_utf8, uint64_t max_text_bytes,
+                                                              char** out_text_utf8);
 
 /**
  * Last error message for the calling thread, valid until the next FreeUSD C API

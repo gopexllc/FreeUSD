@@ -652,6 +652,19 @@ int freeusd_read_usdc_typed_values_table_from_path_utf8(const char* path_utf8, u
         std::memcpy(values[i].int32_array, src.int32_array.data(),
                     values[i].int32_array_count * sizeof(int32_t));
       }
+      values[i].float_array_count = src.float_array.size();
+      values[i].float_array = nullptr;
+      if (!src.float_array.empty()) {
+        values[i].float_array =
+            static_cast<float*>(std::malloc(values[i].float_array_count * sizeof(float)));
+        if (!values[i].float_array) {
+          freeusd_usdc_typed_values_free(values, i);
+          set_error("out of memory");
+          return FREEUSD_ERR_INTERNAL;
+        }
+        std::memcpy(values[i].float_array, src.float_array.data(),
+                    values[i].float_array_count * sizeof(float));
+      }
       if (values[i].byte_count == 0u) {
         values[i].bytes = nullptr;
         continue;
@@ -675,6 +688,40 @@ int freeusd_read_usdc_typed_values_table_from_path_utf8(const char* path_utf8, u
   }
 }
 
+
+int freeusd_read_usdc_usda_section_from_path_utf8(const char* path_utf8, uint64_t max_text_bytes,
+                                                    char** out_text_utf8) {
+  if (!out_text_utf8) {
+    set_error("out_text_utf8 is null");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_text_utf8 = nullptr;
+  try {
+    clear_error();
+    if (!path_utf8) {
+      set_error("path is null");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    std::string text;
+    if (!freeusd::usd::crate::ReadUsdCrateUsdaSectionFromPath(std::string{path_utf8}, text,
+                                                              static_cast<std::size_t>(max_text_bytes), &g_last_error)) {
+      return FREEUSD_ERR_PARSE;
+    }
+    *out_text_utf8 = dup_cstr(text);
+    if (!*out_text_utf8) {
+      set_error("out of memory");
+      return FREEUSD_ERR_INTERNAL;
+    }
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown error");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
 void freeusd_usdc_typed_values_free(FreeusdUsdcTypedValue* values, size_t count) {
   if (!values) {
     return;
@@ -683,6 +730,7 @@ void freeusd_usdc_typed_values_free(FreeusdUsdcTypedValue* values, size_t count)
     std::free(values[i].bytes);
     std::free(values[i].string_utf8);
     std::free(values[i].int32_array);
+    std::free(values[i].float_array);
   }
   std::free(values);
 }

@@ -7,6 +7,8 @@
 #include <limits>
 #include <vector>
 
+#include <zlib.h>
+
 namespace freeusd::usd::crate {
 
 namespace {
@@ -294,6 +296,35 @@ bool readFieldSetsTableSection(const std::string& path, std::vector<UsdcCrateFie
   return true;
 }
 
+
+bool try_unwrap_fixture_zlib_payload(std::vector<std::uint8_t>* bytes, std::string* err_out) {
+  if (!bytes || bytes->size() < 16u) {
+    return true;
+  }
+  static constexpr char kMagic[] = {'F', 'U', 'S', 'D', 'Z', 'C', ''};
+  if (bytes->size() < sizeof(kMagic) + 8u || !std::equal(std::begin(kMagic), std::end(kMagic), bytes->begin())) {
+    return true;
+  }
+  const std::uint64_t expected = readLeU64(bytes->data() + sizeof(kMagic));
+  if (expected == 0u || expected > 64u * 1024u * 1024u) {
+    set_detail(err_out, "USDC fixture zlib uncompressed size out of range");
+    return false;
+  }
+  const std::size_t compressed_offset = sizeof(kMagic) + 8u;
+  const std::size_t compressed_size = bytes->size() - compressed_offset;
+  std::vector<std::uint8_t> out(static_cast<std::size_t>(expected));
+  uLongf dest_len = static_cast<uLongf>(out.size());
+  const int rc = uncompress(out.data(), &dest_len, bytes->data() + compressed_offset,
+                            static_cast<uLong>(compressed_size));
+  if (rc != Z_OK || dest_len != expected) {
+    set_detail(err_out, "USDC fixture zlib decompress failed");
+    return false;
+  }
+  out.resize(static_cast<std::size_t>(dest_len));
+  *bytes = std::move(out);
+  return true;
+}
+
 }  // namespace
 
 bool ReadUsdCrateBootstrapFromPath(const std::string& path, UsdcCrateBootstrap& out, std::string* err_out) {
@@ -491,7 +522,7 @@ bool ReadUsdCrateSectionBytesFromPath(const std::string& path, std::string_view 
     set_detail(err_out, "short read on USDC section payload");
     return false;
   }
-  return true;
+  return try_unwrap_fixture_zlib_payload(&out_bytes, err_out);
 }
 
 bool ReadUsdCrateUsdaSectionFromPath(const std::string& path, std::string& out_text, std::size_t max_text_bytes,
@@ -670,6 +701,26 @@ bool parse_typed_value_payload(UsdcCrateTypedValueKind kind, const std::vector<s
       }
       return true;
     }
+    case UsdcCrateTypedValueKind::FloatArray: {
+      if (bytes.size() < 8u) {
+        set_detail(err_out, "USDC typed FloatArray payload too small for count");
+        return false;
+      }
+      const std::uint64_t count = readLeU64(bytes.data());
+      const std::size_t expected = 8u + static_cast<std::size_t>(count) * 4u;
+      if (bytes.size() != expected) {
+        set_detail(err_out, "USDC typed FloatArray payload size mismatch");
+        return false;
+      }
+      out->float_array.clear();
+      out->float_array.reserve(static_cast<std::size_t>(count));
+      for (std::uint64_t i = 0; i < count; ++i) {
+        float v = 0.0f;
+        std::memcpy(&v, bytes.data() + 8u + i * 4u, 4u);
+        out->float_array.push_back(v);
+      }
+      return true;
+    }
   }
   set_detail(err_out, "USDC typed value kind out of range");
   return false;
@@ -716,7 +767,7 @@ bool ReadUsdCrateTypedValuesTableFromPath(const std::string& path, UsdcCrateType
     const std::vector<std::uint8_t> payload(section.begin() + static_cast<std::ptrdiff_t>(cursor),
                                             section.begin() + static_cast<std::ptrdiff_t>(cursor + len));
     cursor += static_cast<std::size_t>(len);
-    if (kind_raw > static_cast<std::uint64_t>(UsdcCrateTypedValueKind::Int32Array)) {
+    if (kind_raw > static_cast<std::uint64_t>(UsdcCrateTypedValueKind::FloatArray)) {
       set_detail(err_out, "USDC VALUES typed kind out of range");
       return false;
     }

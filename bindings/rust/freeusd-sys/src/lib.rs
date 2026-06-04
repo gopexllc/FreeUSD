@@ -99,6 +99,8 @@ pub struct FreeusdUsdcTypedValue {
     pub vec3d_value: [f64; 3],
     pub int32_array: *mut i32,
     pub int32_array_count: usize,
+    pub float_array: *mut f32,
+    pub float_array_count: usize,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -116,6 +118,7 @@ pub struct UsdcTypedValue {
     pub string_index: u64,
     pub vec3d_value: [f64; 3],
     pub int32_array: Vec<i32>,
+    pub float_array: Vec<f32>,
 }
 
 #[repr(C)]

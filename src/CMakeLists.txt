@@ -53,10 +53,14 @@ add_library(freeusd::pcp ALIAS freeusd_pcp)
 target_include_directories(freeusd_pcp PUBLIC "$<BUILD_INTERFACE:${FREEUSD_INC}>" "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
 target_link_libraries(freeusd_pcp PUBLIC freeusd_sdf freeusd_build_settings)
 
+find_package(ZLIB REQUIRED)
+
 add_library(freeusd_usd STATIC usd/stage.cpp usd/prim.cpp usd/crateFile.cpp)
 add_library(freeusd::usd ALIAS freeusd_usd)
 target_include_directories(freeusd_usd PUBLIC "$<BUILD_INTERFACE:${FREEUSD_INC}>" "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
 target_link_libraries(freeusd_usd PUBLIC freeusd_sdf freeusd_vt freeusd_pcp freeusd_ar freeusd_io freeusd_build_settings)
+target_include_directories(freeusd_usd PRIVATE ${ZLIB_INCLUDE_DIRS})
+target_link_libraries(freeusd_usd PRIVATE ${ZLIB_LIBRARIES})
 
 add_library(freeusd_usdUtils STATIC usdUtils/pipeline.cpp usdUtils/engineScene.cpp)
 add_library(freeusd::usdUtils ALIAS freeusd_usdUtils)

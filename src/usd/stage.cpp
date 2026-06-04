@@ -1256,7 +1256,14 @@ bool Stage::GetComposedPrimVariantSelection(const freeusd::sdf::Path& prim_path,
       return L->GetPrimVariantSelectionEntry(authored, variantSet, outName);
     }
   }
-  return false;
+  std::string tmp;
+  const bool found = visit_composition_arc_prim_paths(*this, compose_, authored, [&](const Stage& stage, const freeusd::sdf::Path& p) {
+    return stage.GetComposedPrimVariantSelection(p, variantSet, &tmp);
+  });
+  if (found) {
+    *outName = std::move(tmp);
+  }
+  return found;
 }
 
 bool Stage::PrimVariantSelectionSetInAnyLayer(const freeusd::sdf::Path& prim_path,
@@ -1273,7 +1280,9 @@ bool Stage::PrimVariantSelectionSetInAnyLayer(const freeusd::sdf::Path& prim_pat
       return true;
     }
   }
-  return false;
+  return visit_composition_arc_prim_paths(*this, compose_, authored, [&](const Stage& stage, const freeusd::sdf::Path& p) {
+    return stage.PrimVariantSelectionSetInAnyLayer(p, variantSet);
+  });
 }
 
 std::vector<std::string> Stage::ListComposedPrimVariantSelectionSets(const freeusd::sdf::Path& prim_path) const {
@@ -1290,6 +1299,12 @@ std::vector<std::string> Stage::ListComposedPrimVariantSelectionSets(const freeu
       keys.insert(k);
     }
   }
+  visit_composition_arc_prim_paths(*this, compose_, authored, [&](const Stage& stage, const freeusd::sdf::Path& p) {
+    for (const std::string& k : stage.ListComposedPrimVariantSelectionSets(p)) {
+      keys.insert(k);
+    }
+    return false;
+  });
   return std::vector<std::string>(keys.begin(), keys.end());
 }
 

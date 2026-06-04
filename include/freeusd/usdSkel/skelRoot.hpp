@@ -30,6 +30,9 @@ struct FREEUSD_API SkelRoot {
   /// First descendant ``Skeleton`` prim (depth-first).
   std::optional<freeusd::sdf::Path> FindSkeletonPath() const;
 
+  /// Descendant prims with a resolved ``skel:skeleton`` binding (depth-first).
+  std::vector<freeusd::sdf::Path> FindBoundGeomPaths() const;
+
   /// ``skel:animationSource`` relationship or token when authored.
   std::optional<freeusd::sdf::Path> GetAnimationSourcePath() const;
 

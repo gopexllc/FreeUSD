@@ -1,9 +1,11 @@
 #include "freeusd/usdSkel/skelRoot.hpp"
 
+#include <functional>
 #include <optional>
 #include <vector>
 
 #include "freeusd/usd/stage.hpp"
+#include "freeusd/usdSkel/skelBinding.hpp"
 #include "freeusd/usdSkel/tokens.hpp"
 
 namespace freeusd::usdSkel {
@@ -56,6 +58,23 @@ SkelRoot SkelRoot::ReadFromPrim(const std::shared_ptr<const freeusd::usd::Stage>
 
 std::optional<freeusd::sdf::Path> SkelRoot::FindSkeletonPath() const {
   return find_skeleton_under(prim);
+}
+
+std::vector<freeusd::sdf::Path> SkelRoot::FindBoundGeomPaths() const {
+  std::vector<freeusd::sdf::Path> out;
+  if (!prim.IsValid()) {
+    return out;
+  }
+  const std::function<void(const freeusd::usd::Prim&)> walk = [&](const freeusd::usd::Prim& node) {
+    if (SkelBinding::ResolveSkeletonPath(node)) {
+      out.push_back(node.GetPath());
+    }
+    for (const freeusd::usd::Prim& child : node.GetChildren()) {
+      walk(child);
+    }
+  };
+  walk(prim);
+  return out;
 }
 
 std::optional<freeusd::sdf::Path> SkelRoot::GetAnimationSourcePath() const {

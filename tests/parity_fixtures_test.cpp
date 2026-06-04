@@ -147,7 +147,7 @@ int main() {
     freeusd::usd::crate::UsdcCrateTypedValuesTable typed_values{};
     assert(freeusd::usd::crate::ReadUsdCrateTypedValuesTableFromPath(fixture("parity_tables.usdc"), typed_values, 16,
                                                                      1024, &err));
-    assert(typed_values.entries.size() == 11u);
+    assert(typed_values.entries.size() == 12u);
     assert(typed_values.entries[0].int32_value == 42);
     assert(typed_values.entries[4].double_value > 3.24 && typed_values.entries[4].double_value < 3.26);
     assert(typed_values.entries[5].int64_value == -9007199254740991LL);
@@ -156,9 +156,13 @@ int main() {
     assert(typed_values.entries[8].string_index == 1u);
     assert(typed_values.entries[9].vec3d_value.data[2] > 5.99);
     assert(typed_values.entries[10].int32_array.size() == 3u);
+    assert(typed_values.entries[11].float_array.size() == 2u);
     assert(freeusd::usd::crate::ReadUsdCrateValuesTableFromPath(fixture("parity_tables.usdc"), values, 16, 1024, &err));
-    assert(values.entries.size() == 11u);
+    assert(values.entries.size() == 12u);
     assert(values.entries[0].bytes.size() == 4u);
+    assert(freeusd::usd::crate::ReadUsdCrateTypedValuesTableFromPath(
+        fixture("parity_tables_zlib.usdc"), typed_values, 16, 1024, &err));
+    assert(typed_values.entries.size() == 12u);
     assert(freeusd::usd::crate::ReadUsdCrateSpecsTableFromPath(fixture("parity_tables.usdc"), specs, 8, 1024, &err));
     assert(specs.entries.size() == 2u);
     assert(specs.entries[0].path_index == 0u && specs.entries[0].field_set_index == 0u &&
@@ -375,6 +379,23 @@ int main() {
 
   {
     std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_variant_selection_refs.usda"),
+                                         freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const Path ref_host = Path::FromString("/World/RefHost");
+    std::string variant;
+    assert(stage->GetComposedPrimVariantSelection(ref_host, "modelVariant", &variant));
+    assert(variant == "B");
+    const auto sets = stage->ListComposedPrimVariantSelectionSets(ref_host);
+    assert(sets.size() == 1u && sets[0] == "modelVariant");
+    freeusd::vt::Value v;
+    assert(stage->ReadFieldAtEvaluatedTime(ref_host, Token("variantValue"), 1.0, &v));
+    double d = 0.0;
+    assert(v.GetDouble(&d) && d == 9.0);
+  }
+
+  {
+    std::string err;
     auto stage = Stage::OpenFromRootFile(fixture("parity_specializes.usda"),
                                          freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
     assert(stage && err.empty());
@@ -477,6 +498,9 @@ int main() {
     assert(freeusd::usdSkel::SkelBinding::ReadJointIndices(body, &indices));
     assert(freeusd::usdSkel::SkelBinding::ReadJointWeights(body, &weights));
     assert(freeusd::usdSkel::SkelBinding::ValidateInfluenceCounts(indices, weights));
+    const auto bound_paths = root.FindBoundGeomPaths();
+    assert(bound_paths.size() == 1u);
+    assert(bound_paths[0] == Path::FromString("/World/SkelCharacter/Body"));
   }
 
   {

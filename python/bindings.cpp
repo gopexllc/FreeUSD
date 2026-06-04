@@ -1614,6 +1614,7 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
               row["vec3d_value"] = py::make_tuple(entry.vec3d_value.data[0], entry.vec3d_value.data[1],
                                                   entry.vec3d_value.data[2]);
               row["int32_array"] = entry.int32_array;
+              row["float_array"] = entry.float_array;
               items.append(row);
             }
             return py::make_tuple(true, items, std::string{});
@@ -3180,6 +3181,7 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def("find_skeleton_path", &freeusd::usdSkel::SkelRoot::FindSkeletonPath)
         .def("get_animation_source_path", &freeusd::usdSkel::SkelRoot::GetAnimationSourcePath)
         .def("get_skeleton", &freeusd::usdSkel::SkelRoot::GetSkeleton)
+        .def("find_bound_geom_paths", &freeusd::usdSkel::SkelRoot::FindBoundGeomPaths)
         .def("get_animation_source", &freeusd::usdSkel::SkelRoot::GetAnimationSource);
 
     py::class_<freeusd::usdSkel::BlendShape>(usdSkel, "BlendShape")

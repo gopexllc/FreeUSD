@@ -118,6 +118,9 @@ def test_parity_skel_binding_fixture_resolves_root_and_primvars() -> None:
     weights = SkelBinding.read_joint_weights(body)
     assert indices is not None and weights is not None
     assert len(indices) == len(weights) == 8
+    bound = root.find_bound_geom_paths()
+    assert len(bound) == 1
+    assert bound[0].text() == "/World/SkelCharacter/Body"
     assert SkelBinding.validate_influence_counts(indices, weights, 4)
     assert indices[0] == 0 and indices[1] == 1
     assert abs(weights[0] - 1.0) < 1e-5
