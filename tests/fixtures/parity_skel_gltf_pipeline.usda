@@ -3,7 +3,7 @@
     defaultPrim = "World"
 )
 
-# glTF-shaped pipeline: SkelRoot + skeleton + animation + skinned mesh + one morph target.
+# glTF-shaped pipeline: SkelRoot + skeleton + animation + skinned mesh + two morph targets.
 # parity_skel_gltf_pipeline.usda
 
 def Xform "World"
@@ -39,12 +39,12 @@ def Xform "World"
             int[] primvars:skel:jointIndices = [1]
             float[] primvars:skel:jointWeights = [1.0]
 
-            token[] skel:blendShapes = ["Smile"]
-            rel skel:blendShapeTargets = </World/Character/BlendShapes/Smile>
-            float[] blendShapeWeights = [0]
+            token[] skel:blendShapes = ["Smile", "Blink"]
+            rel skel:blendShapeTargets = [</World/Character/BlendShapes/Smile>, </World/Character/BlendShapes/Blink>]
+            float[] blendShapeWeights = [0, 0]
             float[] blendShapeWeights.timeSamples = {
-                0: [0],
-                1: [1],
+                0: [0, 0],
+                1: [1, 0.5],
             }
         }
 
@@ -53,6 +53,11 @@ def Xform "World"
             def BlendShape "Smile"
             {
                 point3f[] offsets = [(0, 0.5, 0)]
+            }
+
+            def BlendShape "Blink"
+            {
+                point3f[] offsets = [(0, 0, 0.3)]
             }
         }
     }

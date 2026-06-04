@@ -323,6 +323,21 @@ int main() {
     assert(v.GetDouble(&d) && d == 2.0);
   }
 
+
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_embedded_scene_lz4.usdc"),
+                                         freeusd::usd::RootLayerSublayersPolicy::None, &err);
+    assert(stage && err.empty());
+    assert(stage->HasDefaultPrim());
+    const Path cube = Path::FromString("/World/Cube");
+    assert(stage->PrimPathInUse(cube));
+    freeusd::vt::Value v;
+    assert(stage->ReadFieldAtEvaluatedTime(cube, Token("size"), 1.0, &v));
+    double d = 0.0;
+    assert(v.GetDouble(&d) && d == 2.0);
+  }
+
   {
     std::string err;
     auto stage = Stage::OpenFromRootFile(fixture("parity_custom_data_inherit.usda"),

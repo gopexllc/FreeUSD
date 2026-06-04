@@ -59,10 +59,14 @@ int main() {
 
   MorphTargets morphs = MorphTargets::ReadFromGeomPrim(body);
   assert(morphs);
+  const auto tokens = morphs.GetBlendShapeTokens();
+  assert(tokens.size() == 2u);
+  assert(tokens[0] == "Smile" && tokens[1] == "Blink");
+
   std::vector<freeusd::gf::Vec3f> morphed{};
   assert(morphs.EvaluatePoints(&morphed, 1.0));
   assert(morphed.size() == 1u);
-  assert(near(morphed[0].z(), 0.5f));
+  assert(near(morphed[0].z(), 0.65f));
 
   std::vector<int> indices{};
   std::vector<float> weights{};
