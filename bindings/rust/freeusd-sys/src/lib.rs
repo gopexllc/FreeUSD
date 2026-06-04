@@ -2408,7 +2408,7 @@ mod tests {
         );
 
         let typed = read_usdc_typed_values_table_from_path(&p.to_string_lossy(), 8, 1024).expect("typed values");
-        assert_eq!(typed.len(), 4);
+        assert_eq!(typed.len(), 7);
         assert_eq!(typed[0].kind, 1);
         assert_eq!(typed[0].int32_value, 42);
         assert_eq!(typed[1].kind, 2);
@@ -2417,9 +2417,15 @@ mod tests {
         assert_eq!(typed[2].token_index, 0);
         assert_eq!(typed[3].kind, 4);
         assert!(typed[3].bool_value);
+        assert_eq!(typed[4].kind, 5);
+        assert!((typed[4].double_value - 3.25f64).abs() < 1e-12);
+        assert_eq!(typed[5].kind, 6);
+        assert_eq!(typed[5].int64_value, -9007199254740991);
+        assert_eq!(typed[6].kind, 7);
+        assert_eq!(typed[6].string_utf8, "parity");
 
         let values = read_usdc_values_table_from_path(&p.to_string_lossy(), 8, 1024).expect("values table");
-        assert_eq!(values.len(), 4);
+        assert_eq!(values.len(), 7);
         assert_eq!(values[0].bytes.len(), 4);
     }
 

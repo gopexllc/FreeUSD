@@ -1,3 +1,4 @@
+
 #pragma once
 
 #include <cstdint>
@@ -152,6 +153,9 @@ enum class UsdcCrateTypedValueKind : std::uint64_t {
   Float = 2,
   TokenIndex = 3,
   Bool = 4,
+  Double = 5,
+  Int64 = 6,
+  StringUtf8 = 7,
 };
 
 /// One decoded typed value from the fixture ``VALUES`` table.
@@ -162,6 +166,9 @@ struct UsdcCrateTypedValue {
   float float_value{0.0f};
   std::uint64_t token_index{0};
   bool bool_value{false};
+  double double_value{0.0};
+  std::int64_t int64_value{0};
+  std::string string_utf8;
 };
 
 struct UsdcCrateTypedValuesTable {

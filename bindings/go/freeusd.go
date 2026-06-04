@@ -306,12 +306,15 @@ type UsdcValueBlob struct {
 
 // UsdcTypedValue is one typed entry from the validated VALUES table (fixture-oriented kinds).
 type UsdcTypedValue struct {
-	Kind        uint64
-	Bytes       []byte
-	Int32Value  int32
-	FloatValue  float32
-	TokenIndex  uint64
-	BoolValue   bool
+	Kind         uint64
+	Bytes        []byte
+	Int32Value   int32
+	FloatValue   float32
+	TokenIndex   uint64
+	BoolValue    bool
+	DoubleValue  float64
+	Int64Value   int64
+	StringUtf8   string
 }
 
 // ReadUsdcTypedValuesTableFromPath reads the validated typed VALUES table from a shared crate fixture.
@@ -337,13 +340,20 @@ func ReadUsdcTypedValuesTableFromPath(path string, maxEntries uint64, maxTotalBy
 			slice = make([]byte, n)
 			copy(slice, C.GoBytes(unsafe.Pointer(entry.bytes), C.int(n)))
 		}
+		var stringUtf8 string
+		if entry.string_utf8 != nil {
+			stringUtf8 = C.GoString(entry.string_utf8)
+		}
 		out[i] = UsdcTypedValue{
-			Kind:       uint64(entry.kind),
-			Bytes:      slice,
-			Int32Value: int32(entry.int32_value),
-			FloatValue: float32(entry.float_value),
-			TokenIndex: uint64(entry.token_index),
-			BoolValue:  entry.bool_value != 0,
+			Kind:        uint64(entry.kind),
+			Bytes:       slice,
+			Int32Value:  int32(entry.int32_value),
+			FloatValue:  float32(entry.float_value),
+			TokenIndex:  uint64(entry.token_index),
+			BoolValue:   entry.bool_value != 0,
+			DoubleValue: float64(entry.double_value),
+			Int64Value:  int64(entry.int64_value),
+			StringUtf8:  stringUtf8,
 		}
 	}
 	return out, 0

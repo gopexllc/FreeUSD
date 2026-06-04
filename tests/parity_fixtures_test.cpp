@@ -147,10 +147,16 @@ int main() {
     freeusd::usd::crate::UsdcCrateTypedValuesTable typed_values{};
     assert(freeusd::usd::crate::ReadUsdCrateTypedValuesTableFromPath(fixture("parity_tables.usdc"), typed_values, 8,
                                                                      1024, &err));
-    assert(typed_values.entries.size() == 4u);
+    assert(typed_values.entries.size() == 7u);
     assert(typed_values.entries[0].int32_value == 42);
+    assert(typed_values.entries[4].double_value > 3.24 && typed_values.entries[4].double_value < 3.26);
+    assert(typed_values.entries[5].int64_value == -9007199254740991LL);
+    assert(typed_values.entries[6].string_utf8 == "parity");
+    assert(typed_values.entries[4].double_value > 3.24 && typed_values.entries[4].double_value < 3.26);
+    assert(typed_values.entries[5].int64_value == -9007199254740991LL);
+    assert(typed_values.entries[6].string_utf8 == "parity");
     assert(freeusd::usd::crate::ReadUsdCrateValuesTableFromPath(fixture("parity_tables.usdc"), values, 8, 1024, &err));
-    assert(values.entries.size() == 4u);
+    assert(values.entries.size() == 7u);
     assert(values.entries[0].bytes.size() == 4u);
     assert(freeusd::usd::crate::ReadUsdCrateSpecsTableFromPath(fixture("parity_tables.usdc"), specs, 8, 1024, &err));
     assert(specs.entries.size() == 2u);

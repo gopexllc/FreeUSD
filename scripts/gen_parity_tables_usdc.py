@@ -53,6 +53,9 @@ VALUE_KIND_INT32 = 1
 VALUE_KIND_FLOAT = 2
 VALUE_KIND_TOKEN_INDEX = 3
 VALUE_KIND_BOOL = 4
+VALUE_KIND_DOUBLE = 5
+VALUE_KIND_INT64 = 6
+VALUE_KIND_STRING_UTF8 = 7
 
 
 def typed_values_table_payload(entries: list[tuple[int, bytes]]) -> bytes:
@@ -89,6 +92,9 @@ def build_crate() -> bytes:
                     (VALUE_KIND_FLOAT, struct.pack("<f", 1.5)),
                     (VALUE_KIND_TOKEN_INDEX, le_u64(0)),
                     (VALUE_KIND_BOOL, b"\x01"),
+                    (VALUE_KIND_DOUBLE, struct.pack("<d", 3.25)),
+                    (VALUE_KIND_INT64, struct.pack("<q", -9007199254740991)),
+                    (VALUE_KIND_STRING_UTF8, b"parity"),
                 ]
             ),
         ),
