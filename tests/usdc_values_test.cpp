@@ -48,6 +48,11 @@ int main() {
     assert(std::fabs(typed.entries[7].vec3f_value.data[2] - 3.0f) < 1e-5f);
     assert(typed.entries[8].kind == UsdcCrateTypedValueKind::StringIndex);
     assert(typed.entries[8].string_index == 1u);
+
+    freeusd::usd::crate::UsdcCrateStringTable strings{};
+    assert(freeusd::usd::crate::ReadUsdCrateStringTableFromPath(fixture("parity_tables.usdc"), strings, 16, 1024, &err));
+    assert(strings.values.size() >= 2u);
+    assert(strings.values[typed.entries[8].string_index] == "world");
   }
 
   {
