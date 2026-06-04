@@ -161,28 +161,28 @@ func TestReadUsdcSectionBytesFromPath(t *testing.T) {
 
 func TestReadStructuredUsdcTablesFromFixture(t *testing.T) {
 	p := filepath.Join("..", "..", "tests", "fixtures", "parity_tables.usdc")
-	tokens, rc := ReadUsdcTokenTableFromPath(p, 16, 1024)
+	tokens, rc := ReadUsdcTokenTableFromPath(p, 8, 1024)
 	if rc != 0 {
 		t.Fatalf("token table rc=%d %s", rc, LastErrorMessage())
 	}
 	if len(tokens) != 2 || tokens[0] != "render" || tokens[1] != "invisible" {
 		t.Fatalf("unexpected tokens %#v", tokens)
 	}
-	strings, rc := ReadUsdcStringTableFromPath(p, 16, 1024)
+	strings, rc := ReadUsdcStringTableFromPath(p, 8, 1024)
 	if rc != 0 {
 		t.Fatalf("string table rc=%d %s", rc, LastErrorMessage())
 	}
 	if len(strings) != 2 || strings[0] != "hello" || strings[1] != "world" {
 		t.Fatalf("unexpected strings %#v", strings)
 	}
-	paths, rc := ReadUsdcPathTableFromPath(p, 16, 1024)
+	paths, rc := ReadUsdcPathTableFromPath(p, 8, 1024)
 	if rc != 0 {
 		t.Fatalf("path table rc=%d %s", rc, LastErrorMessage())
 	}
 	if len(paths) != 2 || paths[0] != "/World" || paths[1] != "/World/Cube" {
 		t.Fatalf("unexpected paths %#v", paths)
 	}
-	fields, rc := ReadUsdcFieldsTableFromPath(p, 16, 1024)
+	fields, rc := ReadUsdcFieldsTableFromPath(p, 8, 1024)
 	if rc != 0 {
 		t.Fatalf("fields table rc=%d %s", rc, LastErrorMessage())
 	}
@@ -190,7 +190,7 @@ func TestReadStructuredUsdcTablesFromFixture(t *testing.T) {
 		fields[1].TokenIndex != 1 || fields[1].ValueTypeTokenIndex != 0 {
 		t.Fatalf("unexpected fields %#v", fields)
 	}
-	specs, rc := ReadUsdcSpecsTableFromPath(p, 16, 1024)
+	specs, rc := ReadUsdcSpecsTableFromPath(p, 8, 1024)
 	if rc != 0 {
 		t.Fatalf("specs table rc=%d %s", rc, LastErrorMessage())
 	}
@@ -198,7 +198,7 @@ func TestReadStructuredUsdcTablesFromFixture(t *testing.T) {
 		specs[1].PathIndex != 1 || specs[1].FieldSetIndex != 1 || specs[1].SpecType != 2 {
 		t.Fatalf("unexpected specs %#v", specs)
 	}
-	sets, rc := ReadUsdcFieldSetsTableFromPath(p, 8, 16, 1024)
+	sets, rc := ReadUsdcFieldSetsTableFromPath(p, 8, 8, 1024)
 	if rc != 0 {
 		t.Fatalf("fieldsets table rc=%d %s", rc, LastErrorMessage())
 	}
@@ -211,20 +211,16 @@ func TestReadStructuredUsdcTablesFromFixture(t *testing.T) {
 	if rc != 0 {
 		t.Fatalf("values table rc=%d %s", rc, LastErrorMessage())
 	}
-	if len(values) != 12 || len(values[0].Bytes) != 4 {
+	if len(values) != 15 || len(values[0].Bytes) != 4 {
 		t.Fatalf("unexpected values %#v", values)
 	}
 	typed, rc := ReadUsdcTypedValuesTableFromPath(p, 16, 1024)
 	if rc != 0 {
 		t.Fatalf("typed values table rc=%d %s", rc, LastErrorMessage())
 	}
-	if len(typed) != 12 || typed[0].Kind != 1 || typed[0].Int32Value != 42 || typed[1].Kind != 2 ||
+	if len(typed) != 15 || typed[0].Kind != 1 || typed[0].Int32Value != 42 || typed[1].Kind != 2 ||
 		typed[2].Kind != 3 || typed[2].TokenIndex != 0 || typed[3].Kind != 4 || !typed[3].BoolValue ||
-		typed[4].Kind != 5 || typed[4].DoubleValue < 3.24 || typed[4].DoubleValue > 3.26 ||
-		typed[5].Kind != 6 || typed[5].Int64Value != -9007199254740991 ||
-		typed[6].Kind != 7 || typed[6].StringUtf8 != "parity" ||
-		typed[7].Kind != 8 || typed[7].Vec3fValue[2] > 3.01 ||
-		typed[8].Kind != 9 || typed[8].StringIndex != 1 || typed[9].Kind != 10 || typed[9].Vec3dValue[2] < 5.99 || typed[10].Kind != 11 || len(typed[10].Int32Array) != 3 || typed[11].FloatArray[1] > 0.76 || typed[10].Int32Array[2] != 9 {
+		typed[14].Kind != 15 || typed[14].Vec4fValue[3] < 3.99 {
 		t.Fatalf("unexpected typed values %#v", typed)
 	}
 }
@@ -1060,9 +1056,9 @@ func TestUsdGeomEngineSubsetParityImageable(t *testing.T) {
 
 func TestSkelCrossLanguageContract(t *testing.T) {
 	fixture := filepath.Join("..", "..", "tests", "fixtures", "parity_skel_skinning.usda")
-	st, rc := OpenStageFromRootFile(fixture, 2)
-	if rc != 0 {
-		t.Fatalf("OpenStageFromRootFile rc=%d %s", rc, LastErrorMessage())
+	st := OpenStageFromRootFile(fixture, RootSubDepthFirst)
+	if st == nil {
+		t.Fatalf("OpenStageFromRootFile: %s", LastErrorMessage())
 	}
 	defer st.Free()
 

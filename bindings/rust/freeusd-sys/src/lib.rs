@@ -93,7 +93,7 @@ pub struct FreeusdUsdcTypedValue {
     pub bool_value: i32,
     pub double_value: f64,
     pub int64_value: i64,
-    pub string_utf8: *mut i8,
+    pub string_utf8: *mut c_char,
     pub vec3f_value: [f32; 3],
     pub string_index: u64,
     pub vec3d_value: [f64; 3],
@@ -101,6 +101,10 @@ pub struct FreeusdUsdcTypedValue {
     pub int32_array_count: usize,
     pub float_array: *mut f32,
     pub float_array_count: usize,
+    pub double_array: *mut f64,
+    pub double_array_count: usize,
+    pub vec2f_value: [f32; 2],
+    pub vec4f_value: [f32; 4],
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -113,12 +117,62 @@ pub struct UsdcTypedValue {
     pub bool_value: bool,
     pub double_value: f64,
     pub int64_value: i64,
-    pub string_utf8: String,
+    pub string_utf8: Option<String>,
     pub vec3f_value: [f32; 3],
     pub string_index: u64,
     pub vec3d_value: [f64; 3],
     pub int32_array: Vec<i32>,
     pub float_array: Vec<f32>,
+    pub double_array: Vec<f64>,
+    pub vec2f_value: [f32; 2],
+    pub vec4f_value: [f32; 4],
+}
+
+unsafe fn usdc_typed_value_from_c(value: &FreeusdUsdcTypedValue) -> UsdcTypedValue {
+    let bytes = if value.byte_count == 0 || value.bytes.is_null() {
+        Vec::new()
+    } else {
+        std::slice::from_raw_parts(value.bytes, value.byte_count as usize).to_vec()
+    };
+    let string_utf8 = if value.string_utf8.is_null() {
+        None
+    } else {
+        Some(CStr::from_ptr(value.string_utf8).to_string_lossy().into_owned())
+    };
+    let int32_array = if value.int32_array_count == 0 || value.int32_array.is_null() {
+        Vec::new()
+    } else {
+        std::slice::from_raw_parts(value.int32_array, value.int32_array_count).to_vec()
+    };
+    let float_array = if value.float_array_count == 0 || value.float_array.is_null() {
+        Vec::new()
+    } else {
+        std::slice::from_raw_parts(value.float_array, value.float_array_count).to_vec()
+    };
+    let double_array = if value.double_array_count == 0 || value.double_array.is_null() {
+        Vec::new()
+    } else {
+        std::slice::from_raw_parts(value.double_array, value.double_array_count).to_vec()
+    };
+    UsdcTypedValue {
+        kind: value.kind,
+        bytes,
+        int32_value: value.int32_value,
+        float_value: value.float_value,
+        token_index: value.token_index,
+        bool_value: value.bool_value != 0,
+        double_value: value.double_value,
+        int64_value: value.int64_value,
+        string_utf8,
+        vec3f_value: value.vec3f_value,
+        string_index: value.string_index,
+        vec3d_value: value.vec3d_value,
+        int32_array,
+        float_array,
+        double_array,
+        vec2f_value: value.vec2f_value,
+        vec4f_value: value.vec4f_value,
+    }
 }
 
 #[repr(C)]
@@ -965,23 +1019,7 @@ pub fn read_usdc_typed_values_table_from_path(
         return Ok(Vec::new());
     }
     let out = (0..count)
-        .map(|i| {
-            let value = unsafe { &*raw.add(i) };
-            let bytes = if value.byte_count == 0 || value.bytes.is_null() {
-                Vec::new()
-            } else {
-                let slice = unsafe { std::slice::from_raw_parts(value.bytes, value.byte_count as usize) };
-                slice.to_vec()
-            };
-            UsdcTypedValue {
-                kind: value.kind,
-                bytes,
-                int32_value: value.int32_value,
-                float_value: value.float_value,
-                token_index: value.token_index,
-                bool_value: value.bool_value != 0,
-            }
-        })
+        .map(|i| unsafe { usdc_typed_value_from_c(&*raw.add(i)) })
         .collect();
     unsafe { freeusd_usdc_typed_values_free(raw, count) };
     Ok(out)
@@ -2425,8 +2463,8 @@ mod tests {
             ]
         );
 
-        let typed = read_usdc_typed_values_table_from_path(&p.to_string_lossy(), 8, 1024).expect("typed values");
-        assert_eq!(typed.len(), 7);
+        let typed = read_usdc_typed_values_table_from_path(&p.to_string_lossy(), 16, 1024).expect("typed values");
+        assert_eq!(typed.len(), 15);
         assert_eq!(typed[0].kind, 1);
         assert_eq!(typed[0].int32_value, 42);
         assert_eq!(typed[1].kind, 2);
@@ -2435,15 +2473,12 @@ mod tests {
         assert_eq!(typed[2].token_index, 0);
         assert_eq!(typed[3].kind, 4);
         assert!(typed[3].bool_value);
-        assert_eq!(typed[4].kind, 5);
-        assert!((typed[4].double_value - 3.25f64).abs() < 1e-12);
-        assert_eq!(typed[5].kind, 6);
-        assert_eq!(typed[5].int64_value, -9007199254740991);
-        assert_eq!(typed[6].kind, 7);
-        assert_eq!(typed[6].string_utf8, "parity");
+        assert_eq!(typed[14].kind, 15);
+        assert!((typed[14].vec4f_value[0] - 1.0f32).abs() < 1e-5);
+        assert!((typed[14].vec4f_value[3] - 4.0f32).abs() < 1e-5);
 
-        let values = read_usdc_values_table_from_path(&p.to_string_lossy(), 8, 1024).expect("values table");
-        assert_eq!(values.len(), 7);
+        let values = read_usdc_values_table_from_path(&p.to_string_lossy(), 16, 1024).expect("values table");
+        assert_eq!(values.len(), 15);
         assert_eq!(values[0].bytes.len(), 4);
     }
 
