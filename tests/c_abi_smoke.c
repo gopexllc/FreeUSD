@@ -349,7 +349,7 @@ int main(void) {
       fprintf(stderr, "read values table failed: %s\n", freeusd_last_error_message());
       return 1;
     }
-    if (!value_blobs || count != 14u || value_blobs[0].byte_count != 4u) {
+    if (!value_blobs || count != 15u || value_blobs[0].byte_count != 4u) {
       fprintf(stderr, "unexpected values table\n");
       freeusd_usdc_values_blobs_free(value_blobs, count);
       return 1;
@@ -362,7 +362,7 @@ int main(void) {
       fprintf(stderr, "read typed values table failed: %s\n", freeusd_last_error_message());
       return 1;
     }
-    if (!typed_values || count != 14u || typed_values[0].kind != FREEUSD_USDC_VALUE_INT32 ||
+    if (!typed_values || count != 15u || typed_values[0].kind != FREEUSD_USDC_VALUE_INT32 ||
         typed_values[0].int32_value != 42 || typed_values[1].kind != FREEUSD_USDC_VALUE_FLOAT ||
         typed_values[2].kind != FREEUSD_USDC_VALUE_TOKEN_INDEX || typed_values[2].token_index != 0u ||
         typed_values[3].kind != FREEUSD_USDC_VALUE_BOOL || !typed_values[3].bool_value ||
@@ -378,7 +378,11 @@ int main(void) {
         typed_values[10].int32_array_count != 3u || typed_values[10].int32_array[0] != 7 ||
         typed_values[10].int32_array[2] != 9 ||
         typed_values[11].kind != FREEUSD_USDC_VALUE_FLOAT_ARRAY || typed_values[11].float_array_count != 2u ||
-        typed_values[11].float_array[0] < 0.24f || typed_values[11].float_array[1] > 0.76f) {
+        typed_values[11].float_array[0] < 0.24f || typed_values[11].float_array[1] > 0.76f ||
+        typed_values[12].kind != FREEUSD_USDC_VALUE_DOUBLE_ARRAY || typed_values[12].double_array_count != 2u ||
+        typed_values[13].kind != FREEUSD_USDC_VALUE_VEC2F || typed_values[13].vec2f_value[0] < 0.49f ||
+        typed_values[14].kind != FREEUSD_USDC_VALUE_VEC4F || typed_values[14].vec4f_value[0] < 0.99f ||
+        typed_values[14].vec4f_value[3] > 4.01f) {
       fprintf(stderr, "unexpected typed values table\n");
       freeusd_usdc_typed_values_free(typed_values, count);
       return 1;
@@ -401,6 +405,23 @@ int main(void) {
       return 1;
     }
     free(usda_text);
+  }
+
+  {
+    char embedded_lz4_path[512];
+    if (snprintf(embedded_lz4_path, sizeof embedded_lz4_path, "%s/parity_embedded_scene_lz4.usdc",
+                 FREEUSD_TEST_FIXTURES_DIR) >= (int)sizeof embedded_lz4_path) {
+      fprintf(stderr, "embedded lz4 path too long\n");
+      return 1;
+    }
+    char* usda_lz4 = NULL;
+    if (freeusd_read_usdc_usda_section_from_path_utf8(embedded_lz4_path, 1024 * 1024, &usda_lz4) != FREEUSD_OK ||
+        !usda_lz4 || strstr(usda_lz4, "defaultPrim = \"World\"") == NULL) {
+      fprintf(stderr, "read lz4 usda section failed: %s\n", freeusd_last_error_message());
+      free(usda_lz4);
+      return 1;
+    }
+    free(usda_lz4);
   }
 
   FreeusdLayer* layer = freeusd_layer_new_anonymous("c_smoke");
