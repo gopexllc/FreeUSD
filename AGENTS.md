@@ -35,11 +35,10 @@ Module boundaries: [docs/openusd-map.md](docs/openusd-map.md). Repo layout: [doc
 - `c302408` — USDC `SPECS` table decode; `UsdGeom::Mesh` parity helpers.
 - `2942708` — USDC `FIELDSETS`; lux lights; shade textures; mesh primvars.
 - `493ca1b` — continual-learning transcript index for agent memory.
-- `505dce2` — USDC LZ4 fixture (`FUSDZL`); composed `variantSets` through refs; `parity_skel_gltf_pipeline.usda`.
 
-**On main today:** USDA load/save and composition subsets are strong; USDC has bootstrap/TOC plus validated table decode on `parity_tables.usdc` (12 typed `VALUES` kinds including Vec3d, Int32Array, FloatArray), fixture zlib (`parity_tables_zlib.usdc`) and LZ4 block (`parity_tables_lz4.usdc`; see `docs/usdc-fixture-compression.md`). Composition includes composed `variantSelection` and `variantSets` metadata through references, plus `customData` through references/payloads/inherits/specializes. Schema helpers cover mesh, skel (glTF pipeline fixture `parity_skel_gltf_pipeline.usda`: bound mesh, morph, animation LBS), preview materials, lux, physics, and volume families at `partial` depth.
+**On main today:** USDA load/save and composition subsets are strong; USDC has bootstrap/TOC plus validated `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` / `FIELDSETS` / `SPECS` / `VALUES` on `parity_tables.usdc` (fixture typed kinds Int32/Float/TokenIndex/Bool only). Schema helpers cover mesh, skel (glTF-oriented), preview materials, lux, physics (`PhysicsScene`, `RigidBodyAPI`, `CollisionAPI`, `MassAPI`, `FixedJoint`), and volume families at `partial` depth. Composition includes composed `customData` through references/payloads/inherits/specializes and kind/active through specializes.
 
-**USDC `VALUES` next (matrix `planned`):** arbitrary production `.usdc` typed value kinds and TOC-level compression beyond fixture wrappers; full embedded-USDA scene bridge.
+**USDC `VALUES` next (matrix `planned`):** arbitrary production `.usdc` typed value kinds and compression beyond `parity_tables.usdc`.
 
 ## Agent work sequence (every slice)
 
@@ -138,3 +137,10 @@ Follow [docs/compatibility-claims.md](docs/compatibility-claims.md). Never claim
 - C/C++ test targets keep runtime assertions enabled in Release builds so `assert`-based tests are meaningful.
 - Optional cloud agents use `.github/workflows/cursor-agent.yml` with `CURSOR_API_KEY`; they do not replace merge gates.
 - Most non-core schema packages remain token-only until a fixture-backed runtime slice lands.
+
+## Cursor Cloud specific instructions
+
+- Use **GCC** for C++ builds: `export CC=gcc CXX=g++` (Clang against the default libstdc++ can fail on this image).
+- `freeusd_usd` links **zlib** and **liblz4** privately; install `zlib1g-dev` and `liblz4-dev` before CMake configure if linking fails.
+- Regenerate USDC compression fixtures with `scripts/gen_parity_compressed_usdc.py` (zlib) and `scripts/gen_parity_lz4_usdc.py` (needs Python `lz4` in `.venv`); layout is documented in `docs/usdc-fixture-compression.md`.
+- Standard validate loop: `cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DFREEUSD_BUILD_TESTS=ON`, `cmake --build build --parallel`, `ctest --test-dir build --output-on-failure` (or `./scripts/run_ci_locally.sh` when GitHub Actions is billing-blocked).
