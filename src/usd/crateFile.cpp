@@ -756,6 +756,13 @@ bool parse_typed_value_payload(UsdcCrateTypedValueKind kind, const std::vector<s
       }
       return true;
     }
+    case UsdcCrateTypedValueKind::Vec2f:
+      if (bytes.size() != 8u) {
+        set_detail(err_out, "USDC typed Vec2f payload size mismatch");
+        return false;
+      }
+      std::memcpy(out->vec2f_value.data, bytes.data(), 8u);
+      return true;
     case UsdcCrateTypedValueKind::DoubleArray: {
       if (bytes.size() < 8u) {
         set_detail(err_out, "USDC typed DoubleArray payload too small for count");
@@ -822,7 +829,7 @@ bool ReadUsdCrateTypedValuesTableFromPath(const std::string& path, UsdcCrateType
     const std::vector<std::uint8_t> payload(section.begin() + static_cast<std::ptrdiff_t>(cursor),
                                             section.begin() + static_cast<std::ptrdiff_t>(cursor + len));
     cursor += static_cast<std::size_t>(len);
-    if (kind_raw > static_cast<std::uint64_t>(UsdcCrateTypedValueKind::DoubleArray)) {
+    if (kind_raw > static_cast<std::uint64_t>(UsdcCrateTypedValueKind::Vec2f)) {
       set_detail(err_out, "USDC VALUES typed kind out of range");
       return false;
     }

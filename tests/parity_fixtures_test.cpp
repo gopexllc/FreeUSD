@@ -147,7 +147,7 @@ int main() {
     freeusd::usd::crate::UsdcCrateTypedValuesTable typed_values{};
     assert(freeusd::usd::crate::ReadUsdCrateTypedValuesTableFromPath(fixture("parity_tables.usdc"), typed_values, 16,
                                                                      1024, &err));
-    assert(typed_values.entries.size() == 13u);
+    assert(typed_values.entries.size() == 14u);
     assert(typed_values.entries[0].int32_value == 42);
     assert(typed_values.entries[4].double_value > 3.24 && typed_values.entries[4].double_value < 3.26);
     assert(typed_values.entries[5].int64_value == -9007199254740991LL);
@@ -158,16 +158,17 @@ int main() {
     assert(typed_values.entries[10].int32_array.size() == 3u);
     assert(typed_values.entries[11].float_array.size() == 2u);
     assert(freeusd::usd::crate::ReadUsdCrateValuesTableFromPath(fixture("parity_tables.usdc"), values, 16, 1024, &err));
-    assert(values.entries.size() == 13u);
+    assert(values.entries.size() == 14u);
     assert(values.entries[0].bytes.size() == 4u);
     assert(freeusd::usd::crate::ReadUsdCrateTypedValuesTableFromPath(
         fixture("parity_tables_zlib.usdc"), typed_values, 16, 1024, &err));
-    assert(typed_values.entries.size() == 13u);
+    assert(typed_values.entries.size() == 14u);
     assert(freeusd::usd::crate::ReadUsdCrateTypedValuesTableFromPath(
         fixture("parity_tables_lz4.usdc"), typed_values, 16, 1024, &err));
-    assert(typed_values.entries.size() == 13u);
+    assert(typed_values.entries.size() == 14u);
     assert(typed_values.entries[11].float_array.size() == 2u);
     assert(typed_values.entries[12].double_array.size() == 2u);
+    assert(typed_values.entries[13].vec2f_value.data[0] > 0.49f && typed_values.entries[13].vec2f_value.data[1] > 1.24f);
     assert(typed_values.entries[12].double_array[0] > 0.99 && typed_values.entries[12].double_array[1] > 1.99);
     assert(freeusd::usd::crate::ReadUsdCrateSpecsTableFromPath(fixture("parity_tables.usdc"), specs, 8, 1024, &err));
     assert(specs.entries.size() == 2u);

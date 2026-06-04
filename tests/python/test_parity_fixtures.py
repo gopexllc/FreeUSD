@@ -98,15 +98,16 @@ def test_parity_tables_fixture_decodes_structured_usdc_tables() -> None:
     assert typed[1]["kind"] == 2 and abs(typed[1]["float_value"] - 1.5) < 1e-5
     assert typed[2]["kind"] == 3 and typed[2]["token_index"] == 0
     assert typed[3]["kind"] == 4 and typed[3]["bool_value"] is True
-    assert len(typed) == 13
+    assert len(typed) == 14
     assert typed[9]["kind"] == 10 and abs(typed[9]["vec3d_value"][2] - 6.0) < 1e-9
     assert typed[10]["kind"] == 11 and typed[10]["int32_array"] == [7, 8, 9]
     assert typed[11]["kind"] == 12 and typed[11]["float_array"] == [0.25, 0.75]
     assert typed[12]["kind"] == 13 and typed[12]["double_array"] == [1.0, 2.0]
+    assert typed[13]["kind"] == 14 and typed[13]["vec2f_value"] == (0.5, 1.25)
 
     ok, values, err = read_usdc_values_table_from_path(usdc, 16, 1024)
     assert ok and err == ""
-    assert len(values) == 13
+    assert len(values) == 14
 
 
 def test_parity_geom_mesh_fixture_reads_points() -> None:

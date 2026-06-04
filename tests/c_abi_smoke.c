@@ -349,7 +349,7 @@ int main(void) {
       fprintf(stderr, "read values table failed: %s\n", freeusd_last_error_message());
       return 1;
     }
-    if (!value_blobs || count != 13u || value_blobs[0].byte_count != 4u) {
+    if (!value_blobs || count != 14u || value_blobs[0].byte_count != 4u) {
       fprintf(stderr, "unexpected values table\n");
       freeusd_usdc_values_blobs_free(value_blobs, count);
       return 1;
@@ -362,7 +362,7 @@ int main(void) {
       fprintf(stderr, "read typed values table failed: %s\n", freeusd_last_error_message());
       return 1;
     }
-    if (!typed_values || count != 13u || typed_values[0].kind != FREEUSD_USDC_VALUE_INT32 ||
+    if (!typed_values || count != 14u || typed_values[0].kind != FREEUSD_USDC_VALUE_INT32 ||
         typed_values[0].int32_value != 42 || typed_values[1].kind != FREEUSD_USDC_VALUE_FLOAT ||
         typed_values[2].kind != FREEUSD_USDC_VALUE_TOKEN_INDEX || typed_values[2].token_index != 0u ||
         typed_values[3].kind != FREEUSD_USDC_VALUE_BOOL || !typed_values[3].bool_value ||
