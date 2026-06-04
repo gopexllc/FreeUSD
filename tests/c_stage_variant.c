@@ -139,5 +139,60 @@ int main(void) {
 
   freeusd_stage_free(stage);
   freeusd_layer_free(layer);
+
+  char refs_path[4096];
+  if (snprintf(refs_path, sizeof refs_path, "%s/parity_variant_sets_refs.usda", FREEUSD_TEST_FIXTURES_DIR) >=
+      (int)sizeof refs_path) {
+    fprintf(stderr, "refs path buffer\n");
+    return 13;
+  }
+  FreeusdStage* ref_stage = freeusd_stage_open_from_root_file_utf8(refs_path, 2);
+  if (!ref_stage) {
+    fprintf(stderr, "open refs: %s\n", freeusd_last_error_message());
+    return 14;
+  }
+  if (freeusd_stage_prim_variant_set_declared_in_any_layer(ref_stage, "/World/RefHost", "modelVariant") != 1) {
+    fprintf(stderr, "refs: variantSet not declared through reference\n");
+    freeusd_stage_free(ref_stage);
+    return 15;
+  }
+  vsets = NULL;
+  nv = 0;
+  if (freeusd_stage_list_composed_prim_variant_set_names_utf8(ref_stage, "/World/RefHost", &vsets, &nv) != FREEUSD_OK ||
+      nv != 1u || !vsets || strcmp(vsets[0], "modelVariant") != 0) {
+    fprintf(stderr, "refs: list variant set names\n");
+    if (vsets) {
+      freeusd_path_list_free(vsets, nv);
+    }
+    freeusd_stage_free(ref_stage);
+    return 16;
+  }
+  freeusd_path_list_free(vsets, nv);
+  names = NULL;
+  nn = 0;
+  if (freeusd_stage_list_composed_prim_variant_names_utf8(ref_stage, "/World/RefHost", "modelVariant", &names, &nn) !=
+          FREEUSD_OK ||
+      nn != 2u || !names || strcmp(names[0], "A") != 0 || strcmp(names[1], "B") != 0) {
+    fprintf(stderr, "refs: variant names through reference\n");
+    if (names) {
+      freeusd_path_list_free(names, nn);
+    }
+    freeusd_stage_free(ref_stage);
+    return 17;
+  }
+  freeusd_path_list_free(names, nn);
+  sel = NULL;
+  if (freeusd_stage_get_composed_prim_variant_selection_utf8(ref_stage, "/World/RefHost", "modelVariant", &sel) !=
+          FREEUSD_OK ||
+      !sel || strcmp(sel, "B") != 0) {
+    fprintf(stderr, "refs: composed selection\n");
+    if (sel) {
+      freeusd_string_free(sel);
+    }
+    freeusd_stage_free(ref_stage);
+    return 18;
+  }
+  freeusd_string_free(sel);
+  freeusd_stage_free(ref_stage);
   return 0;
 }

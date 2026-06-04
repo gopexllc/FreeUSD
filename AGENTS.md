@@ -37,9 +37,9 @@ Module boundaries: [docs/openusd-map.md](docs/openusd-map.md). Repo layout: [doc
 - `493ca1b` — continual-learning transcript index for agent memory.
 - `505dce2` — USDC LZ4 fixture (`FUSDZL`); composed `variantSets` through refs; `parity_skel_gltf_pipeline.usda`.
 
-**On main today:** USDA load/save and composition subsets are strong; USDC has bootstrap/TOC plus validated `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` / `FIELDSETS` / `SPECS` / `VALUES` on `parity_tables.usdc` (fixture typed kinds Int32/Float/TokenIndex/Bool only). Schema helpers cover mesh, skel (glTF-oriented), preview materials, lux, physics (`PhysicsScene`, `RigidBodyAPI`, `CollisionAPI`, `MassAPI`, `FixedJoint`), and volume families at `partial` depth. Composition includes composed `customData` through references/payloads/inherits/specializes and kind/active through specializes.
+**On main today:** USDA load/save and composition subsets are strong; USDC has bootstrap/TOC plus validated table decode on `parity_tables.usdc` (12 typed `VALUES` kinds including Vec3d, Int32Array, FloatArray), fixture zlib (`parity_tables_zlib.usdc`) and LZ4 block (`parity_tables_lz4.usdc`; see `docs/usdc-fixture-compression.md`). Composition includes composed `variantSelection` and `variantSets` metadata through references, plus `customData` through references/payloads/inherits/specializes. Schema helpers cover mesh, skel (glTF pipeline fixture `parity_skel_gltf_pipeline.usda`: bound mesh, morph, animation LBS), preview materials, lux, physics, and volume families at `partial` depth.
 
-**USDC `VALUES` next (matrix `planned`):** arbitrary production `.usdc` typed value kinds and compression beyond `parity_tables.usdc`.
+**USDC `VALUES` next (matrix `planned`):** arbitrary production `.usdc` typed value kinds and TOC-level compression beyond fixture wrappers; full embedded-USDA scene bridge.
 
 ## Agent work sequence (every slice)
 
