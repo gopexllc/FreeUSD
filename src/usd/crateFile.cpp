@@ -629,6 +629,20 @@ bool parse_typed_value_payload(UsdcCrateTypedValueKind kind, const std::vector<s
     case UsdcCrateTypedValueKind::StringUtf8:
       out->string_utf8.assign(reinterpret_cast<const char*>(bytes.data()), bytes.size());
       return true;
+    case UsdcCrateTypedValueKind::Vec3f:
+      if (bytes.size() != 12u) {
+        set_detail(err_out, "USDC typed Vec3f payload must be 12 bytes");
+        return false;
+      }
+      std::memcpy(out->vec3f_value.data, bytes.data(), 12u);
+      return true;
+    case UsdcCrateTypedValueKind::StringIndex:
+      if (bytes.size() != 8u) {
+        set_detail(err_out, "USDC typed StringIndex payload must be 8 bytes");
+        return false;
+      }
+      out->string_index = readLeU64(bytes.data());
+      return true;
   }
   set_detail(err_out, "USDC typed value kind out of range");
   return false;
@@ -675,7 +689,7 @@ bool ReadUsdCrateTypedValuesTableFromPath(const std::string& path, UsdcCrateType
     const std::vector<std::uint8_t> payload(section.begin() + static_cast<std::ptrdiff_t>(cursor),
                                             section.begin() + static_cast<std::ptrdiff_t>(cursor + len));
     cursor += static_cast<std::size_t>(len);
-    if (kind_raw > static_cast<std::uint64_t>(UsdcCrateTypedValueKind::StringUtf8)) {
+    if (kind_raw > static_cast<std::uint64_t>(UsdcCrateTypedValueKind::StringIndex)) {
       set_detail(err_out, "USDC VALUES typed kind out of range");
       return false;
     }

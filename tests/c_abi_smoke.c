@@ -268,7 +268,7 @@ int main(void) {
     }
     char** items = NULL;
     size_t count = 0;
-    if (freeusd_read_usdc_token_table_from_path_utf8(tables_path, 8, 1024, &items, &count) != FREEUSD_OK) {
+    if (freeusd_read_usdc_token_table_from_path_utf8(tables_path, 16, 1024, &items, &count) != FREEUSD_OK) {
       fprintf(stderr, "read token table failed: %s\n", freeusd_last_error_message());
       return 1;
     }
@@ -280,7 +280,7 @@ int main(void) {
     freeusd_path_list_free(items, count);
     items = NULL;
     count = 0;
-    if (freeusd_read_usdc_string_table_from_path_utf8(tables_path, 8, 1024, &items, &count) != FREEUSD_OK) {
+    if (freeusd_read_usdc_string_table_from_path_utf8(tables_path, 16, 1024, &items, &count) != FREEUSD_OK) {
       fprintf(stderr, "read string table failed: %s\n", freeusd_last_error_message());
       return 1;
     }
@@ -292,7 +292,7 @@ int main(void) {
     freeusd_path_list_free(items, count);
     items = NULL;
     count = 0;
-    if (freeusd_read_usdc_path_table_from_path_utf8(tables_path, 8, 1024, &items, &count) != FREEUSD_OK) {
+    if (freeusd_read_usdc_path_table_from_path_utf8(tables_path, 16, 1024, &items, &count) != FREEUSD_OK) {
       fprintf(stderr, "read path table failed: %s\n", freeusd_last_error_message());
       return 1;
     }
@@ -304,7 +304,7 @@ int main(void) {
     freeusd_path_list_free(items, count);
     FreeusdUsdcFieldEntry* field_entries = NULL;
     count = 0;
-    if (freeusd_read_usdc_fields_table_from_path_utf8(tables_path, 8, 1024, &field_entries, &count) != FREEUSD_OK) {
+    if (freeusd_read_usdc_fields_table_from_path_utf8(tables_path, 16, 1024, &field_entries, &count) != FREEUSD_OK) {
       fprintf(stderr, "read fields table failed: %s\n", freeusd_last_error_message());
       return 1;
     }
@@ -318,7 +318,7 @@ int main(void) {
     freeusd_usdc_fields_entries_free(field_entries);
     FreeusdUsdcSpecEntry* spec_entries = NULL;
     count = 0;
-    if (freeusd_read_usdc_specs_table_from_path_utf8(tables_path, 8, 1024, &spec_entries, &count) != FREEUSD_OK) {
+    if (freeusd_read_usdc_specs_table_from_path_utf8(tables_path, 16, 1024, &spec_entries, &count) != FREEUSD_OK) {
       fprintf(stderr, "read specs table failed: %s\n", freeusd_last_error_message());
       return 1;
     }
@@ -332,7 +332,7 @@ int main(void) {
     freeusd_usdc_specs_entries_free(spec_entries);
     FreeusdUsdcFieldSet* fieldsets = NULL;
     count = 0;
-    if (freeusd_read_usdc_fieldsets_table_from_path_utf8(tables_path, 8, 8, 1024, &fieldsets, &count) != FREEUSD_OK) {
+    if (freeusd_read_usdc_fieldsets_table_from_path_utf8(tables_path, 8, 16, 1024, &fieldsets, &count) != FREEUSD_OK) {
       fprintf(stderr, "read fieldsets table failed: %s\n", freeusd_last_error_message());
       return 1;
     }
@@ -345,11 +345,11 @@ int main(void) {
     freeusd_usdc_fieldsets_free(fieldsets, count);
     FreeusdUsdcValueBlob* value_blobs = NULL;
     count = 0;
-    if (freeusd_read_usdc_values_table_from_path_utf8(tables_path, 8, 1024, &value_blobs, &count) != FREEUSD_OK) {
+    if (freeusd_read_usdc_values_table_from_path_utf8(tables_path, 16, 1024, &value_blobs, &count) != FREEUSD_OK) {
       fprintf(stderr, "read values table failed: %s\n", freeusd_last_error_message());
       return 1;
     }
-    if (!value_blobs || count != 7u || value_blobs[0].byte_count != 4u) {
+    if (!value_blobs || count != 9u || value_blobs[0].byte_count != 4u) {
       fprintf(stderr, "unexpected values table\n");
       freeusd_usdc_values_blobs_free(value_blobs, count);
       return 1;
@@ -357,19 +357,22 @@ int main(void) {
     freeusd_usdc_values_blobs_free(value_blobs, count);
     FreeusdUsdcTypedValue* typed_values = NULL;
     count = 0;
-    if (freeusd_read_usdc_typed_values_table_from_path_utf8(tables_path, 8, 1024, &typed_values, &count) !=
+    if (freeusd_read_usdc_typed_values_table_from_path_utf8(tables_path, 16, 1024, &typed_values, &count) !=
         FREEUSD_OK) {
       fprintf(stderr, "read typed values table failed: %s\n", freeusd_last_error_message());
       return 1;
     }
-    if (!typed_values || count != 7u || typed_values[0].kind != FREEUSD_USDC_VALUE_INT32 ||
+    if (!typed_values || count != 9u || typed_values[0].kind != FREEUSD_USDC_VALUE_INT32 ||
         typed_values[0].int32_value != 42 || typed_values[1].kind != FREEUSD_USDC_VALUE_FLOAT ||
         typed_values[2].kind != FREEUSD_USDC_VALUE_TOKEN_INDEX || typed_values[2].token_index != 0u ||
         typed_values[3].kind != FREEUSD_USDC_VALUE_BOOL || !typed_values[3].bool_value ||
         typed_values[4].kind != FREEUSD_USDC_VALUE_DOUBLE || typed_values[4].double_value < 3.24 ||
         typed_values[4].double_value > 3.26 || typed_values[5].kind != FREEUSD_USDC_VALUE_INT64 ||
         typed_values[5].int64_value != -9007199254740991LL || typed_values[6].kind != FREEUSD_USDC_VALUE_STRING_UTF8 ||
-        !typed_values[6].string_utf8 || strcmp(typed_values[6].string_utf8, "parity") != 0) {
+        !typed_values[6].string_utf8 || strcmp(typed_values[6].string_utf8, "parity") != 0 ||
+        typed_values[7].kind != FREEUSD_USDC_VALUE_VEC3F ||
+        typed_values[7].vec3f_value[0] < 0.99f || typed_values[7].vec3f_value[2] > 3.01f ||
+        typed_values[8].kind != FREEUSD_USDC_VALUE_STRING_INDEX || typed_values[8].string_index != 1u) {
       fprintf(stderr, "unexpected typed values table\n");
       freeusd_usdc_typed_values_free(typed_values, count);
       return 1;

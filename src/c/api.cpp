@@ -632,6 +632,10 @@ int freeusd_read_usdc_typed_values_table_from_path_utf8(const char* path_utf8, u
         set_error("out of memory");
         return FREEUSD_ERR_INTERNAL;
       }
+      values[i].vec3f_value[0] = src.vec3f_value.data[0];
+      values[i].vec3f_value[1] = src.vec3f_value.data[1];
+      values[i].vec3f_value[2] = src.vec3f_value.data[2];
+      values[i].string_index = src.string_index;
       if (values[i].byte_count == 0u) {
         values[i].bytes = nullptr;
         continue;

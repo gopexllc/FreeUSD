@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "freeusd/export.hpp"
+#include "freeusd/gf/vec3f.hpp"
 #include "freeusd/sdf/path.hpp"
 
 namespace freeusd::usd::crate {
@@ -156,6 +157,8 @@ enum class UsdcCrateTypedValueKind : std::uint64_t {
   Double = 5,
   Int64 = 6,
   StringUtf8 = 7,
+  Vec3f = 8,
+  StringIndex = 9,
 };
 
 /// One decoded typed value from the fixture ``VALUES`` table.
@@ -169,6 +172,8 @@ struct UsdcCrateTypedValue {
   double double_value{0.0};
   std::int64_t int64_value{0};
   std::string string_utf8;
+  freeusd::gf::Vec3f vec3f_value{};
+  std::uint64_t string_index{0};
 };
 
 struct UsdcCrateTypedValuesTable {
