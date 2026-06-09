@@ -638,6 +638,8 @@ int freeusd_read_usdc_typed_values_table_from_path_utf8(const char* path_utf8, u
       values[i].vec4f_value[1] = src.vec4f_value.data[1];
       values[i].vec4f_value[2] = src.vec4f_value.data[2];
       values[i].vec4f_value[3] = src.vec4f_value.data[3];
+      values[i].vec2d_value[0] = src.vec2d_value.data[0];
+      values[i].vec2d_value[1] = src.vec2d_value.data[1];
       values[i].vec3f_value[0] = src.vec3f_value.data[0];
       values[i].vec3f_value[1] = src.vec3f_value.data[1];
       values[i].vec3f_value[2] = src.vec3f_value.data[2];

@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include "freeusd/gf/vec2d.hpp"
 #include "freeusd/gf/vec3d.hpp"
 #include <cstdint>
 #include <string>
@@ -168,6 +169,7 @@ enum class UsdcCrateTypedValueKind : std::uint64_t {
   DoubleArray = 13,
   Vec2f = 14,
   Vec4f = 15,
+  Vec2d = 16,
 };
 
 /// One decoded typed value from the fixture ``VALUES`` table.
@@ -189,6 +191,7 @@ struct UsdcCrateTypedValue {
   std::vector<double> double_array;
   freeusd::gf::Vec2f vec2f_value{};
   freeusd::gf::Vec4f vec4f_value{};
+  freeusd::gf::Vec2d vec2d_value{};
 };
 
 struct UsdcCrateTypedValuesTable {

@@ -330,6 +330,7 @@ type UsdcTypedValue struct {
 	DoubleArray    []float64
 	Vec2fValue     [2]float32
 	Vec4fValue     [4]float32
+	Vec2dValue     [2]float64
 }
 
 // ReadUsdcTypedValuesTableFromPath reads the validated typed VALUES table from a shared crate fixture.
@@ -410,6 +411,7 @@ func ReadUsdcTypedValuesTableFromPath(path string, maxEntries uint64, maxTotalBy
 			}(),
 			Vec2fValue: [2]float32{float32(entry.vec2f_value[0]), float32(entry.vec2f_value[1])},
 			Vec4fValue: [4]float32{float32(entry.vec4f_value[0]), float32(entry.vec4f_value[1]), float32(entry.vec4f_value[2]), float32(entry.vec4f_value[3])},
+			Vec2dValue: [2]float64{float64(entry.vec2d_value[0]), float64(entry.vec2d_value[1])},
 		}
 	}
 	return out, 0
