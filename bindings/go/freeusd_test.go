@@ -207,21 +207,21 @@ func TestReadStructuredUsdcTablesFromFixture(t *testing.T) {
 		t.Fatalf("unexpected fieldsets %#v", sets)
 	}
 
-	values, rc := ReadUsdcValuesTableFromPath(p, 16, 1024)
+	values, rc := ReadUsdcValuesTableFromPath(p, 18, 1024)
 	if rc != 0 {
 		t.Fatalf("values table rc=%d %s", rc, LastErrorMessage())
 	}
-	if len(values) != 16 || len(values[0].Bytes) != 4 {
+	if len(values) != 17 || len(values[0].Bytes) != 4 {
 		t.Fatalf("unexpected values %#v", values)
 	}
-	typed, rc := ReadUsdcTypedValuesTableFromPath(p, 16, 1024)
+	typed, rc := ReadUsdcTypedValuesTableFromPath(p, 18, 1024)
 	if rc != 0 {
 		t.Fatalf("typed values table rc=%d %s", rc, LastErrorMessage())
 	}
-	if len(typed) != 16 || typed[0].Kind != 1 || typed[0].Int32Value != 42 || typed[1].Kind != 2 ||
+	if len(typed) != 17 || typed[0].Kind != 1 || typed[0].Int32Value != 42 || typed[1].Kind != 2 ||
 		typed[2].Kind != 3 || typed[2].TokenIndex != 0 || typed[3].Kind != 4 || !typed[3].BoolValue ||
 		typed[14].Kind != 15 || typed[14].Vec4fValue[3] < 3.99 || typed[15].Kind != 16 ||
-		typed[15].Vec2dValue[1] < 1.74 {
+		typed[15].Vec2dValue[1] < 1.74 || typed[16].Kind != 17 || typed[16].QuatfValue[0] < 0.99 {
 		t.Fatalf("unexpected typed values %#v", typed)
 	}
 }

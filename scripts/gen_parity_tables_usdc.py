@@ -65,6 +65,7 @@ VALUE_KIND_DOUBLE_ARRAY = 13
 VALUE_KIND_VEC2F = 14
 VALUE_KIND_VEC4F = 15
 VALUE_KIND_VEC2D = 16
+VALUE_KIND_QUATF = 17
 
 
 def typed_values_table_payload(entries: list[tuple[int, bytes]]) -> bytes:
@@ -104,6 +105,7 @@ def parity_values_entries():
         (VALUE_KIND_VEC2F, struct.pack("<ff", 0.5, 1.25)),
         (VALUE_KIND_VEC4F, struct.pack("<ffff", 1.0, 2.0, 3.0, 4.0)),
         (VALUE_KIND_VEC2D, struct.pack("<dd", 0.5, 1.75)),
+        (VALUE_KIND_QUATF, struct.pack("<ffff", 1.0, 0.5, 0.25, 0.125)),
     ]
 
 
