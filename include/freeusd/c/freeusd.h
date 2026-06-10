@@ -255,6 +255,7 @@ typedef enum FreeusdUsdcTypedValueKind {
   FREEUSD_USDC_VALUE_VEC4F = 15,
   FREEUSD_USDC_VALUE_VEC2D = 16,
   FREEUSD_USDC_VALUE_QUATF = 17,
+  FREEUSD_USDC_VALUE_QUATD = 18,
 } FreeusdUsdcTypedValueKind;
 
 typedef struct FreeusdUsdcTypedValue {
@@ -282,6 +283,8 @@ typedef struct FreeusdUsdcTypedValue {
   double vec2d_value[2];
   /** Quaternion components in ``(w, i, j, k)`` order. */
   float quatf_value[4];
+  /** Double quaternion components in ``(w, i, j, k)`` order. */
+  double quatd_value[4];
 } FreeusdUsdcTypedValue;
 
 FREEUSD_C_API int freeusd_read_usdc_typed_values_table_from_path_utf8(const char* path_utf8, uint64_t max_entries,

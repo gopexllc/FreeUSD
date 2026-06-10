@@ -644,6 +644,10 @@ int freeusd_read_usdc_typed_values_table_from_path_utf8(const char* path_utf8, u
       values[i].quatf_value[1] = src.quatf_value.i;
       values[i].quatf_value[2] = src.quatf_value.j;
       values[i].quatf_value[3] = src.quatf_value.k;
+      values[i].quatd_value[0] = src.quatd_value.real;
+      values[i].quatd_value[1] = src.quatd_value.i;
+      values[i].quatd_value[2] = src.quatd_value.j;
+      values[i].quatd_value[3] = src.quatd_value.k;
       values[i].vec3f_value[0] = src.vec3f_value.data[0];
       values[i].vec3f_value[1] = src.vec3f_value.data[1];
       values[i].vec3f_value[2] = src.vec3f_value.data[2];

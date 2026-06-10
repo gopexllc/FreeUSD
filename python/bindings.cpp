@@ -1613,6 +1613,8 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
               row["vec2d_value"] = py::make_tuple(entry.vec2d_value.data[0], entry.vec2d_value.data[1]);
               row["quatf_value"] = py::make_tuple(entry.quatf_value.real, entry.quatf_value.i, entry.quatf_value.j,
                                                     entry.quatf_value.k);
+              row["quatd_value"] = py::make_tuple(entry.quatd_value.real, entry.quatd_value.i, entry.quatd_value.j,
+                                                    entry.quatd_value.k);
               row["vec3f_value"] = py::make_tuple(entry.vec3f_value.data[0], entry.vec3f_value.data[1],
                                                     entry.vec3f_value.data[2]);
               row["string_index"] = entry.string_index;
