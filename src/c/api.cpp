@@ -29,6 +29,7 @@
 #include "freeusd/usdGeom/imageable.hpp"
 #include "freeusd/usdGeom/xformable.hpp"
 #include "freeusd/usdLux/distantLight.hpp"
+#include "freeusd/usdPhysics/physicsScene.hpp"
 #include "freeusd/usdSkel/skelAnimation.hpp"
 #include "freeusd/usdSkel/skelBlendShapes.hpp"
 #include "freeusd/usdSkel/skinning.hpp"
@@ -3388,6 +3389,45 @@ int freeusd_stage_read_openvdb_asset_info(const FreeusdStage* stage, const char*
     }
     *out_file_path_utf8 = file_dup;
     *out_field_name_utf8 = field_dup;
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_read_physics_scene_sample(const FreeusdStage* stage, const char* scene_path_utf8, double time,
+                                            FreeusdPhysicsSceneSample* out_sample) {
+  if (!stage || !stage->inner || !scene_path_utf8 || !out_sample) {
+    set_error("freeusd_stage_read_physics_scene_sample: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_sample = FreeusdPhysicsSceneSample{};
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(scene_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid PhysicsScene path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const freeusd::usdPhysics::PhysicsScene scene = freeusd::usdPhysics::PhysicsScene::ReadFromPrim(stage->inner, p);
+    if (!scene || !scene.IsPhysicsScene()) {
+      set_error("PhysicsScene prim not found or invalid");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    freeusd::gf::Vec3f gravity_direction{};
+    float gravity_magnitude = 0.0f;
+    if (!scene.GetGravityDirection(&gravity_direction, time) || !scene.GetGravityMagnitude(&gravity_magnitude, time)) {
+      set_error("PhysicsScene gravity inputs not available");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    out_sample->gravity_direction[0] = gravity_direction.x();
+    out_sample->gravity_direction[1] = gravity_direction.y();
+    out_sample->gravity_direction[2] = gravity_direction.z();
+    out_sample->gravity_magnitude = gravity_magnitude;
     clear_error();
     return FREEUSD_OK;
   } catch (const std::exception& e) {

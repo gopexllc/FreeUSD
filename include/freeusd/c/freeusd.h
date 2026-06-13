@@ -793,6 +793,20 @@ FREEUSD_C_API int freeusd_stage_read_openvdb_asset_info(const FreeusdStage* stag
                                                         char** out_file_path_utf8,
                                                         char** out_field_name_utf8);
 
+/** Evaluated ``UsdPhysicsScene`` gravity inputs at a time code. */
+typedef struct FreeusdPhysicsSceneSample {
+  float gravity_direction[3];
+  float gravity_magnitude;
+} FreeusdPhysicsSceneSample;
+
+/**
+ * Read ``UsdPhysicsScene`` ``physics:gravityDirection`` and ``physics:gravityMagnitude`` at @p time.
+ * Missing scene prims or missing inputs report @ref FREEUSD_ERR_NOT_FOUND.
+ */
+FREEUSD_C_API int freeusd_stage_read_physics_scene_sample(const FreeusdStage* stage,
+                                                          const char* scene_path_utf8, double time,
+                                                          FreeusdPhysicsSceneSample* out_sample);
+
 /**
  * Count of bound blend-shape targets on a geom prim (``skel:blendShapes`` token count).
  * Missing geom or unbound prim reports @ref FREEUSD_ERR_NOT_FOUND.

@@ -695,6 +695,12 @@ extern "C" {
         out_file_path: *mut *mut c_char,
         out_field_name: *mut *mut c_char,
     ) -> c_int;
+    fn freeusd_stage_read_physics_scene_sample(
+        stage: *const FreeusdStage,
+        scene_path: *const c_char,
+        time: c_double,
+        out_sample: *mut FreeusdPhysicsSceneSample,
+    ) -> c_int;
     fn freeusd_usdskel_compute_skinning_matrices(
         joint_count: usize,
         joint_world_row_major: *const c_double,
@@ -776,6 +782,19 @@ pub struct LuxDistantLightSample {
 pub struct OpenVDBAssetInfo {
     pub file_path: String,
     pub field_name: String,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default)]
+pub struct FreeusdPhysicsSceneSample {
+    pub gravity_direction: [c_float; 3],
+    pub gravity_magnitude: c_float,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PhysicsSceneSample {
+    pub gravity_direction: [f32; 3],
+    pub gravity_magnitude: f32,
 }
 
 /// C API `FREEUSD_ERR_NOT_FOUND` (e.g. unmapped relocate / prefix substitution / customLayerData string read).
@@ -2385,6 +2404,31 @@ impl Stage {
         })
     }
 
+    /// Read `UsdPhysicsScene` gravity direction and magnitude from a physics scene prim.
+    pub fn read_physics_scene_sample(
+        &self,
+        scene_path: &str,
+        time: f64,
+    ) -> Result<PhysicsSceneSample, i32> {
+        let sp = CString::new(scene_path).map_err(|_| 1)?;
+        let mut raw = FreeusdPhysicsSceneSample::default();
+        let rc = unsafe {
+            freeusd_stage_read_physics_scene_sample(
+                self.ptr as *const FreeusdStage,
+                sp.as_ptr(),
+                time as c_double,
+                &mut raw,
+            )
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        Ok(PhysicsSceneSample {
+            gravity_direction: raw.gravity_direction,
+            gravity_magnitude: raw.gravity_magnitude,
+        })
+    }
+
     pub fn deform_points_with_skeleton(
         &self,
         skeleton_path: &str,
@@ -3769,6 +3813,21 @@ def Xform "Root"
             .expect("OpenVDBAsset info");
         assert_eq!(info.file_path, "volumes/smoke.vdb");
         assert_eq!(info.field_name, "density");
+    }
+
+    #[test]
+    fn usd_physics_scene_binding() {
+        let path = fixture_path("parity_physics_scene.usda");
+        let stage =
+            Stage::open_from_root_file(&path.to_string_lossy(), root_sublayers::DEPTH_FIRST)
+                .expect("open physics fixture");
+        let sample = stage
+            .read_physics_scene_sample("/World/Physics", 1.0)
+            .expect("PhysicsScene sample");
+        assert!((sample.gravity_direction[0] - 0.0).abs() < 1e-5);
+        assert!((sample.gravity_direction[1] - 0.0).abs() < 1e-5);
+        assert!((sample.gravity_direction[2] + 1.0).abs() < 1e-5);
+        assert!((sample.gravity_magnitude - 981.0).abs() < 1e-5);
     }
 
     #[test]

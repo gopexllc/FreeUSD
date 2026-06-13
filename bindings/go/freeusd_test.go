@@ -1052,6 +1052,24 @@ func TestUsdVolOpenVDBAssetBinding(t *testing.T) {
 	}
 }
 
+func TestUsdPhysicsSceneBinding(t *testing.T) {
+	fixture := filepath.Join("..", "..", "tests", "fixtures", "parity_physics_scene.usda")
+	st := OpenStageFromRootFile(fixture, RootSubDepthFirst)
+	if st == nil {
+		t.Fatal("OpenStageFromRootFile physics:", LastErrorMessage())
+	}
+	defer st.Free()
+
+	sample, rc := st.ReadPhysicsSceneSample("/World/Physics", 1.0)
+	if rc != 0 {
+		t.Fatalf("ReadPhysicsSceneSample rc=%d %s", rc, LastErrorMessage())
+	}
+	if sample.GravityDirection[0] != 0 || sample.GravityDirection[1] != 0 ||
+		sample.GravityDirection[2] != -1 || sample.GravityMagnitude != 981 {
+		t.Fatalf("unexpected PhysicsScene sample %+v", sample)
+	}
+}
+
 func TestLayerHints(t *testing.T) {
 	const usda = `#usda 1.0
 (

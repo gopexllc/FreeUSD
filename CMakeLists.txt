@@ -392,6 +392,13 @@ if(FREEUSD_BUILD_TESTS)
     target_compile_definitions(freeusd_c_usd_vol PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
     set_target_properties(freeusd_c_usd_vol PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX)
     add_test(NAME freeusd_c_usd_vol COMMAND freeusd_c_usd_vol)
+
+    add_executable(freeusd_c_usd_physics tests/c_usd_physics.c)
+    target_include_directories(freeusd_c_usd_physics PRIVATE "${PROJECT_SOURCE_DIR}/include")
+    target_link_libraries(freeusd_c_usd_physics PRIVATE freeusd::c)
+    target_compile_definitions(freeusd_c_usd_physics PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+    set_target_properties(freeusd_c_usd_physics PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX)
+    add_test(NAME freeusd_c_usd_physics COMMAND freeusd_c_usd_physics)
   endif()
 
   set(
@@ -461,7 +468,8 @@ if(FREEUSD_BUILD_TESTS)
       freeusd_c_usd_skel
       freeusd_c_usd_shade
       freeusd_c_usd_lux
-      freeusd_c_usd_vol)
+      freeusd_c_usd_vol
+      freeusd_c_usd_physics)
   endif()
   foreach(_freeusd_test_target IN LISTS _freeusd_assert_enabled_test_targets)
     freeusd_enable_test_asserts("${_freeusd_test_target}")

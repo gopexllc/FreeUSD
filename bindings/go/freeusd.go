@@ -1398,6 +1398,30 @@ func (s *Stage) ReadOpenVDBAssetInfo(assetPath string, time float64) (info OpenV
 	return info, 0
 }
 
+// PhysicsSceneSample is the evaluated UsdPhysicsScene gravity sample.
+type PhysicsSceneSample struct {
+	GravityDirection [3]float32
+	GravityMagnitude float32
+}
+
+// ReadPhysicsSceneSample reads gravityDirection and gravityMagnitude from a PhysicsScene prim.
+func (s *Stage) ReadPhysicsSceneSample(scenePath string, time float64) (sample PhysicsSceneSample, rc int) {
+	if s == nil || s.ptr == nil {
+		return sample, 1
+	}
+	sp := C.CString(scenePath)
+	defer C.free(unsafe.Pointer(sp))
+	var out C.FreeusdPhysicsSceneSample
+	rc = int(C.freeusd_stage_read_physics_scene_sample(s.ptr, sp, C.double(time), &out))
+	if rc != 0 {
+		return sample, rc
+	}
+	return PhysicsSceneSample{
+		GravityDirection: [3]float32{float32(out.gravity_direction[0]), float32(out.gravity_direction[1]), float32(out.gravity_direction[2])},
+		GravityMagnitude: float32(out.gravity_magnitude),
+	}, 0
+}
+
 // ListFieldSampleTimes returns sorted composed time-sample times for an attribute (rc 0 ok; empty slice valid).
 func (s *Stage) ListFieldSampleTimes(primPath, attrName string) (times []float64, rc int) {
 	if s == nil || s.ptr == nil {
