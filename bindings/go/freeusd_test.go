@@ -948,6 +948,75 @@ def Xform "Q"
 	}
 }
 
+func TestComposedPrimKindActiveFromArcs(t *testing.T) {
+	fixture := filepath.Join("..", "..", "tests", "fixtures", "parity_kind_active_refs.usda")
+	st := OpenStageFromRootFile(fixture, RootSubDepthFirst)
+	if st == nil {
+		t.Fatal("OpenStageFromRootFile:", LastErrorMessage())
+	}
+	defer st.Free()
+
+	kind, rc := st.ResolvePrimKind("/World/RefHost")
+	if rc != 0 || kind != "component" {
+		t.Fatalf("ResolvePrimKind RefHost kind=%q rc=%d %s", kind, rc, LastErrorMessage())
+	}
+	if st.ResolveHasPrimKind("/World/RefHost") != 1 {
+		t.Fatalf("ResolveHasPrimKind RefHost %s", LastErrorMessage())
+	}
+	active, rc := st.ResolvePrimActive("/World/RefHost")
+	if rc != 0 || active {
+		t.Fatalf("ResolvePrimActive RefHost active=%v rc=%d %s", active, rc, LastErrorMessage())
+	}
+	if st.ResolveHasPrimActiveOpinion("/World/RefHost") != 1 {
+		t.Fatalf("ResolveHasPrimActiveOpinion RefHost %s", LastErrorMessage())
+	}
+
+	kind, rc = st.ResolvePrimKind("/World/PayloadHost")
+	if rc != 0 || kind != "group" {
+		t.Fatalf("ResolvePrimKind PayloadHost kind=%q rc=%d %s", kind, rc, LastErrorMessage())
+	}
+	active, rc = st.ResolvePrimActive("/World/InheritHost")
+	if rc != 0 || !active {
+		t.Fatalf("ResolvePrimActive InheritHost active=%v rc=%d %s", active, rc, LastErrorMessage())
+	}
+	if st.ResolveHasPrimActiveOpinion("/World/InheritHost") != 0 {
+		t.Fatalf("ResolveHasPrimActiveOpinion InheritHost %s", LastErrorMessage())
+	}
+}
+
+func TestUsdShadePreviewSurfaceBindings(t *testing.T) {
+	fixture := filepath.Join("..", "..", "tests", "fixtures", "parity_shade_preview.usda")
+	st := OpenStageFromRootFile(fixture, RootSubDepthFirst)
+	if st == nil {
+		t.Fatal("OpenStageFromRootFile preview:", LastErrorMessage())
+	}
+	defer st.Free()
+
+	shaderPath, rc := st.ReadMaterialSurfaceShaderPath("/World/Looks/Material")
+	if rc != 0 || shaderPath != "/World/Looks/Material/PreviewSurface" {
+		t.Fatalf("ReadMaterialSurfaceShaderPath path=%q rc=%d %s", shaderPath, rc, LastErrorMessage())
+	}
+	rgb, rc := st.ReadPreviewSurfaceDiffuseColor(shaderPath, 1.0)
+	if rc != 0 || rgb[0] != 0.8 || rgb[1] != 0.2 || rgb[2] != 0.1 {
+		t.Fatalf("ReadPreviewSurfaceDiffuseColor rgb=%v rc=%d %s", rgb, rc, LastErrorMessage())
+	}
+
+	textureFixture := filepath.Join("..", "..", "tests", "fixtures", "parity_shade_texture.usda")
+	textureStage := OpenStageFromRootFile(textureFixture, RootSubDepthFirst)
+	if textureStage == nil {
+		t.Fatal("OpenStageFromRootFile texture:", LastErrorMessage())
+	}
+	defer textureStage.Free()
+	shaderPath, rc = textureStage.ReadMaterialSurfaceShaderPath("/World/Looks/Material")
+	if rc != 0 {
+		t.Fatalf("texture shader path rc=%d %s", rc, LastErrorMessage())
+	}
+	texturePath, rc := textureStage.ReadPreviewSurfaceDiffuseTextureAssetPath(shaderPath, 1.0)
+	if rc != 0 || texturePath != "textures/albedo.png" {
+		t.Fatalf("ReadPreviewSurfaceDiffuseTextureAssetPath path=%q rc=%d %s", texturePath, rc, LastErrorMessage())
+	}
+}
+
 func TestLayerHints(t *testing.T) {
 	const usda = `#usda 1.0
 (

@@ -6,7 +6,7 @@
 #![allow(non_upper_case_globals)]
 #![allow(non_camel_case_types)]
 
-use std::ffi::{c_char, c_double, c_float, c_int, CString, CStr};
+use std::ffi::{c_char, c_double, c_float, c_int, CStr, CString};
 use std::ptr;
 
 #[repr(C)]
@@ -137,7 +137,11 @@ unsafe fn usdc_typed_value_from_c(value: &FreeusdUsdcTypedValue) -> UsdcTypedVal
     let string_utf8 = if value.string_utf8.is_null() {
         None
     } else {
-        Some(CStr::from_ptr(value.string_utf8).to_string_lossy().into_owned())
+        Some(
+            CStr::from_ptr(value.string_utf8)
+                .to_string_lossy()
+                .into_owned(),
+        )
     };
     let int32_array = if value.int32_array_count == 0 || value.int32_array.is_null() {
         Vec::new()
@@ -193,7 +197,10 @@ extern "C" {
         out_kind: *mut c_int,
         out_detail: *mut *mut c_char,
     ) -> c_int;
-    fn freeusd_read_usdc_bootstrap_from_path_utf8(path: *const c_char, out: *mut FreeusdUsdcBootstrap) -> c_int;
+    fn freeusd_read_usdc_bootstrap_from_path_utf8(
+        path: *const c_char,
+        out: *mut FreeusdUsdcBootstrap,
+    ) -> c_int;
     fn freeusd_read_usdc_toc_from_path_utf8(
         path: *const c_char,
         max_sections: u64,
@@ -279,11 +286,37 @@ extern "C" {
     fn freeusd_layer_load_usda_from_string(layer: *mut FreeusdLayer, text: *const c_char) -> c_int;
 
     fn freeusd_stage_attach_root_layer(layer: *const FreeusdLayer) -> *mut FreeusdStage;
-    fn freeusd_stage_open_from_root_file_utf8(path: *const c_char, sublayer_policy: c_int) -> *mut FreeusdStage;
+    fn freeusd_stage_open_from_root_file_utf8(
+        path: *const c_char,
+        sublayer_policy: c_int,
+    ) -> *mut FreeusdStage;
     fn freeusd_stage_free(stage: *mut FreeusdStage);
     fn freeusd_stage_prim_is_valid(stage: *const FreeusdStage, prim_path: *const c_char) -> c_int;
-    fn freeusd_stage_resolve_prim_specifier_kind(stage: *const FreeusdStage, prim_path: *const c_char) -> c_int;
-    fn freeusd_stage_relocate_source_in_any_layer(stage: *const FreeusdStage, from_prim: *const c_char) -> c_int;
+    fn freeusd_stage_resolve_prim_specifier_kind(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+    ) -> c_int;
+    fn freeusd_stage_resolve_prim_active(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        out_active: *mut c_int,
+    ) -> c_int;
+    fn freeusd_stage_resolve_has_prim_active_opinion(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+    ) -> c_int;
+    fn freeusd_stage_resolve_prim_kind(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+    ) -> *mut c_char;
+    fn freeusd_stage_resolve_has_prim_kind(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+    ) -> c_int;
+    fn freeusd_stage_relocate_source_in_any_layer(
+        stage: *const FreeusdStage,
+        from_prim: *const c_char,
+    ) -> c_int;
     fn freeusd_stage_get_composed_relocate_target_utf8(
         stage: *const FreeusdStage,
         from_prim: *const c_char,
@@ -294,8 +327,10 @@ extern "C" {
         out_strings: *mut *mut *mut c_char,
         out_count: *mut usize,
     ) -> c_int;
-    fn freeusd_stage_prefix_substitution_key_in_any_layer(stage: *const FreeusdStage, from_prefix: *const c_char)
-        -> c_int;
+    fn freeusd_stage_prefix_substitution_key_in_any_layer(
+        stage: *const FreeusdStage,
+        from_prefix: *const c_char,
+    ) -> c_int;
     fn freeusd_stage_get_composed_prefix_substitution_utf8(
         stage: *const FreeusdStage,
         from_prefix: *const c_char,
@@ -311,7 +346,10 @@ extern "C" {
         key_utf8: *const c_char,
         out_value: *mut *mut c_char,
     ) -> c_int;
-    fn freeusd_stage_custom_layer_data_key_in_any_layer(stage: *const FreeusdStage, key_utf8: *const c_char) -> c_int;
+    fn freeusd_stage_custom_layer_data_key_in_any_layer(
+        stage: *const FreeusdStage,
+        key_utf8: *const c_char,
+    ) -> c_int;
     fn freeusd_stage_list_composed_custom_layer_data_keys(
         stage: *const FreeusdStage,
         out_keys: *mut *mut *mut c_char,
@@ -352,20 +390,40 @@ extern "C" {
         out_strings: *mut *mut *mut c_char,
         out_count: *mut usize,
     ) -> c_int;
-    fn freeusd_stage_get_start_time_code(stage: *const FreeusdStage, out_value: *mut c_double, out_has: *mut c_int)
-        -> c_int;
-    fn freeusd_stage_get_end_time_code(stage: *const FreeusdStage, out_value: *mut c_double, out_has: *mut c_int) -> c_int;
+    fn freeusd_stage_get_start_time_code(
+        stage: *const FreeusdStage,
+        out_value: *mut c_double,
+        out_has: *mut c_int,
+    ) -> c_int;
+    fn freeusd_stage_get_end_time_code(
+        stage: *const FreeusdStage,
+        out_value: *mut c_double,
+        out_has: *mut c_int,
+    ) -> c_int;
     fn freeusd_stage_get_time_codes_per_second(
         stage: *const FreeusdStage,
         out_value: *mut c_double,
         out_has: *mut c_int,
     ) -> c_int;
-    fn freeusd_stage_get_frames_per_second(stage: *const FreeusdStage, out_value: *mut c_double, out_has: *mut c_int)
-        -> c_int;
-    fn freeusd_stage_get_frame_precision(stage: *const FreeusdStage, out_value: *mut i64, out_has: *mut c_int) -> c_int;
-    fn freeusd_stage_get_meters_per_unit(stage: *const FreeusdStage, out_value: *mut c_double, out_has: *mut c_int)
-        -> c_int;
-    fn freeusd_stage_get_up_axis_utf8(stage: *const FreeusdStage, out_axis: *mut *mut c_char) -> c_int;
+    fn freeusd_stage_get_frames_per_second(
+        stage: *const FreeusdStage,
+        out_value: *mut c_double,
+        out_has: *mut c_int,
+    ) -> c_int;
+    fn freeusd_stage_get_frame_precision(
+        stage: *const FreeusdStage,
+        out_value: *mut i64,
+        out_has: *mut c_int,
+    ) -> c_int;
+    fn freeusd_stage_get_meters_per_unit(
+        stage: *const FreeusdStage,
+        out_value: *mut c_double,
+        out_has: *mut c_int,
+    ) -> c_int;
+    fn freeusd_stage_get_up_axis_utf8(
+        stage: *const FreeusdStage,
+        out_axis: *mut *mut c_char,
+    ) -> c_int;
     fn freeusd_stage_list_prim_order_paths_utf8(
         stage: *const FreeusdStage,
         out_paths: *mut *mut *mut c_char,
@@ -498,28 +556,40 @@ extern "C" {
         out_strings: *mut *mut *mut c_char,
         out_count: *mut usize,
     ) -> c_int;
-    fn freeusd_stage_has_prim_references(stage: *const FreeusdStage, prim_path: *const c_char) -> c_int;
+    fn freeusd_stage_has_prim_references(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+    ) -> c_int;
     fn freeusd_stage_list_prim_inherits(
         stage: *const FreeusdStage,
         prim_path: *const c_char,
         out_paths: *mut *mut *mut c_char,
         out_count: *mut usize,
     ) -> c_int;
-    fn freeusd_stage_has_prim_inherits(stage: *const FreeusdStage, prim_path: *const c_char) -> c_int;
+    fn freeusd_stage_has_prim_inherits(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+    ) -> c_int;
     fn freeusd_stage_list_prim_specializes(
         stage: *const FreeusdStage,
         prim_path: *const c_char,
         out_paths: *mut *mut *mut c_char,
         out_count: *mut usize,
     ) -> c_int;
-    fn freeusd_stage_has_prim_specializes(stage: *const FreeusdStage, prim_path: *const c_char) -> c_int;
+    fn freeusd_stage_has_prim_specializes(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+    ) -> c_int;
     fn freeusd_stage_list_prim_payloads(
         stage: *const FreeusdStage,
         prim_path: *const c_char,
         out_strings: *mut *mut *mut c_char,
         out_count: *mut usize,
     ) -> c_int;
-    fn freeusd_stage_has_prim_payloads(stage: *const FreeusdStage, prim_path: *const c_char) -> c_int;
+    fn freeusd_stage_has_prim_payloads(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+    ) -> c_int;
     fn freeusd_stage_get_composed_prim_custom_data(
         stage: *const FreeusdStage,
         prim_path: *const c_char,
@@ -594,6 +664,23 @@ extern "C" {
         skeleton_path: *const c_char,
         out_strings: *mut *mut *mut c_char,
         out_count: *mut usize,
+    ) -> c_int;
+    fn freeusd_stage_read_material_surface_shader_path(
+        stage: *const FreeusdStage,
+        material_path: *const c_char,
+        out_shader_path: *mut *mut c_char,
+    ) -> c_int;
+    fn freeusd_stage_read_preview_surface_diffuse_color(
+        stage: *const FreeusdStage,
+        shader_path: *const c_char,
+        time: c_double,
+        out_rgb: *mut c_float,
+    ) -> c_int;
+    fn freeusd_stage_read_preview_surface_diffuse_texture_asset_path(
+        stage: *const FreeusdStage,
+        shader_path: *const c_char,
+        time: c_double,
+        out_path: *mut *mut c_char,
     ) -> c_int;
     fn freeusd_usdskel_compute_skinning_matrices(
         joint_count: usize,
@@ -701,9 +788,8 @@ pub fn detect_usd_file_kind_from_path(path: &str) -> Result<(UsdFileKind, Option
     let c = CString::new(path).map_err(|_| 1i32)?;
     let mut kind: c_int = 0;
     let mut detail: *mut c_char = ptr::null_mut();
-    let rc = unsafe {
-        freeusd_detect_usd_file_kind_from_path_utf8(c.as_ptr(), &mut kind, &mut detail)
-    };
+    let rc =
+        unsafe { freeusd_detect_usd_file_kind_from_path_utf8(c.as_ptr(), &mut kind, &mut detail) };
     if rc != 0 {
         return Err(rc);
     }
@@ -778,13 +864,22 @@ fn toc_section_from_raw(raw: &FreeusdUsdcTocSection) -> UsdcTocSection {
 
 /// Reads the USDC table of contents (section names and file ranges). `max_sections` caps how many
 /// sections the file may declare (pass at least the expected count).
-pub fn read_usdc_toc_from_path(path: &str, max_sections: u64) -> Result<(u64, Vec<UsdcTocSection>), i32> {
+pub fn read_usdc_toc_from_path(
+    path: &str,
+    max_sections: u64,
+) -> Result<(u64, Vec<UsdcTocSection>), i32> {
     let c = CString::new(path).map_err(|_| 1i32)?;
     let mut total: u64 = 0;
     let mut returned: u64 = 0;
     let mut raw_ptr: *mut FreeusdUsdcTocSection = ptr::null_mut();
     let rc = unsafe {
-        freeusd_read_usdc_toc_from_path_utf8(c.as_ptr(), max_sections, &mut total, &mut raw_ptr, &mut returned)
+        freeusd_read_usdc_toc_from_path_utf8(
+            c.as_ptr(),
+            max_sections,
+            &mut total,
+            &mut raw_ptr,
+            &mut returned,
+        )
     };
     if rc != 0 {
         return Err(rc);
@@ -801,7 +896,11 @@ pub fn read_usdc_toc_from_path(path: &str, max_sections: u64) -> Result<(u64, Ve
 }
 
 /// Reads one raw USDC section payload by name. The returned bytes are copied into Rust-owned memory.
-pub fn read_usdc_section_bytes_from_path(path: &str, section_name: &str, max_bytes: u64) -> Result<Vec<u8>, i32> {
+pub fn read_usdc_section_bytes_from_path(
+    path: &str,
+    section_name: &str,
+    max_bytes: u64,
+) -> Result<Vec<u8>, i32> {
     let c_path = CString::new(path).map_err(|_| 1i32)?;
     let c_name = CString::new(section_name).map_err(|_| 1i32)?;
     let mut raw_ptr: *mut u8 = ptr::null_mut();
@@ -835,14 +934,24 @@ fn read_usdc_string_list(
     let c_path = CString::new(path).map_err(|_| 1i32)?;
     let mut raw_ptr: *mut *mut c_char = ptr::null_mut();
     let mut count: usize = 0;
-    let rc = unsafe { f(c_path.as_ptr(), max_entries, max_total_bytes, &mut raw_ptr, &mut count) };
+    let rc = unsafe {
+        f(
+            c_path.as_ptr(),
+            max_entries,
+            max_total_bytes,
+            &mut raw_ptr,
+            &mut count,
+        )
+    };
     if rc != 0 {
         return Err(rc);
     }
     let mut out = Vec::new();
     if !raw_ptr.is_null() && count > 0 {
         for i in 0..count {
-            let s = unsafe { CStr::from_ptr(*raw_ptr.add(i)) }.to_string_lossy().into_owned();
+            let s = unsafe { CStr::from_ptr(*raw_ptr.add(i)) }
+                .to_string_lossy()
+                .into_owned();
             out.push(s);
         }
         unsafe { freeusd_path_list_free(raw_ptr, count) };
@@ -850,19 +959,50 @@ fn read_usdc_string_list(
     Ok(out)
 }
 
-pub fn read_usdc_token_table_from_path(path: &str, max_entries: u64, max_total_bytes: u64) -> Result<Vec<String>, i32> {
-    read_usdc_string_list(path, max_entries, max_total_bytes, freeusd_read_usdc_token_table_from_path_utf8)
+pub fn read_usdc_token_table_from_path(
+    path: &str,
+    max_entries: u64,
+    max_total_bytes: u64,
+) -> Result<Vec<String>, i32> {
+    read_usdc_string_list(
+        path,
+        max_entries,
+        max_total_bytes,
+        freeusd_read_usdc_token_table_from_path_utf8,
+    )
 }
 
-pub fn read_usdc_string_table_from_path(path: &str, max_entries: u64, max_total_bytes: u64) -> Result<Vec<String>, i32> {
-    read_usdc_string_list(path, max_entries, max_total_bytes, freeusd_read_usdc_string_table_from_path_utf8)
+pub fn read_usdc_string_table_from_path(
+    path: &str,
+    max_entries: u64,
+    max_total_bytes: u64,
+) -> Result<Vec<String>, i32> {
+    read_usdc_string_list(
+        path,
+        max_entries,
+        max_total_bytes,
+        freeusd_read_usdc_string_table_from_path_utf8,
+    )
 }
 
-pub fn read_usdc_path_table_from_path(path: &str, max_entries: u64, max_total_bytes: u64) -> Result<Vec<String>, i32> {
-    read_usdc_string_list(path, max_entries, max_total_bytes, freeusd_read_usdc_path_table_from_path_utf8)
+pub fn read_usdc_path_table_from_path(
+    path: &str,
+    max_entries: u64,
+    max_total_bytes: u64,
+) -> Result<Vec<String>, i32> {
+    read_usdc_string_list(
+        path,
+        max_entries,
+        max_total_bytes,
+        freeusd_read_usdc_path_table_from_path_utf8,
+    )
 }
 
-pub fn read_usdc_fields_table_from_path(path: &str, max_entries: u64, max_total_bytes: u64) -> Result<Vec<UsdcFieldEntry>, i32> {
+pub fn read_usdc_fields_table_from_path(
+    path: &str,
+    max_entries: u64,
+    max_total_bytes: u64,
+) -> Result<Vec<UsdcFieldEntry>, i32> {
     let cpath = CString::new(path).map_err(|_| 1i32)?;
     let mut raw: *mut FreeusdUsdcFieldEntry = ptr::null_mut();
     let mut count: usize = 0;
@@ -893,7 +1033,11 @@ pub fn read_usdc_fields_table_from_path(path: &str, max_entries: u64, max_total_
     Ok(out)
 }
 
-pub fn read_usdc_specs_table_from_path(path: &str, max_entries: u64, max_total_bytes: u64) -> Result<Vec<UsdcSpecEntry>, i32> {
+pub fn read_usdc_specs_table_from_path(
+    path: &str,
+    max_entries: u64,
+    max_total_bytes: u64,
+) -> Result<Vec<UsdcSpecEntry>, i32> {
     let cpath = CString::new(path).map_err(|_| 1i32)?;
     let mut raw: *mut FreeusdUsdcSpecEntry = ptr::null_mut();
     let mut count: usize = 0;
@@ -966,12 +1110,22 @@ pub fn read_usdc_fieldsets_table_from_path(
     Ok(out)
 }
 
-pub fn read_usdc_values_table_from_path(path: &str, max_entries: u64, max_total_bytes: u64) -> Result<Vec<UsdcValueBlob>, i32> {
+pub fn read_usdc_values_table_from_path(
+    path: &str,
+    max_entries: u64,
+    max_total_bytes: u64,
+) -> Result<Vec<UsdcValueBlob>, i32> {
     let cpath = CString::new(path).map_err(|_| 1i32)?;
     let mut raw: *mut FreeusdUsdcValueBlob = ptr::null_mut();
     let mut count: usize = 0;
     let rc = unsafe {
-        freeusd_read_usdc_values_table_from_path_utf8(cpath.as_ptr(), max_entries, max_total_bytes, &mut raw, &mut count)
+        freeusd_read_usdc_values_table_from_path_utf8(
+            cpath.as_ptr(),
+            max_entries,
+            max_total_bytes,
+            &mut raw,
+            &mut count,
+        )
     };
     if rc != 0 {
         return Err(rc);
@@ -1104,7 +1258,9 @@ impl Stage {
     /// Open a USDA root file from disk (`sublayer_policy`: see [`root_sublayers`]).
     pub fn open_from_root_file(path: &str, sublayer_policy: i32) -> Option<Self> {
         let cs = std::ffi::CString::new(path).ok()?;
-        let p = unsafe { freeusd_stage_open_from_root_file_utf8(cs.as_ptr(), sublayer_policy as c_int) };
+        let p = unsafe {
+            freeusd_stage_open_from_root_file_utf8(cs.as_ptr(), sublayer_policy as c_int)
+        };
         if p.is_null() {
             None
         } else {
@@ -1159,7 +1315,8 @@ impl Stage {
 
     pub fn up_axis(&self) -> Result<Option<String>, i32> {
         let mut out: *mut c_char = ptr::null_mut();
-        let rc = unsafe { freeusd_stage_get_up_axis_utf8(self.ptr as *const FreeusdStage, &mut out) };
+        let rc =
+            unsafe { freeusd_stage_get_up_axis_utf8(self.ptr as *const FreeusdStage, &mut out) };
         if rc as i32 == ERR_NOT_FOUND {
             return Ok(None);
         }
@@ -1178,7 +1335,11 @@ impl Stage {
         let mut rows: *mut *mut c_char = ptr::null_mut();
         let mut count: usize = 0;
         let rc = unsafe {
-            freeusd_stage_list_prim_order_paths_utf8(self.ptr as *const FreeusdStage, &mut rows, &mut count)
+            freeusd_stage_list_prim_order_paths_utf8(
+                self.ptr as *const FreeusdStage,
+                &mut rows,
+                &mut count,
+            )
         };
         if rc != 0 {
             return Err(rc as i32);
@@ -1217,12 +1378,53 @@ impl Stage {
         }
     }
 
+    /// Composed prim active flag (defaults to true when no opinion exists).
+    pub fn resolve_prim_active(&self, prim_path: &str) -> Result<bool, i32> {
+        let pp = CString::new(prim_path).map_err(|_| 1)?;
+        let mut out: c_int = 0;
+        let rc = unsafe {
+            freeusd_stage_resolve_prim_active(
+                self.ptr as *const FreeusdStage,
+                pp.as_ptr(),
+                &mut out,
+            )
+        };
+        if rc != 0 {
+            Err(rc as i32)
+        } else {
+            Ok(out != 0)
+        }
+    }
+
+    /// True if any composed layer authors an `active` opinion for `prim_path`.
+    pub fn resolve_has_prim_active_opinion(&self, prim_path: &str) -> Result<bool, i32> {
+        self.stage_query_bool(prim_path, freeusd_stage_resolve_has_prim_active_opinion)
+    }
+
+    /// Composed schema kind token text (for example, `Xform`) for `prim_path`.
+    pub fn resolve_prim_kind(&self, prim_path: &str) -> Result<Option<String>, i32> {
+        let pp = CString::new(prim_path).map_err(|_| 1)?;
+        let out = unsafe {
+            freeusd_stage_resolve_prim_kind(self.ptr as *const FreeusdStage, pp.as_ptr())
+        };
+        if out.is_null() {
+            return Ok(None);
+        }
+        let s = unsafe { CStr::from_ptr(out).to_string_lossy().into_owned() };
+        unsafe { freeusd_string_free(out) };
+        Ok(Some(s))
+    }
+
+    /// True if the composed prim has a schema kind opinion.
+    pub fn resolve_has_prim_kind(&self, prim_path: &str) -> Result<bool, i32> {
+        self.stage_query_bool(prim_path, freeusd_stage_resolve_has_prim_kind)
+    }
+
     /// True if `prim_path` exists in the composed stage (maps to `freeusd_stage_prim_is_valid`).
     pub fn prim_path_in_use(&self, prim_path: &str) -> Result<bool, i32> {
         let pp = std::ffi::CString::new(prim_path).map_err(|_| 1)?;
-        let rc = unsafe {
-            freeusd_stage_prim_is_valid(self.ptr as *const FreeusdStage, pp.as_ptr())
-        };
+        let rc =
+            unsafe { freeusd_stage_prim_is_valid(self.ptr as *const FreeusdStage, pp.as_ptr()) };
         if rc < 0 {
             Err(rc as i32)
         } else {
@@ -1342,7 +1544,12 @@ impl Stage {
     }
 
     /// Composed `double3` / `Vec3d` at `time` (strict; no `Vec3f` promotion).
-    pub fn read_field_vec3d(&self, prim_path: &str, attr: &str, time: f64) -> Result<(f64, f64, f64), i32> {
+    pub fn read_field_vec3d(
+        &self,
+        prim_path: &str,
+        attr: &str,
+        time: f64,
+    ) -> Result<(f64, f64, f64), i32> {
         let pp = std::ffi::CString::new(prim_path).map_err(|_| 1)?;
         let an = std::ffi::CString::new(attr).map_err(|_| 1)?;
         let mut x: c_double = 0.0;
@@ -1367,7 +1574,12 @@ impl Stage {
     }
 
     /// Composed `float3` / `Vec3f` (or `Vec3d` narrowed to `f32`) at `time`.
-    pub fn read_field_vec3f(&self, prim_path: &str, attr: &str, time: f64) -> Result<(f32, f32, f32), i32> {
+    pub fn read_field_vec3f(
+        &self,
+        prim_path: &str,
+        attr: &str,
+        time: f64,
+    ) -> Result<(f32, f32, f32), i32> {
         let pp = std::ffi::CString::new(prim_path).map_err(|_| 1)?;
         let an = std::ffi::CString::new(attr).map_err(|_| 1)?;
         let mut x: c_float = 0.0;
@@ -1392,7 +1604,12 @@ impl Stage {
     }
 
     /// Composed `matrix4d` at `time` as 16 `f64` values, row-major `m[row * 4 + col]`.
-    pub fn read_field_matrix4d(&self, prim_path: &str, attr: &str, time: f64) -> Result<[f64; 16], i32> {
+    pub fn read_field_matrix4d(
+        &self,
+        prim_path: &str,
+        attr: &str,
+        time: f64,
+    ) -> Result<[f64; 16], i32> {
         let pp = std::ffi::CString::new(prim_path).map_err(|_| 1)?;
         let an = std::ffi::CString::new(attr).map_err(|_| 1)?;
         let mut m = [0.0_f64; 16];
@@ -1413,7 +1630,12 @@ impl Stage {
     }
 
     /// Composed `quatd` at `time` as `(real, i, j, k)`.
-    pub fn read_field_quatd(&self, prim_path: &str, attr: &str, time: f64) -> Result<(f64, f64, f64, f64), i32> {
+    pub fn read_field_quatd(
+        &self,
+        prim_path: &str,
+        attr: &str,
+        time: f64,
+    ) -> Result<(f64, f64, f64, f64), i32> {
         let pp = std::ffi::CString::new(prim_path).map_err(|_| 1)?;
         let an = std::ffi::CString::new(attr).map_err(|_| 1)?;
         let mut r: c_double = 0.0;
@@ -1440,7 +1662,12 @@ impl Stage {
     }
 
     /// Composed `quatf` (or `quatd` narrowed) at `time`.
-    pub fn read_field_quatf(&self, prim_path: &str, attr: &str, time: f64) -> Result<(f32, f32, f32, f32), i32> {
+    pub fn read_field_quatf(
+        &self,
+        prim_path: &str,
+        attr: &str,
+        time: f64,
+    ) -> Result<(f32, f32, f32, f32), i32> {
         let pp = std::ffi::CString::new(prim_path).map_err(|_| 1)?;
         let an = std::ffi::CString::new(attr).map_err(|_| 1)?;
         let mut r: c_float = 0.0;
@@ -1495,7 +1722,12 @@ impl Stage {
     }
 
     /// Composed `token[]` at `time` (empty vec is ok).
-    pub fn read_field_token_array(&self, prim_path: &str, attr: &str, time: f64) -> Result<Vec<String>, i32> {
+    pub fn read_field_token_array(
+        &self,
+        prim_path: &str,
+        attr: &str,
+        time: f64,
+    ) -> Result<Vec<String>, i32> {
         let pp = std::ffi::CString::new(prim_path).map_err(|_| 1)?;
         let an = std::ffi::CString::new(attr).map_err(|_| 1)?;
         let mut arr: *mut *mut c_char = std::ptr::null_mut();
@@ -1529,7 +1761,11 @@ impl Stage {
         Ok(out)
     }
 
-    fn stage_query_bool(&self, prim_path: &str, f: unsafe extern "C" fn(*const FreeusdStage, *const c_char) -> c_int) -> Result<bool, i32> {
+    fn stage_query_bool(
+        &self,
+        prim_path: &str,
+        f: unsafe extern "C" fn(*const FreeusdStage, *const c_char) -> c_int,
+    ) -> Result<bool, i32> {
         let pp = CString::new(prim_path).map_err(|_| 1)?;
         let rc = unsafe { f(self.ptr as *const FreeusdStage, pp.as_ptr()) };
         if rc < 0 {
@@ -1558,12 +1794,24 @@ impl Stage {
     fn stage_list_prim_strings(
         &self,
         prim_path: &str,
-        f: unsafe extern "C" fn(*const FreeusdStage, *const c_char, *mut *mut *mut c_char, *mut usize) -> c_int,
+        f: unsafe extern "C" fn(
+            *const FreeusdStage,
+            *const c_char,
+            *mut *mut *mut c_char,
+            *mut usize,
+        ) -> c_int,
     ) -> Result<Vec<String>, i32> {
         let pp = CString::new(prim_path).map_err(|_| 1)?;
         let mut arr: *mut *mut c_char = ptr::null_mut();
         let mut n: usize = 0;
-        let rc = unsafe { f(self.ptr as *const FreeusdStage, pp.as_ptr(), &mut arr, &mut n) };
+        let rc = unsafe {
+            f(
+                self.ptr as *const FreeusdStage,
+                pp.as_ptr(),
+                &mut arr,
+                &mut n,
+            )
+        };
         if rc != 0 {
             return Err(rc as i32);
         }
@@ -1677,7 +1925,11 @@ impl Stage {
         self.stage_query_bool(prim_path, freeusd_stage_has_prim_payloads)
     }
 
-    pub fn composed_prim_custom_data_utf8(&self, prim_path: &str, key: &str) -> Result<String, i32> {
+    pub fn composed_prim_custom_data_utf8(
+        &self,
+        prim_path: &str,
+        key: &str,
+    ) -> Result<String, i32> {
         let pp = CString::new(prim_path).map_err(|_| 1)?;
         let k = CString::new(key).map_err(|_| 1)?;
         let mut out: *mut c_char = ptr::null_mut();
@@ -1721,11 +1973,19 @@ impl Stage {
         }
     }
 
-    pub fn prim_custom_data_key_in_any_layer(&self, prim_path: &str, key: &str) -> Result<bool, i32> {
+    pub fn prim_custom_data_key_in_any_layer(
+        &self,
+        prim_path: &str,
+        key: &str,
+    ) -> Result<bool, i32> {
         let pp = CString::new(prim_path).map_err(|_| 1)?;
         let k = CString::new(key).map_err(|_| 1)?;
         let rc = unsafe {
-            freeusd_stage_prim_custom_data_key_in_any_layer(self.ptr as *const FreeusdStage, pp.as_ptr(), k.as_ptr())
+            freeusd_stage_prim_custom_data_key_in_any_layer(
+                self.ptr as *const FreeusdStage,
+                pp.as_ptr(),
+                k.as_ptr(),
+            )
         };
         if rc < 0 {
             Err(rc as i32)
@@ -1766,7 +2026,11 @@ impl Stage {
     }
 
     /// Local transform matrix (row-major 16 doubles) via validated `usdGeom::Xformable`.
-    pub fn compute_local_transform_matrix4d(&self, prim_path: &str, time: f64) -> Result<[f64; 16], i32> {
+    pub fn compute_local_transform_matrix4d(
+        &self,
+        prim_path: &str,
+        time: f64,
+    ) -> Result<[f64; 16], i32> {
         let pp = CString::new(prim_path).map_err(|_| 1)?;
         let mut m = [0.0f64; 16];
         let rc = unsafe {
@@ -1784,7 +2048,11 @@ impl Stage {
     }
 
     /// Local-to-world transform matrix (row-major 16 doubles) via validated `usdGeom::Xformable`.
-    pub fn compute_local_to_world_transform_matrix4d(&self, prim_path: &str, time: f64) -> Result<[f64; 16], i32> {
+    pub fn compute_local_to_world_transform_matrix4d(
+        &self,
+        prim_path: &str,
+        time: f64,
+    ) -> Result<[f64; 16], i32> {
         let pp = CString::new(prim_path).map_err(|_| 1)?;
         let mut m = [0.0f64; 16];
         let rc = unsafe {
@@ -1932,13 +2200,88 @@ impl Stage {
     pub fn assess_engine_runtime_support(&self) -> Result<EngineRuntimeSupport, i32> {
         let mut raw = FreeusdEngineRuntimeSupport::default();
         let rc = unsafe {
-            freeusd_usdutils_assess_engine_runtime_support(self.ptr as *const FreeusdStage, &mut raw)
+            freeusd_usdutils_assess_engine_runtime_support(
+                self.ptr as *const FreeusdStage,
+                &mut raw,
+            )
         };
         if rc != 0 {
             Err(rc as i32)
         } else {
             Ok(raw)
         }
+    }
+
+    /// Resolve a Material `outputs:surface` connection to the connected shader prim path.
+    pub fn read_material_surface_shader_path(&self, material_path: &str) -> Result<String, i32> {
+        let mp = CString::new(material_path).map_err(|_| 1)?;
+        let mut out: *mut c_char = ptr::null_mut();
+        let rc = unsafe {
+            freeusd_stage_read_material_surface_shader_path(
+                self.ptr as *const FreeusdStage,
+                mp.as_ptr(),
+                &mut out,
+            )
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        if out.is_null() {
+            return Ok(String::new());
+        }
+        let s = unsafe { CStr::from_ptr(out).to_string_lossy().into_owned() };
+        unsafe { freeusd_string_free(out) };
+        Ok(s)
+    }
+
+    /// Read `UsdPreviewSurface` `inputs:diffuseColor` from a shader prim.
+    pub fn read_preview_surface_diffuse_color(
+        &self,
+        shader_path: &str,
+        time: f64,
+    ) -> Result<[f32; 3], i32> {
+        let sp = CString::new(shader_path).map_err(|_| 1)?;
+        let mut rgb = [0.0f32; 3];
+        let rc = unsafe {
+            freeusd_stage_read_preview_surface_diffuse_color(
+                self.ptr as *const FreeusdStage,
+                sp.as_ptr(),
+                time as c_double,
+                rgb.as_mut_ptr(),
+            )
+        };
+        if rc != 0 {
+            Err(rc as i32)
+        } else {
+            Ok(rgb)
+        }
+    }
+
+    /// Read a direct or connected diffuse texture asset path from a preview-surface shader.
+    pub fn read_preview_surface_diffuse_texture_asset_path(
+        &self,
+        shader_path: &str,
+        time: f64,
+    ) -> Result<String, i32> {
+        let sp = CString::new(shader_path).map_err(|_| 1)?;
+        let mut out: *mut c_char = ptr::null_mut();
+        let rc = unsafe {
+            freeusd_stage_read_preview_surface_diffuse_texture_asset_path(
+                self.ptr as *const FreeusdStage,
+                sp.as_ptr(),
+                time as c_double,
+                &mut out,
+            )
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        if out.is_null() {
+            return Ok(String::new());
+        }
+        let s = unsafe { CStr::from_ptr(out).to_string_lossy().into_owned() };
+        unsafe { freeusd_string_free(out) };
+        Ok(s)
     }
 
     pub fn deform_points_with_skeleton(
@@ -1977,11 +2320,7 @@ impl Stage {
         }
         let mut out = Vec::with_capacity(points.len());
         for i in 0..points.len() {
-            out.push([
-                out_xyz[i * 3],
-                out_xyz[i * 3 + 1],
-                out_xyz[i * 3 + 2],
-            ]);
+            out.push([out_xyz[i * 3], out_xyz[i * 3 + 1], out_xyz[i * 3 + 2]]);
         }
         Ok(out)
     }
@@ -2059,7 +2398,10 @@ impl Stage {
     pub fn prefix_substitution_key_in_any_layer(&self, from_prefix: &str) -> Result<bool, i32> {
         let pp = CString::new(from_prefix).map_err(|_| 1)?;
         let rc = unsafe {
-            freeusd_stage_prefix_substitution_key_in_any_layer(self.ptr as *const FreeusdStage, pp.as_ptr())
+            freeusd_stage_prefix_substitution_key_in_any_layer(
+                self.ptr as *const FreeusdStage,
+                pp.as_ptr(),
+            )
         };
         if rc < 0 {
             Err(rc as i32)
@@ -2126,7 +2468,10 @@ impl Stage {
     pub fn custom_layer_data_key_in_any_layer(&self, key: &str) -> Result<bool, i32> {
         let k = CString::new(key).map_err(|_| 1)?;
         let rc = unsafe {
-            freeusd_stage_custom_layer_data_key_in_any_layer(self.ptr as *const FreeusdStage, k.as_ptr())
+            freeusd_stage_custom_layer_data_key_in_any_layer(
+                self.ptr as *const FreeusdStage,
+                k.as_ptr(),
+            )
         };
         if rc < 0 {
             Err(rc as i32)
@@ -2188,7 +2533,11 @@ impl Stage {
         Ok(v)
     }
 
-    pub fn composed_prim_variant_selection(&self, prim_path: &str, variant_set: &str) -> Result<Option<String>, i32> {
+    pub fn composed_prim_variant_selection(
+        &self,
+        prim_path: &str,
+        variant_set: &str,
+    ) -> Result<Option<String>, i32> {
         let pp = CString::new(prim_path).map_err(|_| 1)?;
         let vs = CString::new(variant_set).map_err(|_| 1)?;
         let mut out: *mut c_char = ptr::null_mut();
@@ -2214,7 +2563,11 @@ impl Stage {
         Ok(Some(s))
     }
 
-    pub fn prim_variant_selection_set_in_any_layer(&self, prim_path: &str, variant_set: &str) -> Result<bool, i32> {
+    pub fn prim_variant_selection_set_in_any_layer(
+        &self,
+        prim_path: &str,
+        variant_set: &str,
+    ) -> Result<bool, i32> {
         let pp = CString::new(prim_path).map_err(|_| 1)?;
         let vs = CString::new(variant_set).map_err(|_| 1)?;
         let rc = unsafe {
@@ -2233,13 +2586,25 @@ impl Stage {
 
     fn string_list_from_stage_path(
         &self,
-        f: unsafe extern "C" fn(*const FreeusdStage, *const c_char, *mut *mut *mut c_char, *mut usize) -> c_int,
+        f: unsafe extern "C" fn(
+            *const FreeusdStage,
+            *const c_char,
+            *mut *mut *mut c_char,
+            *mut usize,
+        ) -> c_int,
         prim_path: &str,
     ) -> Result<Vec<String>, i32> {
         let pp = CString::new(prim_path).map_err(|_| 1)?;
         let mut rows: *mut *mut c_char = ptr::null_mut();
         let mut count: usize = 0;
-        let rc = unsafe { f(self.ptr as *const FreeusdStage, pp.as_ptr(), &mut rows, &mut count) };
+        let rc = unsafe {
+            f(
+                self.ptr as *const FreeusdStage,
+                pp.as_ptr(),
+                &mut rows,
+                &mut count,
+            )
+        };
         if rc != 0 {
             return Err(rc as i32);
         }
@@ -2259,15 +2624,31 @@ impl Stage {
         Ok(v)
     }
 
-    pub fn list_composed_prim_variant_selection_sets(&self, prim_path: &str) -> Result<Vec<String>, i32> {
-        self.string_list_from_stage_path(freeusd_stage_list_composed_prim_variant_selection_sets_utf8, prim_path)
+    pub fn list_composed_prim_variant_selection_sets(
+        &self,
+        prim_path: &str,
+    ) -> Result<Vec<String>, i32> {
+        self.string_list_from_stage_path(
+            freeusd_stage_list_composed_prim_variant_selection_sets_utf8,
+            prim_path,
+        )
     }
 
-    pub fn list_composed_prim_variant_set_names(&self, prim_path: &str) -> Result<Vec<String>, i32> {
-        self.string_list_from_stage_path(freeusd_stage_list_composed_prim_variant_set_names_utf8, prim_path)
+    pub fn list_composed_prim_variant_set_names(
+        &self,
+        prim_path: &str,
+    ) -> Result<Vec<String>, i32> {
+        self.string_list_from_stage_path(
+            freeusd_stage_list_composed_prim_variant_set_names_utf8,
+            prim_path,
+        )
     }
 
-    pub fn prim_variant_set_declared_in_any_layer(&self, prim_path: &str, variant_set_name: &str) -> Result<bool, i32> {
+    pub fn prim_variant_set_declared_in_any_layer(
+        &self,
+        prim_path: &str,
+        variant_set_name: &str,
+    ) -> Result<bool, i32> {
         let pp = CString::new(prim_path).map_err(|_| 1)?;
         let vn = CString::new(variant_set_name).map_err(|_| 1)?;
         let rc = unsafe {
@@ -2284,7 +2665,11 @@ impl Stage {
         }
     }
 
-    pub fn list_composed_prim_variant_names(&self, prim_path: &str, variant_set_name: &str) -> Result<Vec<String>, i32> {
+    pub fn list_composed_prim_variant_names(
+        &self,
+        prim_path: &str,
+        variant_set_name: &str,
+    ) -> Result<Vec<String>, i32> {
         let pp = CString::new(prim_path).map_err(|_| 1)?;
         let vn = CString::new(variant_set_name).map_err(|_| 1)?;
         let mut rows: *mut *mut c_char = ptr::null_mut();
@@ -2403,8 +2788,8 @@ mod tests {
         buf[120..128].copy_from_slice(&5i64.to_le_bytes());
         buf[128..133].copy_from_slice(b"alpha");
         std::fs::write(&p, &buf).expect("write section");
-        let payload =
-            read_usdc_section_bytes_from_path(&p.to_string_lossy(), "TOKENS", 64).expect("read section");
+        let payload = read_usdc_section_bytes_from_path(&p.to_string_lossy(), "TOKENS", 64)
+            .expect("read section");
         assert_eq!(payload, b"alpha");
         assert!(read_usdc_section_bytes_from_path(&p.to_string_lossy(), "MISSING", 64).is_err());
         let _ = std::fs::remove_file(&p);
@@ -2413,13 +2798,17 @@ mod tests {
     #[test]
     fn read_structured_usdc_tables_from_fixture() {
         let p = fixture_path("parity_tables.usdc");
-        let tokens = read_usdc_token_table_from_path(&p.to_string_lossy(), 8, 1024).expect("token table");
+        let tokens =
+            read_usdc_token_table_from_path(&p.to_string_lossy(), 8, 1024).expect("token table");
         assert_eq!(tokens, vec!["render".to_string(), "invisible".to_string()]);
-        let strings = read_usdc_string_table_from_path(&p.to_string_lossy(), 8, 1024).expect("string table");
+        let strings =
+            read_usdc_string_table_from_path(&p.to_string_lossy(), 8, 1024).expect("string table");
         assert_eq!(strings, vec!["hello".to_string(), "world".to_string()]);
-        let paths = read_usdc_path_table_from_path(&p.to_string_lossy(), 8, 1024).expect("path table");
+        let paths =
+            read_usdc_path_table_from_path(&p.to_string_lossy(), 8, 1024).expect("path table");
         assert_eq!(paths, vec!["/World".to_string(), "/World/Cube".to_string()]);
-        let fields = read_usdc_fields_table_from_path(&p.to_string_lossy(), 8, 1024).expect("fields table");
+        let fields =
+            read_usdc_fields_table_from_path(&p.to_string_lossy(), 8, 1024).expect("fields table");
         assert_eq!(
             fields,
             vec![
@@ -2433,7 +2822,8 @@ mod tests {
                 },
             ]
         );
-        let specs = read_usdc_specs_table_from_path(&p.to_string_lossy(), 8, 1024).expect("specs table");
+        let specs =
+            read_usdc_specs_table_from_path(&p.to_string_lossy(), 8, 1024).expect("specs table");
         assert_eq!(
             specs,
             vec![
@@ -2449,8 +2839,8 @@ mod tests {
                 },
             ]
         );
-        let fieldsets =
-            read_usdc_fieldsets_table_from_path(&p.to_string_lossy(), 8, 8, 1024).expect("fieldsets table");
+        let fieldsets = read_usdc_fieldsets_table_from_path(&p.to_string_lossy(), 8, 8, 1024)
+            .expect("fieldsets table");
         assert_eq!(
             fieldsets,
             vec![
@@ -2463,7 +2853,8 @@ mod tests {
             ]
         );
 
-        let typed = read_usdc_typed_values_table_from_path(&p.to_string_lossy(), 16, 1024).expect("typed values");
+        let typed = read_usdc_typed_values_table_from_path(&p.to_string_lossy(), 16, 1024)
+            .expect("typed values");
         assert_eq!(typed.len(), 15);
         assert_eq!(typed[0].kind, 1);
         assert_eq!(typed[0].int32_value, 42);
@@ -2477,14 +2868,16 @@ mod tests {
         assert!((typed[14].vec4f_value[0] - 1.0f32).abs() < 1e-5);
         assert!((typed[14].vec4f_value[3] - 4.0f32).abs() < 1e-5);
 
-        let values = read_usdc_values_table_from_path(&p.to_string_lossy(), 16, 1024).expect("values table");
+        let values =
+            read_usdc_values_table_from_path(&p.to_string_lossy(), 16, 1024).expect("values table");
         assert_eq!(values.len(), 15);
         assert_eq!(values[0].bytes.len(), 4);
     }
 
     #[test]
     fn detect_usd_file_kind_fixture_and_crate_prefix() {
-        let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../tests/fixtures/stage_open_root.usda");
+        let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../tests/fixtures/stage_open_root.usda");
         let p = fixture.to_string_lossy();
         let (k, d) = detect_usd_file_kind_from_path(&p).expect("fixture usda");
         assert_eq!(k, UsdFileKind::UsdaAscii);
@@ -2553,19 +2946,73 @@ def Xform "W"
         let stage = Stage::attach_root_layer(&layer).expect("stage");
 
         assert!(stage.prim_path_in_use("/Scene/Child").expect("child valid"));
-        assert!(!stage.prim_path_in_use("/Scene/Missing").expect("missing invalid"));
+        assert!(!stage
+            .prim_path_in_use("/Scene/Missing")
+            .expect("missing invalid"));
 
-        assert!((stage.read_field_double("/Scene/Child", "mass", 1.0).expect("mass") - 2.5).abs() < 1e-9);
-        assert!((stage.read_field_double("/Scene/Child", "mass", 2.0).expect("mass samples") - 4.0).abs() < 1e-9);
-        assert!((stage.read_field_float("/Scene/Child", "density", 1.0).expect("density") - 1.25).abs() < 1e-5);
-        assert!((stage.read_field_float("/Scene/Child", "mass", 1.0).expect("mass float") - 2.5).abs() < 1e-5);
-        assert!(stage.read_field_bool("/Scene/Child", "enabled", 1.0).expect("enabled"));
-        assert_eq!(stage.read_field_int64("/Scene/Child", "count", 1.0).expect("count"), -7);
-        assert_eq!(stage.read_field_int64("/Scene/Child", "mass", 1.0).expect("mass int"), 2);
-        assert_eq!(stage.read_field_string("/Scene/Child", "label", 1.0).expect("label"), "hello");
-        assert_eq!(stage.read_field_string("/Scene/Child", "kind", 1.0).expect("kind string"), "component");
+        assert!(
+            (stage
+                .read_field_double("/Scene/Child", "mass", 1.0)
+                .expect("mass")
+                - 2.5)
+                .abs()
+                < 1e-9
+        );
+        assert!(
+            (stage
+                .read_field_double("/Scene/Child", "mass", 2.0)
+                .expect("mass samples")
+                - 4.0)
+                .abs()
+                < 1e-9
+        );
+        assert!(
+            (stage
+                .read_field_float("/Scene/Child", "density", 1.0)
+                .expect("density")
+                - 1.25)
+                .abs()
+                < 1e-5
+        );
+        assert!(
+            (stage
+                .read_field_float("/Scene/Child", "mass", 1.0)
+                .expect("mass float")
+                - 2.5)
+                .abs()
+                < 1e-5
+        );
+        assert!(stage
+            .read_field_bool("/Scene/Child", "enabled", 1.0)
+            .expect("enabled"));
+        assert_eq!(
+            stage
+                .read_field_int64("/Scene/Child", "count", 1.0)
+                .expect("count"),
+            -7
+        );
+        assert_eq!(
+            stage
+                .read_field_int64("/Scene/Child", "mass", 1.0)
+                .expect("mass int"),
+            2
+        );
+        assert_eq!(
+            stage
+                .read_field_string("/Scene/Child", "label", 1.0)
+                .expect("label"),
+            "hello"
+        );
+        assert_eq!(
+            stage
+                .read_field_string("/Scene/Child", "kind", 1.0)
+                .expect("kind string"),
+            "component"
+        );
 
-        let (x, y, z) = stage.read_field_vec3d("/Scene/Child", "extent", 1.0).expect("extent");
+        let (x, y, z) = stage
+            .read_field_vec3d("/Scene/Child", "extent", 1.0)
+            .expect("extent");
         assert!((x - 1.0).abs() < 1e-9 && (y - 2.0).abs() < 1e-9 && (z - 3.0).abs() < 1e-9);
 
         let (x, y, z) = stage
@@ -2573,25 +3020,45 @@ def Xform "W"
             .expect("displayColor");
         assert!((x - 0.25).abs() < 1e-5 && (y - 0.5).abs() < 1e-5 && (z - 0.75).abs() < 1e-5);
 
-        let (x, y, z) = stage.read_field_vec3f("/Scene/Child", "extent", 1.0).expect("extent vec3f");
+        let (x, y, z) = stage
+            .read_field_vec3f("/Scene/Child", "extent", 1.0)
+            .expect("extent vec3f");
         assert!((x - 1.0).abs() < 1e-5 && (y - 2.0).abs() < 1e-5 && (z - 3.0).abs() < 1e-5);
 
-        let m = stage.read_field_matrix4d("/Scene/Child", "xf", 1.0).expect("xf");
+        let m = stage
+            .read_field_matrix4d("/Scene/Child", "xf", 1.0)
+            .expect("xf");
         assert_eq!(m[0], 1.0);
         assert_eq!(m[5], 1.0);
         assert_eq!(m[10], 1.0);
         assert_eq!(m[15], 1.0);
 
-        let (r, i, j, k) = stage.read_field_quatd("/Scene/Child", "qd", 1.0).expect("qd");
+        let (r, i, j, k) = stage
+            .read_field_quatd("/Scene/Child", "qd", 1.0)
+            .expect("qd");
         assert!((r - 1.0).abs() < 1e-9 && i.abs() < 1e-9 && j.abs() < 1e-9 && k.abs() < 1e-9);
 
-        let (r, i, j, k) = stage.read_field_quatf("/Scene/Child", "qf", 1.0).expect("qf");
-        assert!((r - 0.70710677).abs() < 1e-5 && i.abs() < 1e-5 && j.abs() < 1e-5 && (k - 0.70710677).abs() < 1e-5);
+        let (r, i, j, k) = stage
+            .read_field_quatf("/Scene/Child", "qf", 1.0)
+            .expect("qf");
+        assert!(
+            (r - 0.70710677).abs() < 1e-5
+                && i.abs() < 1e-5
+                && j.abs() < 1e-5
+                && (k - 0.70710677).abs() < 1e-5
+        );
 
-        let (r, i, j, k) = stage.read_field_quatf("/Scene/Child", "qd", 1.0).expect("qd narrowed");
+        let (r, i, j, k) = stage
+            .read_field_quatf("/Scene/Child", "qd", 1.0)
+            .expect("qd narrowed");
         assert!((r - 1.0).abs() < 1e-5 && i.abs() < 1e-5 && j.abs() < 1e-5 && k.abs() < 1e-5);
 
-        assert_eq!(stage.read_field_token("/Scene/Child", "kind", 1.0).expect("kind token"), "component");
+        assert_eq!(
+            stage
+                .read_field_token("/Scene/Child", "kind", 1.0)
+                .expect("kind token"),
+            "component"
+        );
         assert_eq!(
             stage
                 .read_field_token_array("/Scene/Child", "tags", 1.0)
@@ -2599,15 +3066,32 @@ def Xform "W"
             vec!["a".to_string(), "b".to_string()]
         );
 
-        assert!(stage.read_field_double("/Scene/Child", "missingAttr", 1.0).is_err());
-        assert!(stage.read_field_double("/Scene/Missing", "mass", 1.0).is_err());
+        assert!(stage
+            .read_field_double("/Scene/Child", "missingAttr", 1.0)
+            .is_err());
+        assert!(stage
+            .read_field_double("/Scene/Missing", "mass", 1.0)
+            .is_err());
         assert!(stage.read_field_quatd("/Scene/Child", "qf", 1.0).is_err());
-        assert!(stage.read_field_token("/Scene/Child", "label", 1.0).is_err());
-        assert!(stage.read_field_token_array("/Scene/Child", "kind", 1.0).is_err());
+        assert!(stage
+            .read_field_token("/Scene/Child", "label", 1.0)
+            .is_err());
+        assert!(stage
+            .read_field_token_array("/Scene/Child", "kind", 1.0)
+            .is_err());
 
-        assert_eq!(stage.list_field_sample_times("/Scene/Child", "mass").expect("mass times"), vec![2.0]);
-        assert!(stage.has_field_opinion("/Scene/Child", "mass").expect("mass opinion"));
-        assert!(!stage.has_field_opinion("/Scene/Child", "missingAttr").expect("missing opinion"));
+        assert_eq!(
+            stage
+                .list_field_sample_times("/Scene/Child", "mass")
+                .expect("mass times"),
+            vec![2.0]
+        );
+        assert!(stage
+            .has_field_opinion("/Scene/Child", "mass")
+            .expect("mass opinion"));
+        assert!(!stage
+            .has_field_opinion("/Scene/Child", "missingAttr")
+            .expect("missing opinion"));
         assert_eq!(
             stage
                 .composed_prim_custom_data_int64("/Scene/Child", "tag")
@@ -2623,12 +3107,18 @@ def Xform "W"
                 .expect("customData keys"),
             vec!["tag".to_string()]
         );
-        assert!(stage.has_prim_inherits("/Scene/ArcHost").expect("ArcHost inherits"));
+        assert!(stage
+            .has_prim_inherits("/Scene/ArcHost")
+            .expect("ArcHost inherits"));
         assert_eq!(
-            stage.list_prim_inherits("/Scene/ArcHost").expect("inherit list"),
+            stage
+                .list_prim_inherits("/Scene/ArcHost")
+                .expect("inherit list"),
             vec!["/Scene/Child".to_string()]
         );
-        assert!(!stage.has_prim_inherits("/Scene/Child").expect("Child no inherits"));
+        assert!(!stage
+            .has_prim_inherits("/Scene/Child")
+            .expect("Child no inherits"));
     }
 
     #[test]
@@ -2658,7 +3148,9 @@ def Xform "W"
         assert!(stage.read_field_bool("/W/C", "no_such", 1.0).is_err());
         assert!(stage.read_field_matrix4d("/W/C", "no_such", 1.0).is_err());
         assert!(stage.read_field_token("/W/C", "no_such", 1.0).is_err());
-        assert!(stage.read_field_token_array("/W/C", "no_such", 1.0).is_err());
+        assert!(stage
+            .read_field_token_array("/W/C", "no_such", 1.0)
+            .is_err());
     }
 
     #[test]
@@ -2866,13 +3358,18 @@ def Xform "Root"
         let mut layer = Layer::new_anonymous(Some("rust_psub")).expect("layer");
         assert_eq!(layer.load_usda(USDA), 0, "{}", last_error_message());
         let stage = Stage::attach_root_layer(&layer).expect("stage");
-        assert!(stage.prefix_substitution_key_in_any_layer("/Models").unwrap());
+        assert!(stage
+            .prefix_substitution_key_in_any_layer("/Models")
+            .unwrap());
         assert_eq!(
             stage.composed_prefix_substitution("/Models").unwrap(),
             Some("/ModelsV2".to_string())
         );
         let pairs = stage.list_composed_prefix_substitution_pairs().unwrap();
-        assert_eq!(pairs, vec![("/Models".to_string(), "/ModelsV2".to_string())]);
+        assert_eq!(
+            pairs,
+            vec![("/Models".to_string(), "/ModelsV2".to_string())]
+        );
         assert!(!stage.prefix_substitution_key_in_any_layer("/Nope").unwrap());
         assert_eq!(stage.composed_prefix_substitution("/Nope").unwrap(), None);
     }
@@ -2895,7 +3392,9 @@ def "R"
         let mut layer = Layer::new_anonymous(Some("rust_cld")).expect("layer");
         assert_eq!(layer.load_usda(USDA), 0, "{}", last_error_message());
         let stage = Stage::attach_root_layer(&layer).expect("stage");
-        assert!(stage.custom_layer_data_key_in_any_layer("layerTag").unwrap());
+        assert!(stage
+            .custom_layer_data_key_in_any_layer("layerTag")
+            .unwrap());
         assert_eq!(
             stage.composed_custom_layer_data("layerTag").unwrap(),
             Some("hello".to_string())
@@ -2939,7 +3438,9 @@ def Xform "Root"
             Some("HiPoly".to_string())
         );
         assert_eq!(
-            stage.list_composed_prim_variant_selection_sets("/Root").unwrap(),
+            stage
+                .list_composed_prim_variant_selection_sets("/Root")
+                .unwrap(),
             vec!["modelVariant".to_string()]
         );
         assert!(stage
@@ -2955,7 +3456,12 @@ def Xform "Root"
                 .unwrap(),
             vec!["HiPoly".to_string(), "LoPoly".to_string()]
         );
-        assert_eq!(stage.composed_prim_variant_selection("/Root", "missing").unwrap(), None);
+        assert_eq!(
+            stage
+                .composed_prim_variant_selection("/Root", "missing")
+                .unwrap(),
+            None
+        );
         assert_eq!(
             stage.list_composed_prim_variant_names("/Root", "missing"),
             Err(ERR_NOT_FOUND)
@@ -3002,6 +3508,31 @@ def Xform "Q"
     }
 
     #[test]
+    fn composed_prim_kind_active_from_arcs() {
+        let path = fixture_path("parity_kind_active_refs.usda");
+        let stage =
+            Stage::open_from_root_file(&path.to_string_lossy(), root_sublayers::DEPTH_FIRST)
+                .expect("open kind/active fixture");
+        assert!(stage.resolve_has_prim_kind("/World/RefHost").unwrap());
+        assert_eq!(
+            stage.resolve_prim_kind("/World/RefHost").unwrap(),
+            Some("component".to_string())
+        );
+        assert!(stage
+            .resolve_has_prim_active_opinion("/World/RefHost")
+            .unwrap());
+        assert!(!stage.resolve_prim_active("/World/RefHost").unwrap());
+        assert_eq!(
+            stage.resolve_prim_kind("/World/PayloadHost").unwrap(),
+            Some("group".to_string())
+        );
+        assert!(stage.resolve_prim_active("/World/InheritHost").unwrap());
+        assert!(!stage
+            .resolve_has_prim_active_opinion("/World/InheritHost")
+            .unwrap());
+    }
+
+    #[test]
     fn layer_hints_smoke() {
         const USDA: &str = r#"#usda 1.0
 (
@@ -3040,7 +3571,8 @@ def Xform "Root"
     #[test]
     fn usd_geom_engine_subset_parity_imageable() {
         let path = fixture_path("parity_imageable.usda");
-        let stage = Stage::open_from_root_file(&path.to_string_lossy(), 2).expect("open parity_imageable");
+        let stage =
+            Stage::open_from_root_file(&path.to_string_lossy(), 2).expect("open parity_imageable");
         let l2w = stage
             .compute_local_to_world_transform_matrix4d("/World/Cube", 1.0)
             .expect("l2w");
@@ -3062,8 +3594,12 @@ def Xform "Root"
         let (min_x, min_y, min_z, max_x, max_y, max_z) = stage
             .compute_boundable_world_bounds("/World/Cube", 1.0)
             .expect("world bounds");
-        assert!((min_x - 0.0).abs() < 1e-9 && (min_y - 1.0).abs() < 1e-9 && (min_z - 2.0).abs() < 1e-9);
-        assert!((max_x - 2.0).abs() < 1e-9 && (max_y - 3.0).abs() < 1e-9 && (max_z - 4.0).abs() < 1e-9);
+        assert!(
+            (min_x - 0.0).abs() < 1e-9 && (min_y - 1.0).abs() < 1e-9 && (min_z - 2.0).abs() < 1e-9
+        );
+        assert!(
+            (max_x - 2.0).abs() < 1e-9 && (max_y - 3.0).abs() < 1e-9 && (max_z - 4.0).abs() < 1e-9
+        );
 
         assert_eq!(
             stage
@@ -3074,15 +3610,50 @@ def Xform "Root"
     }
 
     #[test]
+    fn usd_shade_preview_surface_bindings() {
+        let preview = fixture_path("parity_shade_preview.usda");
+        let stage =
+            Stage::open_from_root_file(&preview.to_string_lossy(), root_sublayers::DEPTH_FIRST)
+                .expect("open preview fixture");
+        let shader_path = stage
+            .read_material_surface_shader_path("/World/Looks/Material")
+            .expect("surface shader");
+        assert_eq!(shader_path, "/World/Looks/Material/PreviewSurface");
+        let rgb = stage
+            .read_preview_surface_diffuse_color(&shader_path, 1.0)
+            .expect("diffuse color");
+        assert!((rgb[0] - 0.8).abs() < 1e-5);
+        assert!((rgb[1] - 0.2).abs() < 1e-5);
+        assert!((rgb[2] - 0.1).abs() < 1e-5);
+
+        let textured = fixture_path("parity_shade_texture.usda");
+        let texture_stage =
+            Stage::open_from_root_file(&textured.to_string_lossy(), root_sublayers::DEPTH_FIRST)
+                .expect("open texture fixture");
+        let shader_path = texture_stage
+            .read_material_surface_shader_path("/World/Looks/Material")
+            .expect("texture surface shader");
+        assert_eq!(
+            texture_stage
+                .read_preview_surface_diffuse_texture_asset_path(&shader_path, 1.0)
+                .expect("diffuse texture"),
+            "textures/albedo.png"
+        );
+    }
+
+    #[test]
     fn skel_cross_language_contract() {
         let path = fixture_path("parity_skel_skinning.usda");
-        let stage = Stage::open_from_root_file(&path.to_string_lossy(), 2).expect("open skel fixture");
+        let stage =
+            Stage::open_from_root_file(&path.to_string_lossy(), 2).expect("open skel fixture");
         let names = stage
             .read_skel_joint_names("/World/SkelCharacter/Skeleton")
             .expect("joint names");
         assert_eq!(names, vec!["Root".to_string(), "Root/Hip".to_string()]);
 
-        let report = stage.assess_engine_runtime_support().expect("runtime report");
+        let report = stage
+            .assess_engine_runtime_support()
+            .expect("runtime report");
         assert_eq!(report.uses_skel_bound_meshes, 1);
         assert_eq!(report.uses_skel_animation, 1);
 

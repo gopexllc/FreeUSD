@@ -36,7 +36,7 @@ const (
 	UsdFileKindIoOrEmpty UsdFileKind = 0
 	UsdFileKindUsdaAscii UsdFileKind = 1
 	UsdFileKindUsdcCrate UsdFileKind = 2
-	UsdFileKindUnknown UsdFileKind = 3
+	UsdFileKindUnknown   UsdFileKind = 3
 )
 
 // DetectUsdFileKindFromPath reads the first bytes of path (no full USDC decode). On success rc is 0 and kind is set.
@@ -64,7 +64,7 @@ type UsdcBootstrap struct {
 	FileVersionMajor byte
 	FileVersionMinor byte
 	FileVersionPatch byte
-	TocByteOffset      int64
+	TocByteOffset    int64
 }
 
 // ReadUsdcBootstrapFromPath reads the 88-byte USDC bootstrap (little-endian TOC offset). rc is 0 on success.
@@ -80,13 +80,13 @@ func ReadUsdcBootstrapFromPath(path string) (boot UsdcBootstrap, rc int) {
 		FileVersionMajor: byte(raw.file_version_major),
 		FileVersionMinor: byte(raw.file_version_minor),
 		FileVersionPatch: byte(raw.file_version_patch),
-		TocByteOffset:      int64(raw.toc_byte_offset),
+		TocByteOffset:    int64(raw.toc_byte_offset),
 	}, 0
 }
 
 // UsdcTocSection is one USDC TOC entry (matches C FreeusdUsdcTocSection).
 type UsdcTocSection struct {
-	Name             string
+	Name            string
 	StartByteOffset int64
 	SizeBytes       int64
 }
@@ -124,7 +124,7 @@ func ReadUsdcTocFromPath(path string, maxSections uint64) (sections []UsdcTocSec
 			z++
 		}
 		out[i] = UsdcTocSection{
-			Name:             string(name[:z]),
+			Name:            string(name[:z]),
 			StartByteOffset: int64(sec.start_byte_offset),
 			SizeBytes:       int64(sec.size_bytes),
 		}
@@ -235,9 +235,9 @@ func ReadUsdcFieldsTableFromPath(path string, maxEntries uint64, maxTotalBytes u
 
 // UsdcSpecEntry is one row from the validated SPECS table (matches C FreeusdUsdcSpecEntry).
 type UsdcSpecEntry struct {
-	PathIndex      uint64
-	FieldSetIndex  uint64
-	SpecType       uint64
+	PathIndex     uint64
+	FieldSetIndex uint64
+	SpecType      uint64
 }
 
 // ReadUsdcSpecsTableFromPath reads the validated SPECS table from a shared crate fixture.
@@ -313,23 +313,23 @@ type UsdcValueBlob struct {
 
 // UsdcTypedValue is one typed entry from the validated VALUES table (fixture-oriented kinds).
 type UsdcTypedValue struct {
-	Kind         uint64
-	Bytes        []byte
-	Int32Value   int32
-	FloatValue   float32
-	TokenIndex   uint64
-	BoolValue    bool
-	DoubleValue  float64
-	Int64Value   int64
-	StringUtf8   string
-	Vec3fValue   [3]float32
-	StringIndex  uint64
-	Vec3dValue     [3]float64
-	Int32Array     []int32
-	FloatArray     []float32
-	DoubleArray    []float64
-	Vec2fValue     [2]float32
-	Vec4fValue     [4]float32
+	Kind        uint64
+	Bytes       []byte
+	Int32Value  int32
+	FloatValue  float32
+	TokenIndex  uint64
+	BoolValue   bool
+	DoubleValue float64
+	Int64Value  int64
+	StringUtf8  string
+	Vec3fValue  [3]float32
+	StringIndex uint64
+	Vec3dValue  [3]float64
+	Int32Array  []int32
+	FloatArray  []float32
+	DoubleArray []float64
+	Vec2fValue  [2]float32
+	Vec4fValue  [4]float32
 }
 
 // ReadUsdcTypedValuesTableFromPath reads the validated typed VALUES table from a shared crate fixture.
@@ -371,7 +371,7 @@ func ReadUsdcTypedValuesTableFromPath(path string, maxEntries uint64, maxTotalBy
 			StringUtf8:  stringUtf8,
 			Vec3fValue:  [3]float32{float32(entry.vec3f_value[0]), float32(entry.vec3f_value[1]), float32(entry.vec3f_value[2])},
 			StringIndex: uint64(entry.string_index),
-			Vec3dValue: [3]float64{float64(entry.vec3d_value[0]), float64(entry.vec3d_value[1]), float64(entry.vec3d_value[2])},
+			Vec3dValue:  [3]float64{float64(entry.vec3d_value[0]), float64(entry.vec3d_value[1]), float64(entry.vec3d_value[2])},
 			Int32Array: func() []int32 {
 				n := int(entry.int32_array_count)
 				if n == 0 || entry.int32_array == nil {
@@ -550,6 +550,56 @@ func (s *Stage) ResolvePrimSpecifierKind(primPath string) int {
 	pp := C.CString(primPath)
 	defer C.free(unsafe.Pointer(pp))
 	return int(C.freeusd_stage_resolve_prim_specifier_kind(s.ptr, pp))
+}
+
+// ResolvePrimActive returns the composed active flag (default true), with rc 0 on success.
+func (s *Stage) ResolvePrimActive(primPath string) (active bool, rc int) {
+	if s == nil || s.ptr == nil {
+		return false, 1
+	}
+	pp := C.CString(primPath)
+	defer C.free(unsafe.Pointer(pp))
+	var out C.int
+	rc = int(C.freeusd_stage_resolve_prim_active(s.ptr, pp, &out))
+	if rc != 0 {
+		return false, rc
+	}
+	return out != 0, 0
+}
+
+// ResolveHasPrimActiveOpinion reports whether any composed layer authors active on primPath.
+func (s *Stage) ResolveHasPrimActiveOpinion(primPath string) int {
+	if s == nil || s.ptr == nil {
+		return -1
+	}
+	pp := C.CString(primPath)
+	defer C.free(unsafe.Pointer(pp))
+	return int(C.freeusd_stage_resolve_has_prim_active_opinion(s.ptr, pp))
+}
+
+// ResolvePrimKind returns the composed schema kind token text for primPath.
+func (s *Stage) ResolvePrimKind(primPath string) (kind string, rc int) {
+	if s == nil || s.ptr == nil {
+		return "", 1
+	}
+	pp := C.CString(primPath)
+	defer C.free(unsafe.Pointer(pp))
+	out := C.freeusd_stage_resolve_prim_kind(s.ptr, pp)
+	if out == nil {
+		return "", 3
+	}
+	defer C.freeusd_string_free(out)
+	return C.GoString(out), 0
+}
+
+// ResolveHasPrimKind reports whether the composed prim has a schema kind opinion.
+func (s *Stage) ResolveHasPrimKind(primPath string) int {
+	if s == nil || s.ptr == nil {
+		return -1
+	}
+	pp := C.CString(primPath)
+	defer C.free(unsafe.Pointer(pp))
+	return int(C.freeusd_stage_resolve_has_prim_kind(s.ptr, pp))
 }
 
 func stageLayerDouble(s *Stage, get func(*C.FreeusdStage, *C.double, *C.int) C.int) (value float64, has bool, rc int) {
@@ -1239,6 +1289,59 @@ func (s *Stage) ComputeBoundableLocalBounds(primPath string, time float64) (minX
 	return float64(mnX), float64(mnY), float64(mnZ), float64(mxX), float64(mxY), float64(mxZ), rc
 }
 
+// ReadMaterialSurfaceShaderPath resolves a Material outputs:surface connection to a shader prim path.
+func (s *Stage) ReadMaterialSurfaceShaderPath(materialPath string) (shaderPath string, rc int) {
+	if s == nil || s.ptr == nil {
+		return "", 1
+	}
+	mp := C.CString(materialPath)
+	defer C.free(unsafe.Pointer(mp))
+	var out *C.char
+	rc = int(C.freeusd_stage_read_material_surface_shader_path(s.ptr, mp, &out))
+	if rc != 0 {
+		return "", rc
+	}
+	if out == nil {
+		return "", 0
+	}
+	defer C.freeusd_string_free(out)
+	return C.GoString(out), 0
+}
+
+// ReadPreviewSurfaceDiffuseColor reads UsdPreviewSurface inputs:diffuseColor at time.
+func (s *Stage) ReadPreviewSurfaceDiffuseColor(shaderPath string, time float64) (rgb [3]float32, rc int) {
+	if s == nil || s.ptr == nil {
+		return rgb, 1
+	}
+	sp := C.CString(shaderPath)
+	defer C.free(unsafe.Pointer(sp))
+	var out [3]C.float
+	rc = int(C.freeusd_stage_read_preview_surface_diffuse_color(s.ptr, sp, C.double(time), &out[0]))
+	if rc != 0 {
+		return rgb, rc
+	}
+	return [3]float32{float32(out[0]), float32(out[1]), float32(out[2])}, 0
+}
+
+// ReadPreviewSurfaceDiffuseTextureAssetPath reads a direct or connected diffuse texture asset path.
+func (s *Stage) ReadPreviewSurfaceDiffuseTextureAssetPath(shaderPath string, time float64) (assetPath string, rc int) {
+	if s == nil || s.ptr == nil {
+		return "", 1
+	}
+	sp := C.CString(shaderPath)
+	defer C.free(unsafe.Pointer(sp))
+	var out *C.char
+	rc = int(C.freeusd_stage_read_preview_surface_diffuse_texture_asset_path(s.ptr, sp, C.double(time), &out))
+	if rc != 0 {
+		return "", rc
+	}
+	if out == nil {
+		return "", 0
+	}
+	defer C.freeusd_string_free(out)
+	return C.GoString(out), 0
+}
+
 // ListFieldSampleTimes returns sorted composed time-sample times for an attribute (rc 0 ok; empty slice valid).
 func (s *Stage) ListFieldSampleTimes(primPath, attrName string) (times []float64, rc int) {
 	if s == nil || s.ptr == nil {
@@ -1493,8 +1596,8 @@ func (s *Stage) ListComposedPrimCustomDataKeys(primPath string) (keys []string, 
 type EngineRuntimeMode int
 
 const (
-	EngineRuntimePreBaked EngineRuntimeMode = 0
-	EngineRuntimeHybrid   EngineRuntimeMode = 1
+	EngineRuntimePreBaked         EngineRuntimeMode = 0
+	EngineRuntimeHybrid           EngineRuntimeMode = 1
 	EngineRuntimeExperimentalLive EngineRuntimeMode = 2
 )
 
@@ -1517,20 +1620,20 @@ type EngineRuntimeSupport struct {
 	UsesSkelBoundMeshes        bool
 	UsesBlendShapes            bool
 	UsesSkelAnimation          bool
-	UsesMaterialBindings         bool
-	UsesPreviewSurface           bool
-	UsesPreviewSurfaceTextures     bool
-	UsesLuxLights                  bool
-	UsesComposedPrimKind             bool
-	UsesPrimActiveOpinions           bool
-	UsesKindActiveThroughArcs        bool
-	UsesCustomDataThroughArcs        bool
-	UsesPhysicsScenes                bool
-	UsesRigidBodyAPI                 bool
-	UsesCollisionAPI                 bool
-	UsesPhysicsFixedJoints           bool
-	UsesOpenVdbAssets                bool
-	UsesVolumes                      bool
+	UsesMaterialBindings       bool
+	UsesPreviewSurface         bool
+	UsesPreviewSurfaceTextures bool
+	UsesLuxLights              bool
+	UsesComposedPrimKind       bool
+	UsesPrimActiveOpinions     bool
+	UsesKindActiveThroughArcs  bool
+	UsesCustomDataThroughArcs  bool
+	UsesPhysicsScenes          bool
+	UsesRigidBodyAPI           bool
+	UsesCollisionAPI           bool
+	UsesPhysicsFixedJoints     bool
+	UsesOpenVdbAssets          bool
+	UsesVolumes                bool
 }
 
 // AssessEngineRuntimeSupport reports which engine integration mode fits the composed stage.
