@@ -1368,6 +1368,36 @@ func (s *Stage) ReadLuxDistantLightSample(lightPath string, time float64) (sampl
 	}, 0
 }
 
+// OpenVDBAssetInfo is the evaluated usdVol::OpenVDBAsset C ABI sample.
+type OpenVDBAssetInfo struct {
+	FilePath  string
+	FieldName string
+}
+
+// ReadOpenVDBAssetInfo reads filePath and fieldName from an OpenVDBAsset prim.
+func (s *Stage) ReadOpenVDBAssetInfo(assetPath string, time float64) (info OpenVDBAssetInfo, rc int) {
+	if s == nil || s.ptr == nil {
+		return info, 1
+	}
+	ap := C.CString(assetPath)
+	defer C.free(unsafe.Pointer(ap))
+	var filePath *C.char
+	var fieldName *C.char
+	rc = int(C.freeusd_stage_read_openvdb_asset_info(s.ptr, ap, C.double(time), &filePath, &fieldName))
+	if rc != 0 {
+		return info, rc
+	}
+	if filePath != nil {
+		info.FilePath = C.GoString(filePath)
+		C.freeusd_string_free(filePath)
+	}
+	if fieldName != nil {
+		info.FieldName = C.GoString(fieldName)
+		C.freeusd_string_free(fieldName)
+	}
+	return info, 0
+}
+
 // ListFieldSampleTimes returns sorted composed time-sample times for an attribute (rc 0 ok; empty slice valid).
 func (s *Stage) ListFieldSampleTimes(primPath, attrName string) (times []float64, rc int) {
 	if s == nil || s.ptr == nil {

@@ -784,6 +784,16 @@ FREEUSD_C_API int freeusd_stage_read_lux_distant_light_sample(const FreeusdStage
                                                               FreeusdLuxDistantLightSample* out_sample);
 
 /**
+ * Read ``OpenVDBAsset`` ``filePath`` and ``fieldName`` at @p time.
+ * On @ref FREEUSD_OK, @p *out_file_path_utf8 and @p *out_field_name_utf8 are malloc'd; free with
+ * @ref freeusd_string_free. Missing asset prims or missing inputs report @ref FREEUSD_ERR_NOT_FOUND.
+ */
+FREEUSD_C_API int freeusd_stage_read_openvdb_asset_info(const FreeusdStage* stage,
+                                                        const char* asset_path_utf8, double time,
+                                                        char** out_file_path_utf8,
+                                                        char** out_field_name_utf8);
+
+/**
  * Count of bound blend-shape targets on a geom prim (``skel:blendShapes`` token count).
  * Missing geom or unbound prim reports @ref FREEUSD_ERR_NOT_FOUND.
  */

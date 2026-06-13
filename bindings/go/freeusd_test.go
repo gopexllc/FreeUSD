@@ -1035,6 +1035,23 @@ func TestUsdLuxDistantLightBinding(t *testing.T) {
 	}
 }
 
+func TestUsdVolOpenVDBAssetBinding(t *testing.T) {
+	fixture := filepath.Join("..", "..", "tests", "fixtures", "parity_vol_openvdb.usda")
+	st := OpenStageFromRootFile(fixture, RootSubDepthFirst)
+	if st == nil {
+		t.Fatal("OpenStageFromRootFile vol:", LastErrorMessage())
+	}
+	defer st.Free()
+
+	info, rc := st.ReadOpenVDBAssetInfo("/World/Smoke", 1.0)
+	if rc != 0 {
+		t.Fatalf("ReadOpenVDBAssetInfo rc=%d %s", rc, LastErrorMessage())
+	}
+	if info.FilePath != "volumes/smoke.vdb" || info.FieldName != "density" {
+		t.Fatalf("unexpected OpenVDBAsset info %+v", info)
+	}
+}
+
 func TestLayerHints(t *testing.T) {
 	const usda = `#usda 1.0
 (

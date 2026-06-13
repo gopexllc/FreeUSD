@@ -688,6 +688,13 @@ extern "C" {
         time: c_double,
         out_sample: *mut FreeusdLuxDistantLightSample,
     ) -> c_int;
+    fn freeusd_stage_read_openvdb_asset_info(
+        stage: *const FreeusdStage,
+        asset_path: *const c_char,
+        time: c_double,
+        out_file_path: *mut *mut c_char,
+        out_field_name: *mut *mut c_char,
+    ) -> c_int;
     fn freeusd_usdskel_compute_skinning_matrices(
         joint_count: usize,
         joint_world_row_major: *const c_double,
@@ -763,6 +770,12 @@ pub struct LuxDistantLightSample {
     pub intensity: f32,
     pub color: [f32; 3],
     pub angle: f32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OpenVDBAssetInfo {
+    pub file_path: String,
+    pub field_name: String,
 }
 
 /// C API `FREEUSD_ERR_NOT_FOUND` (e.g. unmapped relocate / prefix substitution / customLayerData string read).
@@ -2331,6 +2344,47 @@ impl Stage {
         })
     }
 
+    /// Read `OpenVDBAsset` file path and field name from an asset prim.
+    pub fn read_openvdb_asset_info(
+        &self,
+        asset_path: &str,
+        time: f64,
+    ) -> Result<OpenVDBAssetInfo, i32> {
+        let ap = CString::new(asset_path).map_err(|_| 1)?;
+        let mut file_path: *mut c_char = ptr::null_mut();
+        let mut field_name: *mut c_char = ptr::null_mut();
+        let rc = unsafe {
+            freeusd_stage_read_openvdb_asset_info(
+                self.ptr as *const FreeusdStage,
+                ap.as_ptr(),
+                time as c_double,
+                &mut file_path,
+                &mut field_name,
+            )
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        let file_path_string = if file_path.is_null() {
+            String::new()
+        } else {
+            let s = unsafe { CStr::from_ptr(file_path).to_string_lossy().into_owned() };
+            unsafe { freeusd_string_free(file_path) };
+            s
+        };
+        let field_name_string = if field_name.is_null() {
+            String::new()
+        } else {
+            let s = unsafe { CStr::from_ptr(field_name).to_string_lossy().into_owned() };
+            unsafe { freeusd_string_free(field_name) };
+            s
+        };
+        Ok(OpenVDBAssetInfo {
+            file_path: file_path_string,
+            field_name: field_name_string,
+        })
+    }
+
     pub fn deform_points_with_skeleton(
         &self,
         skeleton_path: &str,
@@ -3702,6 +3756,19 @@ def Xform "Root"
         assert!((sample.color[1] - 0.95).abs() < 1e-5);
         assert!((sample.color[2] - 0.8).abs() < 1e-5);
         assert!((sample.angle - 0.53).abs() < 1e-5);
+    }
+
+    #[test]
+    fn usd_vol_openvdb_asset_binding() {
+        let path = fixture_path("parity_vol_openvdb.usda");
+        let stage =
+            Stage::open_from_root_file(&path.to_string_lossy(), root_sublayers::DEPTH_FIRST)
+                .expect("open vol fixture");
+        let info = stage
+            .read_openvdb_asset_info("/World/Smoke", 1.0)
+            .expect("OpenVDBAsset info");
+        assert_eq!(info.file_path, "volumes/smoke.vdb");
+        assert_eq!(info.field_name, "density");
     }
 
     #[test]

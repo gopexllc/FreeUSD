@@ -36,6 +36,7 @@
 #include "freeusd/usdShade/material.hpp"
 #include "freeusd/usdShade/previewSurface.hpp"
 #include "freeusd/usdUtils/engineScene.hpp"
+#include "freeusd/usdVol/openVdbAsset.hpp"
 #include "freeusd/version.hpp"
 #include "freeusd/vt/value.hpp"
 
@@ -3341,6 +3342,52 @@ int freeusd_stage_read_lux_distant_light_sample(const FreeusdStage* stage, const
     out_sample->color[1] = color.y();
     out_sample->color[2] = color.z();
     out_sample->angle = angle;
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_read_openvdb_asset_info(const FreeusdStage* stage, const char* asset_path_utf8, double time,
+                                          char** out_file_path_utf8, char** out_field_name_utf8) {
+  if (!stage || !stage->inner || !asset_path_utf8 || !out_file_path_utf8 || !out_field_name_utf8) {
+    set_error("freeusd_stage_read_openvdb_asset_info: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_file_path_utf8 = nullptr;
+  *out_field_name_utf8 = nullptr;
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(asset_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid OpenVDBAsset path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const freeusd::usdVol::OpenVDBAsset asset = freeusd::usdVol::OpenVDBAsset::ReadFromPrim(stage->inner, p);
+    if (!asset || !asset.IsOpenVDBAsset()) {
+      set_error("OpenVDBAsset prim not found or invalid");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    std::string file_path;
+    std::string field_name;
+    if (!asset.GetFilePath(&file_path, time) || !asset.GetFieldName(&field_name, time)) {
+      set_error("OpenVDBAsset inputs not available");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    char* file_dup = dup_cstr(file_path);
+    char* field_dup = dup_cstr(field_name);
+    if (!file_dup || !field_dup) {
+      std::free(file_dup);
+      std::free(field_dup);
+      set_error("out of memory");
+      return FREEUSD_ERR_INTERNAL;
+    }
+    *out_file_path_utf8 = file_dup;
+    *out_field_name_utf8 = field_dup;
     clear_error();
     return FREEUSD_OK;
   } catch (const std::exception& e) {
