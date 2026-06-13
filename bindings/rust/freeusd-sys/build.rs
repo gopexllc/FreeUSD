@@ -10,7 +10,10 @@ fn main() {
     let repo_root = if let Ok(r) = env::var("FREEUSD_REPO_ROOT") {
         PathBuf::from(r).canonicalize().expect("FREEUSD_REPO_ROOT")
     } else {
-        manifest_dir.join("../../..").canonicalize().expect("repo root")
+        manifest_dir
+            .join("../../..")
+            .canonicalize()
+            .expect("repo root")
     };
     let _include = repo_root.join("include");
     let lib_dir = repo_root.join("build/src");
@@ -55,7 +58,10 @@ fn main() {
         println!("cargo:rustc-link-lib=static={}", lib);
     }
 
-    if std::env::var("TARGET").unwrap_or_default().contains("apple-darwin") {
+    if std::env::var("TARGET")
+        .unwrap_or_default()
+        .contains("apple-darwin")
+    {
         println!("cargo:rustc-link-lib=c++");
     } else {
         println!("cargo:rustc-link-lib=stdc++");
