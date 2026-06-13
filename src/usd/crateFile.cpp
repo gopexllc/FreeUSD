@@ -671,6 +671,28 @@ bool parse_typed_value_payload(UsdcCrateTypedValueKind kind, const std::vector<s
       }
       out->token_index = readLeU64(bytes.data());
       return true;
+    case UsdcCrateTypedValueKind::TokenIndexArray: {
+      if (bytes.size() < 8u) {
+        set_detail(err_out, "USDC typed TokenIndexArray payload too small for count");
+        return false;
+      }
+      const std::uint64_t count = readLeU64(bytes.data());
+      if (count > (std::numeric_limits<std::size_t>::max() - 8u) / 8u) {
+        set_detail(err_out, "USDC typed TokenIndexArray payload size overflow");
+        return false;
+      }
+      const std::size_t expected = 8u + static_cast<std::size_t>(count) * 8u;
+      if (bytes.size() != expected) {
+        set_detail(err_out, "USDC typed TokenIndexArray payload size mismatch");
+        return false;
+      }
+      out->token_index_array.clear();
+      out->token_index_array.reserve(static_cast<std::size_t>(count));
+      for (std::uint64_t i = 0; i < count; ++i) {
+        out->token_index_array.push_back(readLeU64(bytes.data() + 8u + i * 8u));
+      }
+      return true;
+    }
     case UsdcCrateTypedValueKind::Bool:
       if (bytes.size() != 1u) {
         set_detail(err_out, "USDC typed Bool payload must be 1 byte");
@@ -836,7 +858,7 @@ bool ReadUsdCrateTypedValuesTableFromPath(const std::string& path, UsdcCrateType
     const std::vector<std::uint8_t> payload(section.begin() + static_cast<std::ptrdiff_t>(cursor),
                                             section.begin() + static_cast<std::ptrdiff_t>(cursor + len));
     cursor += static_cast<std::size_t>(len);
-    if (kind_raw > static_cast<std::uint64_t>(UsdcCrateTypedValueKind::Vec4f)) {
+    if (kind_raw > static_cast<std::uint64_t>(UsdcCrateTypedValueKind::TokenIndexArray)) {
       set_detail(err_out, "USDC VALUES typed kind out of range");
       return false;
     }

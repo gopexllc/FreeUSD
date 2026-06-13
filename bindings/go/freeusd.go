@@ -318,6 +318,7 @@ type UsdcTypedValue struct {
 	Int32Value   int32
 	FloatValue   float32
 	TokenIndex   uint64
+	TokenIndexArray []uint64
 	BoolValue    bool
 	DoubleValue  float64
 	Int64Value   int64
@@ -365,6 +366,18 @@ func ReadUsdcTypedValuesTableFromPath(path string, maxEntries uint64, maxTotalBy
 			Int32Value:  int32(entry.int32_value),
 			FloatValue:  float32(entry.float_value),
 			TokenIndex:  uint64(entry.token_index),
+			TokenIndexArray: func() []uint64 {
+				n := int(entry.token_index_array_count)
+				if n == 0 || entry.token_index_array == nil {
+					return nil
+				}
+				out := make([]uint64, n)
+				for j := 0; j < n; j++ {
+					v := *(*C.uint64_t)(unsafe.Pointer(uintptr(unsafe.Pointer(entry.token_index_array)) + uintptr(j)*unsafe.Sizeof(C.uint64_t(0))))
+					out[j] = uint64(v)
+				}
+				return out
+			}(),
 			BoolValue:   entry.bool_value != 0,
 			DoubleValue: float64(entry.double_value),
 			Int64Value:  int64(entry.int64_value),

@@ -1604,6 +1604,7 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
               row["int32_value"] = entry.int32_value;
               row["float_value"] = entry.float_value;
               row["token_index"] = entry.token_index;
+              row["token_index_array"] = entry.token_index_array;
               row["bool_value"] = entry.bool_value;
               row["double_value"] = entry.double_value;
               row["int64_value"] = entry.int64_value;

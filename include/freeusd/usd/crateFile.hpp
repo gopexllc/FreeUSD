@@ -168,6 +168,7 @@ enum class UsdcCrateTypedValueKind : std::uint64_t {
   DoubleArray = 13,
   Vec2f = 14,
   Vec4f = 15,
+  TokenIndexArray = 16,
 };
 
 /// One decoded typed value from the fixture ``VALUES`` table.
@@ -177,6 +178,7 @@ struct UsdcCrateTypedValue {
   std::int32_t int32_value{0};
   float float_value{0.0f};
   std::uint64_t token_index{0};
+  std::vector<std::uint64_t> token_index_array;
   bool bool_value{false};
   double double_value{0.0};
   std::int64_t int64_value{0};

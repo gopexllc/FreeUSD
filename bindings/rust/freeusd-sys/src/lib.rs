@@ -105,6 +105,8 @@ pub struct FreeusdUsdcTypedValue {
     pub double_array_count: usize,
     pub vec2f_value: [f32; 2],
     pub vec4f_value: [f32; 4],
+    pub token_index_array: *mut u64,
+    pub token_index_array_count: usize,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -126,6 +128,7 @@ pub struct UsdcTypedValue {
     pub double_array: Vec<f64>,
     pub vec2f_value: [f32; 2],
     pub vec4f_value: [f32; 4],
+    pub token_index_array: Vec<u64>,
 }
 
 unsafe fn usdc_typed_value_from_c(value: &FreeusdUsdcTypedValue) -> UsdcTypedValue {
@@ -154,6 +157,11 @@ unsafe fn usdc_typed_value_from_c(value: &FreeusdUsdcTypedValue) -> UsdcTypedVal
     } else {
         std::slice::from_raw_parts(value.double_array, value.double_array_count).to_vec()
     };
+    let token_index_array = if value.token_index_array_count == 0 || value.token_index_array.is_null() {
+        Vec::new()
+    } else {
+        std::slice::from_raw_parts(value.token_index_array, value.token_index_array_count).to_vec()
+    };
     UsdcTypedValue {
         kind: value.kind,
         bytes,
@@ -172,6 +180,7 @@ unsafe fn usdc_typed_value_from_c(value: &FreeusdUsdcTypedValue) -> UsdcTypedVal
         double_array,
         vec2f_value: value.vec2f_value,
         vec4f_value: value.vec4f_value,
+        token_index_array,
     }
 }
 
@@ -2464,7 +2473,7 @@ mod tests {
         );
 
         let typed = read_usdc_typed_values_table_from_path(&p.to_string_lossy(), 16, 1024).expect("typed values");
-        assert_eq!(typed.len(), 15);
+        assert_eq!(typed.len(), 16);
         assert_eq!(typed[0].kind, 1);
         assert_eq!(typed[0].int32_value, 42);
         assert_eq!(typed[1].kind, 2);
@@ -2476,9 +2485,11 @@ mod tests {
         assert_eq!(typed[14].kind, 15);
         assert!((typed[14].vec4f_value[0] - 1.0f32).abs() < 1e-5);
         assert!((typed[14].vec4f_value[3] - 4.0f32).abs() < 1e-5);
+        assert_eq!(typed[15].kind, 16);
+        assert_eq!(typed[15].token_index_array, vec![0, 1]);
 
         let values = read_usdc_values_table_from_path(&p.to_string_lossy(), 16, 1024).expect("values table");
-        assert_eq!(values.len(), 15);
+        assert_eq!(values.len(), 16);
         assert_eq!(values[0].bytes.len(), 4);
     }
 
