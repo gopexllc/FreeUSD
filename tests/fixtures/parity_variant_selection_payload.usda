@@ -1,0 +1,23 @@
+#usda 1.0
+(
+    defaultPrim = "PayloadRoot"
+)
+
+def "PayloadRoot"
+(
+    variantSets = {
+        modelVariant = {
+            "A" = {
+                double variantValue = 1.0
+            },
+            "B" = {
+                double variantValue = 9.0
+            },
+        }
+    }
+    variantSelection = {
+        string modelVariant = "B",
+    }
+)
+{
+}

@@ -194,5 +194,51 @@ int main(void) {
   }
   freeusd_string_free(sel);
   freeusd_stage_free(ref_stage);
+
+  char payload_path[4096];
+  if (snprintf(payload_path, sizeof payload_path, "%s/parity_variant_selection_payloads.usda",
+               FREEUSD_TEST_FIXTURES_DIR) >= (int)sizeof payload_path) {
+    fprintf(stderr, "payload path buffer\n");
+    return 19;
+  }
+  FreeusdStage* payload_stage = freeusd_stage_open_from_root_file_utf8(payload_path, 2);
+  if (!payload_stage) {
+    fprintf(stderr, "open payload: %s\n", freeusd_last_error_message());
+    return 20;
+  }
+  sel = NULL;
+  if (freeusd_stage_get_composed_prim_variant_selection_utf8(payload_stage, "/World/PayloadHost", "modelVariant",
+                                                             &sel) != FREEUSD_OK ||
+      !sel || strcmp(sel, "B") != 0) {
+    fprintf(stderr, "payload: composed selection\n");
+    if (sel) {
+      freeusd_string_free(sel);
+    }
+    freeusd_stage_free(payload_stage);
+    return 21;
+  }
+  freeusd_string_free(sel);
+  sets = NULL;
+  ns = 0;
+  if (freeusd_stage_list_composed_prim_variant_selection_sets_utf8(payload_stage, "/World/PayloadHost", &sets, &ns) !=
+          FREEUSD_OK ||
+      ns != 1u || !sets || strcmp(sets[0], "modelVariant") != 0) {
+    fprintf(stderr, "payload: list selection sets\n");
+    if (sets) {
+      freeusd_path_list_free(sets, ns);
+    }
+    freeusd_stage_free(payload_stage);
+    return 22;
+  }
+  freeusd_path_list_free(sets, ns);
+  double variant_value = 0.0;
+  if (freeusd_stage_read_field_double(payload_stage, "/World/PayloadHost", "variantValue", 1.0, &variant_value) !=
+          FREEUSD_OK ||
+      variant_value != 9.0) {
+    fprintf(stderr, "payload: selected variant field\n");
+    freeusd_stage_free(payload_stage);
+    return 23;
+  }
+  freeusd_stage_free(payload_stage);
   return 0;
 }
