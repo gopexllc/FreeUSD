@@ -3,6 +3,27 @@
 
 use std::env;
 use std::path::PathBuf;
+use std::process::Command;
+
+fn add_gcc_libstdcxx_search_path() {
+    let cxx = env::var("CXX").unwrap_or_else(|_| "g++".to_string());
+    let output = Command::new(cxx)
+        .arg("-print-file-name=libstdc++.so")
+        .output();
+    let Ok(output) = output else {
+        return;
+    };
+    if !output.status.success() {
+        return;
+    }
+    let path_text = String::from_utf8_lossy(&output.stdout);
+    let path = PathBuf::from(path_text.trim());
+    if path.is_absolute() {
+        if let Some(parent) = path.parent() {
+            println!("cargo:rustc-link-search=native={}", parent.display());
+        }
+    }
+}
 
 fn main() {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR"));
@@ -64,6 +85,7 @@ fn main() {
     {
         println!("cargo:rustc-link-lib=c++");
     } else {
+        add_gcc_libstdcxx_search_path();
         println!("cargo:rustc-link-lib=stdc++");
     }
     // USDC fixture compression in freeusd_usd (zlib + LZ4).
