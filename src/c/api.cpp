@@ -28,6 +28,7 @@
 #include "freeusd/usdGeom/boundable.hpp"
 #include "freeusd/usdGeom/imageable.hpp"
 #include "freeusd/usdGeom/xformable.hpp"
+#include "freeusd/usdLux/distantLight.hpp"
 #include "freeusd/usdSkel/skelAnimation.hpp"
 #include "freeusd/usdSkel/skelBlendShapes.hpp"
 #include "freeusd/usdSkel/skinning.hpp"
@@ -3299,6 +3300,47 @@ int freeusd_stage_read_preview_surface_diffuse_texture_asset_path(const FreeusdS
       return FREEUSD_ERR_INTERNAL;
     }
     *out_path_utf8 = dup;
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_read_lux_distant_light_sample(const FreeusdStage* stage, const char* light_path_utf8, double time,
+                                                FreeusdLuxDistantLightSample* out_sample) {
+  if (!stage || !stage->inner || !light_path_utf8 || !out_sample) {
+    set_error("freeusd_stage_read_lux_distant_light_sample: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_sample = FreeusdLuxDistantLightSample{};
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(light_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid distant light path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const freeusd::usdLux::DistantLight light = freeusd::usdLux::DistantLight::ReadFromPrim(stage->inner, p);
+    if (!light) {
+      set_error("distant light prim not found or invalid");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    float intensity = 0.0f;
+    freeusd::gf::Vec3f color{};
+    float angle = 0.0f;
+    if (!light.GetIntensity(&intensity, time) || !light.GetColor(&color, time) || !light.GetAngle(&angle, time)) {
+      set_error("distant light input not available");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    out_sample->intensity = intensity;
+    out_sample->color[0] = color.x();
+    out_sample->color[1] = color.y();
+    out_sample->color[2] = color.z();
+    out_sample->angle = angle;
     clear_error();
     return FREEUSD_OK;
   } catch (const std::exception& e) {

@@ -768,6 +768,21 @@ FREEUSD_C_API int freeusd_stage_read_preview_surface_diffuse_color(const Freeusd
 FREEUSD_C_API int freeusd_stage_read_preview_surface_diffuse_texture_asset_path(
     const FreeusdStage* stage, const char* shader_path_utf8, double time, char** out_path_utf8);
 
+/** Evaluated ``UsdLuxDistantLight`` scalar inputs at a time code. */
+typedef struct FreeusdLuxDistantLightSample {
+  float intensity;
+  float color[3];
+  float angle;
+} FreeusdLuxDistantLightSample;
+
+/**
+ * Read ``UsdLuxDistantLight`` ``inputs:intensity``, ``inputs:color``, and ``inputs:angle`` at @p time.
+ * Missing light prims or missing inputs report @ref FREEUSD_ERR_NOT_FOUND.
+ */
+FREEUSD_C_API int freeusd_stage_read_lux_distant_light_sample(const FreeusdStage* stage,
+                                                              const char* light_path_utf8, double time,
+                                                              FreeusdLuxDistantLightSample* out_sample);
+
 /**
  * Count of bound blend-shape targets on a geom prim (``skel:blendShapes`` token count).
  * Missing geom or unbound prim reports @ref FREEUSD_ERR_NOT_FOUND.

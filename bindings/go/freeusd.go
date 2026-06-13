@@ -1342,6 +1342,32 @@ func (s *Stage) ReadPreviewSurfaceDiffuseTextureAssetPath(shaderPath string, tim
 	return C.GoString(out), 0
 }
 
+// LuxDistantLightSample is the evaluated UsdLuxDistantLight C ABI sample.
+type LuxDistantLightSample struct {
+	Intensity float32
+	Color     [3]float32
+	Angle     float32
+}
+
+// ReadLuxDistantLightSample reads intensity, color, and angle from a DistantLight prim.
+func (s *Stage) ReadLuxDistantLightSample(lightPath string, time float64) (sample LuxDistantLightSample, rc int) {
+	if s == nil || s.ptr == nil {
+		return sample, 1
+	}
+	lp := C.CString(lightPath)
+	defer C.free(unsafe.Pointer(lp))
+	var out C.FreeusdLuxDistantLightSample
+	rc = int(C.freeusd_stage_read_lux_distant_light_sample(s.ptr, lp, C.double(time), &out))
+	if rc != 0 {
+		return sample, rc
+	}
+	return LuxDistantLightSample{
+		Intensity: float32(out.intensity),
+		Color:     [3]float32{float32(out.color[0]), float32(out.color[1]), float32(out.color[2])},
+		Angle:     float32(out.angle),
+	}, 0
+}
+
 // ListFieldSampleTimes returns sorted composed time-sample times for an attribute (rc 0 ok; empty slice valid).
 func (s *Stage) ListFieldSampleTimes(primPath, attrName string) (times []float64, rc int) {
 	if s == nil || s.ptr == nil {

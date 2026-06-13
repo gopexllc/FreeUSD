@@ -1017,6 +1017,24 @@ func TestUsdShadePreviewSurfaceBindings(t *testing.T) {
 	}
 }
 
+func TestUsdLuxDistantLightBinding(t *testing.T) {
+	fixture := filepath.Join("..", "..", "tests", "fixtures", "parity_lux_distant.usda")
+	st := OpenStageFromRootFile(fixture, RootSubDepthFirst)
+	if st == nil {
+		t.Fatal("OpenStageFromRootFile lux:", LastErrorMessage())
+	}
+	defer st.Free()
+
+	sample, rc := st.ReadLuxDistantLightSample("/World/Sun", 1.0)
+	if rc != 0 {
+		t.Fatalf("ReadLuxDistantLightSample rc=%d %s", rc, LastErrorMessage())
+	}
+	if sample.Intensity != 1200 || sample.Color[0] != 1.0 || sample.Color[1] != 0.95 ||
+		sample.Color[2] != 0.8 || sample.Angle != 0.53 {
+		t.Fatalf("unexpected distant light sample %+v", sample)
+	}
+}
+
 func TestLayerHints(t *testing.T) {
 	const usda = `#usda 1.0
 (

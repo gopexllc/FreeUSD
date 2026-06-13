@@ -682,6 +682,12 @@ extern "C" {
         time: c_double,
         out_path: *mut *mut c_char,
     ) -> c_int;
+    fn freeusd_stage_read_lux_distant_light_sample(
+        stage: *const FreeusdStage,
+        light_path: *const c_char,
+        time: c_double,
+        out_sample: *mut FreeusdLuxDistantLightSample,
+    ) -> c_int;
     fn freeusd_usdskel_compute_skinning_matrices(
         joint_count: usize,
         joint_world_row_major: *const c_double,
@@ -743,6 +749,21 @@ pub struct FreeusdEngineRuntimeSupport {
 }
 
 pub type EngineRuntimeSupport = FreeusdEngineRuntimeSupport;
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default)]
+pub struct FreeusdLuxDistantLightSample {
+    pub intensity: c_float,
+    pub color: [c_float; 3],
+    pub angle: c_float,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LuxDistantLightSample {
+    pub intensity: f32,
+    pub color: [f32; 3],
+    pub angle: f32,
+}
 
 /// C API `FREEUSD_ERR_NOT_FOUND` (e.g. unmapped relocate / prefix substitution / customLayerData string read).
 pub const ERR_NOT_FOUND: i32 = 3;
@@ -2284,6 +2305,32 @@ impl Stage {
         Ok(s)
     }
 
+    /// Read `UsdLuxDistantLight` intensity, color, and angle from a light prim.
+    pub fn read_lux_distant_light_sample(
+        &self,
+        light_path: &str,
+        time: f64,
+    ) -> Result<LuxDistantLightSample, i32> {
+        let lp = CString::new(light_path).map_err(|_| 1)?;
+        let mut raw = FreeusdLuxDistantLightSample::default();
+        let rc = unsafe {
+            freeusd_stage_read_lux_distant_light_sample(
+                self.ptr as *const FreeusdStage,
+                lp.as_ptr(),
+                time as c_double,
+                &mut raw,
+            )
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        Ok(LuxDistantLightSample {
+            intensity: raw.intensity,
+            color: raw.color,
+            angle: raw.angle,
+        })
+    }
+
     pub fn deform_points_with_skeleton(
         &self,
         skeleton_path: &str,
@@ -3639,6 +3686,22 @@ def Xform "Root"
                 .expect("diffuse texture"),
             "textures/albedo.png"
         );
+    }
+
+    #[test]
+    fn usd_lux_distant_light_binding() {
+        let path = fixture_path("parity_lux_distant.usda");
+        let stage =
+            Stage::open_from_root_file(&path.to_string_lossy(), root_sublayers::DEPTH_FIRST)
+                .expect("open lux fixture");
+        let sample = stage
+            .read_lux_distant_light_sample("/World/Sun", 1.0)
+            .expect("distant light sample");
+        assert!((sample.intensity - 1200.0).abs() < 1e-5);
+        assert!((sample.color[0] - 1.0).abs() < 1e-5);
+        assert!((sample.color[1] - 0.95).abs() < 1e-5);
+        assert!((sample.color[2] - 0.8).abs() < 1e-5);
+        assert!((sample.angle - 0.53).abs() < 1e-5);
     }
 
     #[test]

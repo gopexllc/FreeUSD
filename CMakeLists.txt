@@ -378,6 +378,13 @@ if(FREEUSD_BUILD_TESTS)
     target_compile_definitions(freeusd_c_usd_shade PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
     set_target_properties(freeusd_c_usd_shade PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX)
     add_test(NAME freeusd_c_usd_shade COMMAND freeusd_c_usd_shade)
+
+    add_executable(freeusd_c_usd_lux tests/c_usd_lux.c)
+    target_include_directories(freeusd_c_usd_lux PRIVATE "${PROJECT_SOURCE_DIR}/include")
+    target_link_libraries(freeusd_c_usd_lux PRIVATE freeusd::c)
+    target_compile_definitions(freeusd_c_usd_lux PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+    set_target_properties(freeusd_c_usd_lux PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX)
+    add_test(NAME freeusd_c_usd_lux COMMAND freeusd_c_usd_lux)
   endif()
 
   set(
@@ -445,7 +452,8 @@ if(FREEUSD_BUILD_TESTS)
       freeusd_c_stage_layer_hints
       freeusd_c_engine_integration
       freeusd_c_usd_skel
-      freeusd_c_usd_shade)
+      freeusd_c_usd_shade
+      freeusd_c_usd_lux)
   endif()
   foreach(_freeusd_test_target IN LISTS _freeusd_assert_enabled_test_targets)
     freeusd_enable_test_asserts("${_freeusd_test_target}")
