@@ -36,6 +36,12 @@ struct FreeusdPhysicsCollisionSample {
     int collision_enabled;
 }
 
+struct FreeusdLuxDistantLightSample {
+    float intensity;
+    float[3] color;
+    float angle;
+}
+
 const(char)* freeusd_version_string();
 const(char)* freeusd_usdc_crate_identifier_utf8();
 const(char)* freeusd_last_error_message();
@@ -83,3 +89,16 @@ int freeusd_stage_read_physics_collision_sample(
     const(char)* prim_path_utf8,
     double time,
     FreeusdPhysicsCollisionSample* out_sample);
+
+int freeusd_stage_read_lux_distant_light_sample(
+    const(FreeusdStage)* stage,
+    const(char)* light_path_utf8,
+    double time,
+    FreeusdLuxDistantLightSample* out_sample);
+
+int freeusd_stage_read_openvdb_asset_info(
+    const(FreeusdStage)* stage,
+    const(char)* asset_path_utf8,
+    double time,
+    char** out_file_path_utf8,
+    char** out_field_name_utf8);

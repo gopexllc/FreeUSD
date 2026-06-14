@@ -32,6 +32,17 @@ struct PhysicsCollisionSample {
     bool collisionEnabled;
 }
 
+struct LuxDistantLightSample {
+    float intensity;
+    float[3] color;
+    float angle;
+}
+
+struct OpenVDBAssetInfo {
+    string filePath;
+    string fieldName;
+}
+
 struct Stage {
     private FreeusdStage* handle;
 
@@ -122,6 +133,33 @@ struct Stage {
         return PhysicsCollisionSample(raw.collision_enabled != 0);
     }
 
+    LuxDistantLightSample readLuxDistantLight(string lightPath, double time = 1.0) const {
+        ensureOpen();
+        FreeusdLuxDistantLightSample raw;
+        auto rc = freeusd_stage_read_lux_distant_light_sample(handle, lightPath.toStringz, time, &raw);
+        check(rc, "readLuxDistantLight");
+        return LuxDistantLightSample(raw.intensity, raw.color, raw.angle);
+    }
+
+    OpenVDBAssetInfo readOpenVDBAsset(string assetPath, double time = 1.0) const {
+        ensureOpen();
+        char* filePath = null;
+        char* fieldName = null;
+        auto rc = freeusd_stage_read_openvdb_asset_info(handle, assetPath.toStringz, time, &filePath, &fieldName);
+        check(rc, "readOpenVDBAsset");
+        scope(exit) {
+            if (filePath !is null) {
+                freeusd_string_free(filePath);
+            }
+            if (fieldName !is null) {
+                freeusd_string_free(fieldName);
+            }
+        }
+        return OpenVDBAssetInfo(
+            filePath is null ? "" : fromStringz(filePath).idup,
+            fieldName is null ? "" : fromStringz(fieldName).idup);
+    }
+
     private void ensureOpen() const {
         enforce(handle !is null, new FreeUsdException("FreeUSD stage is closed"));
     }
@@ -196,4 +234,21 @@ unittest {
     auto stage = Stage.open("../../tests/fixtures/parity_physics_collision.usda");
     auto collision = stage.readPhysicsCollision("/World/Collider", 1.0);
     assert(!collision.collisionEnabled);
+}
+
+unittest {
+    auto stage = Stage.open("../../tests/fixtures/parity_lux_distant.usda");
+    auto light = stage.readLuxDistantLight("/World/Sun", 1.0);
+    assert(light.intensity == 1200.0f);
+    assert(light.color[0] == 1.0f);
+    assert(light.color[1] == 0.95f);
+    assert(light.color[2] == 0.8f);
+    assert(light.angle == 0.53f);
+}
+
+unittest {
+    auto stage = Stage.open("../../tests/fixtures/parity_vol_openvdb.usda");
+    auto asset = stage.readOpenVDBAsset("/World/Smoke", 1.0);
+    assert(asset.filePath == "volumes/smoke.vdb");
+    assert(asset.fieldName == "density");
 }
