@@ -17,6 +17,21 @@ struct PhysicsMassSample {
     float[3] centerOfMass;
 }
 
+struct PhysicsSceneSample {
+    float[3] gravityDirection;
+    float gravityMagnitude;
+}
+
+struct PhysicsRigidBodySample {
+    float mass;
+    bool hasKinematicEnabled;
+    bool kinematicEnabled;
+}
+
+struct PhysicsCollisionSample {
+    bool collisionEnabled;
+}
+
 struct Stage {
     private FreeusdStage* handle;
 
@@ -83,6 +98,30 @@ struct Stage {
         return PhysicsMassSample(raw.density, raw.center_of_mass);
     }
 
+    PhysicsSceneSample readPhysicsScene(string scenePath, double time = 1.0) const {
+        ensureOpen();
+        FreeusdPhysicsSceneSample raw;
+        auto rc = freeusd_stage_read_physics_scene_sample(handle, scenePath.toStringz, time, &raw);
+        check(rc, "readPhysicsScene");
+        return PhysicsSceneSample(raw.gravity_direction, raw.gravity_magnitude);
+    }
+
+    PhysicsRigidBodySample readPhysicsRigidBody(string primPath, double time = 1.0) const {
+        ensureOpen();
+        FreeusdPhysicsRigidBodySample raw;
+        auto rc = freeusd_stage_read_physics_rigid_body_sample(handle, primPath.toStringz, time, &raw);
+        check(rc, "readPhysicsRigidBody");
+        return PhysicsRigidBodySample(raw.mass, raw.has_kinematic_enabled != 0, raw.kinematic_enabled != 0);
+    }
+
+    PhysicsCollisionSample readPhysicsCollision(string primPath, double time = 1.0) const {
+        ensureOpen();
+        FreeusdPhysicsCollisionSample raw;
+        auto rc = freeusd_stage_read_physics_collision_sample(handle, primPath.toStringz, time, &raw);
+        check(rc, "readPhysicsCollision");
+        return PhysicsCollisionSample(raw.collision_enabled != 0);
+    }
+
     private void ensureOpen() const {
         enforce(handle !is null, new FreeUsdException("FreeUSD stage is closed"));
     }
@@ -134,4 +173,27 @@ unittest {
     assert(mass.centerOfMass[0] == 0.0f);
     assert(mass.centerOfMass[1] == 0.5f);
     assert(mass.centerOfMass[2] == 0.0f);
+}
+
+unittest {
+    auto stage = Stage.open("../../tests/fixtures/parity_physics_scene.usda");
+    auto scene = stage.readPhysicsScene("/World/Physics", 1.0);
+    assert(scene.gravityDirection[0] == 0.0f);
+    assert(scene.gravityDirection[1] == 0.0f);
+    assert(scene.gravityDirection[2] == -1.0f);
+    assert(scene.gravityMagnitude == 981.0f);
+}
+
+unittest {
+    auto stage = Stage.open("../../tests/fixtures/parity_physics_rigid_body_kinematic.usda");
+    auto body = stage.readPhysicsRigidBody("/World/Body", 1.0);
+    assert(body.mass == 1.0f);
+    assert(body.hasKinematicEnabled);
+    assert(body.kinematicEnabled);
+}
+
+unittest {
+    auto stage = Stage.open("../../tests/fixtures/parity_physics_collision.usda");
+    auto collision = stage.readPhysicsCollision("/World/Collider", 1.0);
+    assert(!collision.collisionEnabled);
 }

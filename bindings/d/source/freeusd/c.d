@@ -21,6 +21,21 @@ struct FreeusdPhysicsMassSample {
     float[3] center_of_mass;
 }
 
+struct FreeusdPhysicsSceneSample {
+    float[3] gravity_direction;
+    float gravity_magnitude;
+}
+
+struct FreeusdPhysicsRigidBodySample {
+    float mass;
+    int has_kinematic_enabled;
+    int kinematic_enabled;
+}
+
+struct FreeusdPhysicsCollisionSample {
+    int collision_enabled;
+}
+
 const(char)* freeusd_version_string();
 const(char)* freeusd_usdc_crate_identifier_utf8();
 const(char)* freeusd_last_error_message();
@@ -50,3 +65,21 @@ int freeusd_stage_read_physics_mass_sample(
     const(char)* prim_path_utf8,
     double time,
     FreeusdPhysicsMassSample* out_sample);
+
+int freeusd_stage_read_physics_scene_sample(
+    const(FreeusdStage)* stage,
+    const(char)* scene_path_utf8,
+    double time,
+    FreeusdPhysicsSceneSample* out_sample);
+
+int freeusd_stage_read_physics_rigid_body_sample(
+    const(FreeusdStage)* stage,
+    const(char)* prim_path_utf8,
+    double time,
+    FreeusdPhysicsRigidBodySample* out_sample);
+
+int freeusd_stage_read_physics_collision_sample(
+    const(FreeusdStage)* stage,
+    const(char)* prim_path_utf8,
+    double time,
+    FreeusdPhysicsCollisionSample* out_sample);
