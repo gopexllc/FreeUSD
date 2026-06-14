@@ -108,6 +108,8 @@ pub struct FreeusdUsdcTypedValue {
     pub vec2d_value: [f64; 2],
     pub quatf_value: [f32; 4],
     pub quatd_value: [f64; 4],
+    pub token_index_array: *mut u64,
+    pub token_index_array_count: usize,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -132,6 +134,7 @@ pub struct UsdcTypedValue {
     pub vec2d_value: [f64; 2],
     pub quatf_value: [f32; 4],
     pub quatd_value: [f64; 4],
+    pub token_index_array: Vec<u64>,
 }
 
 unsafe fn usdc_typed_value_from_c(value: &FreeusdUsdcTypedValue) -> UsdcTypedValue {
@@ -164,6 +167,13 @@ unsafe fn usdc_typed_value_from_c(value: &FreeusdUsdcTypedValue) -> UsdcTypedVal
     } else {
         std::slice::from_raw_parts(value.double_array, value.double_array_count).to_vec()
     };
+    let token_index_array = if value.token_index_array_count == 0
+        || value.token_index_array.is_null()
+    {
+        Vec::new()
+    } else {
+        std::slice::from_raw_parts(value.token_index_array, value.token_index_array_count).to_vec()
+    };
     UsdcTypedValue {
         kind: value.kind,
         bytes,
@@ -185,6 +195,7 @@ unsafe fn usdc_typed_value_from_c(value: &FreeusdUsdcTypedValue) -> UsdcTypedVal
         vec2d_value: value.vec2d_value,
         quatf_value: value.quatf_value,
         quatd_value: value.quatd_value,
+        token_index_array,
     }
 }
 
@@ -3097,7 +3108,7 @@ mod tests {
 
         let typed = read_usdc_typed_values_table_from_path(&p.to_string_lossy(), 19, 1024)
             .expect("typed values");
-        assert_eq!(typed.len(), 18);
+        assert_eq!(typed.len(), 19);
         assert_eq!(typed[0].kind, 1);
         assert_eq!(typed[0].int32_value, 42);
         assert_eq!(typed[1].kind, 2);
@@ -3118,10 +3129,12 @@ mod tests {
         assert_eq!(typed[17].kind, 18);
         assert!((typed[17].quatd_value[0] - 1.0f64).abs() < 1e-12);
         assert!((typed[17].quatd_value[3] - 0.125f64).abs() < 1e-12);
+        assert_eq!(typed[18].kind, 19);
+        assert_eq!(typed[18].token_index_array, vec![0, 1]);
 
         let values =
             read_usdc_values_table_from_path(&p.to_string_lossy(), 19, 1024).expect("values table");
-        assert_eq!(values.len(), 18);
+        assert_eq!(values.len(), 19);
         assert_eq!(values[0].bytes.len(), 4);
     }
 

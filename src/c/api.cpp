@@ -631,9 +631,22 @@ int freeusd_read_usdc_typed_values_table_from_path_utf8(const char* path_utf8, u
       values[i].bool_value = src.bool_value ? 1 : 0;
       values[i].double_value = src.double_value;
       values[i].int64_value = src.int64_value;
+      values[i].token_index_array_count = src.token_index_array.size();
+      values[i].token_index_array = nullptr;
+      if (!src.token_index_array.empty()) {
+        values[i].token_index_array =
+            static_cast<uint64_t*>(std::malloc(values[i].token_index_array_count * sizeof(uint64_t)));
+        if (!values[i].token_index_array) {
+          freeusd_usdc_typed_values_free(values, i + 1);
+          set_error("out of memory");
+          return FREEUSD_ERR_INTERNAL;
+        }
+        std::memcpy(values[i].token_index_array, src.token_index_array.data(),
+                    values[i].token_index_array_count * sizeof(uint64_t));
+      }
       values[i].string_utf8 = src.string_utf8.empty() ? nullptr : dup_cstr(src.string_utf8);
       if (!src.string_utf8.empty() && !values[i].string_utf8) {
-        freeusd_usdc_typed_values_free(values, i);
+        freeusd_usdc_typed_values_free(values, i + 1);
         set_error("out of memory");
         return FREEUSD_ERR_INTERNAL;
       }
@@ -666,7 +679,7 @@ int freeusd_read_usdc_typed_values_table_from_path_utf8(const char* path_utf8, u
         values[i].int32_array =
             static_cast<int32_t*>(std::malloc(values[i].int32_array_count * sizeof(int32_t)));
         if (!values[i].int32_array) {
-          freeusd_usdc_typed_values_free(values, i);
+          freeusd_usdc_typed_values_free(values, i + 1);
           set_error("out of memory");
           return FREEUSD_ERR_INTERNAL;
         }
@@ -679,7 +692,7 @@ int freeusd_read_usdc_typed_values_table_from_path_utf8(const char* path_utf8, u
         values[i].float_array =
             static_cast<float*>(std::malloc(values[i].float_array_count * sizeof(float)));
         if (!values[i].float_array) {
-          freeusd_usdc_typed_values_free(values, i);
+          freeusd_usdc_typed_values_free(values, i + 1);
           set_error("out of memory");
           return FREEUSD_ERR_INTERNAL;
         }
@@ -692,7 +705,7 @@ int freeusd_read_usdc_typed_values_table_from_path_utf8(const char* path_utf8, u
         values[i].double_array =
             static_cast<double*>(std::malloc(values[i].double_array_count * sizeof(double)));
         if (!values[i].double_array) {
-          freeusd_usdc_typed_values_free(values, i);
+          freeusd_usdc_typed_values_free(values, i + 1);
           set_error("out of memory");
           return FREEUSD_ERR_INTERNAL;
         }
@@ -705,7 +718,7 @@ int freeusd_read_usdc_typed_values_table_from_path_utf8(const char* path_utf8, u
       }
       values[i].bytes = static_cast<uint8_t*>(std::malloc(values[i].byte_count));
       if (!values[i].bytes) {
-        freeusd_usdc_typed_values_free(values, i);
+        freeusd_usdc_typed_values_free(values, i + 1);
         set_error("out of memory");
         return FREEUSD_ERR_INTERNAL;
       }
@@ -766,6 +779,7 @@ void freeusd_usdc_typed_values_free(FreeusdUsdcTypedValue* values, size_t count)
     std::free(values[i].int32_array);
     std::free(values[i].float_array);
     std::free(values[i].double_array);
+    std::free(values[i].token_index_array);
   }
   std::free(values);
 }

@@ -67,6 +67,7 @@ VALUE_KIND_VEC4F = 15
 VALUE_KIND_VEC2D = 16
 VALUE_KIND_QUATF = 17
 VALUE_KIND_QUATD = 18
+VALUE_KIND_TOKEN_INDEX_ARRAY = 19
 
 
 def typed_values_table_payload(entries: list[tuple[int, bytes]]) -> bytes:
@@ -108,6 +109,7 @@ def parity_values_entries():
         (VALUE_KIND_VEC2D, struct.pack("<dd", 0.5, 1.75)),
         (VALUE_KIND_QUATF, struct.pack("<ffff", 1.0, 0.5, 0.25, 0.125)),
         (VALUE_KIND_QUATD, struct.pack("<dddd", 1.0, 0.5, 0.25, 0.125)),
+        (VALUE_KIND_TOKEN_INDEX_ARRAY, le_u64(2) + le_u64(0) + le_u64(1)),
     ]
 
 

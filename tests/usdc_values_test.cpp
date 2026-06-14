@@ -27,7 +27,7 @@ int main() {
     assert(freeusd::usd::crate::ReadUsdCrateTypedValuesTableFromPath(fixture("parity_tables.usdc"), typed, 19, 1024,
                                                                     &err));
     assert(err.empty());
-    assert(typed.entries.size() == 18u);
+    assert(typed.entries.size() == 19u);
     assert(typed.entries[0].kind == UsdcCrateTypedValueKind::Int32);
     assert(typed.entries[0].int32_value == 42);
     assert(typed.entries[1].kind == UsdcCrateTypedValueKind::Float);
@@ -83,6 +83,10 @@ int main() {
     assert(std::fabs(typed.entries[17].quatd_value.i - 0.5) < 1e-12);
     assert(std::fabs(typed.entries[17].quatd_value.j - 0.25) < 1e-12);
     assert(std::fabs(typed.entries[17].quatd_value.k - 0.125) < 1e-12);
+    assert(typed.entries[18].kind == UsdcCrateTypedValueKind::TokenIndexArray);
+    assert(typed.entries[18].token_index_array.size() == 2u);
+    assert(typed.entries[18].token_index_array[0] == 0u);
+    assert(typed.entries[18].token_index_array[1] == 1u);
 
     freeusd::usd::crate::UsdcCrateStringTable strings{};
     assert(freeusd::usd::crate::ReadUsdCrateStringTableFromPath(fixture("parity_tables.usdc"), strings, 16, 1024, &err));
@@ -95,7 +99,7 @@ int main() {
     UsdcCrateValuesTable opaque{};
     assert(freeusd::usd::crate::ReadUsdCrateValuesTableFromPath(fixture("parity_tables.usdc"), opaque, 19, 1024, &err));
     assert(err.empty());
-    assert(opaque.entries.size() == 18u);
+    assert(opaque.entries.size() == 19u);
     assert(opaque.entries[0].bytes.size() == 4u);
   }
 
@@ -113,10 +117,11 @@ int main() {
     assert(freeusd::usd::crate::ReadUsdCrateTypedValuesTableFromPath(fixture("parity_tables_zlib.usdc"), zlib_typed,
                                                                     19, 1024, &err));
     assert(err.empty());
-    assert(zlib_typed.entries.size() == 18u);
+    assert(zlib_typed.entries.size() == 19u);
     assert(zlib_typed.entries[0].int32_value == 42);
     assert(zlib_typed.entries[11].float_array.size() == 2u);
     assert(zlib_typed.entries[14].kind == UsdcCrateTypedValueKind::Vec4f);
+    assert(zlib_typed.entries[18].token_index_array[1] == 1u);
   }
 
   {
@@ -125,8 +130,9 @@ int main() {
     assert(freeusd::usd::crate::ReadUsdCrateTypedValuesTableFromPath(fixture("parity_tables_lz4.usdc"), lz4_typed, 19,
                                                                     1024, &err));
     assert(err.empty());
-    assert(lz4_typed.entries.size() == 18u);
+    assert(lz4_typed.entries.size() == 19u);
     assert(lz4_typed.entries[14].vec4f_value.data[3] > 3.99f);
+    assert(lz4_typed.entries[18].kind == UsdcCrateTypedValueKind::TokenIndexArray);
   }
 
   return 0;

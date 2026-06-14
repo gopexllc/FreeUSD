@@ -313,26 +313,27 @@ type UsdcValueBlob struct {
 
 // UsdcTypedValue is one typed entry from the validated VALUES table (fixture-oriented kinds).
 type UsdcTypedValue struct {
-	Kind        uint64
-	Bytes       []byte
-	Int32Value  int32
-	FloatValue  float32
-	TokenIndex  uint64
-	BoolValue   bool
-	DoubleValue float64
-	Int64Value  int64
-	StringUtf8  string
-	Vec3fValue  [3]float32
-	StringIndex uint64
-	Vec3dValue  [3]float64
-	Int32Array  []int32
-	FloatArray  []float32
-	DoubleArray []float64
-	Vec2fValue  [2]float32
-	Vec4fValue  [4]float32
-	Vec2dValue  [2]float64
-	QuatfValue  [4]float32
-	QuatdValue  [4]float64
+	Kind            uint64
+	Bytes           []byte
+	Int32Value      int32
+	FloatValue      float32
+	TokenIndex      uint64
+	TokenIndexArray []uint64
+	BoolValue       bool
+	DoubleValue     float64
+	Int64Value      int64
+	StringUtf8      string
+	Vec3fValue      [3]float32
+	StringIndex     uint64
+	Vec3dValue      [3]float64
+	Int32Array      []int32
+	FloatArray      []float32
+	DoubleArray     []float64
+	Vec2fValue      [2]float32
+	Vec4fValue      [4]float32
+	Vec2dValue      [2]float64
+	QuatfValue      [4]float32
+	QuatdValue      [4]float64
 }
 
 // ReadUsdcTypedValuesTableFromPath reads the validated typed VALUES table from a shared crate fixture.
@@ -363,11 +364,23 @@ func ReadUsdcTypedValuesTableFromPath(path string, maxEntries uint64, maxTotalBy
 			stringUtf8 = C.GoString(entry.string_utf8)
 		}
 		out[i] = UsdcTypedValue{
-			Kind:        uint64(entry.kind),
-			Bytes:       slice,
-			Int32Value:  int32(entry.int32_value),
-			FloatValue:  float32(entry.float_value),
-			TokenIndex:  uint64(entry.token_index),
+			Kind:       uint64(entry.kind),
+			Bytes:      slice,
+			Int32Value: int32(entry.int32_value),
+			FloatValue: float32(entry.float_value),
+			TokenIndex: uint64(entry.token_index),
+			TokenIndexArray: func() []uint64 {
+				n := int(entry.token_index_array_count)
+				if n == 0 || entry.token_index_array == nil {
+					return nil
+				}
+				out := make([]uint64, n)
+				for j := 0; j < n; j++ {
+					v := *(*C.uint64_t)(unsafe.Pointer(uintptr(unsafe.Pointer(entry.token_index_array)) + uintptr(j)*unsafe.Sizeof(C.uint64_t(0))))
+					out[j] = uint64(v)
+				}
+				return out
+			}(),
 			BoolValue:   entry.bool_value != 0,
 			DoubleValue: float64(entry.double_value),
 			Int64Value:  int64(entry.int64_value),

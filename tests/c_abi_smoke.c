@@ -349,7 +349,7 @@ int main(void) {
       fprintf(stderr, "read values table failed: %s\n", freeusd_last_error_message());
       return 1;
     }
-    if (!value_blobs || count != 18u || value_blobs[0].byte_count != 4u) {
+    if (!value_blobs || count != 19u || value_blobs[0].byte_count != 4u) {
       fprintf(stderr, "unexpected values table\n");
       freeusd_usdc_values_blobs_free(value_blobs, count);
       return 1;
@@ -362,7 +362,7 @@ int main(void) {
       fprintf(stderr, "read typed values table failed: %s\n", freeusd_last_error_message());
       return 1;
     }
-    if (!typed_values || count != 18u || typed_values[0].kind != FREEUSD_USDC_VALUE_INT32 ||
+    if (!typed_values || count != 19u || typed_values[0].kind != FREEUSD_USDC_VALUE_INT32 ||
         typed_values[0].int32_value != 42 || typed_values[1].kind != FREEUSD_USDC_VALUE_FLOAT ||
         typed_values[2].kind != FREEUSD_USDC_VALUE_TOKEN_INDEX || typed_values[2].token_index != 0u ||
         typed_values[3].kind != FREEUSD_USDC_VALUE_BOOL || !typed_values[3].bool_value ||
@@ -387,7 +387,10 @@ int main(void) {
         typed_values[16].kind != FREEUSD_USDC_VALUE_QUATF || typed_values[16].quatf_value[0] < 0.99f ||
         typed_values[16].quatf_value[1] < 0.49f || typed_values[16].quatf_value[3] < 0.12f ||
         typed_values[17].kind != FREEUSD_USDC_VALUE_QUATD || typed_values[17].quatd_value[0] < 0.99 ||
-        typed_values[17].quatd_value[3] < 0.12) {
+        typed_values[17].quatd_value[3] < 0.12 ||
+        typed_values[18].kind != FREEUSD_USDC_VALUE_TOKEN_INDEX_ARRAY ||
+        typed_values[18].token_index_array_count != 2u || typed_values[18].token_index_array[0] != 0u ||
+        typed_values[18].token_index_array[1] != 1u) {
       fprintf(stderr, "unexpected typed values table\n");
       freeusd_usdc_typed_values_free(typed_values, count);
       return 1;
