@@ -337,9 +337,9 @@ if(FREEUSD_BUILD_TESTS)
 
     add_executable(freeusd_c_stage_variant tests/c_stage_variant.c)
     target_include_directories(freeusd_c_stage_variant PRIVATE "${PROJECT_SOURCE_DIR}/include")
-    target_link_libraries(freeusd_c_stage_variant PRIVATE freeusd::c)
     target_compile_definitions(
       freeusd_c_stage_variant PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+    target_link_libraries(freeusd_c_stage_variant PRIVATE freeusd::c)
     set_target_properties(freeusd_c_stage_variant PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX)
     add_test(NAME freeusd_c_stage_variant COMMAND freeusd_c_stage_variant)
 

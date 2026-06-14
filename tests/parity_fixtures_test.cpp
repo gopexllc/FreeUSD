@@ -145,9 +145,9 @@ int main() {
     assert(fieldsets.sets[1].field_indices.size() == 1u);
     assert(fieldsets.sets[1].field_indices[0] == 1u);
     freeusd::usd::crate::UsdcCrateTypedValuesTable typed_values{};
-    assert(freeusd::usd::crate::ReadUsdCrateTypedValuesTableFromPath(fixture("parity_tables.usdc"), typed_values, 16,
+    assert(freeusd::usd::crate::ReadUsdCrateTypedValuesTableFromPath(fixture("parity_tables.usdc"), typed_values, 19,
                                                                      1024, &err));
-    assert(typed_values.entries.size() == 15u);
+    assert(typed_values.entries.size() == 18u);
     assert(typed_values.entries[0].int32_value == 42);
     assert(typed_values.entries[4].double_value > 3.24 && typed_values.entries[4].double_value < 3.26);
     assert(typed_values.entries[5].int64_value == -9007199254740991LL);
@@ -157,21 +157,27 @@ int main() {
     assert(typed_values.entries[9].vec3d_value.data[2] > 5.99);
     assert(typed_values.entries[10].int32_array.size() == 3u);
     assert(typed_values.entries[11].float_array.size() == 2u);
-    assert(freeusd::usd::crate::ReadUsdCrateValuesTableFromPath(fixture("parity_tables.usdc"), values, 16, 1024, &err));
-    assert(values.entries.size() == 15u);
+    assert(freeusd::usd::crate::ReadUsdCrateValuesTableFromPath(fixture("parity_tables.usdc"), values, 19, 1024, &err));
+    assert(values.entries.size() == 18u);
     assert(values.entries[0].bytes.size() == 4u);
     assert(freeusd::usd::crate::ReadUsdCrateTypedValuesTableFromPath(
-        fixture("parity_tables_zlib.usdc"), typed_values, 16, 1024, &err));
-    assert(typed_values.entries.size() == 15u);
+        fixture("parity_tables_zlib.usdc"), typed_values, 19, 1024, &err));
+    assert(typed_values.entries.size() == 18u);
     assert(freeusd::usd::crate::ReadUsdCrateTypedValuesTableFromPath(
-        fixture("parity_tables_lz4.usdc"), typed_values, 16, 1024, &err));
-    assert(typed_values.entries.size() == 15u);
+        fixture("parity_tables_lz4.usdc"), typed_values, 19, 1024, &err));
+    assert(typed_values.entries.size() == 18u);
     assert(typed_values.entries[11].float_array.size() == 2u);
     assert(typed_values.entries[12].double_array.size() == 2u);
     assert(typed_values.entries[13].vec2f_value.data[0] > 0.49f && typed_values.entries[13].vec2f_value.data[1] > 1.24f);
     assert(typed_values.entries[12].double_array[0] > 0.99 && typed_values.entries[12].double_array[1] > 1.99);
     assert(typed_values.entries[14].kind == freeusd::usd::crate::UsdcCrateTypedValueKind::Vec4f);
     assert(typed_values.entries[14].vec4f_value.data[0] > 0.99f && typed_values.entries[14].vec4f_value.data[3] > 3.99f);
+    assert(typed_values.entries[15].kind == freeusd::usd::crate::UsdcCrateTypedValueKind::Vec2d);
+    assert(typed_values.entries[15].vec2d_value.data[0] > 0.49 && typed_values.entries[15].vec2d_value.data[1] > 1.74);
+    assert(typed_values.entries[16].kind == freeusd::usd::crate::UsdcCrateTypedValueKind::Quatf);
+    assert(typed_values.entries[16].quatf_value.real > 0.99f && typed_values.entries[16].quatf_value.i > 0.49f);
+    assert(typed_values.entries[17].kind == freeusd::usd::crate::UsdcCrateTypedValueKind::Quatd);
+    assert(typed_values.entries[17].quatd_value.real > 0.99 && typed_values.entries[17].quatd_value.k > 0.12);
     assert(freeusd::usd::crate::ReadUsdCrateSpecsTableFromPath(fixture("parity_tables.usdc"), specs, 8, 1024, &err));
     assert(specs.entries.size() == 2u);
     assert(specs.entries[0].path_index == 0u && specs.entries[0].field_set_index == 0u &&

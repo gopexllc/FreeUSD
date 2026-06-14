@@ -35,10 +35,8 @@ Module boundaries: [docs/openusd-map.md](docs/openusd-map.md). Repo layout: [doc
 - `c302408` — USDC `SPECS` table decode; `UsdGeom::Mesh` parity helpers.
 - `2942708` — USDC `FIELDSETS`; lux lights; shade textures; mesh primvars.
 - `493ca1b` — continual-learning transcript index for agent memory.
-- `505dce2` — LZ4 USDC, variantSets via refs, skel glTF pipeline.
-- `d4959ec` — DoubleArray USDC kind; zlib embedded USDA scene.
 
-**On main today:** USDA load/save and composition subsets are strong; USDC has bootstrap/TOC plus 13 typed `VALUES` kinds on `parity_tables.usdc` (through `DoubleArray`), fixture zlib/LZ4 on `VALUES`, and zlib-wrapped embedded USDA (`parity_embedded_scene_zlib.usdc`). Composition includes composed `variantSelection`/`variantSets` through refs plus `customData` through arcs. Schema: mesh, skel glTF pipeline (`parity_skel_gltf_pipeline.usda`), shade, lux, physics, volume at `partial` depth.
+**On main today:** USDA load/save and composition subsets are strong; USDC has bootstrap/TOC plus validated `TOKENS` / `STRINGS` / `PATHS` / `FIELDS` / `FIELDSETS` / `SPECS` / `VALUES` on `parity_tables.usdc` (fixture typed kinds Int32/Float/TokenIndex/Bool only). Schema helpers cover mesh, skel (glTF-oriented), preview materials, lux, physics (`PhysicsScene`, `RigidBodyAPI`, `CollisionAPI`, `MassAPI`, `FixedJoint`), and volume families at `partial` depth. Composition includes composed `customData` through references/payloads/inherits/specializes and kind/active through specializes.
 
 **USDC `VALUES` next (matrix `planned`):** arbitrary production `.usdc` typed value kinds and compression beyond `parity_tables.usdc`.
 
@@ -142,7 +140,7 @@ Follow [docs/compatibility-claims.md](docs/compatibility-claims.md). Never claim
 
 ## Cursor Cloud specific instructions
 
-- Use **GCC** for C++ builds: `export CC=gcc CXX=g++` (Clang against the default libstdc++ can fail on this image).
-- `freeusd_usd` links **zlib** and **liblz4** privately; install `zlib1g-dev` and `liblz4-dev` before CMake configure if linking fails.
-- Regenerate USDC compression fixtures with `scripts/gen_parity_compressed_usdc.py` (zlib) and `scripts/gen_parity_lz4_usdc.py` (needs Python `lz4` in `.venv`); layout is documented in `docs/usdc-fixture-compression.md`.
-- Standard validate loop: `cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DFREEUSD_BUILD_TESTS=ON`, `cmake --build build --parallel`, `ctest --test-dir build --output-on-failure` (or `./scripts/run_ci_locally.sh` when GitHub Actions is billing-blocked).
+- **Build and test:** See the **Build (typical)** section above. After `cmake --build`, run `ctest --test-dir build --output-on-failure` and `./scripts/run_ci_locally.sh` (covers C++, install smoke, Python pytest, Rust, Go). GitHub Actions for org `gopexllc` may fail instantly with a billing lock; that is not a compile failure.
+- **Python tests:** From repo root, `PYTHONPATH=.` and `pytest tests/python` (local CI installs pytest if missing). Parity fixtures live under `tests/fixtures/`; many C tests need `FREEUSD_TEST_FIXTURES_DIR` set in CMake (for example `freeusd_c_stage_variant`).
+- **Go bindings:** After C++ changes, run `python3 scripts/patch_go_bindings.py` from repo root if Go link symbols drift; then `go test ./...` under `bindings/go`.
+- **Variant metadata through references:** Already covered on `main` via `visit_composition_arc_prim_paths` in `src/usd/stage.cpp` and fixtures `parity_variant_selection_refs.usda` / `parity_variant_sets_refs.usda` (referenced asset `parity_variant_sets_ref.usda`). Composed field reads use separate arc logic in `ReadFieldAtEvaluatedTime`.
