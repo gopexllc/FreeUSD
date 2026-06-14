@@ -835,6 +835,20 @@ FREEUSD_C_API int freeusd_stage_read_physics_collision_sample(const FreeusdStage
                                                               const char* prim_path_utf8, double time,
                                                               FreeusdPhysicsCollisionSample* out_sample);
 
+/** Evaluated ``PhysicsMassAPI`` fields at a time code. */
+typedef struct FreeusdPhysicsMassSample {
+  float density;
+  float center_of_mass[3];
+} FreeusdPhysicsMassSample;
+
+/**
+ * Read ``PhysicsMassAPI`` ``physics:density`` and ``physics:centerOfMass`` at @p time.
+ * Missing mass prims or missing inputs report @ref FREEUSD_ERR_NOT_FOUND.
+ */
+FREEUSD_C_API int freeusd_stage_read_physics_mass_sample(const FreeusdStage* stage,
+                                                         const char* prim_path_utf8, double time,
+                                                         FreeusdPhysicsMassSample* out_sample);
+
 /**
  * Count of bound blend-shape targets on a geom prim (``skel:blendShapes`` token count).
  * Missing geom or unbound prim reports @ref FREEUSD_ERR_NOT_FOUND.

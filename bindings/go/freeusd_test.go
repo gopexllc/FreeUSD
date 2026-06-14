@@ -1122,6 +1122,23 @@ func TestUsdPhysicsCollisionBinding(t *testing.T) {
 	checkFixture("parity_physics_collision_inherit.usda")
 }
 
+func TestUsdPhysicsMassBinding(t *testing.T) {
+	fixture := filepath.Join("..", "..", "tests", "fixtures", "parity_physics_mass.usda")
+	st := OpenStageFromRootFile(fixture, RootSubDepthFirst)
+	if st == nil {
+		t.Fatal("OpenStageFromRootFile mass:", LastErrorMessage())
+	}
+	defer st.Free()
+
+	sample, rc := st.ReadPhysicsMassSample("/World/Prop", 1.0)
+	if rc != 0 {
+		t.Fatalf("ReadPhysicsMassSample rc=%d %s", rc, LastErrorMessage())
+	}
+	if sample.Density != 2.0 || sample.CenterOfMass[0] != 0 || sample.CenterOfMass[1] != 0.5 || sample.CenterOfMass[2] != 0 {
+		t.Fatalf("unexpected PhysicsMassAPI sample %+v", sample)
+	}
+}
+
 func TestLayerHints(t *testing.T) {
 	const usda = `#usda 1.0
 (

@@ -713,6 +713,12 @@ extern "C" {
         time: c_double,
         out_sample: *mut FreeusdPhysicsCollisionSample,
     ) -> c_int;
+    fn freeusd_stage_read_physics_mass_sample(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        time: c_double,
+        out_sample: *mut FreeusdPhysicsMassSample,
+    ) -> c_int;
     fn freeusd_usdskel_compute_skinning_matrices(
         joint_count: usize,
         joint_world_row_major: *const c_double,
@@ -833,6 +839,19 @@ pub struct FreeusdPhysicsCollisionSample {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PhysicsCollisionSample {
     pub collision_enabled: bool,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default)]
+pub struct FreeusdPhysicsMassSample {
+    pub density: c_float,
+    pub center_of_mass: [c_float; 3],
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PhysicsMassSample {
+    pub density: f32,
+    pub center_of_mass: [f32; 3],
 }
 
 /// C API `FREEUSD_ERR_NOT_FOUND` (e.g. unmapped relocate / prefix substitution / customLayerData string read).
@@ -2517,6 +2536,31 @@ impl Stage {
         })
     }
 
+    /// Read `PhysicsMassAPI` density and centerOfMass from a prim.
+    pub fn read_physics_mass_sample(
+        &self,
+        prim_path: &str,
+        time: f64,
+    ) -> Result<PhysicsMassSample, i32> {
+        let pp = CString::new(prim_path).map_err(|_| 1)?;
+        let mut raw = FreeusdPhysicsMassSample::default();
+        let rc = unsafe {
+            freeusd_stage_read_physics_mass_sample(
+                self.ptr as *const FreeusdStage,
+                pp.as_ptr(),
+                time as c_double,
+                &mut raw,
+            )
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        Ok(PhysicsMassSample {
+            density: raw.density,
+            center_of_mass: raw.center_of_mass,
+        })
+    }
+
     pub fn deform_points_with_skeleton(
         &self,
         skeleton_path: &str,
@@ -3958,6 +4002,21 @@ def Xform "Root"
                 .expect("CollisionAPI sample");
             assert!(!sample.collision_enabled);
         }
+    }
+
+    #[test]
+    fn usd_physics_mass_binding() {
+        let path = fixture_path("parity_physics_mass.usda");
+        let stage =
+            Stage::open_from_root_file(&path.to_string_lossy(), root_sublayers::DEPTH_FIRST)
+                .expect("open mass fixture");
+        let sample = stage
+            .read_physics_mass_sample("/World/Prop", 1.0)
+            .expect("PhysicsMassAPI sample");
+        assert!((sample.density - 2.0).abs() < 1e-5);
+        assert!((sample.center_of_mass[0] - 0.0).abs() < 1e-5);
+        assert!((sample.center_of_mass[1] - 0.5).abs() < 1e-5);
+        assert!((sample.center_of_mass[2] - 0.0).abs() < 1e-5);
     }
 
     #[test]

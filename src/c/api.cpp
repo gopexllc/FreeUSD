@@ -30,6 +30,7 @@
 #include "freeusd/usdGeom/xformable.hpp"
 #include "freeusd/usdLux/distantLight.hpp"
 #include "freeusd/usdPhysics/collisionAPI.hpp"
+#include "freeusd/usdPhysics/massAPI.hpp"
 #include "freeusd/usdPhysics/physicsScene.hpp"
 #include "freeusd/usdPhysics/rigidBodyAPI.hpp"
 #include "freeusd/usdSkel/skelAnimation.hpp"
@@ -3505,6 +3506,45 @@ int freeusd_stage_read_physics_collision_sample(const FreeusdStage* stage, const
       return FREEUSD_ERR_NOT_FOUND;
     }
     out_sample->collision_enabled = collision_enabled ? 1 : 0;
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_read_physics_mass_sample(const FreeusdStage* stage, const char* prim_path_utf8, double time,
+                                           FreeusdPhysicsMassSample* out_sample) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !out_sample) {
+    set_error("freeusd_stage_read_physics_mass_sample: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_sample = FreeusdPhysicsMassSample{};
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid PhysicsMassAPI prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const freeusd::usdPhysics::MassAPI mass_api = freeusd::usdPhysics::MassAPI::ReadFromPrim(stage->inner, p);
+    if (!mass_api || !mass_api.IsMassAPI()) {
+      set_error("PhysicsMassAPI prim not found or invalid");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    float density = 0.0f;
+    freeusd::gf::Vec3f center_of_mass{};
+    if (!mass_api.GetDensity(&density, time) || !mass_api.GetCenterOfMass(&center_of_mass, time)) {
+      set_error("PhysicsMassAPI inputs not available");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    out_sample->density = density;
+    out_sample->center_of_mass[0] = center_of_mass.x();
+    out_sample->center_of_mass[1] = center_of_mass.y();
+    out_sample->center_of_mass[2] = center_of_mass.z();
     clear_error();
     return FREEUSD_OK;
   } catch (const std::exception& e) {
