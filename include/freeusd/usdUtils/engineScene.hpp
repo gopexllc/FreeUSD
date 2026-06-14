@@ -142,6 +142,18 @@ struct FREEUSD_API EngineSceneSnapshot {
   std::vector<freeusd::sdf::Path> volume_paths;
 };
 
+/// One prim's text-grounding cues for downstream spatial diagnostics or ontology mapping.
+struct FREEUSD_API EngineSpatialGroundingRecord {
+  freeusd::sdf::Path path;
+  std::string name;
+  freeusd::sdf::Path parent_path;
+  std::vector<std::string> sibling_names;
+  freeusd::gf::Vec3d world_position{};
+  bool has_world_bound{false};
+  freeusd::gf::Vec3d world_bound_dimensions{};
+  std::optional<double> mass_kg;
+};
+
 /// Editor-facing inspection view for one prim in the validated subset.
 struct FREEUSD_API EnginePrimEditorView {
   freeusd::sdf::Path path;
@@ -194,6 +206,10 @@ struct FREEUSD_API EngineRuntimeSupportReport {
 
 /// Build one engine-oriented snapshot from the currently validated `Stage` / `usdGeom` subset.
 FREEUSD_API EngineSceneSnapshot BuildEngineSceneSnapshot(const freeusd::usd::Stage& stage, double time = 1.0);
+
+/// Extract clean-room USD-derived cues useful for text-only spatial diagnostics and ontology grounding.
+FREEUSD_API std::vector<EngineSpatialGroundingRecord> BuildEngineSpatialGroundingContext(
+    const freeusd::usd::Stage& stage, double time = 1.0);
 
 /// Inspect one prim for editor-facing tree/details panels without exposing unstable internals.
 FREEUSD_API EnginePrimEditorView BuildEnginePrimEditorView(const freeusd::usd::Prim& prim, double time = 1.0);

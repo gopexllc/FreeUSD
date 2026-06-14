@@ -196,6 +196,11 @@ if(FREEUSD_BUILD_TESTS)
   target_compile_definitions(
     freeusd_engine_integration_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
 
+  add_executable(freeusd_usdutils_spatial_grounding_test tests/usdutils_spatial_grounding_test.cpp)
+  target_link_libraries(freeusd_usdutils_spatial_grounding_test PRIVATE freeusd::usd freeusd::usdUtils)
+  target_compile_definitions(
+    freeusd_usdutils_spatial_grounding_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+
   add_executable(freeusd_schema_tokens_bundle_test tests/schema_tokens_bundle_test.cpp)
   target_link_libraries(freeusd_schema_tokens_bundle_test PRIVATE freeusd::usd_schemas)
 
@@ -269,6 +274,7 @@ if(FREEUSD_BUILD_TESTS)
   add_test(NAME freeusd_usd_vol_volume_test COMMAND freeusd_usd_vol_volume_test)
   add_test(NAME freeusd_ar_path_security_test COMMAND freeusd_ar_path_security_test)
   add_test(NAME freeusd_engine_integration_test COMMAND freeusd_engine_integration_test)
+  add_test(NAME freeusd_usdutils_spatial_grounding_test COMMAND freeusd_usdutils_spatial_grounding_test)
   add_test(NAME freeusd_schema_tokens_bundle_test COMMAND freeusd_schema_tokens_bundle_test)
   add_test(NAME freeusd_time_code_test COMMAND freeusd_time_code_test)
   add_test(NAME freeusd_edit_target_test COMMAND freeusd_edit_target_test)

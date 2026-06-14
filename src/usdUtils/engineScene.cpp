@@ -13,6 +13,7 @@
 #include "freeusd/usdLux/tokens.hpp"
 #include "freeusd/usdPhysics/collisionAPI.hpp"
 #include "freeusd/usdPhysics/fixedJoint.hpp"
+#include "freeusd/usdPhysics/massAPI.hpp"
 #include "freeusd/usdPhysics/rigidBodyAPI.hpp"
 #include "freeusd/usdPhysics/tokens.hpp"
 #include "freeusd/usdVol/openVdbAsset.hpp"
@@ -274,6 +275,57 @@ EngineSceneSnapshot BuildEngineSceneSnapshot(const freeusd::usd::Stage& stage, d
     return true;
   });
   return snapshot;
+}
+
+std::vector<EngineSpatialGroundingRecord> BuildEngineSpatialGroundingContext(const freeusd::usd::Stage& stage,
+                                                                             double time) {
+  std::vector<EngineSpatialGroundingRecord> records;
+  const std::shared_ptr<const freeusd::usd::Stage> stage_ptr = stage.shared_from_this();
+  stage.TraversePreorder([&records, &stage, &stage_ptr, time](const freeusd::usd::Prim& prim) {
+    if (!prim.IsValid()) {
+      return true;
+    }
+    EngineSpatialGroundingRecord record;
+    record.path = prim.GetPath();
+    record.name = prim.GetName();
+    record.parent_path = record.path.GetParentPath();
+    const freeusd::usd::Prim parent = stage.GetPrimAtPath(record.parent_path);
+    if (parent.IsValid()) {
+      for (const freeusd::usd::Prim& sibling : parent.GetChildren()) {
+        if (sibling.IsValid() && sibling.GetPath() != record.path) {
+          record.sibling_names.push_back(sibling.GetName());
+        }
+      }
+    }
+
+    const freeusd::gf::Matrix4d local_to_world =
+        freeusd::usdGeom::Xformable(prim).ComputeLocalToWorldTransform(time);
+    record.world_position.set(local_to_world.m[12], local_to_world.m[13], local_to_world.m[14]);
+
+    const freeusd::gf::BBox3d world_bound = freeusd::usdGeom::Boundable(prim).ComputeWorldBound(time);
+    if (!world_bound.IsEmpty()) {
+      record.has_world_bound = true;
+      record.world_bound_dimensions.set(world_bound.max.x() - world_bound.min.x(),
+                                         world_bound.max.y() - world_bound.min.y(),
+                                         world_bound.max.z() - world_bound.min.z());
+    }
+
+    float mass = 0.0F;
+    const freeusd::usdPhysics::RigidBodyAPI rigid_body =
+        freeusd::usdPhysics::RigidBodyAPI::ReadFromPrim(stage_ptr, record.path);
+    if (rigid_body.GetMass(&mass, time)) {
+      record.mass_kg = static_cast<double>(mass);
+    } else {
+      const freeusd::usdPhysics::MassAPI mass_api = freeusd::usdPhysics::MassAPI::ReadFromPrim(stage_ptr, record.path);
+      if (mass_api.IsMassAPI() && prim.GetAttribute(freeusd::usdPhysics::tokens::physics_mass(), time).GetFloat(&mass)) {
+        record.mass_kg = static_cast<double>(mass);
+      }
+    }
+
+    records.push_back(std::move(record));
+    return true;
+  });
+  return records;
 }
 
 EnginePrimEditorView BuildEnginePrimEditorView(const freeusd::usd::Prim& prim, double time) {

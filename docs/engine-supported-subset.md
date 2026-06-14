@@ -21,6 +21,7 @@ This document freezes the exact FreeUSD subset a GPL-compatible engine may rely 
   - `freeusd::usdGeom::Boundable`
   - `freeusd::usdUtils::FlattenStageAtTime`
   - `freeusd::usdUtils::BuildEngineSceneSnapshot`
+  - `freeusd::usdUtils::BuildEngineSpatialGroundingContext`
   - `freeusd::usdUtils::BuildEnginePrimEditorView`
   - `freeusd::usdUtils::AssessEngineRuntimeSupport`
 
@@ -70,6 +71,7 @@ This document freezes the exact FreeUSD subset a GPL-compatible engine may rely 
 | composed prim customData through references / payloads | `tests/fixtures/parity_custom_data_refs.usda` |
 | selected variant expansion | `tests/fixtures/parity_variants.usda` |
 | visibility / purpose / bounds / transforms | `tests/fixtures/parity_imageable.usda` |
+| spatial grounding cues for downstream diagnostics | `tests/fixtures/parity_spatial_grounding.usda` |
 | material bindings / preview surface | `tests/fixtures/parity_shade_preview.usda` |
 | preview-surface texture assets | `tests/fixtures/parity_shade_pbr_textures.usda` |
 | usdLux lights in engine snapshots | `tests/fixtures/parity_lux_sphere.usda` |
