@@ -1,30 +1,5 @@
 {
   "version": 1,
-  "updated_at": 1779080500.0,
-  "transcripts": {
-    "/home/tim/.cursor/projects/home-tim-freeusd/agent-transcripts/2174fbad-f673-4d20-a872-2cb191477d81/2174fbad-f673-4d20-a872-2cb191477d81.jsonl": {
-      "mtime": 1778966474.6654139,
-      "size": 20935
-    },
-    "/home/tim/.cursor/projects/home-tim-freeusd/agent-transcripts/356fc053-c6f8-48c2-b440-46a8e39b2984/356fc053-c6f8-48c2-b440-46a8e39b2984.jsonl": {
-      "mtime": 1778558564.515171,
-      "size": 760502
-    },
-    "/home/tim/.cursor/projects/home-tim-freeusd/agent-transcripts/4d0b00e2-deb6-47ad-8fac-0d706814773e/4d0b00e2-deb6-47ad-8fac-0d706814773e.jsonl": {
-      "mtime": 1778483489.469283,
-      "size": 152769
-    },
-    "/home/tim/.cursor/projects/home-tim-freeusd/agent-transcripts/b1171e67-33f1-4fb2-82d1-3fd9bc5a5d3d/b1171e67-33f1-4fb2-82d1-3fd9bc5a5d3d.jsonl": {
-      "mtime": 1779080150.601609,
-      "size": 326786
-    },
-    "/home/tim/.cursor/projects/home-tim-freeusd/agent-transcripts/db15b98d-8238-4853-b9a6-1f44dd8758cc/db15b98d-8238-4853-b9a6-1f44dd8758cc.jsonl": {
-      "mtime": 1778471647.0027664,
-      "size": 3125141
-    },
-    "/home/tim/.cursor/projects/home-tim-freeusd/agent-transcripts/eb1577e4-58d8-4d10-841e-75e6d0bfcb7b/eb1577e4-58d8-4d10-841e-75e6d0bfcb7b.jsonl": {
-      "mtime": 1778976420.7734914,
-      "size": 34683
-    }
-  }
+  "updated_at": 1781341876.0,
+  "transcripts": {}
 }
