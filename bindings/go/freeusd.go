@@ -1487,6 +1487,30 @@ func (s *Stage) ReadPhysicsCollisionSample(primPath string, time float64) (sampl
 	return PhysicsCollisionSample{CollisionEnabled: out.collision_enabled != 0}, 0
 }
 
+// PhysicsMassSample is the evaluated PhysicsMassAPI C ABI sample.
+type PhysicsMassSample struct {
+	Density      float32
+	CenterOfMass [3]float32
+}
+
+// ReadPhysicsMassSample reads density and centerOfMass from a PhysicsMassAPI prim.
+func (s *Stage) ReadPhysicsMassSample(primPath string, time float64) (sample PhysicsMassSample, rc int) {
+	if s == nil || s.ptr == nil {
+		return sample, 1
+	}
+	pp := C.CString(primPath)
+	defer C.free(unsafe.Pointer(pp))
+	var out C.FreeusdPhysicsMassSample
+	rc = int(C.freeusd_stage_read_physics_mass_sample(s.ptr, pp, C.double(time), &out))
+	if rc != 0 {
+		return sample, rc
+	}
+	return PhysicsMassSample{
+		Density:      float32(out.density),
+		CenterOfMass: [3]float32{float32(out.center_of_mass[0]), float32(out.center_of_mass[1]), float32(out.center_of_mass[2])},
+	}, 0
+}
+
 // ListFieldSampleTimes returns sorted composed time-sample times for an attribute (rc 0 ok; empty slice valid).
 func (s *Stage) ListFieldSampleTimes(primPath, attrName string) (times []float64, rc int) {
 	if s == nil || s.ptr == nil {
