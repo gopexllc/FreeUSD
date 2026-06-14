@@ -1448,6 +1448,26 @@ func (s *Stage) ReadPhysicsRigidBodySample(primPath string, time float64) (sampl
 	}, 0
 }
 
+// PhysicsCollisionSample is the evaluated PhysicsCollisionAPI C ABI sample.
+type PhysicsCollisionSample struct {
+	CollisionEnabled bool
+}
+
+// ReadPhysicsCollisionSample reads collisionEnabled from a PhysicsCollisionAPI prim.
+func (s *Stage) ReadPhysicsCollisionSample(primPath string, time float64) (sample PhysicsCollisionSample, rc int) {
+	if s == nil || s.ptr == nil {
+		return sample, 1
+	}
+	pp := C.CString(primPath)
+	defer C.free(unsafe.Pointer(pp))
+	var out C.FreeusdPhysicsCollisionSample
+	rc = int(C.freeusd_stage_read_physics_collision_sample(s.ptr, pp, C.double(time), &out))
+	if rc != 0 {
+		return sample, rc
+	}
+	return PhysicsCollisionSample{CollisionEnabled: out.collision_enabled != 0}, 0
+}
+
 // ListFieldSampleTimes returns sorted composed time-sample times for an attribute (rc 0 ok; empty slice valid).
 func (s *Stage) ListFieldSampleTimes(primPath, attrName string) (times []float64, rc int) {
 	if s == nil || s.ptr == nil {

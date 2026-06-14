@@ -407,6 +407,14 @@ if(FREEUSD_BUILD_TESTS)
       freeusd_c_usd_physics_rigid_body PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
     set_target_properties(freeusd_c_usd_physics_rigid_body PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX)
     add_test(NAME freeusd_c_usd_physics_rigid_body COMMAND freeusd_c_usd_physics_rigid_body)
+
+    add_executable(freeusd_c_usd_physics_collision tests/c_usd_physics_collision.c)
+    target_include_directories(freeusd_c_usd_physics_collision PRIVATE "${PROJECT_SOURCE_DIR}/include")
+    target_link_libraries(freeusd_c_usd_physics_collision PRIVATE freeusd::c)
+    target_compile_definitions(
+      freeusd_c_usd_physics_collision PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+    set_target_properties(freeusd_c_usd_physics_collision PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX)
+    add_test(NAME freeusd_c_usd_physics_collision COMMAND freeusd_c_usd_physics_collision)
   endif()
 
   set(
@@ -478,7 +486,8 @@ if(FREEUSD_BUILD_TESTS)
       freeusd_c_usd_lux
       freeusd_c_usd_vol
       freeusd_c_usd_physics
-      freeusd_c_usd_physics_rigid_body)
+      freeusd_c_usd_physics_rigid_body
+      freeusd_c_usd_physics_collision)
   endif()
   foreach(_freeusd_test_target IN LISTS _freeusd_assert_enabled_test_targets)
     freeusd_enable_test_asserts("${_freeusd_test_target}")

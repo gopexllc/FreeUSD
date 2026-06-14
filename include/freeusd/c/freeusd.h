@@ -822,6 +822,19 @@ FREEUSD_C_API int freeusd_stage_read_physics_rigid_body_sample(const FreeusdStag
                                                                const char* prim_path_utf8, double time,
                                                                FreeusdPhysicsRigidBodySample* out_sample);
 
+/** Evaluated ``PhysicsCollisionAPI`` fields at a time code. */
+typedef struct FreeusdPhysicsCollisionSample {
+  int collision_enabled;
+} FreeusdPhysicsCollisionSample;
+
+/**
+ * Read ``PhysicsCollisionAPI`` ``physics:collisionEnabled`` at @p time.
+ * Missing collision prims or missing ``physics:collisionEnabled`` report @ref FREEUSD_ERR_NOT_FOUND.
+ */
+FREEUSD_C_API int freeusd_stage_read_physics_collision_sample(const FreeusdStage* stage,
+                                                              const char* prim_path_utf8, double time,
+                                                              FreeusdPhysicsCollisionSample* out_sample);
+
 /**
  * Count of bound blend-shape targets on a geom prim (``skel:blendShapes`` token count).
  * Missing geom or unbound prim reports @ref FREEUSD_ERR_NOT_FOUND.

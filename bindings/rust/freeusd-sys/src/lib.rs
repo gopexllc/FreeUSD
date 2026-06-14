@@ -707,6 +707,12 @@ extern "C" {
         time: c_double,
         out_sample: *mut FreeusdPhysicsRigidBodySample,
     ) -> c_int;
+    fn freeusd_stage_read_physics_collision_sample(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        time: c_double,
+        out_sample: *mut FreeusdPhysicsCollisionSample,
+    ) -> c_int;
     fn freeusd_usdskel_compute_skinning_matrices(
         joint_count: usize,
         joint_world_row_major: *const c_double,
@@ -816,6 +822,17 @@ pub struct PhysicsRigidBodySample {
     pub mass: f32,
     pub has_kinematic_enabled: bool,
     pub kinematic_enabled: bool,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default)]
+pub struct FreeusdPhysicsCollisionSample {
+    pub collision_enabled: c_int,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PhysicsCollisionSample {
+    pub collision_enabled: bool,
 }
 
 /// C API `FREEUSD_ERR_NOT_FOUND` (e.g. unmapped relocate / prefix substitution / customLayerData string read).
@@ -2476,6 +2493,30 @@ impl Stage {
         })
     }
 
+    /// Read `PhysicsCollisionAPI` collisionEnabled from a prim.
+    pub fn read_physics_collision_sample(
+        &self,
+        prim_path: &str,
+        time: f64,
+    ) -> Result<PhysicsCollisionSample, i32> {
+        let pp = CString::new(prim_path).map_err(|_| 1)?;
+        let mut raw = FreeusdPhysicsCollisionSample::default();
+        let rc = unsafe {
+            freeusd_stage_read_physics_collision_sample(
+                self.ptr as *const FreeusdStage,
+                pp.as_ptr(),
+                time as c_double,
+                &mut raw,
+            )
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        Ok(PhysicsCollisionSample {
+            collision_enabled: raw.collision_enabled != 0,
+        })
+    }
+
     pub fn deform_points_with_skeleton(
         &self,
         skeleton_path: &str,
@@ -3900,6 +3941,23 @@ def Xform "Root"
         assert!((sample.mass - 1.0).abs() < 1e-5);
         assert!(sample.has_kinematic_enabled);
         assert!(sample.kinematic_enabled);
+    }
+
+    #[test]
+    fn usd_physics_collision_binding() {
+        for fixture in [
+            "parity_physics_collision.usda",
+            "parity_physics_collision_inherit.usda",
+        ] {
+            let path = fixture_path(fixture);
+            let stage =
+                Stage::open_from_root_file(&path.to_string_lossy(), root_sublayers::DEPTH_FIRST)
+                    .expect("open collision fixture");
+            let sample = stage
+                .read_physics_collision_sample("/World/Collider", 1.0)
+                .expect("CollisionAPI sample");
+            assert!(!sample.collision_enabled);
+        }
     }
 
     #[test]

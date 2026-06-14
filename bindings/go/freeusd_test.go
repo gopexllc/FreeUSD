@@ -1101,6 +1101,27 @@ func TestUsdPhysicsRigidBodyBinding(t *testing.T) {
 	}
 }
 
+func TestUsdPhysicsCollisionBinding(t *testing.T) {
+	checkFixture := func(name string) {
+		t.Helper()
+		fixture := filepath.Join("..", "..", "tests", "fixtures", name)
+		st := OpenStageFromRootFile(fixture, RootSubDepthFirst)
+		if st == nil {
+			t.Fatalf("OpenStageFromRootFile collision %s: %s", name, LastErrorMessage())
+		}
+		defer st.Free()
+		sample, rc := st.ReadPhysicsCollisionSample("/World/Collider", 1.0)
+		if rc != 0 {
+			t.Fatalf("ReadPhysicsCollisionSample %s rc=%d %s", name, rc, LastErrorMessage())
+		}
+		if sample.CollisionEnabled {
+			t.Fatalf("unexpected CollisionAPI sample for %s: %+v", name, sample)
+		}
+	}
+	checkFixture("parity_physics_collision.usda")
+	checkFixture("parity_physics_collision_inherit.usda")
+}
+
 func TestLayerHints(t *testing.T) {
 	const usda = `#usda 1.0
 (
