@@ -45,6 +45,29 @@ def test_engine_scene_snapshot_and_runtime_mode_bindings() -> None:
     assert engine_runtime_mode_name(report.recommended_mode) == "experimental_live_stage"
 
 
+def test_spatial_grounding_context_binding() -> None:
+    stage = _open_stage("parity_spatial_grounding.usda")
+    records = stage.build_spatial_grounding_context(1.0)
+    assert len(records) == 5
+    by_path = {record["path"]: record for record in records}
+
+    cup = by_path["/World/Kitchen/CupBlue"]
+    assert cup["name"] == "CupBlue"
+    assert cup["parent_path"] == "/World/Kitchen"
+    assert sorted(cup["sibling_names"]) == ["PlateGreen", "Stove"]
+    assert cup["world_position"] == (6.0, 2.0, 3.0)
+    assert cup["has_world_bound"] is True
+    assert cup["world_bound_dimensions"] == (0.5, 1.5, 0.25)
+    assert abs(cup["mass_kg"] - 0.35) < 1e-6
+
+    kitchen = by_path["/World/Kitchen"]
+    assert kitchen["parent_path"] == "/World"
+    assert kitchen["sibling_names"] == []
+    assert kitchen["world_position"] == (10.0, 0.0, 0.0)
+    assert kitchen["has_world_bound"] is False
+    assert kitchen["mass_kg"] is None
+
+
 def test_engine_editor_view_and_prebake_reports_bindings() -> None:
     stack_stage = _open_stage("parity_stack_root.usda")
     editor = build_engine_prim_editor_view(stack_stage.prim_at(SdfPath.from_string("/World/Model")), 15.0)

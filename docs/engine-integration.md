@@ -76,6 +76,7 @@ target_link_libraries(engine_runtime_bridge PRIVATE freeusd::c)
 - `freeusd_stage_compute_imageable_purpose_utf8`
 - `freeusd_stage_compute_boundable_local_bounds`
 - `freeusd_stage_compute_boundable_world_bounds`
+- spatial grounding context (`freeusd_usdutils_build_spatial_grounding_context`)
 
 ## Build Options Relevant To Engines
 

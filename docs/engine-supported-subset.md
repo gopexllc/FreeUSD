@@ -38,6 +38,7 @@ This document freezes the exact FreeUSD subset a GPL-compatible engine may rely 
   - `freeusd_stage_compute_imageable_purpose_utf8`
   - `freeusd_stage_compute_boundable_local_bounds`
   - `freeusd_stage_compute_boundable_world_bounds`
+  - `freeusd_usdutils_build_spatial_grounding_context`
 
 ## Supported Content Slice
 

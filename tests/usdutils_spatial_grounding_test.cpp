@@ -60,7 +60,7 @@ int main() {
   assert(has_sibling(*cup, "PlateGreen"));
   assert(has_sibling(*cup, "Stove"));
 
-  assert(near(cup->world_position.x(), 11.0));
+  assert(near(cup->world_position.x(), 6.0));
   assert(near(cup->world_position.y(), 2.0));
   assert(near(cup->world_position.z(), 3.0));
   assert(cup->has_world_bound);

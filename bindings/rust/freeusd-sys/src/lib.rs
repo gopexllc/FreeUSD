@@ -761,6 +761,16 @@ extern "C" {
         stage: *const FreeusdStage,
         out: *mut FreeusdEngineRuntimeSupport,
     ) -> c_int;
+    fn freeusd_usdutils_build_spatial_grounding_context(
+        stage: *const FreeusdStage,
+        time: c_double,
+        out_records: *mut *mut FreeusdSpatialGroundingRecord,
+        out_count: *mut usize,
+    ) -> c_int;
+    fn freeusd_usdutils_spatial_grounding_records_free(
+        records: *mut FreeusdSpatialGroundingRecord,
+        count: usize,
+    );
 }
 
 #[repr(C)]
@@ -800,6 +810,33 @@ pub struct FreeusdEngineRuntimeSupport {
 }
 
 pub type EngineRuntimeSupport = FreeusdEngineRuntimeSupport;
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct FreeusdSpatialGroundingRecord {
+    pub path_utf8: *mut c_char,
+    pub name_utf8: *mut c_char,
+    pub parent_path_utf8: *mut c_char,
+    pub sibling_names_utf8: *mut *mut c_char,
+    pub sibling_name_count: usize,
+    pub world_position: [c_double; 3],
+    pub has_world_bound: c_int,
+    pub world_bound_dimensions: [c_double; 3],
+    pub has_mass_kg: c_int,
+    pub mass_kg: c_double,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SpatialGroundingRecord {
+    pub path: String,
+    pub name: String,
+    pub parent_path: String,
+    pub sibling_names: Vec<String>,
+    pub world_position: [f64; 3],
+    pub has_world_bound: bool,
+    pub world_bound_dimensions: [f64; 3],
+    pub mass_kg: Option<f64>,
+}
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Default)]
@@ -2340,6 +2377,83 @@ impl Stage {
         } else {
             Ok(raw)
         }
+    }
+
+    pub fn build_spatial_grounding_context(
+        &self,
+        time: f64,
+    ) -> Result<Vec<SpatialGroundingRecord>, i32> {
+        fn string_from_ptr(p: *const c_char) -> String {
+            if p.is_null() {
+                String::new()
+            } else {
+                unsafe { CStr::from_ptr(p).to_string_lossy().into_owned() }
+            }
+        }
+
+        let mut raw: *mut FreeusdSpatialGroundingRecord = ptr::null_mut();
+        let mut count: usize = 0;
+        let rc = unsafe {
+            freeusd_usdutils_build_spatial_grounding_context(
+                self.ptr as *const FreeusdStage,
+                time as c_double,
+                &mut raw,
+                &mut count,
+            )
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        if raw.is_null() || count == 0 {
+            return Ok(Vec::new());
+        }
+        let rows = unsafe { std::slice::from_raw_parts(raw, count) };
+        let mut out = Vec::with_capacity(count);
+        for row in rows {
+            let siblings = if row.sibling_names_utf8.is_null() || row.sibling_name_count == 0 {
+                Vec::new()
+            } else {
+                let sibling_ptrs = unsafe {
+                    std::slice::from_raw_parts(row.sibling_names_utf8, row.sibling_name_count)
+                };
+                sibling_ptrs
+                    .iter()
+                    .filter_map(|&p| {
+                        if p.is_null() {
+                            None
+                        } else {
+                            Some(unsafe { CStr::from_ptr(p).to_string_lossy().into_owned() })
+                        }
+                    })
+                    .collect()
+            };
+            out.push(SpatialGroundingRecord {
+                path: string_from_ptr(row.path_utf8),
+                name: string_from_ptr(row.name_utf8),
+                parent_path: string_from_ptr(row.parent_path_utf8),
+                sibling_names: siblings,
+                world_position: [
+                    row.world_position[0],
+                    row.world_position[1],
+                    row.world_position[2],
+                ],
+                has_world_bound: row.has_world_bound != 0,
+                world_bound_dimensions: [
+                    row.world_bound_dimensions[0],
+                    row.world_bound_dimensions[1],
+                    row.world_bound_dimensions[2],
+                ],
+                mass_kg: if row.has_mass_kg != 0 {
+                    Some(row.mass_kg)
+                } else {
+                    None
+                },
+            });
+        }
+        unsafe {
+            freeusd_usdutils_spatial_grounding_records_free(raw, count);
+        }
+        Ok(out)
     }
 
     /// Resolve a Material `outputs:surface` connection to the connected shader prim path.
@@ -3915,6 +4029,41 @@ def Xform "Root"
                 .unwrap_err(),
             ERR_NOT_FOUND
         );
+    }
+
+    #[test]
+    fn usdutils_spatial_grounding_context_binding() {
+        let path = fixture_path("parity_spatial_grounding.usda");
+        let stage =
+            Stage::open_from_root_file(&path.to_string_lossy(), 2).expect("open spatial fixture");
+        let records = stage
+            .build_spatial_grounding_context(1.0)
+            .expect("spatial context");
+        assert_eq!(records.len(), 5);
+
+        let cup = records
+            .iter()
+            .find(|r| r.path == "/World/Kitchen/CupBlue")
+            .expect("cup record");
+        assert_eq!(cup.name, "CupBlue");
+        assert_eq!(cup.parent_path, "/World/Kitchen");
+        assert_eq!(cup.sibling_names.len(), 2);
+        assert!(cup.sibling_names.contains(&"PlateGreen".to_string()));
+        assert!(cup.sibling_names.contains(&"Stove".to_string()));
+        assert_eq!(cup.world_position, [6.0, 2.0, 3.0]);
+        assert!(cup.has_world_bound);
+        assert_eq!(cup.world_bound_dimensions, [0.5, 1.5, 0.25]);
+        assert!((cup.mass_kg.expect("mass") - 0.35).abs() < 1e-6);
+
+        let kitchen = records
+            .iter()
+            .find(|r| r.path == "/World/Kitchen")
+            .expect("kitchen record");
+        assert_eq!(kitchen.parent_path, "/World");
+        assert!(kitchen.sibling_names.is_empty());
+        assert_eq!(kitchen.world_position, [10.0, 0.0, 0.0]);
+        assert!(!kitchen.has_world_bound);
+        assert_eq!(kitchen.mass_kg, None);
     }
 
     #[test]

@@ -1888,6 +1888,32 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def(
             "list_composed_prefix_substitutions",
             [](const freeusd::usd::Stage& stage) { return stage.ListComposedPrefixSubstitutions(); })
+        .def(
+            "build_spatial_grounding_context",
+            [](const freeusd::usd::Stage& stage, double time) {
+              py::list out;
+              for (const auto& record : freeusd::usdUtils::BuildEngineSpatialGroundingContext(stage, time)) {
+                py::dict d;
+                d["path"] = record.path.GetString();
+                d["name"] = record.name;
+                d["parent_path"] = record.parent_path.GetString();
+                d["sibling_names"] = record.sibling_names;
+                d["world_position"] =
+                    py::make_tuple(record.world_position.x(), record.world_position.y(), record.world_position.z());
+                d["has_world_bound"] = record.has_world_bound;
+                d["world_bound_dimensions"] = py::make_tuple(record.world_bound_dimensions.x(),
+                                                             record.world_bound_dimensions.y(),
+                                                             record.world_bound_dimensions.z());
+                if (record.mass_kg.has_value()) {
+                  d["mass_kg"] = *record.mass_kg;
+                } else {
+                  d["mass_kg"] = py::none();
+                }
+                out.append(std::move(d));
+              }
+              return out;
+            },
+            py::arg("time") = 1.0)
         .def("list_composed_field_names", &freeusd::usd::Stage::ListComposedFieldNames)
         .def("list_composed_field_sample_times", &freeusd::usd::Stage::ListComposedFieldSampleTimes)
         .def("list_composed_relationship_names", &freeusd::usd::Stage::ListComposedRelationshipNames)

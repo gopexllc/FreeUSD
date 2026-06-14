@@ -943,6 +943,33 @@ typedef struct FreeusdEngineRuntimeSupport {
 FREEUSD_C_API int freeusd_usdutils_assess_engine_runtime_support(const FreeusdStage* stage,
                                                                  FreeusdEngineRuntimeSupport* out);
 
+/** One spatial/text grounding cue record from @c freeusd::usdUtils::BuildEngineSpatialGroundingContext. */
+typedef struct FreeusdSpatialGroundingRecord {
+  char* path_utf8;
+  char* name_utf8;
+  char* parent_path_utf8;
+  char** sibling_names_utf8;
+  size_t sibling_name_count;
+  double world_position[3];
+  int has_world_bound;
+  double world_bound_dimensions[3];
+  int has_mass_kg;
+  double mass_kg;
+} FreeusdSpatialGroundingRecord;
+
+/**
+ * Extract USD-derived text/spatial grounding cues for every traversed prim at @p time.
+ * On @ref FREEUSD_OK, @p *out_records is a malloc'd array with @p *out_count records.
+ * Free with @ref freeusd_usdutils_spatial_grounding_records_free.
+ */
+FREEUSD_C_API int freeusd_usdutils_build_spatial_grounding_context(const FreeusdStage* stage, double time,
+                                                                   FreeusdSpatialGroundingRecord** out_records,
+                                                                   size_t* out_count);
+
+/** Frees records returned by @ref freeusd_usdutils_build_spatial_grounding_context (safe on NULL). */
+FREEUSD_C_API void freeusd_usdutils_spatial_grounding_records_free(FreeusdSpatialGroundingRecord* records,
+                                                                   size_t count);
+
 /**
  * Composed prim active flag (strongest opinion; default true if no opinion).
  * @p out_active receives 0 or 1.

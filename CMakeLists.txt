@@ -371,6 +371,14 @@ if(FREEUSD_BUILD_TESTS)
     set_target_properties(freeusd_c_engine_integration PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX)
     add_test(NAME freeusd_c_engine_integration COMMAND freeusd_c_engine_integration)
 
+    add_executable(freeusd_c_usdutils_spatial_grounding tests/c_usdutils_spatial_grounding.c)
+    target_include_directories(freeusd_c_usdutils_spatial_grounding PRIVATE "${PROJECT_SOURCE_DIR}/include")
+    target_link_libraries(freeusd_c_usdutils_spatial_grounding PRIVATE freeusd::c)
+    target_compile_definitions(
+      freeusd_c_usdutils_spatial_grounding PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+    set_target_properties(freeusd_c_usdutils_spatial_grounding PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX)
+    add_test(NAME freeusd_c_usdutils_spatial_grounding COMMAND freeusd_c_usdutils_spatial_grounding)
+
     add_executable(freeusd_c_usd_skel tests/c_usd_skel.c)
     target_include_directories(freeusd_c_usd_skel PRIVATE "${PROJECT_SOURCE_DIR}/include")
     target_link_libraries(freeusd_c_usd_skel PRIVATE freeusd::c)
@@ -495,6 +503,7 @@ if(FREEUSD_BUILD_TESTS)
       freeusd_c_stage_prim_specifier
       freeusd_c_stage_layer_hints
       freeusd_c_engine_integration
+      freeusd_c_usdutils_spatial_grounding
       freeusd_c_usd_skel
       freeusd_c_usd_shade
       freeusd_c_usd_lux

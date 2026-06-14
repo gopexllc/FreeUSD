@@ -1849,6 +1849,69 @@ func (s *Stage) AssessEngineRuntimeSupport() (report EngineRuntimeSupport, rc in
 	return report, 0
 }
 
+// SpatialGroundingRecord contains clean-room USD-derived cues for text/spatial diagnostics.
+type SpatialGroundingRecord struct {
+	Path                 string
+	Name                 string
+	ParentPath           string
+	SiblingNames         []string
+	WorldPosition        [3]float64
+	HasWorldBound        bool
+	WorldBoundDimensions [3]float64
+	HasMassKg            bool
+	MassKg               float64
+}
+
+// BuildSpatialGroundingContext extracts spatial/text cue records for every traversed prim.
+func (s *Stage) BuildSpatialGroundingContext(time float64) (records []SpatialGroundingRecord, rc int) {
+	if s == nil || s.ptr == nil {
+		return nil, 1
+	}
+	var raw *C.FreeusdSpatialGroundingRecord
+	var count C.size_t
+	rc = int(C.freeusd_usdutils_build_spatial_grounding_context(s.ptr, C.double(time), &raw, &count))
+	if rc != 0 {
+		return nil, rc
+	}
+	defer C.freeusd_usdutils_spatial_grounding_records_free(raw, count)
+	if raw == nil || count == 0 {
+		return []SpatialGroundingRecord{}, 0
+	}
+	cRecords := unsafe.Slice(raw, int(count))
+	records = make([]SpatialGroundingRecord, 0, int(count))
+	for _, item := range cRecords {
+		rec := SpatialGroundingRecord{
+			Path:       C.GoString(item.path_utf8),
+			Name:       C.GoString(item.name_utf8),
+			ParentPath: C.GoString(item.parent_path_utf8),
+			WorldPosition: [3]float64{
+				float64(item.world_position[0]),
+				float64(item.world_position[1]),
+				float64(item.world_position[2]),
+			},
+			HasWorldBound: item.has_world_bound != 0,
+			WorldBoundDimensions: [3]float64{
+				float64(item.world_bound_dimensions[0]),
+				float64(item.world_bound_dimensions[1]),
+				float64(item.world_bound_dimensions[2]),
+			},
+			HasMassKg: item.has_mass_kg != 0,
+			MassKg:    float64(item.mass_kg),
+		}
+		if item.sibling_names_utf8 != nil && item.sibling_name_count > 0 {
+			cSiblings := unsafe.Slice(item.sibling_names_utf8, int(item.sibling_name_count))
+			rec.SiblingNames = make([]string, 0, int(item.sibling_name_count))
+			for _, sibling := range cSiblings {
+				if sibling != nil {
+					rec.SiblingNames = append(rec.SiblingNames, C.GoString(sibling))
+				}
+			}
+		}
+		records = append(records, rec)
+	}
+	return records, 0
+}
+
 // ReadSkelJointNames returns skeleton joint names (rc 0 ok).
 func (s *Stage) ReadSkelJointNames(skeletonPath string) (names []string, rc int) {
 	if s == nil || s.ptr == nil {
