@@ -44,33 +44,41 @@ export FREEUSD_REPO_ROOT=/absolute/path/to/freeusd
 cargo test --manifest-path bindings/rust/Cargo.toml
 ```
 
+## D (`bindings/d`)
+
+Requires **DUB** and a D compiler such as **LDC**. The package wraps the stable C ABI and currently exposes a narrow smoke-tested slice: version/crate identifier, `Stage.open`, `Stage.primIsValid`, `readFieldDouble`, `readFieldString`, and `PhysicsMassAPI` density / center-of-mass reads.
+
+```bash
+cd bindings/d && dub test --compiler=ldc2
+```
+
 ## Cross-language coverage (composition + reads)
 
 Shared fixture: **`tests/fixtures/usd_cross_language.usda`**. Tests: **`tests/c_usd_cross_language.c`**, **`tests/python/test_usd_cross_language.py`**, **`bindings/go/freeusd_test.go`** (`TestCrossLanguageFieldReadContract`), **`bindings/rust`** (`cross_language_field_read_contract`).
 
 Skel fixture: **`tests/fixtures/parity_skel_skinning.usda`**. Tests: **`tests/c_usd_skel.c`**, **`tests/usd_skel_smoke_test.cpp`**, **`bindings/go/freeusd_test.go`** (`TestSkelCrossLanguageContract`), **`bindings/rust`** (`skel_cross_language_contract`).
 
-| Capability | C ABI | C++ / Python | Go | Rust |
-|------------|:-----:|:------------:|:--:|:----:|
-| Typed field reads (double/float/bool/int/string/vec/matrix/quat/token) | yes | yes | yes | yes |
-| Composed field sample times | yes | yes | yes | yes |
-| Field opinion / connection queries | yes | yes | yes | yes |
-| Prim arc lists (references, payloads, inherits, specializes) | yes | yes | yes | yes |
-| Composed prim customData (string/token + int64) | yes | yes (typed `Value`) | yes | yes |
-| Composed prim customData key list / layer presence | yes | yes | yes | yes |
-| Composed prim kind / active | yes | yes | yes | yes |
-| `usdGeom` imageable/boundable (C ABI) | yes | yes | yes | yes |
-| `usdShade` preview-surface diffuse / texture path (C ABI) | yes | yes | yes | yes |
-| `usdLux` DistantLight sample (C ABI) | yes | yes | yes | yes |
-| `usdVol` OpenVDBAsset file / field (C ABI) | yes | yes | yes | yes |
-| `usdPhysics` PhysicsScene gravity (C ABI) | yes | yes | yes | yes |
-| `usdPhysics` RigidBodyAPI mass / kinematic (C ABI) | yes | yes | yes | yes |
-| `usdPhysics` CollisionAPI enabled (C ABI) | yes | yes | yes | yes |
-| `usdPhysics` MassAPI density / center of mass (C ABI) | yes | yes | yes | yes |
-| `usdSkel` joint names / skinning palette / CPU deform | yes | yes | yes | yes |
-| `usdUtils` engine runtime assess (skel flags) | yes | yes | yes | yes |
-| `usdUtils` flatten | C++ only | yes | n/a | n/a |
+| Capability | C ABI | C++ / Python | Go | Rust | D |
+|------------|:-----:|:------------:|:--:|:----:|:--:|
+| Typed field reads (double/float/bool/int/string/vec/matrix/quat/token) | yes | yes | yes | yes | double/string |
+| Composed field sample times | yes | yes | yes | yes | no |
+| Field opinion / connection queries | yes | yes | yes | yes | no |
+| Prim arc lists (references, payloads, inherits, specializes) | yes | yes | yes | yes | no |
+| Composed prim customData (string/token + int64) | yes | yes (typed `Value`) | yes | yes | no |
+| Composed prim customData key list / layer presence | yes | yes | yes | yes | no |
+| Composed prim kind / active | yes | yes | yes | yes | no |
+| `usdGeom` imageable/boundable (C ABI) | yes | yes | yes | yes | no |
+| `usdShade` preview-surface diffuse / texture path (C ABI) | yes | yes | yes | yes | no |
+| `usdLux` DistantLight sample (C ABI) | yes | yes | yes | yes | no |
+| `usdVol` OpenVDBAsset file / field (C ABI) | yes | yes | yes | yes | no |
+| `usdPhysics` PhysicsScene gravity (C ABI) | yes | yes | yes | yes | no |
+| `usdPhysics` RigidBodyAPI mass / kinematic (C ABI) | yes | yes | yes | yes | no |
+| `usdPhysics` CollisionAPI enabled (C ABI) | yes | yes | yes | yes | no |
+| `usdPhysics` MassAPI density / center of mass (C ABI) | yes | yes | yes | yes | yes |
+| `usdSkel` joint names / skinning palette / CPU deform | yes | yes | yes | yes | no |
+| `usdUtils` engine runtime assess (skel flags) | yes | yes | yes | yes | no |
+| `usdUtils` flatten | C++ only | yes | n/a | n/a | n/a |
 
 ## Adding more bindings
 
-New wrappers should target the **C ABI** only (no C++ ABI stability guarantees). Keep surface area small and mirror existing tests (version string + one USDA round-trip or attribute read) before exposing larger APIs. The Go package also includes **`OpenStageFromRootFile`** / **`PrimPathInUse`**, relocate, **prefixSubstitution**, **`customLayerData`**, **raw USDC section bytes**, **prim variant** helpers, composition helpers (**`ListFieldSampleTimes`**, **`HasFieldOpinion`**, prim arc list/has, composed prim **`customData`** / **kind** / **active**), **`usdShade`** preview-surface helpers, **`usdLux`** DistantLight sampling, **`usdVol`** OpenVDBAsset reads, **`usdPhysics`** PhysicsScene / RigidBodyAPI / CollisionAPI / MassAPI reads, and the validated **`usdGeom`** engine subset on **`Stage`**: **`ComputeLocalTransformMatrix4d`**, **`ComputeLocalToWorldTransformMatrix4d`**, **`ComputeImageableVisibility`**, **`ComputeImageablePurpose`**, **`ComputeBoundableLocalBounds`**, **`ComputeBoundableWorldBounds`** (mirroring the C ABI). Rust exposes the same surface on **`Stage`**. Cross-language checks use **`tests/fixtures/parity_imageable.usda`** (aligned with **`freeusd_c_engine_integration`**) and **`usd_cross_language.usda`** for composition parity.
+New wrappers should target the **C ABI** only (no C++ ABI stability guarantees). Keep surface area small and mirror existing tests (version string + one USDA round-trip or attribute read) before exposing larger APIs. The Go package also includes **`OpenStageFromRootFile`** / **`PrimPathInUse`**, relocate, **prefixSubstitution**, **`customLayerData`**, **raw USDC section bytes**, **prim variant** helpers, composition helpers (**`ListFieldSampleTimes`**, **`HasFieldOpinion`**, prim arc list/has, composed prim **`customData`** / **kind** / **active**), **`usdShade`** preview-surface helpers, **`usdLux`** DistantLight sampling, **`usdVol`** OpenVDBAsset reads, **`usdPhysics`** PhysicsScene / RigidBodyAPI / CollisionAPI / MassAPI reads, and the validated **`usdGeom`** engine subset on **`Stage`**: **`ComputeLocalTransformMatrix4d`**, **`ComputeLocalToWorldTransformMatrix4d`**, **`ComputeImageableVisibility`**, **`ComputeImageablePurpose`**, **`ComputeBoundableLocalBounds`**, **`ComputeBoundableWorldBounds`** (mirroring the C ABI). Rust exposes the same surface on **`Stage`**. D starts with a deliberately smaller C ABI-backed surface for stage open, prim validity, scalar/string reads, and PhysicsMassAPI reads. Cross-language checks use **`tests/fixtures/parity_imageable.usda`** (aligned with **`freeusd_c_engine_integration`**) and **`usd_cross_language.usda`** for composition parity.
