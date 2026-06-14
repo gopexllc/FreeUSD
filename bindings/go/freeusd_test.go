@@ -1070,6 +1070,37 @@ func TestUsdPhysicsSceneBinding(t *testing.T) {
 	}
 }
 
+func TestUsdPhysicsRigidBodyBinding(t *testing.T) {
+	fixture := filepath.Join("..", "..", "tests", "fixtures", "parity_physics_rigid_body.usda")
+	st := OpenStageFromRootFile(fixture, RootSubDepthFirst)
+	if st == nil {
+		t.Fatal("OpenStageFromRootFile rigid body:", LastErrorMessage())
+	}
+	defer st.Free()
+
+	sample, rc := st.ReadPhysicsRigidBodySample("/World/Body", 1.0)
+	if rc != 0 {
+		t.Fatalf("ReadPhysicsRigidBodySample rc=%d %s", rc, LastErrorMessage())
+	}
+	if sample.Mass != 2.5 || sample.HasKinematicEnabled || sample.KinematicEnabled {
+		t.Fatalf("unexpected RigidBodyAPI sample %+v", sample)
+	}
+
+	kinFixture := filepath.Join("..", "..", "tests", "fixtures", "parity_physics_rigid_body_kinematic.usda")
+	kinStage := OpenStageFromRootFile(kinFixture, RootSubDepthFirst)
+	if kinStage == nil {
+		t.Fatal("OpenStageFromRootFile kinematic rigid body:", LastErrorMessage())
+	}
+	defer kinStage.Free()
+	sample, rc = kinStage.ReadPhysicsRigidBodySample("/World/Body", 1.0)
+	if rc != 0 {
+		t.Fatalf("kinematic ReadPhysicsRigidBodySample rc=%d %s", rc, LastErrorMessage())
+	}
+	if sample.Mass != 1.0 || !sample.HasKinematicEnabled || !sample.KinematicEnabled {
+		t.Fatalf("unexpected kinematic RigidBodyAPI sample %+v", sample)
+	}
+}
+
 func TestLayerHints(t *testing.T) {
 	const usda = `#usda 1.0
 (

@@ -701,6 +701,12 @@ extern "C" {
         time: c_double,
         out_sample: *mut FreeusdPhysicsSceneSample,
     ) -> c_int;
+    fn freeusd_stage_read_physics_rigid_body_sample(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        time: c_double,
+        out_sample: *mut FreeusdPhysicsRigidBodySample,
+    ) -> c_int;
     fn freeusd_usdskel_compute_skinning_matrices(
         joint_count: usize,
         joint_world_row_major: *const c_double,
@@ -795,6 +801,21 @@ pub struct FreeusdPhysicsSceneSample {
 pub struct PhysicsSceneSample {
     pub gravity_direction: [f32; 3],
     pub gravity_magnitude: f32,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default)]
+pub struct FreeusdPhysicsRigidBodySample {
+    pub mass: c_float,
+    pub has_kinematic_enabled: c_int,
+    pub kinematic_enabled: c_int,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PhysicsRigidBodySample {
+    pub mass: f32,
+    pub has_kinematic_enabled: bool,
+    pub kinematic_enabled: bool,
 }
 
 /// C API `FREEUSD_ERR_NOT_FOUND` (e.g. unmapped relocate / prefix substitution / customLayerData string read).
@@ -2429,6 +2450,32 @@ impl Stage {
         })
     }
 
+    /// Read `PhysicsRigidBodyAPI` mass and optional kinematicEnabled from a prim.
+    pub fn read_physics_rigid_body_sample(
+        &self,
+        prim_path: &str,
+        time: f64,
+    ) -> Result<PhysicsRigidBodySample, i32> {
+        let pp = CString::new(prim_path).map_err(|_| 1)?;
+        let mut raw = FreeusdPhysicsRigidBodySample::default();
+        let rc = unsafe {
+            freeusd_stage_read_physics_rigid_body_sample(
+                self.ptr as *const FreeusdStage,
+                pp.as_ptr(),
+                time as c_double,
+                &mut raw,
+            )
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        Ok(PhysicsRigidBodySample {
+            mass: raw.mass,
+            has_kinematic_enabled: raw.has_kinematic_enabled != 0,
+            kinematic_enabled: raw.kinematic_enabled != 0,
+        })
+    }
+
     pub fn deform_points_with_skeleton(
         &self,
         skeleton_path: &str,
@@ -3828,6 +3875,31 @@ def Xform "Root"
         assert!((sample.gravity_direction[1] - 0.0).abs() < 1e-5);
         assert!((sample.gravity_direction[2] + 1.0).abs() < 1e-5);
         assert!((sample.gravity_magnitude - 981.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn usd_physics_rigid_body_binding() {
+        let path = fixture_path("parity_physics_rigid_body.usda");
+        let stage =
+            Stage::open_from_root_file(&path.to_string_lossy(), root_sublayers::DEPTH_FIRST)
+                .expect("open rigid-body fixture");
+        let sample = stage
+            .read_physics_rigid_body_sample("/World/Body", 1.0)
+            .expect("RigidBodyAPI sample");
+        assert!((sample.mass - 2.5).abs() < 1e-5);
+        assert!(!sample.has_kinematic_enabled);
+        assert!(!sample.kinematic_enabled);
+
+        let kin_path = fixture_path("parity_physics_rigid_body_kinematic.usda");
+        let kin_stage =
+            Stage::open_from_root_file(&kin_path.to_string_lossy(), root_sublayers::DEPTH_FIRST)
+                .expect("open kinematic rigid-body fixture");
+        let sample = kin_stage
+            .read_physics_rigid_body_sample("/World/Body", 1.0)
+            .expect("kinematic RigidBodyAPI sample");
+        assert!((sample.mass - 1.0).abs() < 1e-5);
+        assert!(sample.has_kinematic_enabled);
+        assert!(sample.kinematic_enabled);
     }
 
     #[test]

@@ -30,6 +30,7 @@
 #include "freeusd/usdGeom/xformable.hpp"
 #include "freeusd/usdLux/distantLight.hpp"
 #include "freeusd/usdPhysics/physicsScene.hpp"
+#include "freeusd/usdPhysics/rigidBodyAPI.hpp"
 #include "freeusd/usdSkel/skelAnimation.hpp"
 #include "freeusd/usdSkel/skelBlendShapes.hpp"
 #include "freeusd/usdSkel/skinning.hpp"
@@ -3428,6 +3429,45 @@ int freeusd_stage_read_physics_scene_sample(const FreeusdStage* stage, const cha
     out_sample->gravity_direction[1] = gravity_direction.y();
     out_sample->gravity_direction[2] = gravity_direction.z();
     out_sample->gravity_magnitude = gravity_magnitude;
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_read_physics_rigid_body_sample(const FreeusdStage* stage, const char* prim_path_utf8, double time,
+                                                 FreeusdPhysicsRigidBodySample* out_sample) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !out_sample) {
+    set_error("freeusd_stage_read_physics_rigid_body_sample: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_sample = FreeusdPhysicsRigidBodySample{};
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid PhysicsRigidBodyAPI prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const freeusd::usdPhysics::RigidBodyAPI body = freeusd::usdPhysics::RigidBodyAPI::ReadFromPrim(stage->inner, p);
+    if (!body || !body.IsRigidBodyAPI()) {
+      set_error("PhysicsRigidBodyAPI prim not found or invalid");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    float mass = 0.0f;
+    if (!body.GetMass(&mass, time)) {
+      set_error("PhysicsRigidBodyAPI mass not available");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    bool kinematic_enabled = false;
+    const bool has_kinematic = body.GetKinematicEnabled(&kinematic_enabled, time);
+    out_sample->mass = mass;
+    out_sample->has_kinematic_enabled = has_kinematic ? 1 : 0;
+    out_sample->kinematic_enabled = kinematic_enabled ? 1 : 0;
     clear_error();
     return FREEUSD_OK;
   } catch (const std::exception& e) {

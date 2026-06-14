@@ -1422,6 +1422,32 @@ func (s *Stage) ReadPhysicsSceneSample(scenePath string, time float64) (sample P
 	}, 0
 }
 
+// PhysicsRigidBodySample is the evaluated PhysicsRigidBodyAPI C ABI sample.
+type PhysicsRigidBodySample struct {
+	Mass                float32
+	HasKinematicEnabled bool
+	KinematicEnabled    bool
+}
+
+// ReadPhysicsRigidBodySample reads mass and optional kinematicEnabled from a PhysicsRigidBodyAPI prim.
+func (s *Stage) ReadPhysicsRigidBodySample(primPath string, time float64) (sample PhysicsRigidBodySample, rc int) {
+	if s == nil || s.ptr == nil {
+		return sample, 1
+	}
+	pp := C.CString(primPath)
+	defer C.free(unsafe.Pointer(pp))
+	var out C.FreeusdPhysicsRigidBodySample
+	rc = int(C.freeusd_stage_read_physics_rigid_body_sample(s.ptr, pp, C.double(time), &out))
+	if rc != 0 {
+		return sample, rc
+	}
+	return PhysicsRigidBodySample{
+		Mass:                float32(out.mass),
+		HasKinematicEnabled: out.has_kinematic_enabled != 0,
+		KinematicEnabled:    out.kinematic_enabled != 0,
+	}, 0
+}
+
 // ListFieldSampleTimes returns sorted composed time-sample times for an attribute (rc 0 ok; empty slice valid).
 func (s *Stage) ListFieldSampleTimes(primPath, attrName string) (times []float64, rc int) {
 	if s == nil || s.ptr == nil {

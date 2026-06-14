@@ -807,6 +807,21 @@ FREEUSD_C_API int freeusd_stage_read_physics_scene_sample(const FreeusdStage* st
                                                           const char* scene_path_utf8, double time,
                                                           FreeusdPhysicsSceneSample* out_sample);
 
+/** Evaluated ``PhysicsRigidBodyAPI`` fields at a time code. */
+typedef struct FreeusdPhysicsRigidBodySample {
+  float mass;
+  int has_kinematic_enabled;
+  int kinematic_enabled;
+} FreeusdPhysicsRigidBodySample;
+
+/**
+ * Read ``PhysicsRigidBodyAPI`` ``physics:mass`` and optional ``physics:kinematicEnabled`` at @p time.
+ * Missing rigid-body prims or missing ``physics:mass`` report @ref FREEUSD_ERR_NOT_FOUND.
+ */
+FREEUSD_C_API int freeusd_stage_read_physics_rigid_body_sample(const FreeusdStage* stage,
+                                                               const char* prim_path_utf8, double time,
+                                                               FreeusdPhysicsRigidBodySample* out_sample);
+
 /**
  * Count of bound blend-shape targets on a geom prim (``skel:blendShapes`` token count).
  * Missing geom or unbound prim reports @ref FREEUSD_ERR_NOT_FOUND.

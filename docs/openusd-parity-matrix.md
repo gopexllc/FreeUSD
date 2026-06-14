@@ -140,7 +140,7 @@ Status vocabulary:
 ### ABI And Bindings
 
 - `implemented`: the C ABI remains the stable FFI contract for stage queries, typed field reads, crate bootstrap/TOC helpers, raw crate section payload access, and the validated `usdGeom` runtime subset (`transform`, `visibility`, `purpose`, `bounds`).
-- `partial`: Python remains the broadest wrapper; the C ABI, Go, and Rust now follow the validated crate bootstrap/TOC/raw-section/table subset, composed prim `kind` / `active`, `usdGeom` imageable/boundable, `usdShade` preview-surface diffuse/texture helpers, `usdLux` DistantLight sampling, `usdVol` OpenVDBAsset reads, `usdPhysics` PhysicsScene gravity reads, and `usdSkel` joint/skinning helpers, but broader runtime/schema helpers are still not fully mirrored outside Python/C++.
+- `partial`: Python remains the broadest wrapper; the C ABI, Go, and Rust now follow the validated crate bootstrap/TOC/raw-section/table subset, composed prim `kind` / `active`, `usdGeom` imageable/boundable, `usdShade` preview-surface diffuse/texture helpers, `usdLux` DistantLight sampling, `usdVol` OpenVDBAsset reads, `usdPhysics` PhysicsScene gravity and RigidBodyAPI reads, and `usdSkel` joint/skinning helpers, but broader runtime/schema helpers are still not fully mirrored outside Python/C++.
 - `planned`: milestone-by-milestone expansion for more composed query families and runtime helpers once the C ABI slice is stable.
 
 ### Runtime Hardening And Deferred Stacks
