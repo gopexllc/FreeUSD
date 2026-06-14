@@ -153,6 +153,18 @@ def test_parity_variant_sets_through_reference() -> None:
     assert st.read_field_double(ref_host, Token("variantValue"), 1.0) == 9.0
 
 
+def test_parity_variant_selection_through_payload() -> None:
+    path = os.path.normpath(os.path.join(_FIXTURES, "parity_variant_selection_payloads.usda"))
+    st = usd.Stage.open_from_root_file(path)
+    assert st is not None
+    host = Path.from_string("/World/PayloadHost")
+    assert st.get_composed_prim_variant_selection(host, "modelVariant") == "B"
+    assert set(st.list_composed_prim_variant_selection_sets(host)) == {"modelVariant"}
+    value = st.read_field_at_time(host, Token("variantValue"), 1.0)
+    assert value is not None
+    assert value.as_double() == 9.0
+
+
 def test_inherit_instance_prim_authored_specifier_not_class() -> None:
     path = os.path.normpath(os.path.join(_FIXTURES, "parity_physics_collision_inherit.usda"))
     st = usd.Stage.open_from_root_file(path)

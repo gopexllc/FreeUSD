@@ -441,6 +441,22 @@ int main() {
     assert(v.GetDouble(&d) && d == 9.0);
   }
 
+  {
+    std::string err;
+    auto stage = Stage::OpenFromRootFile(fixture("parity_variant_selection_payloads.usda"),
+                                         freeusd::usd::RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const Path payload_host = Path::FromString("/World/PayloadHost");
+    std::string variant;
+    assert(stage->GetComposedPrimVariantSelection(payload_host, "modelVariant", &variant));
+    assert(variant == "B");
+    const auto sets = stage->ListComposedPrimVariantSelectionSets(payload_host);
+    assert(sets.size() == 1u && sets[0] == "modelVariant");
+    freeusd::vt::Value v;
+    assert(stage->ReadFieldAtEvaluatedTime(payload_host, Token("variantValue"), 1.0, &v));
+    double d = 0.0;
+    assert(v.GetDouble(&d) && d == 9.0);
+  }
 
   {
     std::string err;

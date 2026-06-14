@@ -31,9 +31,10 @@ Status vocabulary:
 - `tests/fixtures/parity_custom_data_specializes.usda`
   Composed prim `customData` through `specializes` from a `class` prim (local override on specialize host).
 - `tests/fixtures/parity_variant_selection_refs.usda`
+- `tests/fixtures/parity_variant_selection_payloads.usda`
 - `tests/fixtures/parity_variant_sets_refs.usda`
   Composed `variantSets` metadata and variant names through a referenced layer (`parity_variant_sets_ref.usda`).
-  Composed prim `variantSelection` through `references` (`parity_variant_selection_ref.usda`).
+  Composed prim `variantSelection` through `references` (`parity_variant_selection_ref.usda`) and payloads (`parity_variant_selection_payload.usda`).
   Composed prim `customData` through `specializes` from a `class` prim (local override on specialize host).
 - `tests/fixtures/parity_custom_data_refs.usda`
   Composed prim `customData` through `references` and `payloads` (`parity_custom_data_ref.usda`, `parity_custom_data_payload.usda`; local override on reference host).
@@ -122,7 +123,7 @@ Status vocabulary:
 ### Composition Semantics
 
 - `implemented`: strongest-wins field reads, concatenated relationship lists, composed field/relationship/prim-path unions, relocated prim-path query behavior, and prefix-substituted reference/payload asset paths.
-- `partial`: `subLayerOffsets` now remap composed sample times and file-backed reads; selected variants plus reference/payload/inherit/specialize arcs now affect file-backed field and prim-path queries (`parity_specializes.usda` for composed doubles through `specializes`); composed prim `kind` / `active`, `customData`, and USDA `class` / `over` specifier resolution follow references, payloads, and `inherits` / `specializes` (local layer stack still wins when authored; `parity_custom_data_refs.usda` for `customData` through references/payloads; `parity_custom_data_specializes.usda` for `customData` through specializes), composed `variantSelection` through `references` (`parity_variant_selection_refs.usda`); other metadata propagation through every arc type remains incomplete.
+- `partial`: `subLayerOffsets` now remap composed sample times and file-backed reads; selected variants plus reference/payload/inherit/specialize arcs now affect file-backed field and prim-path queries (`parity_specializes.usda` for composed doubles through `specializes`); composed prim `kind` / `active`, `customData`, and USDA `class` / `over` specifier resolution follow references, payloads, and `inherits` / `specializes` (local layer stack still wins when authored; `parity_custom_data_refs.usda` for `customData` through references/payloads; `parity_custom_data_specializes.usda` for `customData` through specializes), composed `variantSelection` through references and payloads (`parity_variant_selection_refs.usda`, `parity_variant_selection_payloads.usda`); other metadata propagation through every arc type remains incomplete.
 - `planned`: broader resolver-aware arc expansion for the remaining composed query families.
 
 ### Schema And Runtime Helpers
