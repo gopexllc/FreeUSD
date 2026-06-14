@@ -68,6 +68,16 @@ def test_spatial_grounding_context_binding() -> None:
     assert kitchen["mass_kg"] is None
 
 
+def test_semantic_labels_binding() -> None:
+    stage = _open_stage("parity_semantics_labels.usda")
+    cup = SdfPath.from_string("/World/Kitchen/CupBlue")
+    assert stage.list_semantic_label_sets(cup) == ["engine", "somaHome"]
+    assert stage.read_semantic_labels(cup, "somaHome", 1.0) == ["Crockery", "DesignedContainer"]
+    assert stage.read_semantic_labels(cup, "engine", 1.0) == ["pickup", "container"]
+    assert stage.read_semantic_labels(cup, "missing", 1.0) == []
+    assert stage.read_semantic_labels(SdfPath.from_string("/World/Kitchen/Stove"), "somaHome", 1.0) == ["Appliance"]
+
+
 def test_engine_editor_view_and_prebake_reports_bindings() -> None:
     stack_stage = _open_stage("parity_stack_root.usda")
     editor = build_engine_prim_editor_view(stack_stage.prim_at(SdfPath.from_string("/World/Model")), 15.0)

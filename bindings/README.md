@@ -52,6 +52,8 @@ Skel fixture: **`tests/fixtures/parity_skel_skinning.usda`**. Tests: **`tests/c_
 
 Spatial grounding fixture: **`tests/fixtures/parity_spatial_grounding.usda`**. Tests: **`tests/c_usdutils_spatial_grounding.c`**, **`tests/usdutils_spatial_grounding_test.cpp`**, **`tests/python/test_engine_integration.py`**, **`bindings/go/freeusd_test.go`**, and **`bindings/rust`**.
 
+Semantic labels fixture: **`tests/fixtures/parity_semantics_labels.usda`**. Tests: **`tests/c_usd_semantics_labels.c`**, **`tests/usd_semantics_labels_test.cpp`**, **`tests/python/test_engine_integration.py`**, **`bindings/go/freeusd_test.go`**, and **`bindings/rust`**.
+
 | Capability | C ABI | C++ / Python | Go | Rust |
 |------------|:-----:|:------------:|:--:|:----:|
 | Typed field reads (double/float/bool/int/string/vec/matrix/quat/token) | yes | yes | yes | yes |
@@ -72,6 +74,7 @@ Spatial grounding fixture: **`tests/fixtures/parity_spatial_grounding.usda`**. T
 | `usdSkel` joint names / skinning palette / CPU deform | yes | yes | yes | yes |
 | `usdUtils` engine runtime assess (skel flags) | yes | yes | yes | yes |
 | `usdUtils` spatial grounding context records | yes | yes | yes | yes |
+| `usdSemantics` semantic label reads | yes | yes | yes | yes |
 | `usdUtils` flatten | C++ only | yes | n/a | n/a |
 
 ## Adding more bindings

@@ -70,6 +70,7 @@
 #include "freeusd/usdProc/tokens.hpp"
 #include "freeusd/usdRender/tokens.hpp"
 #include "freeusd/usdRi/tokens.hpp"
+#include "freeusd/usdSemantics/labelsAPI.hpp"
 #include "freeusd/usdSemantics/tokens.hpp"
 #include "freeusd/usdShade/material.hpp"
 #include "freeusd/usdShade/previewSurface.hpp"
@@ -1914,6 +1915,21 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
               return out;
             },
             py::arg("time") = 1.0)
+        .def(
+            "list_semantic_label_sets",
+            [](const freeusd::usd::Stage& stage, const freeusd::sdf::Path& path) {
+              return freeusd::usdSemantics::SemanticLabelsAPI::ReadFromPrim(stage.shared_from_this(), path)
+                  .ListLabelSetNames();
+            },
+            py::arg("path"))
+        .def(
+            "read_semantic_labels",
+            [](const freeusd::usd::Stage& stage, const freeusd::sdf::Path& path, const std::string& instance_name,
+               double time) {
+              return freeusd::usdSemantics::SemanticLabelsAPI::ReadFromPrim(stage.shared_from_this(), path)
+                  .GetLabels(instance_name, time);
+            },
+            py::arg("path"), py::arg("instance_name"), py::arg("time") = 1.0)
         .def("list_composed_field_names", &freeusd::usd::Stage::ListComposedFieldNames)
         .def("list_composed_field_sample_times", &freeusd::usd::Stage::ListComposedFieldSampleTimes)
         .def("list_composed_relationship_names", &freeusd::usd::Stage::ListComposedRelationshipNames)

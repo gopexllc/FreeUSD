@@ -33,6 +33,7 @@
 #include "freeusd/usdPhysics/massAPI.hpp"
 #include "freeusd/usdPhysics/physicsScene.hpp"
 #include "freeusd/usdPhysics/rigidBodyAPI.hpp"
+#include "freeusd/usdSemantics/labelsAPI.hpp"
 #include "freeusd/usdSkel/skelAnimation.hpp"
 #include "freeusd/usdSkel/skelBlendShapes.hpp"
 #include "freeusd/usdSkel/skinning.hpp"
@@ -3309,6 +3310,78 @@ void freeusd_usdutils_spatial_grounding_records_free(FreeusdSpatialGroundingReco
     free_spatial_grounding_record(&records[i]);
   }
   std::free(records);
+}
+
+int freeusd_stage_list_semantic_label_sets(const FreeusdStage* stage, const char* prim_path_utf8, char*** out_strings,
+                                           size_t* out_count) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !out_strings || !out_count) {
+    set_error("freeusd_stage_list_semantic_label_sets: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_strings = nullptr;
+  *out_count = 0;
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const freeusd::usdSemantics::SemanticLabelsAPI api =
+        freeusd::usdSemantics::SemanticLabelsAPI::ReadFromPrim(stage->inner, p);
+    if (!api) {
+      set_error("prim not found");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    const int rc = malloc_string_list(api.ListLabelSetNames(), out_strings, out_count);
+    if (rc != FREEUSD_OK) {
+      set_error("out of memory");
+      return rc;
+    }
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_read_semantic_labels(const FreeusdStage* stage, const char* prim_path_utf8,
+                                       const char* instance_name_utf8, char*** out_strings, size_t* out_count) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !instance_name_utf8 || !out_strings || !out_count) {
+    set_error("freeusd_stage_read_semantic_labels: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_strings = nullptr;
+  *out_count = 0;
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty() || std::strlen(instance_name_utf8) == 0) {
+      set_error("invalid semantic labels argument");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const freeusd::usdSemantics::SemanticLabelsAPI api =
+        freeusd::usdSemantics::SemanticLabelsAPI::ReadFromPrim(stage->inner, p);
+    if (!api) {
+      set_error("prim not found");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    const int rc = malloc_string_list(api.GetLabels(instance_name_utf8), out_strings, out_count);
+    if (rc != FREEUSD_OK) {
+      set_error("out of memory");
+      return rc;
+    }
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
 }
 
 int freeusd_stage_read_material_surface_shader_path(const FreeusdStage* stage, const char* material_path_utf8,

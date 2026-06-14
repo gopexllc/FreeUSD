@@ -1298,6 +1298,35 @@ func TestUsdUtilsSpatialGroundingContext(t *testing.T) {
 	}
 }
 
+func TestUsdSemanticsLabels(t *testing.T) {
+	fixture := filepath.Join("..", "..", "tests", "fixtures", "parity_semantics_labels.usda")
+	st := OpenStageFromRootFile(fixture, RootSubDepthFirst)
+	if st == nil {
+		t.Fatalf("OpenStageFromRootFile: %s", LastErrorMessage())
+	}
+	defer st.Free()
+
+	sets, rc := st.ListSemanticLabelSets("/World/Kitchen/CupBlue")
+	if rc != 0 {
+		t.Fatalf("ListSemanticLabelSets rc=%d %s", rc, LastErrorMessage())
+	}
+	if len(sets) != 2 || !hasString(sets, "engine") || !hasString(sets, "somaHome") {
+		t.Fatalf("sets=%v", sets)
+	}
+	labels, rc := st.ReadSemanticLabels("/World/Kitchen/CupBlue", "somaHome")
+	if rc != 0 || len(labels) != 2 || labels[0] != "Crockery" || labels[1] != "DesignedContainer" {
+		t.Fatalf("labels=%v rc=%d", labels, rc)
+	}
+	stoveLabels, rc := st.ReadSemanticLabels("/World/Kitchen/Stove", "somaHome")
+	if rc != 0 || len(stoveLabels) != 1 || stoveLabels[0] != "Appliance" {
+		t.Fatalf("stoveLabels=%v rc=%d", stoveLabels, rc)
+	}
+	missing, rc := st.ReadSemanticLabels("/World/Kitchen/CupBlue", "missing")
+	if rc != 0 || len(missing) != 0 {
+		t.Fatalf("missing=%v rc=%d", missing, rc)
+	}
+}
+
 func TestSkelCrossLanguageContract(t *testing.T) {
 	fixture := filepath.Join("..", "..", "tests", "fixtures", "parity_skel_skinning.usda")
 	st := OpenStageFromRootFile(fixture, RootSubDepthFirst)

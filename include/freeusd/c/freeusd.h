@@ -971,6 +971,22 @@ FREEUSD_C_API void freeusd_usdutils_spatial_grounding_records_free(FreeusdSpatia
                                                                    size_t count);
 
 /**
+ * Authored semantic label set names on @p prim_path_utf8 (from ``semantics:labels:<set>`` attributes).
+ * On @ref FREEUSD_OK, @p *out_strings / @p *out_count use @ref freeusd_path_list_free.
+ */
+FREEUSD_C_API int freeusd_stage_list_semantic_label_sets(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                         char*** out_strings, size_t* out_count);
+
+/**
+ * Authored semantic labels for one label set on @p prim_path_utf8.
+ * On @ref FREEUSD_OK, @p *out_strings / @p *out_count use @ref freeusd_path_list_free.
+ * Missing sets return @ref FREEUSD_OK with an empty list.
+ */
+FREEUSD_C_API int freeusd_stage_read_semantic_labels(const FreeusdStage* stage, const char* prim_path_utf8,
+                                                     const char* instance_name_utf8, char*** out_strings,
+                                                     size_t* out_count);
+
+/**
  * Composed prim active flag (strongest opinion; default true if no opinion).
  * @p out_active receives 0 or 1.
  */

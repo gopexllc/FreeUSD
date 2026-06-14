@@ -771,6 +771,19 @@ extern "C" {
         records: *mut FreeusdSpatialGroundingRecord,
         count: usize,
     );
+    fn freeusd_stage_list_semantic_label_sets(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        out_strings: *mut *mut *mut c_char,
+        out_count: *mut usize,
+    ) -> c_int;
+    fn freeusd_stage_read_semantic_labels(
+        stage: *const FreeusdStage,
+        prim_path: *const c_char,
+        instance_name: *const c_char,
+        out_strings: *mut *mut *mut c_char,
+        out_count: *mut usize,
+    ) -> c_int;
 }
 
 #[repr(C)]
@@ -2456,6 +2469,70 @@ impl Stage {
         Ok(out)
     }
 
+    pub fn list_semantic_label_sets(&self, prim_path: &str) -> Result<Vec<String>, i32> {
+        let pp = CString::new(prim_path).map_err(|_| 1)?;
+        let mut arr: *mut *mut c_char = ptr::null_mut();
+        let mut n: usize = 0;
+        let rc = unsafe {
+            freeusd_stage_list_semantic_label_sets(
+                self.ptr as *const FreeusdStage,
+                pp.as_ptr(),
+                &mut arr,
+                &mut n,
+            )
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        if arr.is_null() || n == 0 {
+            return Ok(Vec::new());
+        }
+        let slice = unsafe { std::slice::from_raw_parts(arr, n) };
+        let mut out = Vec::with_capacity(n);
+        for &p in slice {
+            if !p.is_null() {
+                out.push(unsafe { CStr::from_ptr(p).to_string_lossy().into_owned() });
+            }
+        }
+        unsafe { freeusd_path_list_free(arr, n) };
+        Ok(out)
+    }
+
+    pub fn read_semantic_labels(
+        &self,
+        prim_path: &str,
+        instance_name: &str,
+    ) -> Result<Vec<String>, i32> {
+        let pp = CString::new(prim_path).map_err(|_| 1)?;
+        let inst = CString::new(instance_name).map_err(|_| 1)?;
+        let mut arr: *mut *mut c_char = ptr::null_mut();
+        let mut n: usize = 0;
+        let rc = unsafe {
+            freeusd_stage_read_semantic_labels(
+                self.ptr as *const FreeusdStage,
+                pp.as_ptr(),
+                inst.as_ptr(),
+                &mut arr,
+                &mut n,
+            )
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        if arr.is_null() || n == 0 {
+            return Ok(Vec::new());
+        }
+        let slice = unsafe { std::slice::from_raw_parts(arr, n) };
+        let mut out = Vec::with_capacity(n);
+        for &p in slice {
+            if !p.is_null() {
+                out.push(unsafe { CStr::from_ptr(p).to_string_lossy().into_owned() });
+            }
+        }
+        unsafe { freeusd_path_list_free(arr, n) };
+        Ok(out)
+    }
+
     /// Resolve a Material `outputs:surface` connection to the connected shader prim path.
     pub fn read_material_surface_shader_path(&self, material_path: &str) -> Result<String, i32> {
         let mp = CString::new(material_path).map_err(|_| 1)?;
@@ -4064,6 +4141,33 @@ def Xform "Root"
         assert_eq!(kitchen.world_position, [10.0, 0.0, 0.0]);
         assert!(!kitchen.has_world_bound);
         assert_eq!(kitchen.mass_kg, None);
+    }
+
+    #[test]
+    fn usd_semantics_labels_binding() {
+        let path = fixture_path("parity_semantics_labels.usda");
+        let stage =
+            Stage::open_from_root_file(&path.to_string_lossy(), 2).expect("open semantics fixture");
+        let sets = stage
+            .list_semantic_label_sets("/World/Kitchen/CupBlue")
+            .expect("label sets");
+        assert_eq!(sets, vec!["engine".to_string(), "somaHome".to_string()]);
+        assert_eq!(
+            stage
+                .read_semantic_labels("/World/Kitchen/CupBlue", "somaHome")
+                .expect("cup labels"),
+            vec!["Crockery".to_string(), "DesignedContainer".to_string()]
+        );
+        assert_eq!(
+            stage
+                .read_semantic_labels("/World/Kitchen/Stove", "somaHome")
+                .expect("stove labels"),
+            vec!["Appliance".to_string()]
+        );
+        assert!(stage
+            .read_semantic_labels("/World/Kitchen/CupBlue", "missing")
+            .expect("missing labels")
+            .is_empty());
     }
 
     #[test]

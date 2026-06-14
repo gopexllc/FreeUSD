@@ -65,6 +65,7 @@ fn main() {
         "freeusd_usdLux",
         "freeusd_usdPhysics",
         "freeusd_usdVol",
+        "freeusd_usdSemantics",
         "freeusd_usdGeom",
         "freeusd_usd",
         "freeusd_ar",

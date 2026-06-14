@@ -10,8 +10,8 @@ package freeusd
 
 /*
 #cgo CFLAGS: -I${SRCDIR}/../../include
-#cgo linux LDFLAGS: -L${SRCDIR}/../../build/src -lfreeusd_c -lfreeusd_base -lfreeusd_usdUtils -lfreeusd_usdSkel -lfreeusd_usdShade -lfreeusd_usdLux -lfreeusd_usdPhysics -lfreeusd_usdVol -lfreeusd_usdGeom -lfreeusd_usd -lfreeusd_ar -lfreeusd_io -lfreeusd_pcp -lfreeusd_sdf -lfreeusd_vt -lfreeusd_tf -lfreeusd_gf -lfreeusd_plug -lstdc++ -lm -lz -llz4
-#cgo darwin LDFLAGS: -L${SRCDIR}/../../build/src -lfreeusd_c -lfreeusd_base -lfreeusd_usdUtils -lfreeusd_usdSkel -lfreeusd_usdShade -lfreeusd_usdLux -lfreeusd_usdPhysics -lfreeusd_usdVol -lfreeusd_usdGeom -lfreeusd_usd -lfreeusd_ar -lfreeusd_io -lfreeusd_pcp -lfreeusd_sdf -lfreeusd_vt -lfreeusd_tf -lfreeusd_gf -lfreeusd_plug -lc++ -lm -lz -llz4
+#cgo linux LDFLAGS: -L${SRCDIR}/../../build/src -lfreeusd_c -lfreeusd_base -lfreeusd_usdUtils -lfreeusd_usdSkel -lfreeusd_usdShade -lfreeusd_usdLux -lfreeusd_usdPhysics -lfreeusd_usdVol -lfreeusd_usdSemantics -lfreeusd_usdGeom -lfreeusd_usd -lfreeusd_ar -lfreeusd_io -lfreeusd_pcp -lfreeusd_sdf -lfreeusd_vt -lfreeusd_tf -lfreeusd_gf -lfreeusd_plug -lstdc++ -lm -lz -llz4
+#cgo darwin LDFLAGS: -L${SRCDIR}/../../build/src -lfreeusd_c -lfreeusd_base -lfreeusd_usdUtils -lfreeusd_usdSkel -lfreeusd_usdShade -lfreeusd_usdLux -lfreeusd_usdPhysics -lfreeusd_usdVol -lfreeusd_usdSemantics -lfreeusd_usdGeom -lfreeusd_usd -lfreeusd_ar -lfreeusd_io -lfreeusd_pcp -lfreeusd_sdf -lfreeusd_vt -lfreeusd_tf -lfreeusd_gf -lfreeusd_plug -lc++ -lm -lz -llz4
 #include <stdlib.h>
 #include <freeusd/c/freeusd.h>
 */
@@ -1910,6 +1910,62 @@ func (s *Stage) BuildSpatialGroundingContext(time float64) (records []SpatialGro
 		records = append(records, rec)
 	}
 	return records, 0
+}
+
+// ListSemanticLabelSets returns authored semantics:labels:<set> instance names for a prim.
+func (s *Stage) ListSemanticLabelSets(primPath string) (sets []string, rc int) {
+	if s == nil || s.ptr == nil {
+		return nil, 1
+	}
+	pp := C.CString(primPath)
+	defer C.free(unsafe.Pointer(pp))
+	var arr **C.char
+	var count C.size_t
+	rc = int(C.freeusd_stage_list_semantic_label_sets(s.ptr, pp, &arr, &count))
+	if rc != 0 {
+		return nil, rc
+	}
+	if arr == nil || count == 0 {
+		return []string{}, 0
+	}
+	defer C.freeusd_path_list_free(arr, count)
+	items := unsafe.Slice(arr, int(count))
+	sets = make([]string, 0, int(count))
+	for _, item := range items {
+		if item != nil {
+			sets = append(sets, C.GoString(item))
+		}
+	}
+	return sets, 0
+}
+
+// ReadSemanticLabels returns authored labels for one semantics:labels:<set> instance.
+func (s *Stage) ReadSemanticLabels(primPath, instanceName string) (labels []string, rc int) {
+	if s == nil || s.ptr == nil {
+		return nil, 1
+	}
+	pp := C.CString(primPath)
+	defer C.free(unsafe.Pointer(pp))
+	in := C.CString(instanceName)
+	defer C.free(unsafe.Pointer(in))
+	var arr **C.char
+	var count C.size_t
+	rc = int(C.freeusd_stage_read_semantic_labels(s.ptr, pp, in, &arr, &count))
+	if rc != 0 {
+		return nil, rc
+	}
+	if arr == nil || count == 0 {
+		return []string{}, 0
+	}
+	defer C.freeusd_path_list_free(arr, count)
+	items := unsafe.Slice(arr, int(count))
+	labels = make([]string, 0, int(count))
+	for _, item := range items {
+		if item != nil {
+			labels = append(labels, C.GoString(item))
+		}
+	}
+	return labels, 0
 }
 
 // ReadSkelJointNames returns skeleton joint names (rc 0 ok).

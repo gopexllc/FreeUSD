@@ -19,6 +19,7 @@ This document freezes the exact FreeUSD subset a GPL-compatible engine may rely 
   - `freeusd::usdGeom::Xformable`
   - `freeusd::usdGeom::Imageable`
   - `freeusd::usdGeom::Boundable`
+  - `freeusd::usdSemantics::SemanticLabelsAPI`
   - `freeusd::usdUtils::FlattenStageAtTime`
   - `freeusd::usdUtils::BuildEngineSceneSnapshot`
   - `freeusd::usdUtils::BuildEngineSpatialGroundingContext`
@@ -39,6 +40,8 @@ This document freezes the exact FreeUSD subset a GPL-compatible engine may rely 
   - `freeusd_stage_compute_boundable_local_bounds`
   - `freeusd_stage_compute_boundable_world_bounds`
   - `freeusd_usdutils_build_spatial_grounding_context`
+  - `freeusd_stage_list_semantic_label_sets`
+  - `freeusd_stage_read_semantic_labels`
 
 ## Supported Content Slice
 
@@ -87,6 +90,7 @@ This document freezes the exact FreeUSD subset a GPL-compatible engine may rely 
 | composed PhysicsCollisionAPI through inherits | `tests/fixtures/parity_physics_collision_inherit.usda` |
 | OpenVDBAsset in engine snapshots | `tests/fixtures/parity_vol_openvdb.usda` |
 | Volume + field rel in engine snapshots | `tests/fixtures/parity_vol_volume.usda` |
+| authored semantic labels | `tests/fixtures/parity_semantics_labels.usda` |
 | low-level crate tables | `tests/fixtures/parity_tables.usdc` |
 | narrow crate scene-open fallback | `tests/fixtures/parity_embedded_scene.usdc` |
 

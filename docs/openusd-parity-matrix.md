@@ -112,6 +112,8 @@ Status vocabulary:
   `OpenVDBAsset` with `filePath` and `fieldName`.
 - `tests/fixtures/parity_vol_volume.usda`
   `Volume` with composed `field` relationship to a child `OpenVDBAsset`.
+- `tests/fixtures/parity_semantics_labels.usda`
+  `UsdSemantics` authored `semantics:labels:<instance>` token-array reads through C++, C ABI, Python, Go, and Rust.
 
 ## Current Matrix
 
@@ -138,12 +140,13 @@ Status vocabulary:
 - `partial`: `usdLux::DistantLight` reads `inputs:intensity`, `inputs:color`, and `inputs:angle` at a time code (`parity_lux_distant.usda`); `usdLux::SphereLight` reads `inputs:intensity`, `inputs:color`, and `inputs:radius` (`parity_lux_sphere.usda`); `usdLux::RectLight` reads `inputs:intensity`, `inputs:color`, `inputs:width`, and `inputs:height` (`parity_lux_rect.usda`); `usdLux::DiskLight` reads `inputs:intensity`, `inputs:color`, and `inputs:radius` (`parity_lux_disk.usda`); `usdLux::CylinderLight` reads `inputs:intensity`, `inputs:color`, `inputs:length`, and `inputs:radius` (`parity_lux_cylinder.usda`); `usdLux::DomeLight` reads `inputs:intensity`, `inputs:color`, `inputs:texture:file`, and `inputs:texture:format` (`parity_lux_dome.usda`).
 - `partial`: `usdPhysics::PhysicsScene` reads `physics:gravityDirection` and `physics:gravityMagnitude` at a time code (`parity_physics_scene.usda`); `usdPhysics::RigidBodyAPI` reads composed `physics:mass`, `physics:kinematicEnabled`, and detects `PhysicsRigidBodyAPI` via composed `apiSchemas` (`parity_physics_rigid_body.usda`, `parity_physics_rigid_body_inherit.usda`, `parity_physics_rigid_body_kinematic.usda`, `parity_physics_rigid_body_refs.usda`); `usdPhysics::CollisionAPI` reads composed `physics:collisionEnabled` and detects `PhysicsCollisionAPI` via composed `apiSchemas` (`parity_physics_collision.usda`, `parity_physics_collision_inherit.usda`); `usdPhysics::MassAPI` reads `physics:density` and `physics:centerOfMass` and detects `PhysicsMassAPI` via composed `apiSchemas` (`parity_physics_mass.usda`); `usdPhysics::FixedJoint` reads `physics:body0` / `physics:body1` relationship targets and `physics:jointEnabled` (`parity_physics_fixed_joint.usda`).
 - `partial`: `usdVol::OpenVDBAsset` reads `filePath` and `fieldName` at a time code (`parity_vol_openvdb.usda`); `usdVol::Volume` reads prim kind and composed `field` relationship targets, resolving child `OpenVDBAsset` field prims (`parity_vol_volume.usda`).
-- `token-only`: most other non-`usdGeom` / non-`usdSkel` / non-`usdShade` / non-`usdLux` / non-`usdPhysics` / non-`usdVol` schema packages remain generated token surfaces only.
+- `partial`: `usdSemantics::SemanticLabelsAPI` lists authored semantic label-set names and reads `semantics:labels:<instance>` token arrays (`parity_semantics_labels.usda`).
+- `token-only`: most other non-`usdGeom` / non-`usdSkel` / non-`usdShade` / non-`usdLux` / non-`usdPhysics` / non-`usdVol` / non-`usdSemantics` schema packages remain generated token surfaces only.
 
 ### ABI And Bindings
 
 - `implemented`: the C ABI remains the stable FFI contract for stage queries, typed field reads, crate bootstrap/TOC helpers, raw crate section payload access, and the validated `usdGeom` runtime subset (`transform`, `visibility`, `purpose`, `bounds`).
-- `partial`: Python remains the broadest wrapper; the C ABI, Go, and Rust now follow the validated crate bootstrap/TOC/raw-section/table subset, composed prim `kind` / `active`, `usdGeom` imageable/boundable, `usdUtils` spatial-grounding context records, `usdShade` preview-surface diffuse/texture helpers, `usdLux` DistantLight sampling, `usdVol` OpenVDBAsset reads, `usdPhysics` PhysicsScene gravity, RigidBodyAPI, CollisionAPI, and MassAPI reads, and `usdSkel` joint/skinning helpers, but broader runtime/schema helpers are still not fully mirrored outside Python/C++.
+- `partial`: Python remains the broadest wrapper; the C ABI, Go, and Rust now follow the validated crate bootstrap/TOC/raw-section/table subset, composed prim `kind` / `active`, `usdGeom` imageable/boundable, `usdUtils` spatial-grounding context records, `usdSemantics` label reads, `usdShade` preview-surface diffuse/texture helpers, `usdLux` DistantLight sampling, `usdVol` OpenVDBAsset reads, `usdPhysics` PhysicsScene gravity, RigidBodyAPI, CollisionAPI, and MassAPI reads, and `usdSkel` joint/skinning helpers, but broader runtime/schema helpers are still not fully mirrored outside Python/C++.
 - `planned`: milestone-by-milestone expansion for more composed query families and runtime helpers once the C ABI slice is stable.
 
 ### Runtime Hardening And Deferred Stacks

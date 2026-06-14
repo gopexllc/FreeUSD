@@ -124,7 +124,6 @@ foreach(
   usdHydra
   usdMtlx
   usdProc
-  usdSemantics
   usdUI)
   add_library(freeusd_${_pkg} INTERFACE)
   add_library(freeusd::${_pkg} ALIAS freeusd_${_pkg})
@@ -132,6 +131,12 @@ foreach(
   target_link_libraries(freeusd_${_pkg} INTERFACE freeusd_usd freeusd_tf)
   set_target_properties(freeusd_${_pkg} PROPERTIES EXPORT_NAME ${_pkg})
 endforeach()
+
+add_library(freeusd_usdSemantics STATIC usdSemantics/labelsAPI.cpp)
+add_library(freeusd::usdSemantics ALIAS freeusd_usdSemantics)
+target_include_directories(freeusd_usdSemantics PUBLIC "$<BUILD_INTERFACE:${FREEUSD_INC}>" "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
+target_link_libraries(freeusd_usdSemantics PUBLIC freeusd_usd freeusd_tf freeusd_build_settings)
+set_target_properties(freeusd_usdSemantics PROPERTIES EXPORT_NAME usdSemantics)
 
 add_library(freeusd_usd_schemas INTERFACE)
 add_library(freeusd::usd_schemas ALIAS freeusd_usd_schemas)
@@ -187,6 +192,7 @@ target_link_libraries(
     freeusd_usdLux
     freeusd_usdPhysics
     freeusd_usdVol
+    freeusd_usdSemantics
     freeusd_plug
     freeusd_trace
     freeusd_work
@@ -221,6 +227,7 @@ set_target_properties(freeusd_usdShade PROPERTIES EXPORT_NAME usdShade)
 set_target_properties(freeusd_usdLux PROPERTIES EXPORT_NAME usdLux)
 set_target_properties(freeusd_usdPhysics PROPERTIES EXPORT_NAME usdPhysics)
 set_target_properties(freeusd_usdVol PROPERTIES EXPORT_NAME usdVol)
+set_target_properties(freeusd_usdSemantics PROPERTIES EXPORT_NAME usdSemantics)
 set_target_properties(freeusd_usd_schemas PROPERTIES EXPORT_NAME usd_schemas)
 set_target_properties(freeusd_plug PROPERTIES EXPORT_NAME plug)
 set_target_properties(freeusd_trace PROPERTIES EXPORT_NAME trace)
