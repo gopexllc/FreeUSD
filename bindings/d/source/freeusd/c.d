@@ -66,6 +66,23 @@ int freeusd_stage_read_field_string(
     double time,
     char** out_string);
 
+int freeusd_stage_read_material_surface_shader_path(
+    const(FreeusdStage)* stage,
+    const(char)* material_path_utf8,
+    char** out_shader_path_utf8);
+
+int freeusd_stage_read_preview_surface_diffuse_color(
+    const(FreeusdStage)* stage,
+    const(char)* shader_path_utf8,
+    double time,
+    float* out_rgb);
+
+int freeusd_stage_read_preview_surface_diffuse_texture_asset_path(
+    const(FreeusdStage)* stage,
+    const(char)* shader_path_utf8,
+    double time,
+    char** out_path_utf8);
+
 int freeusd_stage_read_physics_mass_sample(
     const(FreeusdStage)* stage,
     const(char)* prim_path_utf8,

@@ -43,6 +43,10 @@ struct OpenVDBAssetInfo {
     string fieldName;
 }
 
+struct PreviewSurfaceDiffuseColor {
+    float[3] rgb;
+}
+
 struct Stage {
     private FreeusdStage* handle;
 
@@ -94,11 +98,31 @@ struct Stage {
         char* outString = null;
         auto rc = freeusd_stage_read_field_string(handle, primPath.toStringz, attrName.toStringz, time, &outString);
         check(rc, "readFieldString");
-        if (outString is null) {
-            return "";
-        }
-        scope(exit) freeusd_string_free(outString);
-        return fromStringz(outString).idup;
+        return takeOwnedCString(outString);
+    }
+
+    string readMaterialSurfaceShaderPath(string materialPath) const {
+        ensureOpen();
+        char* shaderPath = null;
+        auto rc = freeusd_stage_read_material_surface_shader_path(handle, materialPath.toStringz, &shaderPath);
+        check(rc, "readMaterialSurfaceShaderPath");
+        return takeOwnedCString(shaderPath);
+    }
+
+    PreviewSurfaceDiffuseColor readPreviewSurfaceDiffuseColor(string shaderPath, double time = 1.0) const {
+        ensureOpen();
+        float[3] rgb;
+        auto rc = freeusd_stage_read_preview_surface_diffuse_color(handle, shaderPath.toStringz, time, rgb.ptr);
+        check(rc, "readPreviewSurfaceDiffuseColor");
+        return PreviewSurfaceDiffuseColor(rgb);
+    }
+
+    string readPreviewSurfaceDiffuseTextureAssetPath(string shaderPath, double time = 1.0) const {
+        ensureOpen();
+        char* assetPath = null;
+        auto rc = freeusd_stage_read_preview_surface_diffuse_texture_asset_path(handle, shaderPath.toStringz, time, &assetPath);
+        check(rc, "readPreviewSurfaceDiffuseTextureAssetPath");
+        return takeOwnedCString(assetPath);
     }
 
     PhysicsMassSample readPhysicsMass(string primPath, double time = 1.0) const {
@@ -190,6 +214,14 @@ private string borrowedCString(const(char)* value) {
     return fromStringz(value).idup;
 }
 
+private string takeOwnedCString(char* value) {
+    if (value is null) {
+        return "";
+    }
+    scope(exit) freeusd_string_free(value);
+    return fromStringz(value).idup;
+}
+
 unittest {
     assert(versionString().length > 0);
     assert(usdcCrateIdentifier() == "PXR-USDC");
@@ -251,4 +283,21 @@ unittest {
     auto asset = stage.readOpenVDBAsset("/World/Smoke", 1.0);
     assert(asset.filePath == "volumes/smoke.vdb");
     assert(asset.fieldName == "density");
+}
+
+unittest {
+    auto stage = Stage.open("../../tests/fixtures/parity_shade_preview.usda");
+    auto shaderPath = stage.readMaterialSurfaceShaderPath("/World/Looks/Material");
+    assert(shaderPath == "/World/Looks/Material/PreviewSurface");
+    auto diffuse = stage.readPreviewSurfaceDiffuseColor(shaderPath, 1.0);
+    assert(diffuse.rgb[0] == 0.8f);
+    assert(diffuse.rgb[1] == 0.2f);
+    assert(diffuse.rgb[2] == 0.1f);
+}
+
+unittest {
+    auto stage = Stage.open("../../tests/fixtures/parity_shade_texture.usda");
+    auto shaderPath = stage.readMaterialSurfaceShaderPath("/World/Looks/Material");
+    auto texturePath = stage.readPreviewSurfaceDiffuseTextureAssetPath(shaderPath, 1.0);
+    assert(texturePath == "textures/albedo.png");
 }
