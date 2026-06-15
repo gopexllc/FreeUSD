@@ -881,11 +881,21 @@ pub struct PhysicsMassSample {
 }
 
 #[repr(C)]
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy)]
 pub struct FreeusdPhysicsFixedJointSample {
     pub body0_path_utf8: *mut c_char,
     pub body1_path_utf8: *mut c_char,
     pub joint_enabled: c_int,
+}
+
+impl Default for FreeusdPhysicsFixedJointSample {
+    fn default() -> Self {
+        Self {
+            body0_path_utf8: ptr::null_mut(),
+            body1_path_utf8: ptr::null_mut(),
+            joint_enabled: 0,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
