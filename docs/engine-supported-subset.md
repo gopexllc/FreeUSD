@@ -19,8 +19,10 @@ This document freezes the exact FreeUSD subset a GPL-compatible engine may rely 
   - `freeusd::usdGeom::Xformable`
   - `freeusd::usdGeom::Imageable`
   - `freeusd::usdGeom::Boundable`
+  - `freeusd::usdSemantics::SemanticLabelsAPI`
   - `freeusd::usdUtils::FlattenStageAtTime`
   - `freeusd::usdUtils::BuildEngineSceneSnapshot`
+  - `freeusd::usdUtils::BuildEngineSpatialGroundingContext`
   - `freeusd::usdUtils::BuildEnginePrimEditorView`
   - `freeusd::usdUtils::AssessEngineRuntimeSupport`
 
@@ -37,6 +39,9 @@ This document freezes the exact FreeUSD subset a GPL-compatible engine may rely 
   - `freeusd_stage_compute_imageable_purpose_utf8`
   - `freeusd_stage_compute_boundable_local_bounds`
   - `freeusd_stage_compute_boundable_world_bounds`
+  - `freeusd_usdutils_build_spatial_grounding_context`
+  - `freeusd_stage_list_semantic_label_sets`
+  - `freeusd_stage_read_semantic_labels`
 
 ## Supported Content Slice
 
@@ -70,6 +75,7 @@ This document freezes the exact FreeUSD subset a GPL-compatible engine may rely 
 | composed prim customData through references / payloads | `tests/fixtures/parity_custom_data_refs.usda` |
 | selected variant expansion | `tests/fixtures/parity_variants.usda` |
 | visibility / purpose / bounds / transforms | `tests/fixtures/parity_imageable.usda` |
+| spatial grounding cues for downstream diagnostics | `tests/fixtures/parity_spatial_grounding.usda` |
 | material bindings / preview surface | `tests/fixtures/parity_shade_preview.usda` |
 | preview-surface texture assets | `tests/fixtures/parity_shade_pbr_textures.usda` |
 | usdLux lights in engine snapshots | `tests/fixtures/parity_lux_sphere.usda` |
@@ -84,6 +90,7 @@ This document freezes the exact FreeUSD subset a GPL-compatible engine may rely 
 | composed PhysicsCollisionAPI through inherits | `tests/fixtures/parity_physics_collision_inherit.usda` |
 | OpenVDBAsset in engine snapshots | `tests/fixtures/parity_vol_openvdb.usda` |
 | Volume + field rel in engine snapshots | `tests/fixtures/parity_vol_volume.usda` |
+| authored semantic labels | `tests/fixtures/parity_semantics_labels.usda` |
 | low-level crate tables | `tests/fixtures/parity_tables.usdc` |
 | narrow crate scene-open fallback | `tests/fixtures/parity_embedded_scene.usdc` |
 
@@ -112,6 +119,7 @@ This document freezes the exact FreeUSD subset a GPL-compatible engine may rely 
 ### `hybrid_metadata`
 
 - Allowed only when engine assets are already baked and runtime reads are limited to narrow metadata, field queries, or inspection helpers.
+- Semantic label reads (`semantics:labels:<instance>`) are treated as hybrid metadata and should be validated or baked during import.
 
 ### `experimental_live_stage`
 

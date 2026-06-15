@@ -70,6 +70,7 @@
 #include "freeusd/usdProc/tokens.hpp"
 #include "freeusd/usdRender/tokens.hpp"
 #include "freeusd/usdRi/tokens.hpp"
+#include "freeusd/usdSemantics/labelsAPI.hpp"
 #include "freeusd/usdSemantics/tokens.hpp"
 #include "freeusd/usdShade/material.hpp"
 #include "freeusd/usdShade/previewSurface.hpp"
@@ -1888,6 +1889,55 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def(
             "list_composed_prefix_substitutions",
             [](const freeusd::usd::Stage& stage) { return stage.ListComposedPrefixSubstitutions(); })
+        .def(
+            "build_spatial_grounding_context",
+            [](const freeusd::usd::Stage& stage, double time) {
+              py::list out;
+              for (const auto& record : freeusd::usdUtils::BuildEngineSpatialGroundingContext(stage, time)) {
+                py::dict d;
+                d["path"] = record.path.GetString();
+                d["name"] = record.name;
+                d["parent_path"] = record.parent_path.GetString();
+                d["sibling_names"] = record.sibling_names;
+                py::list semantic_label_sets;
+                for (const auto& label_set : record.semantic_label_sets) {
+                  py::dict item;
+                  item["name"] = label_set.name;
+                  item["labels"] = label_set.labels;
+                  semantic_label_sets.append(std::move(item));
+                }
+                d["semantic_label_sets"] = std::move(semantic_label_sets);
+                d["world_position"] =
+                    py::make_tuple(record.world_position.x(), record.world_position.y(), record.world_position.z());
+                d["has_world_bound"] = record.has_world_bound;
+                d["world_bound_dimensions"] = py::make_tuple(record.world_bound_dimensions.x(),
+                                                             record.world_bound_dimensions.y(),
+                                                             record.world_bound_dimensions.z());
+                if (record.mass_kg.has_value()) {
+                  d["mass_kg"] = *record.mass_kg;
+                } else {
+                  d["mass_kg"] = py::none();
+                }
+                out.append(std::move(d));
+              }
+              return out;
+            },
+            py::arg("time") = 1.0)
+        .def(
+            "list_semantic_label_sets",
+            [](const freeusd::usd::Stage& stage, const freeusd::sdf::Path& path) {
+              return freeusd::usdSemantics::SemanticLabelsAPI::ReadFromPrim(stage.shared_from_this(), path)
+                  .ListLabelSetNames();
+            },
+            py::arg("path"))
+        .def(
+            "read_semantic_labels",
+            [](const freeusd::usd::Stage& stage, const freeusd::sdf::Path& path, const std::string& instance_name,
+               double time) {
+              return freeusd::usdSemantics::SemanticLabelsAPI::ReadFromPrim(stage.shared_from_this(), path)
+                  .GetLabels(instance_name, time);
+            },
+            py::arg("path"), py::arg("instance_name"), py::arg("time") = 1.0)
         .def("list_composed_field_names", &freeusd::usd::Stage::ListComposedFieldNames)
         .def("list_composed_field_sample_times", &freeusd::usd::Stage::ListComposedFieldSampleTimes)
         .def("list_composed_relationship_names", &freeusd::usd::Stage::ListComposedRelationshipNames)
@@ -3524,7 +3574,9 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def_readwrite("open_vdb_file_path", &freeusd::usdUtils::EngineSceneNode::open_vdb_file_path)
         .def_readwrite("open_vdb_field_name", &freeusd::usdUtils::EngineSceneNode::open_vdb_field_name)
         .def_readwrite("has_volume", &freeusd::usdUtils::EngineSceneNode::has_volume)
-        .def_readwrite("volume_field_asset_paths", &freeusd::usdUtils::EngineSceneNode::volume_field_asset_paths);
+        .def_readwrite("volume_field_asset_paths", &freeusd::usdUtils::EngineSceneNode::volume_field_asset_paths)
+        .def_readwrite("semantic_label_set_names", &freeusd::usdUtils::EngineSceneNode::semantic_label_set_names)
+        .def_readwrite("has_semantic_labels", &freeusd::usdUtils::EngineSceneNode::has_semantic_labels);
     py::class_<freeusd::usdUtils::EngineSceneSnapshot>(usdUtils, "EngineSceneSnapshot")
         .def(py::init<>())
         .def_readwrite("root_identifier", &freeusd::usdUtils::EngineSceneSnapshot::root_identifier)
@@ -3558,7 +3610,9 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def_readwrite("physics_fixed_joint_paths",
                        &freeusd::usdUtils::EngineSceneSnapshot::physics_fixed_joint_paths)
         .def_readwrite("open_vdb_asset_paths", &freeusd::usdUtils::EngineSceneSnapshot::open_vdb_asset_paths)
-        .def_readwrite("volume_paths", &freeusd::usdUtils::EngineSceneSnapshot::volume_paths);
+        .def_readwrite("volume_paths", &freeusd::usdUtils::EngineSceneSnapshot::volume_paths)
+        .def_readwrite("semantic_label_prim_paths",
+                       &freeusd::usdUtils::EngineSceneSnapshot::semantic_label_prim_paths);
     py::class_<freeusd::usdUtils::EnginePrimEditorView>(usdUtils, "EnginePrimEditorView")
         .def(py::init<>())
         .def_readwrite("path", &freeusd::usdUtils::EnginePrimEditorView::path)
@@ -3614,6 +3668,7 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
                        &freeusd::usdUtils::EngineRuntimeSupportReport::uses_physics_fixed_joints)
         .def_readwrite("uses_open_vdb_assets", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_open_vdb_assets)
         .def_readwrite("uses_volumes", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_volumes)
+        .def_readwrite("uses_semantic_labels", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_semantic_labels)
         .def_readwrite("warnings", &freeusd::usdUtils::EngineRuntimeSupportReport::warnings);
     py::class_<freeusd::usdUtils::FlattenOptions>(usdUtils, "FlattenOptions")
         .def(py::init<>())

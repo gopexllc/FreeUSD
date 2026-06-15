@@ -45,6 +45,55 @@ def test_engine_scene_snapshot_and_runtime_mode_bindings() -> None:
     assert engine_runtime_mode_name(report.recommended_mode) == "experimental_live_stage"
 
 
+def test_spatial_grounding_context_binding() -> None:
+    stage = _open_stage("parity_spatial_grounding.usda")
+    records = stage.build_spatial_grounding_context(1.0)
+    assert len(records) == 5
+    by_path = {record["path"]: record for record in records}
+
+    cup = by_path["/World/Kitchen/CupBlue"]
+    assert cup["name"] == "CupBlue"
+    assert cup["parent_path"] == "/World/Kitchen"
+    assert sorted(cup["sibling_names"]) == ["PlateGreen", "Stove"]
+    assert cup["semantic_label_sets"] == [
+        {"name": "engine", "labels": ["pickup", "container"]},
+        {"name": "somaHome", "labels": ["Crockery", "DesignedContainer"]},
+    ]
+    assert cup["world_position"] == (6.0, 2.0, 3.0)
+    assert cup["has_world_bound"] is True
+    assert cup["world_bound_dimensions"] == (0.5, 1.5, 0.25)
+    assert abs(cup["mass_kg"] - 0.35) < 1e-6
+
+    kitchen = by_path["/World/Kitchen"]
+    assert kitchen["parent_path"] == "/World"
+    assert kitchen["sibling_names"] == []
+    assert kitchen["semantic_label_sets"] == []
+    assert kitchen["world_position"] == (10.0, 0.0, 0.0)
+    assert kitchen["has_world_bound"] is False
+    assert kitchen["mass_kg"] is None
+
+
+def test_semantic_labels_binding() -> None:
+    stage = _open_stage("parity_semantics_labels.usda")
+    cup = SdfPath.from_string("/World/Kitchen/CupBlue")
+    assert stage.list_semantic_label_sets(cup) == ["engine", "somaHome"]
+    assert stage.read_semantic_labels(cup, "somaHome", 1.0) == ["Crockery", "DesignedContainer"]
+    assert stage.read_semantic_labels(cup, "engine", 1.0) == ["pickup", "container"]
+    assert stage.read_semantic_labels(cup, "missing", 1.0) == []
+    assert stage.read_semantic_labels(SdfPath.from_string("/World/Kitchen/Stove"), "somaHome", 1.0) == ["Appliance"]
+    snapshot = build_engine_scene_snapshot(stage, 1.0)
+    assert sorted(path.text() for path in snapshot.semantic_label_prim_paths) == [
+        "/World/Kitchen/CupBlue",
+        "/World/Kitchen/Stove",
+    ]
+    cup_node = next(node for node in snapshot.nodes if node.path.text() == "/World/Kitchen/CupBlue")
+    assert cup_node.has_semantic_labels
+    assert cup_node.semantic_label_set_names == ["engine", "somaHome"]
+    report = assess_engine_runtime_support(stage)
+    assert report.uses_semantic_labels
+    assert report.recommended_mode == EngineRuntimeMode.hybrid_metadata
+
+
 def test_engine_editor_view_and_prebake_reports_bindings() -> None:
     stack_stage = _open_stage("parity_stack_root.usda")
     editor = build_engine_prim_editor_view(stack_stage.prim_at(SdfPath.from_string("/World/Model")), 15.0)

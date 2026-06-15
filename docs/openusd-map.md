@@ -26,7 +26,7 @@ For **repository layout**, CMake target naming, and which upstream trees are out
 | `usdHydra` | `freeusd::usdHydra` | **Generated** schema **tokens** (Hydra-facing schema names only; no Hd engine) |
 | `usdMtlx` | `freeusd::usdMtlx` | **Generated** schema **tokens** |
 | `usdProc` | `freeusd::usdProc` | **Generated** schema **tokens** |
-| `usdSemantics` | `freeusd::usdSemantics` | **Generated** schema **tokens** |
+| `usdSemantics` | `freeusd::usdSemantics` | **Generated** schema **tokens** + authored semantic label reads |
 | `usdUI` | `freeusd::usdUI` | **Generated** schema **tokens** (includes colon-namespaced field names as `TfToken` strings) |
 | **Usd schema umbrella (opt-in link)** | `freeusd::usd_schemas` | INTERFACE aggregate of **`usdGeom`** + **`usdShade`**, **`usdLux`**, **`usdPhysics`**, **`usdVol`**, **`usdSkel`**, **`usdMedia`**, **`usdRender`**, **`usdRi`**, **`usdHydra`**, **`usdMtlx`**, **`usdProc`**, **`usdSemantics`**, **`usdUI`** (generated **`tokens.hpp`** each); optional C++ bundle **`freeusd/usd/schemaTokens.hpp`** (also includes **`freeusd/usd/schemaDataTokens.hpp`** from **`pxr/usd/usd/generatedSchema.usda`**) |
 | `plug` | `freeusd::plug` | `Registry` no-op loader; Python **`freeusd.plug`** (`load_all`) |

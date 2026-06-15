@@ -2,6 +2,7 @@ package freeusd
 
 import (
 	"encoding/binary"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -1246,6 +1247,90 @@ func TestUsdGeomEngineSubsetParityImageable(t *testing.T) {
 	_, _, _, _, _, _, rc = st.ComputeBoundableWorldBounds("/World", 1.0)
 	if rc == 0 {
 		t.Fatal("expected NOT_FOUND for non-boundable /World")
+	}
+}
+
+func hasString(items []string, want string) bool {
+	for _, item := range items {
+		if item == want {
+			return true
+		}
+	}
+	return false
+}
+
+func TestUsdUtilsSpatialGroundingContext(t *testing.T) {
+	fixture := filepath.Join("..", "..", "tests", "fixtures", "parity_spatial_grounding.usda")
+	st := OpenStageFromRootFile(fixture, RootSubDepthFirst)
+	if st == nil {
+		t.Fatalf("OpenStageFromRootFile: %s", LastErrorMessage())
+	}
+	defer st.Free()
+
+	records, rc := st.BuildSpatialGroundingContext(1.0)
+	if rc != 0 {
+		t.Fatalf("BuildSpatialGroundingContext rc=%d %s", rc, LastErrorMessage())
+	}
+	if len(records) != 5 {
+		t.Fatalf("record count=%d", len(records))
+	}
+	var cup *SpatialGroundingRecord
+	var kitchen *SpatialGroundingRecord
+	for i := range records {
+		switch records[i].Path {
+		case "/World/Kitchen/CupBlue":
+			cup = &records[i]
+		case "/World/Kitchen":
+			kitchen = &records[i]
+		}
+	}
+	if cup == nil || cup.Name != "CupBlue" || cup.ParentPath != "/World/Kitchen" {
+		t.Fatalf("cup record=%+v", cup)
+	}
+	if len(cup.SiblingNames) != 2 || !hasString(cup.SiblingNames, "PlateGreen") || !hasString(cup.SiblingNames, "Stove") {
+		t.Fatalf("cup siblings=%v", cup.SiblingNames)
+	}
+	if len(cup.SemanticLabelSets) != 2 || cup.SemanticLabelSets[0].Name != "engine" || !hasString(cup.SemanticLabelSets[0].Labels, "pickup") || cup.SemanticLabelSets[1].Name != "somaHome" || !hasString(cup.SemanticLabelSets[1].Labels, "Crockery") {
+		t.Fatalf("cup semantic label sets=%v", cup.SemanticLabelSets)
+	}
+	if cup.WorldPosition != [3]float64{6, 2, 3} || !cup.HasWorldBound || cup.WorldBoundDimensions != [3]float64{0.5, 1.5, 0.25} || !cup.HasMassKg || math.Abs(cup.MassKg-0.35) > 1e-6 {
+		t.Fatalf("cup spatial values=%+v", cup)
+	}
+	if kitchen == nil || kitchen.ParentPath != "/World" || len(kitchen.SiblingNames) != 0 || len(kitchen.SemanticLabelSets) != 0 || kitchen.WorldPosition != [3]float64{10, 0, 0} || kitchen.HasWorldBound || kitchen.HasMassKg {
+		t.Fatalf("kitchen record=%+v", kitchen)
+	}
+}
+
+func TestUsdSemanticsLabels(t *testing.T) {
+	fixture := filepath.Join("..", "..", "tests", "fixtures", "parity_semantics_labels.usda")
+	st := OpenStageFromRootFile(fixture, RootSubDepthFirst)
+	if st == nil {
+		t.Fatalf("OpenStageFromRootFile: %s", LastErrorMessage())
+	}
+	defer st.Free()
+
+	sets, rc := st.ListSemanticLabelSets("/World/Kitchen/CupBlue")
+	if rc != 0 {
+		t.Fatalf("ListSemanticLabelSets rc=%d %s", rc, LastErrorMessage())
+	}
+	if len(sets) != 2 || !hasString(sets, "engine") || !hasString(sets, "somaHome") {
+		t.Fatalf("sets=%v", sets)
+	}
+	labels, rc := st.ReadSemanticLabels("/World/Kitchen/CupBlue", "somaHome")
+	if rc != 0 || len(labels) != 2 || labels[0] != "Crockery" || labels[1] != "DesignedContainer" {
+		t.Fatalf("labels=%v rc=%d", labels, rc)
+	}
+	stoveLabels, rc := st.ReadSemanticLabels("/World/Kitchen/Stove", "somaHome")
+	if rc != 0 || len(stoveLabels) != 1 || stoveLabels[0] != "Appliance" {
+		t.Fatalf("stoveLabels=%v rc=%d", stoveLabels, rc)
+	}
+	missing, rc := st.ReadSemanticLabels("/World/Kitchen/CupBlue", "missing")
+	if rc != 0 || len(missing) != 0 {
+		t.Fatalf("missing=%v rc=%d", missing, rc)
+	}
+	report, rc := st.AssessEngineRuntimeSupport()
+	if rc != 0 || !report.UsesSemanticLabels || report.RecommendedMode != EngineRuntimeHybrid {
+		t.Fatalf("semantic runtime report=%+v rc=%d", report, rc)
 	}
 }
 

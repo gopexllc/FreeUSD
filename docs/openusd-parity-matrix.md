@@ -26,6 +26,8 @@ Status vocabulary:
   `variantSets` declarations (including composed set/name lists through references), selected-variant payload execution, and variant child expansion.
 - `tests/fixtures/parity_imageable.usda`
   Schema-facing `purpose` / `visibility` behavior for `usdGeom::Imageable` and cube-like bounds via `usdGeom::Boundable`.
+- `tests/fixtures/parity_spatial_grounding.usda`
+  `usdUtils` extraction of text-grounding cues from hierarchy, sibling names, authored semantic labels, world position, scaled bounds, and authored physics mass.
 - `tests/fixtures/parity_custom_data_inherit.usda`
   Composed prim `customData` through `inherits` arcs (local strongest-wins override plus inherited keys).
 - `tests/fixtures/parity_custom_data_specializes.usda`
@@ -110,6 +112,8 @@ Status vocabulary:
   `OpenVDBAsset` with `filePath` and `fieldName`.
 - `tests/fixtures/parity_vol_volume.usda`
   `Volume` with composed `field` relationship to a child `OpenVDBAsset`.
+- `tests/fixtures/parity_semantics_labels.usda`
+  `UsdSemantics` authored `semantics:labels:<instance>` token-array reads through C++, C ABI, Python, Go, and Rust.
 
 ## Current Matrix
 
@@ -128,7 +132,7 @@ Status vocabulary:
 
 ### Schema And Runtime Helpers
 
-- `implemented`: `usdGeom::Xformable`, `usdGeom::Imageable`, `usdGeom::Boundable`, `usdUtils::FlattenStageAtTime`, and `usdUtils` engine-scene helpers for importer/editor/runtime subset inspection.
+- `implemented`: `usdGeom::Xformable`, `usdGeom::Imageable`, `usdGeom::Boundable`, `usdUtils::FlattenStageAtTime`, and `usdUtils` engine-scene helpers for importer/editor/runtime subset inspection, including `BuildEngineSpatialGroundingContext` for clean-room extraction of scene text-grounding cues.
 - `partial`: `usdGeom::Mesh` reads composed `points`, `extent`, `subdivisionScheme`, `faceVertexCounts`, `faceVertexIndices`, `normals`, `primvars:st`, `primvars:displayOpacity`, and `primvars:displayColor` (`parity_geom_mesh.usda`); USDA load/save accepts `texCoord2f` / `float2` and `vector3f` tuple literals.
 - `partial`: flattening now preserves evaluated defaults plus composed sample times, but it does not yet reconstruct full authored layer provenance for every arc source.
 - `partial`: `usdSkel::Skeleton` and `usdSkel::SkelAnimation` read joints, bind/rest matrices, and sampled TRS arrays from USDA; glTF mapping helpers build parent indices and world bind matrices; `SkelBinding` resolves `skel:skeleton` plus `primvars:skel:jointIndices` / `jointWeights`; `SkelRoot` finds skeleton and `skel:animationSource` under a scope (`parity_skel_binding.usda`); `BlendShape` / `SkelBlendShapes` / `MorphTargets` read morph offsets, remap animation weights, and apply CPU morph accumulation (`parity_skel_blend_shapes.usda`; glTF `mesh.weights` + morph target POSITION deltas); `DeformPointsWithSkeleton` performs CPU LBS from joint world matrices and inverse bind transforms (`parity_skel_skinning.usda`); `SkelRoot::FindBoundGeomPaths` lists descendants with `skel:skeleton` bindings (`parity_skel_binding.usda`); end-to-end glTF pipeline fixture (`parity_skel_gltf_pipeline.usda`: bound mesh, dual morph weights, animation-driven LBS).
@@ -136,12 +140,13 @@ Status vocabulary:
 - `partial`: `usdLux::DistantLight` reads `inputs:intensity`, `inputs:color`, and `inputs:angle` at a time code (`parity_lux_distant.usda`); `usdLux::SphereLight` reads `inputs:intensity`, `inputs:color`, and `inputs:radius` (`parity_lux_sphere.usda`); `usdLux::RectLight` reads `inputs:intensity`, `inputs:color`, `inputs:width`, and `inputs:height` (`parity_lux_rect.usda`); `usdLux::DiskLight` reads `inputs:intensity`, `inputs:color`, and `inputs:radius` (`parity_lux_disk.usda`); `usdLux::CylinderLight` reads `inputs:intensity`, `inputs:color`, `inputs:length`, and `inputs:radius` (`parity_lux_cylinder.usda`); `usdLux::DomeLight` reads `inputs:intensity`, `inputs:color`, `inputs:texture:file`, and `inputs:texture:format` (`parity_lux_dome.usda`).
 - `partial`: `usdPhysics::PhysicsScene` reads `physics:gravityDirection` and `physics:gravityMagnitude` at a time code (`parity_physics_scene.usda`); `usdPhysics::RigidBodyAPI` reads composed `physics:mass`, `physics:kinematicEnabled`, and detects `PhysicsRigidBodyAPI` via composed `apiSchemas` (`parity_physics_rigid_body.usda`, `parity_physics_rigid_body_inherit.usda`, `parity_physics_rigid_body_kinematic.usda`, `parity_physics_rigid_body_refs.usda`); `usdPhysics::CollisionAPI` reads composed `physics:collisionEnabled` and detects `PhysicsCollisionAPI` via composed `apiSchemas` (`parity_physics_collision.usda`, `parity_physics_collision_inherit.usda`); `usdPhysics::MassAPI` reads `physics:density` and `physics:centerOfMass` and detects `PhysicsMassAPI` via composed `apiSchemas` (`parity_physics_mass.usda`); `usdPhysics::FixedJoint` reads `physics:body0` / `physics:body1` relationship targets and `physics:jointEnabled` (`parity_physics_fixed_joint.usda`).
 - `partial`: `usdVol::OpenVDBAsset` reads `filePath` and `fieldName` at a time code (`parity_vol_openvdb.usda`); `usdVol::Volume` reads prim kind and composed `field` relationship targets, resolving child `OpenVDBAsset` field prims (`parity_vol_volume.usda`).
-- `token-only`: most other non-`usdGeom` / non-`usdSkel` / non-`usdShade` / non-`usdLux` / non-`usdPhysics` / non-`usdVol` schema packages remain generated token surfaces only.
+- `partial`: `usdSemantics::SemanticLabelsAPI` lists authored semantic label-set names and reads `semantics:labels:<instance>` token arrays (`parity_semantics_labels.usda`).
+- `token-only`: most other non-`usdGeom` / non-`usdSkel` / non-`usdShade` / non-`usdLux` / non-`usdPhysics` / non-`usdVol` / non-`usdSemantics` schema packages remain generated token surfaces only.
 
 ### ABI And Bindings
 
 - `implemented`: the C ABI remains the stable FFI contract for stage queries, typed field reads, crate bootstrap/TOC helpers, raw crate section payload access, and the validated `usdGeom` runtime subset (`transform`, `visibility`, `purpose`, `bounds`).
-- `partial`: Python remains the broadest wrapper; the C ABI, Go, and Rust now follow the validated crate bootstrap/TOC/raw-section/table subset, composed prim `kind` / `active`, `usdGeom` imageable/boundable, `usdShade` preview-surface diffuse/texture helpers, `usdLux` DistantLight sampling, `usdVol` OpenVDBAsset reads, `usdPhysics` PhysicsScene gravity, RigidBodyAPI, CollisionAPI, and MassAPI reads, and `usdSkel` joint/skinning helpers, but broader runtime/schema helpers are still not fully mirrored outside Python/C++.
+- `partial`: Python remains the broadest wrapper; the C ABI, Go, and Rust now follow the validated crate bootstrap/TOC/raw-section/table subset, composed prim `kind` / `active`, `usdGeom` imageable/boundable, `usdUtils` spatial-grounding context records, `usdSemantics` label reads, `usdShade` preview-surface diffuse/texture helpers, `usdLux` DistantLight sampling, `usdVol` OpenVDBAsset reads, `usdPhysics` PhysicsScene gravity, RigidBodyAPI, CollisionAPI, and MassAPI reads, and `usdSkel` joint/skinning helpers, but broader runtime/schema helpers are still not fully mirrored outside Python/C++.
 - `planned`: milestone-by-milestone expansion for more composed query families and runtime helpers once the C ABI slice is stable.
 
 ### Runtime Hardening And Deferred Stacks
@@ -152,7 +157,7 @@ Status vocabulary:
 ### Engine Integration Contract
 
 - `implemented`: `docs/engine-supported-subset.md`, `docs/engine-integration.md`, clean-room/fixture/claim policy docs, `usdUtils::engineScene`, and focused engine integration tests freeze the USDA-first engine path.
-- `partial`: shipping runtime remains intentionally narrow; engine snapshots list material bindings, preview-surface materials, textured preview shaders, supported `usdLux` light families, `PhysicsScene` prims, `PhysicsRigidBodyAPI`-shaped prims with composed `physics:mass` (`rigid_body_api_paths`), `PhysicsCollisionAPI`-shaped prims (`collision_api_paths`), `PhysicsFixedJoint` prims (`physics_fixed_joint_paths`), `OpenVDBAsset` prims (`open_vdb_asset_paths`), `Volume` prims (`volume_paths`), and composed prim `kind` paths; `AssessEngineRuntimeSupport` reports `uses_material_bindings`, `uses_preview_surface`, `uses_preview_surface_textures`, `uses_lux_lights`, `uses_physics_scenes`, `uses_rigid_body_api`, `uses_collision_api`, `uses_physics_fixed_joints`, `uses_open_vdb_assets`, `uses_volumes`, `uses_composed_prim_kind`, `uses_prim_active_opinions`, `uses_specializes`, `uses_kind_active_through_arcs` (including `specializes` arcs; see `parity_kind_active_specializes.usda`), and `uses_custom_data_through_arcs`; arbitrary `.usdc` scene decode and broad live-stage runtime guarantees are still out of scope.
+- `partial`: shipping runtime remains intentionally narrow; engine snapshots list material bindings, preview-surface materials, textured preview shaders, supported `usdLux` light families, `PhysicsScene` prims, `PhysicsRigidBodyAPI`-shaped prims with composed `physics:mass` (`rigid_body_api_paths`), `PhysicsCollisionAPI`-shaped prims (`collision_api_paths`), `PhysicsFixedJoint` prims (`physics_fixed_joint_paths`), `OpenVDBAsset` prims (`open_vdb_asset_paths`), `Volume` prims (`volume_paths`), semantic-label prims (`semantic_label_prim_paths`), and composed prim `kind` paths; spatial-grounding context records expose prim names, parent paths, sibling names, authored semantic label sets, world positions, scaled world-bound dimensions, and authored mass; `AssessEngineRuntimeSupport` reports `uses_material_bindings`, `uses_preview_surface`, `uses_preview_surface_textures`, `uses_lux_lights`, `uses_physics_scenes`, `uses_rigid_body_api`, `uses_collision_api`, `uses_physics_fixed_joints`, `uses_open_vdb_assets`, `uses_volumes`, `uses_semantic_labels`, `uses_composed_prim_kind`, `uses_prim_active_opinions`, `uses_specializes`, `uses_kind_active_through_arcs` (including `specializes` arcs; see `parity_kind_active_specializes.usda`), and `uses_custom_data_through_arcs`; arbitrary `.usdc` scene decode and broad live-stage runtime guarantees are still out of scope.
 
 ## Acceptance Criteria
 

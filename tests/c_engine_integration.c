@@ -108,5 +108,23 @@ int main(void) {
     return 14;
   }
   freeusd_stage_free(stage);
+
+  if (snprintf(path, sizeof path, "%s/parity_semantics_labels.usda", FREEUSD_TEST_FIXTURES_DIR) >= (int)sizeof path) {
+    fprintf(stderr, "semantics fixture path too long\n");
+    return 15;
+  }
+  stage = freeusd_stage_open_from_root_file_utf8(path, 2);
+  if (!stage) {
+    fprintf(stderr, "semantics stage open failed: %s\n", freeusd_last_error_message());
+    return 16;
+  }
+  FreeusdEngineRuntimeSupport report;
+  if (freeusd_usdutils_assess_engine_runtime_support(stage, &report) != FREEUSD_OK || !report.uses_semantic_labels ||
+      report.recommended_mode != FREEUSD_ENGINE_RUNTIME_HYBRID) {
+    fprintf(stderr, "semantic runtime report mismatch: %s\n", freeusd_last_error_message());
+    freeusd_stage_free(stage);
+    return 17;
+  }
+  freeusd_stage_free(stage);
   return 0;
 }
