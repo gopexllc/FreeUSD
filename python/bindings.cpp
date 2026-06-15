@@ -1899,6 +1899,14 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
                 d["name"] = record.name;
                 d["parent_path"] = record.parent_path.GetString();
                 d["sibling_names"] = record.sibling_names;
+                py::list semantic_label_sets;
+                for (const auto& label_set : record.semantic_label_sets) {
+                  py::dict item;
+                  item["name"] = label_set.name;
+                  item["labels"] = label_set.labels;
+                  semantic_label_sets.append(std::move(item));
+                }
+                d["semantic_label_sets"] = std::move(semantic_label_sets);
                 d["world_position"] =
                     py::make_tuple(record.world_position.x(), record.world_position.y(), record.world_position.z());
                 d["has_world_bound"] = record.has_world_bound;

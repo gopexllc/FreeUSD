@@ -147,12 +147,19 @@ struct FREEUSD_API EngineSceneSnapshot {
   std::vector<freeusd::sdf::Path> semantic_label_prim_paths;
 };
 
+/// One authored semantic label set on a prim.
+struct FREEUSD_API EngineSemanticLabelSet {
+  std::string name;
+  std::vector<std::string> labels;
+};
+
 /// One prim's text-grounding cues for downstream spatial diagnostics or ontology mapping.
 struct FREEUSD_API EngineSpatialGroundingRecord {
   freeusd::sdf::Path path;
   std::string name;
   freeusd::sdf::Path parent_path;
   std::vector<std::string> sibling_names;
+  std::vector<EngineSemanticLabelSet> semantic_label_sets;
   freeusd::gf::Vec3d world_position{};
   bool has_world_bound{false};
   freeusd::gf::Vec3d world_bound_dimensions{};

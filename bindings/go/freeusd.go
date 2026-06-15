@@ -1851,12 +1851,19 @@ func (s *Stage) AssessEngineRuntimeSupport() (report EngineRuntimeSupport, rc in
 	return report, 0
 }
 
+// SemanticLabelSet contains one authored semantics:labels:<set> value.
+type SemanticLabelSet struct {
+	Name   string
+	Labels []string
+}
+
 // SpatialGroundingRecord contains clean-room USD-derived cues for text/spatial diagnostics.
 type SpatialGroundingRecord struct {
 	Path                 string
 	Name                 string
 	ParentPath           string
 	SiblingNames         []string
+	SemanticLabelSets    []SemanticLabelSet
 	WorldPosition        [3]float64
 	HasWorldBound        bool
 	WorldBoundDimensions [3]float64
@@ -1907,6 +1914,23 @@ func (s *Stage) BuildSpatialGroundingContext(time float64) (records []SpatialGro
 				if sibling != nil {
 					rec.SiblingNames = append(rec.SiblingNames, C.GoString(sibling))
 				}
+			}
+		}
+		if item.semantic_label_sets != nil && item.semantic_label_set_count > 0 {
+			cSets := unsafe.Slice(item.semantic_label_sets, int(item.semantic_label_set_count))
+			rec.SemanticLabelSets = make([]SemanticLabelSet, 0, int(item.semantic_label_set_count))
+			for _, cSet := range cSets {
+				set := SemanticLabelSet{Name: C.GoString(cSet.name_utf8)}
+				if cSet.labels_utf8 != nil && cSet.label_count > 0 {
+					cLabels := unsafe.Slice(cSet.labels_utf8, int(cSet.label_count))
+					set.Labels = make([]string, 0, int(cSet.label_count))
+					for _, label := range cLabels {
+						if label != nil {
+							set.Labels = append(set.Labels, C.GoString(label))
+						}
+					}
+				}
+				rec.SemanticLabelSets = append(rec.SemanticLabelSets, set)
 			}
 		}
 		records = append(records, rec)

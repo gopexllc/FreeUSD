@@ -22,6 +22,8 @@ def Xform "World"
             double3 xformOp:translate = (1, 2, 3)
             double3 xformOp:scale = (0.5, 1.5, 0.25)
             token[] xformOpOrder = [xformOp:translate, xformOp:scale]
+            token[] semantics:labels:somaHome = ["Crockery", "DesignedContainer"]
+            token[] semantics:labels:engine = ["pickup", "container"]
         }
 
         def Xform "PlateGreen"

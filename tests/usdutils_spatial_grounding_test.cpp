@@ -59,6 +59,11 @@ int main() {
   assert(cup->sibling_names.size() == 2u);
   assert(has_sibling(*cup, "PlateGreen"));
   assert(has_sibling(*cup, "Stove"));
+  assert(cup->semantic_label_sets.size() == 2u);
+  assert(cup->semantic_label_sets[0].name == "engine");
+  assert(cup->semantic_label_sets[0].labels == std::vector<std::string>({"pickup", "container"}));
+  assert(cup->semantic_label_sets[1].name == "somaHome");
+  assert(cup->semantic_label_sets[1].labels == std::vector<std::string>({"Crockery", "DesignedContainer"}));
 
   assert(near(cup->world_position.x(), 6.0));
   assert(near(cup->world_position.y(), 2.0));
@@ -73,6 +78,7 @@ int main() {
   assert(kitchen->name == "Kitchen");
   assert(kitchen->parent_path == Path::FromString("/World"));
   assert(kitchen->sibling_names.empty());
+  assert(kitchen->semantic_label_sets.empty());
   assert(near(kitchen->world_position.x(), 10.0));
   assert(near(kitchen->world_position.y(), 0.0));
   assert(near(kitchen->world_position.z(), 0.0));

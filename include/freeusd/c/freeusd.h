@@ -944,6 +944,13 @@ typedef struct FreeusdEngineRuntimeSupport {
 FREEUSD_C_API int freeusd_usdutils_assess_engine_runtime_support(const FreeusdStage* stage,
                                                                  FreeusdEngineRuntimeSupport* out);
 
+/** One authored semantic label set owned by @ref FreeusdSpatialGroundingRecord. */
+typedef struct FreeusdSemanticLabelSet {
+  char* name_utf8;
+  char** labels_utf8;
+  size_t label_count;
+} FreeusdSemanticLabelSet;
+
 /** One spatial/text grounding cue record from @c freeusd::usdUtils::BuildEngineSpatialGroundingContext. */
 typedef struct FreeusdSpatialGroundingRecord {
   char* path_utf8;
@@ -951,6 +958,8 @@ typedef struct FreeusdSpatialGroundingRecord {
   char* parent_path_utf8;
   char** sibling_names_utf8;
   size_t sibling_name_count;
+  FreeusdSemanticLabelSet* semantic_label_sets;
+  size_t semantic_label_set_count;
   double world_position[3];
   int has_world_bound;
   double world_bound_dimensions[3];

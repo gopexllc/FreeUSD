@@ -55,6 +55,10 @@ def test_spatial_grounding_context_binding() -> None:
     assert cup["name"] == "CupBlue"
     assert cup["parent_path"] == "/World/Kitchen"
     assert sorted(cup["sibling_names"]) == ["PlateGreen", "Stove"]
+    assert cup["semantic_label_sets"] == [
+        {"name": "engine", "labels": ["pickup", "container"]},
+        {"name": "somaHome", "labels": ["Crockery", "DesignedContainer"]},
+    ]
     assert cup["world_position"] == (6.0, 2.0, 3.0)
     assert cup["has_world_bound"] is True
     assert cup["world_bound_dimensions"] == (0.5, 1.5, 0.25)
@@ -63,6 +67,7 @@ def test_spatial_grounding_context_binding() -> None:
     kitchen = by_path["/World/Kitchen"]
     assert kitchen["parent_path"] == "/World"
     assert kitchen["sibling_names"] == []
+    assert kitchen["semantic_label_sets"] == []
     assert kitchen["world_position"] == (10.0, 0.0, 0.0)
     assert kitchen["has_world_bound"] is False
     assert kitchen["mass_kg"] is None

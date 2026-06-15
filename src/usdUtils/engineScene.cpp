@@ -305,6 +305,11 @@ std::vector<EngineSpatialGroundingRecord> BuildEngineSpatialGroundingContext(con
         }
       }
     }
+    const freeusd::usdSemantics::SemanticLabelsAPI semantic_labels =
+        freeusd::usdSemantics::SemanticLabelsAPI::ReadFromPrim(stage_ptr, record.path);
+    for (const std::string& label_set_name : semantic_labels.ListLabelSetNames()) {
+      record.semantic_label_sets.push_back({label_set_name, semantic_labels.GetLabels(label_set_name, time)});
+    }
 
     const freeusd::gf::Matrix4d local_to_world =
         freeusd::usdGeom::Xformable(prim).ComputeLocalToWorldTransform(time);

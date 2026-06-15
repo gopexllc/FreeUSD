@@ -104,11 +104,25 @@ void free_spatial_grounding_record(FreeusdSpatialGroundingRecord* record) {
     }
     std::free(record->sibling_names_utf8);
   }
+  if (record->semantic_label_sets) {
+    for (size_t i = 0; i < record->semantic_label_set_count; ++i) {
+      std::free(record->semantic_label_sets[i].name_utf8);
+      if (record->semantic_label_sets[i].labels_utf8) {
+        for (size_t j = 0; j < record->semantic_label_sets[i].label_count; ++j) {
+          std::free(record->semantic_label_sets[i].labels_utf8[j]);
+        }
+        std::free(record->semantic_label_sets[i].labels_utf8);
+      }
+    }
+    std::free(record->semantic_label_sets);
+  }
   record->path_utf8 = nullptr;
   record->name_utf8 = nullptr;
   record->parent_path_utf8 = nullptr;
   record->sibling_names_utf8 = nullptr;
   record->sibling_name_count = 0;
+  record->semantic_label_sets = nullptr;
+  record->semantic_label_set_count = 0;
 }
 
 bool value_to_int64(const freeusd::vt::Value& v, std::int64_t* out) {
@@ -3279,6 +3293,32 @@ int freeusd_usdutils_build_spatial_grounding_context(const FreeusdStage* stage, 
         freeusd_usdutils_spatial_grounding_records_free(out, records.size());
         set_error("out of memory");
         return list_rc;
+      }
+      if (!src.semantic_label_sets.empty()) {
+        dst.semantic_label_sets = static_cast<FreeusdSemanticLabelSet*>(
+            std::calloc(src.semantic_label_sets.size(), sizeof(FreeusdSemanticLabelSet)));
+        if (!dst.semantic_label_sets) {
+          freeusd_usdutils_spatial_grounding_records_free(out, records.size());
+          set_error("out of memory");
+          return FREEUSD_ERR_INTERNAL;
+        }
+        dst.semantic_label_set_count = src.semantic_label_sets.size();
+        for (size_t j = 0; j < src.semantic_label_sets.size(); ++j) {
+          dst.semantic_label_sets[j].name_utf8 = dup_cstr(src.semantic_label_sets[j].name);
+          if (!dst.semantic_label_sets[j].name_utf8) {
+            freeusd_usdutils_spatial_grounding_records_free(out, records.size());
+            set_error("out of memory");
+            return FREEUSD_ERR_INTERNAL;
+          }
+          const int label_rc = malloc_string_list(src.semantic_label_sets[j].labels,
+                                                  &dst.semantic_label_sets[j].labels_utf8,
+                                                  &dst.semantic_label_sets[j].label_count);
+          if (label_rc != FREEUSD_OK) {
+            freeusd_usdutils_spatial_grounding_records_free(out, records.size());
+            set_error("out of memory");
+            return label_rc;
+          }
+        }
       }
       dst.world_position[0] = src.world_position.x();
       dst.world_position[1] = src.world_position.y();

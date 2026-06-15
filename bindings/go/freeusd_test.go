@@ -1290,10 +1290,13 @@ func TestUsdUtilsSpatialGroundingContext(t *testing.T) {
 	if len(cup.SiblingNames) != 2 || !hasString(cup.SiblingNames, "PlateGreen") || !hasString(cup.SiblingNames, "Stove") {
 		t.Fatalf("cup siblings=%v", cup.SiblingNames)
 	}
+	if len(cup.SemanticLabelSets) != 2 || cup.SemanticLabelSets[0].Name != "engine" || !hasString(cup.SemanticLabelSets[0].Labels, "pickup") || cup.SemanticLabelSets[1].Name != "somaHome" || !hasString(cup.SemanticLabelSets[1].Labels, "Crockery") {
+		t.Fatalf("cup semantic label sets=%v", cup.SemanticLabelSets)
+	}
 	if cup.WorldPosition != [3]float64{6, 2, 3} || !cup.HasWorldBound || cup.WorldBoundDimensions != [3]float64{0.5, 1.5, 0.25} || !cup.HasMassKg || math.Abs(cup.MassKg-0.35) > 1e-6 {
 		t.Fatalf("cup spatial values=%+v", cup)
 	}
-	if kitchen == nil || kitchen.ParentPath != "/World" || len(kitchen.SiblingNames) != 0 || kitchen.WorldPosition != [3]float64{10, 0, 0} || kitchen.HasWorldBound || kitchen.HasMassKg {
+	if kitchen == nil || kitchen.ParentPath != "/World" || len(kitchen.SiblingNames) != 0 || len(kitchen.SemanticLabelSets) != 0 || kitchen.WorldPosition != [3]float64{10, 0, 0} || kitchen.HasWorldBound || kitchen.HasMassKg {
 		t.Fatalf("kitchen record=%+v", kitchen)
 	}
 }
