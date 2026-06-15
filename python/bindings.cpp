@@ -3566,7 +3566,9 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def_readwrite("open_vdb_file_path", &freeusd::usdUtils::EngineSceneNode::open_vdb_file_path)
         .def_readwrite("open_vdb_field_name", &freeusd::usdUtils::EngineSceneNode::open_vdb_field_name)
         .def_readwrite("has_volume", &freeusd::usdUtils::EngineSceneNode::has_volume)
-        .def_readwrite("volume_field_asset_paths", &freeusd::usdUtils::EngineSceneNode::volume_field_asset_paths);
+        .def_readwrite("volume_field_asset_paths", &freeusd::usdUtils::EngineSceneNode::volume_field_asset_paths)
+        .def_readwrite("semantic_label_set_names", &freeusd::usdUtils::EngineSceneNode::semantic_label_set_names)
+        .def_readwrite("has_semantic_labels", &freeusd::usdUtils::EngineSceneNode::has_semantic_labels);
     py::class_<freeusd::usdUtils::EngineSceneSnapshot>(usdUtils, "EngineSceneSnapshot")
         .def(py::init<>())
         .def_readwrite("root_identifier", &freeusd::usdUtils::EngineSceneSnapshot::root_identifier)
@@ -3600,7 +3602,9 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
         .def_readwrite("physics_fixed_joint_paths",
                        &freeusd::usdUtils::EngineSceneSnapshot::physics_fixed_joint_paths)
         .def_readwrite("open_vdb_asset_paths", &freeusd::usdUtils::EngineSceneSnapshot::open_vdb_asset_paths)
-        .def_readwrite("volume_paths", &freeusd::usdUtils::EngineSceneSnapshot::volume_paths);
+        .def_readwrite("volume_paths", &freeusd::usdUtils::EngineSceneSnapshot::volume_paths)
+        .def_readwrite("semantic_label_prim_paths",
+                       &freeusd::usdUtils::EngineSceneSnapshot::semantic_label_prim_paths);
     py::class_<freeusd::usdUtils::EnginePrimEditorView>(usdUtils, "EnginePrimEditorView")
         .def(py::init<>())
         .def_readwrite("path", &freeusd::usdUtils::EnginePrimEditorView::path)
@@ -3656,6 +3660,7 @@ reference; breaks cycles encountered along the DFS stack.)pbdoc");
                        &freeusd::usdUtils::EngineRuntimeSupportReport::uses_physics_fixed_joints)
         .def_readwrite("uses_open_vdb_assets", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_open_vdb_assets)
         .def_readwrite("uses_volumes", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_volumes)
+        .def_readwrite("uses_semantic_labels", &freeusd::usdUtils::EngineRuntimeSupportReport::uses_semantic_labels)
         .def_readwrite("warnings", &freeusd::usdUtils::EngineRuntimeSupportReport::warnings);
     py::class_<freeusd::usdUtils::FlattenOptions>(usdUtils, "FlattenOptions")
         .def(py::init<>())

@@ -96,7 +96,7 @@ target_link_libraries(freeusd_usdLux INTERFACE freeusd_usdGeom)
 set_target_properties(freeusd_usdLux PROPERTIES EXPORT_NAME usdLux)
 
 target_link_libraries(freeusd_usdUtils PUBLIC freeusd_usdSkel freeusd_usdShade freeusd_usdLux freeusd_usdPhysics
-    freeusd_usdVol)
+    freeusd_usdVol freeusd_usdSemantics)
 
 add_library(freeusd_usdPhysics STATIC usdPhysics/physicsScene.cpp usdPhysics/rigidBodyAPI.cpp
     usdPhysics/collisionAPI.cpp usdPhysics/massAPI.cpp usdPhysics/fixedJoint.cpp)

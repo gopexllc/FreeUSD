@@ -1803,6 +1803,7 @@ type EngineRuntimeSupport struct {
 	UsesPhysicsFixedJoints     bool
 	UsesOpenVdbAssets          bool
 	UsesVolumes                bool
+	UsesSemanticLabels         bool
 }
 
 // AssessEngineRuntimeSupport reports which engine integration mode fits the composed stage.
@@ -1846,6 +1847,7 @@ func (s *Stage) AssessEngineRuntimeSupport() (report EngineRuntimeSupport, rc in
 	report.UsesPhysicsFixedJoints = raw.uses_physics_fixed_joints != 0
 	report.UsesOpenVdbAssets = raw.uses_open_vdb_assets != 0
 	report.UsesVolumes = raw.uses_volumes != 0
+	report.UsesSemanticLabels = raw.uses_semantic_labels != 0
 	return report, 0
 }
 

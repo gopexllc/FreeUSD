@@ -1325,6 +1325,10 @@ func TestUsdSemanticsLabels(t *testing.T) {
 	if rc != 0 || len(missing) != 0 {
 		t.Fatalf("missing=%v rc=%d", missing, rc)
 	}
+	report, rc := st.AssessEngineRuntimeSupport()
+	if rc != 0 || !report.UsesSemanticLabels || report.RecommendedMode != EngineRuntimeHybrid {
+		t.Fatalf("semantic runtime report=%+v rc=%d", report, rc)
+	}
 }
 
 func TestSkelCrossLanguageContract(t *testing.T) {

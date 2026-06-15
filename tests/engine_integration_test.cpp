@@ -467,5 +467,24 @@ int main() {
     assert(report.recommended_mode == EngineRuntimeMode::HybridMetadata);
   }
 
+  {
+    std::string err;
+    auto stage =
+        Stage::OpenFromRootFile(fixture("parity_semantics_labels.usda"), RootLayerSublayersPolicy::DepthFirst, &err);
+    assert(stage && err.empty());
+    const auto snapshot = BuildEngineSceneSnapshot(*stage, 1.0);
+    assert(snapshot.semantic_label_prim_paths.size() == 2u);
+    assert(std::find(snapshot.semantic_label_prim_paths.begin(), snapshot.semantic_label_prim_paths.end(),
+                     Path::FromString("/World/Kitchen/CupBlue")) != snapshot.semantic_label_prim_paths.end());
+    const auto* cup = find_node(snapshot, Path::FromString("/World/Kitchen/CupBlue"));
+    assert(cup != nullptr);
+    assert(cup->has_semantic_labels);
+    assert(cup->semantic_label_set_names == std::vector<std::string>({"engine", "somaHome"}));
+
+    const auto report = AssessEngineRuntimeSupport(*stage);
+    assert(report.uses_semantic_labels);
+    assert(report.recommended_mode == EngineRuntimeMode::HybridMetadata);
+  }
+
   return 0;
 }

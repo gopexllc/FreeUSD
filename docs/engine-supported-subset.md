@@ -119,6 +119,7 @@ This document freezes the exact FreeUSD subset a GPL-compatible engine may rely 
 ### `hybrid_metadata`
 
 - Allowed only when engine assets are already baked and runtime reads are limited to narrow metadata, field queries, or inspection helpers.
+- Semantic label reads (`semantics:labels:<instance>`) are treated as hybrid metadata and should be validated or baked during import.
 
 ### `experimental_live_stage`
 

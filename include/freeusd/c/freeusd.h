@@ -934,6 +934,7 @@ typedef struct FreeusdEngineRuntimeSupport {
   int uses_physics_fixed_joints;
   int uses_open_vdb_assets;
   int uses_volumes;
+  int uses_semantic_labels;
 } FreeusdEngineRuntimeSupport;
 
 /**

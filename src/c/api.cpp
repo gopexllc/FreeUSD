@@ -3230,6 +3230,7 @@ int freeusd_usdutils_assess_engine_runtime_support(const FreeusdStage* stage, Fr
     out->uses_physics_fixed_joints = report.uses_physics_fixed_joints ? 1 : 0;
     out->uses_open_vdb_assets = report.uses_open_vdb_assets ? 1 : 0;
     out->uses_volumes = report.uses_volumes ? 1 : 0;
+    out->uses_semantic_labels = report.uses_semantic_labels ? 1 : 0;
     clear_error();
     return FREEUSD_OK;
   } catch (const std::exception& e) {

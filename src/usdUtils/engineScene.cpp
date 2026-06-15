@@ -16,6 +16,7 @@
 #include "freeusd/usdPhysics/massAPI.hpp"
 #include "freeusd/usdPhysics/rigidBodyAPI.hpp"
 #include "freeusd/usdPhysics/tokens.hpp"
+#include "freeusd/usdSemantics/labelsAPI.hpp"
 #include "freeusd/usdVol/openVdbAsset.hpp"
 #include "freeusd/usdVol/volume.hpp"
 #include "freeusd/usdVol/tokens.hpp"
@@ -170,6 +171,10 @@ EngineSceneNode build_scene_node(const std::shared_ptr<const freeusd::usd::Stage
       (void)joint.GetBody0(&node.physics_fixed_joint_body0);
       (void)joint.GetBody1(&node.physics_fixed_joint_body1);
     }
+    const freeusd::usdSemantics::SemanticLabelsAPI semantic_labels =
+        freeusd::usdSemantics::SemanticLabelsAPI::ReadFromPrim(stage_ptr, prim.GetPath());
+    node.semantic_label_set_names = semantic_labels.ListLabelSetNames();
+    node.has_semantic_labels = !node.semantic_label_set_names.empty();
   }
   return node;
 }
@@ -235,6 +240,9 @@ EngineSceneSnapshot BuildEngineSceneSnapshot(const freeusd::usd::Stage& stage, d
     }
     if (node.has_volume) {
       append_unique_path(&snapshot.volume_paths, node.path);
+    }
+    if (node.has_semantic_labels) {
+      append_unique_path(&snapshot.semantic_label_prim_paths, node.path);
     }
     if (node.has_prim_kind) {
       append_unique_path(&snapshot.composed_kind_prim_paths, node.path);
@@ -398,6 +406,9 @@ EngineRuntimeSupportReport AssessEngineRuntimeSupport(const freeusd::usd::Stage&
     if (freeusd::usdVol::Volume(prim).IsVolume()) {
       report.uses_volumes = true;
     }
+    const freeusd::usdSemantics::SemanticLabelsAPI semantic_labels =
+        freeusd::usdSemantics::SemanticLabelsAPI::ReadFromPrim(stage.shared_from_this(), prim.GetPath());
+    report.uses_semantic_labels = report.uses_semantic_labels || !semantic_labels.ListLabelSetNames().empty();
     report.uses_composed_prim_kind = report.uses_composed_prim_kind || prim.HasPrimKind();
     report.uses_prim_active_opinions = report.uses_prim_active_opinions || prim.HasPrimActiveOpinion();
     const bool metadata_arc_prim =
@@ -531,6 +542,10 @@ EngineRuntimeSupportReport AssessEngineRuntimeSupport(const freeusd::usd::Stage&
     append_warning(&report.warnings, &seen_warnings,
                    "Scene uses Volume prims; resolve field assets and VDB paths during offline import.");
   }
+  if (report.uses_semantic_labels) {
+    append_warning(&report.warnings, &seen_warnings,
+                   "Scene uses semantic labels; bake or validate label mappings during import.");
+  }
 
   const bool requires_prebake = report.uses_composed_layer_stack || report.uses_references || report.uses_payloads ||
                                 report.uses_inherits || report.uses_specializes || report.uses_variant_selection ||
@@ -538,7 +553,8 @@ EngineRuntimeSupportReport AssessEngineRuntimeSupport(const freeusd::usd::Stage&
                                 report.uses_time_samples;
   if (requires_prebake) {
     report.recommended_mode = EngineRuntimeMode::PreBakedAssetsOnly;
-  } else if (report.uses_relationships || report.uses_custom_data || report.uses_attribute_connections) {
+  } else if (report.uses_relationships || report.uses_custom_data || report.uses_attribute_connections ||
+             report.uses_semantic_labels) {
     append_warning(&report.warnings, &seen_warnings,
                    "Scene uses composed metadata beyond static transforms; limit runtime usage to hybrid metadata reads.");
     report.recommended_mode = EngineRuntimeMode::HybridMetadata;

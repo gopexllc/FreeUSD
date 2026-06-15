@@ -92,6 +92,9 @@ struct FREEUSD_API EngineSceneNode {
   bool has_volume{false};
   /// Composed ``field`` relationship targets when @ref has_volume is true.
   std::vector<freeusd::sdf::Path> volume_field_asset_paths;
+  /// Authored ``semantics:labels:<instance>`` set names.
+  std::vector<std::string> semantic_label_set_names;
+  bool has_semantic_labels{false};
 };
 
 /// Stage-level snapshot for USDA-first import and engine/editor cache generation.
@@ -140,6 +143,8 @@ struct FREEUSD_API EngineSceneSnapshot {
   std::vector<freeusd::sdf::Path> open_vdb_asset_paths;
   /// ``Volume`` prims with composed ``field`` relationship targets.
   std::vector<freeusd::sdf::Path> volume_paths;
+  /// Prims with authored ``semantics:labels:<instance>`` token arrays.
+  std::vector<freeusd::sdf::Path> semantic_label_prim_paths;
 };
 
 /// One prim's text-grounding cues for downstream spatial diagnostics or ontology mapping.
@@ -201,6 +206,7 @@ struct FREEUSD_API EngineRuntimeSupportReport {
   bool uses_physics_fixed_joints{false};
   bool uses_open_vdb_assets{false};
   bool uses_volumes{false};
+  bool uses_semantic_labels{false};
   std::vector<std::string> warnings;
 };
 

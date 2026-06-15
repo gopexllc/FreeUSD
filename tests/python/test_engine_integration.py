@@ -76,6 +76,17 @@ def test_semantic_labels_binding() -> None:
     assert stage.read_semantic_labels(cup, "engine", 1.0) == ["pickup", "container"]
     assert stage.read_semantic_labels(cup, "missing", 1.0) == []
     assert stage.read_semantic_labels(SdfPath.from_string("/World/Kitchen/Stove"), "somaHome", 1.0) == ["Appliance"]
+    snapshot = build_engine_scene_snapshot(stage, 1.0)
+    assert sorted(path.text() for path in snapshot.semantic_label_prim_paths) == [
+        "/World/Kitchen/CupBlue",
+        "/World/Kitchen/Stove",
+    ]
+    cup_node = next(node for node in snapshot.nodes if node.path.text() == "/World/Kitchen/CupBlue")
+    assert cup_node.has_semantic_labels
+    assert cup_node.semantic_label_set_names == ["engine", "somaHome"]
+    report = assess_engine_runtime_support(stage)
+    assert report.uses_semantic_labels
+    assert report.recommended_mode == EngineRuntimeMode.hybrid_metadata
 
 
 def test_engine_editor_view_and_prebake_reports_bindings() -> None:

@@ -820,6 +820,7 @@ pub struct FreeusdEngineRuntimeSupport {
     pub uses_physics_fixed_joints: c_int,
     pub uses_open_vdb_assets: c_int,
     pub uses_volumes: c_int,
+    pub uses_semantic_labels: c_int,
 }
 
 pub type EngineRuntimeSupport = FreeusdEngineRuntimeSupport;
@@ -4168,6 +4169,11 @@ def Xform "Root"
             .read_semantic_labels("/World/Kitchen/CupBlue", "missing")
             .expect("missing labels")
             .is_empty());
+        let report = stage
+            .assess_engine_runtime_support()
+            .expect("runtime report");
+        assert_eq!(report.uses_semantic_labels, 1);
+        assert_eq!(report.recommended_mode, 1);
     }
 
     #[test]
