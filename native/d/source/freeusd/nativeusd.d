@@ -113,6 +113,7 @@ struct Prim {
     string path;
     string typeName;
     Value[string] attributes;
+    string[] inherits;
 
     bool hasAttribute(string name) const {
         return (name in attributes) !is null;
@@ -148,11 +149,11 @@ struct Stage {
     }
 
     double readDouble(string primPath, string attrName) const {
-        return primAt(primPath).attribute(attrName).asDouble();
+        return composedAttribute(primPath, attrName).asDouble();
     }
 
     string readString(string primPath, string attrName) const {
-        auto value = primAt(primPath).attribute(attrName);
+        auto value = composedAttribute(primPath, attrName);
         if (value.kind != Value.Kind.string_ && value.kind != Value.Kind.token) {
             throw new Exception("attribute is not string-like: " ~ attrName);
         }
@@ -160,7 +161,7 @@ struct Stage {
     }
 
     string[] readTokenArray(string primPath, string attrName) const {
-        auto value = primAt(primPath).attribute(attrName);
+        auto value = composedAttribute(primPath, attrName);
         if (value.kind != Value.Kind.tokenArray) {
             throw new Exception("attribute is not token[]: " ~ attrName);
         }
@@ -168,11 +169,47 @@ struct Stage {
     }
 
     Vec3d readVec3(string primPath, string attrName) const {
-        auto value = primAt(primPath).attribute(attrName);
+        auto value = composedAttribute(primPath, attrName);
         if (value.kind != Value.Kind.vec3d && value.kind != Value.Kind.vec3f) {
             throw new Exception("attribute is not vec3: " ~ attrName);
         }
         return value.vec3Value;
+    }
+
+    string[] listPrimInherits(string primPath) const {
+        return (cast(string[]) primAt(primPath).inherits).dup;
+    }
+
+    private Value composedAttribute(string primPath, string attrName) const {
+        return composedAttribute(primPath, attrName, []);
+    }
+
+    private Value composedAttribute(string primPath, string attrName, string[] visiting) const {
+        foreach (visited; visiting) {
+            if (visited == primPath) {
+                throw new Exception("inherit cycle while reading: " ~ primPath);
+            }
+        }
+        auto found = primPath in prims;
+        if (found is null) {
+            throw new Exception("missing prim: " ~ primPath);
+        }
+        auto attr = attrName in found.attributes;
+        if (attr !is null) {
+            return cast(Value) *attr;
+        }
+        auto nextVisiting = visiting ~ primPath;
+        foreach (target; found.inherits) {
+            if (!primIsValid(target)) {
+                continue;
+            }
+            try {
+                return composedAttribute(target, attrName, nextVisiting);
+            } catch (Exception) {
+                // Try weaker inherited targets before reporting the value as missing.
+            }
+        }
+        throw new Exception("missing attribute: " ~ attrName);
     }
 }
 
@@ -205,6 +242,10 @@ private Stage parseUsda(string text) {
         if (inMetadataBlock) {
             if (line.startsWith("defaultPrim")) {
                 stage.defaultPrim = parseQuotedOrToken(afterEquals(line));
+            } else if (pendingPrimPath.length != 0 && line.canFind("inherits")) {
+                if (auto prim = pendingPrimPath in stage.prims) {
+                    prim.inherits = parsePathList(afterEquals(line));
+                }
             }
             continue;
         }
@@ -373,6 +414,35 @@ private string[] parseTokenArray(string rawValue) {
     return values;
 }
 
+private string[] parsePathList(string rawValue) {
+    rawValue = rawValue.strip;
+    if (rawValue.length == 0) {
+        return [];
+    }
+    if (rawValue.length >= 2 && rawValue[0] == '[' && rawValue[$ - 1] == ']') {
+        string[] outPaths;
+        foreach (part; rawValue[1 .. $ - 1].split(",")) {
+            auto parsed = parsePathToken(part.strip);
+            if (parsed.length != 0) {
+                outPaths ~= parsed;
+            }
+        }
+        return outPaths;
+    }
+    auto path = parsePathToken(rawValue);
+    return path.length == 0 ? [] : [path];
+}
+
+private string parsePathToken(string rawValue) {
+    rawValue = rawValue.strip;
+    auto begin = rawValue.indexOf("<");
+    auto end = rawValue.indexOf(">");
+    if (begin < 0 || end <= begin) {
+        return "";
+    }
+    return rawValue[begin + 1 .. end];
+}
+
 private Vec3d parseVec3(string rawValue) {
     rawValue = rawValue.strip;
     if (rawValue.length < 2 || rawValue[0] != '(' || rawValue[$ - 1] != ')') {
@@ -398,6 +468,11 @@ unittest {
     assert(stage.readTokenArray("/Scene/Child", "tags") == ["a", "b"]);
     auto extent = stage.readVec3("/Scene/Child", "extent");
     assert(extent.x == 1.0 && extent.y == 2.0 && extent.z == 3.0);
+    assert(stage.listPrimInherits("/Scene/ArcHost") == ["/Scene/Child"]);
+    assert(stage.readDouble("/Scene/ArcHost", "arcOnly") == 7.0);
+    assert(stage.readDouble("/Scene/ArcHost", "mass") == 2.5);
+    assert(stage.readString("/Scene/ArcHost", "label") == "hello");
+    assert(stage.readTokenArray("/Scene/ArcHost", "tags") == ["a", "b"]);
 }
 
 unittest {
