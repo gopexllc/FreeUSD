@@ -56,6 +56,13 @@ struct Bounds3d {
     double[3] max;
 }
 
+enum PrimSpecifierKind {
+    default_,
+    def,
+    class_,
+    over
+}
+
 struct Stage {
     private FreeusdStage* handle;
 
@@ -92,6 +99,56 @@ struct Stage {
     bool primIsValid(string primPath) const {
         ensureOpen();
         return freeusd_stage_prim_is_valid(handle, primPath.toStringz) == 1;
+    }
+
+    bool resolvePrimActive(string primPath) const {
+        ensureOpen();
+        int active = 0;
+        auto rc = freeusd_stage_resolve_prim_active(handle, primPath.toStringz, &active);
+        check(rc, "resolvePrimActive");
+        return active != 0;
+    }
+
+    bool resolveHasPrimActiveOpinion(string primPath) const {
+        ensureOpen();
+        auto rc = freeusd_stage_resolve_has_prim_active_opinion(handle, primPath.toStringz);
+        if (rc < 0) {
+            check(-rc, "resolveHasPrimActiveOpinion");
+        }
+        return rc == 1;
+    }
+
+    PrimSpecifierKind resolvePrimSpecifierKind(string primPath) const {
+        ensureOpen();
+        auto rc = freeusd_stage_resolve_prim_specifier_kind(handle, primPath.toStringz);
+        if (rc < 0) {
+            check(-rc, "resolvePrimSpecifierKind");
+        }
+        final switch (rc) {
+        case PrimSpecifierDefault:
+            return PrimSpecifierKind.default_;
+        case PrimSpecifierDef:
+            return PrimSpecifierKind.def;
+        case PrimSpecifierClass:
+            return PrimSpecifierKind.class_;
+        case PrimSpecifierOver:
+            return PrimSpecifierKind.over;
+        }
+    }
+
+    string resolvePrimKind(string primPath) const {
+        ensureOpen();
+        auto kind = freeusd_stage_resolve_prim_kind(handle, primPath.toStringz);
+        return takeOwnedCString(kind);
+    }
+
+    bool resolveHasPrimKind(string primPath) const {
+        ensureOpen();
+        auto rc = freeusd_stage_resolve_has_prim_kind(handle, primPath.toStringz);
+        if (rc < 0) {
+            check(-rc, "resolveHasPrimKind");
+        }
+        return rc == 1;
     }
 
     Matrix4d computeLocalTransform(string primPath, double time = 1.0) const {
@@ -293,6 +350,18 @@ unittest {
     assert(!stage.primIsValid("/Scene/Missing"));
     assert(stage.readFieldDouble("/Scene/Child", "mass", 1.0) == 2.5);
     assert(stage.readFieldString("/Scene/Child", "label", 1.0) == "hello");
+}
+
+unittest {
+    auto stage = Stage.open("../../tests/fixtures/parity_kind_active_refs.usda");
+    assert(stage.resolveHasPrimKind("/World/RefHost"));
+    assert(stage.resolvePrimKind("/World/RefHost") == "component");
+    assert(stage.resolveHasPrimActiveOpinion("/World/RefHost"));
+    assert(!stage.resolvePrimActive("/World/RefHost"));
+    assert(stage.resolvePrimKind("/World/PayloadHost") == "group");
+    assert(stage.resolvePrimKind("/World/InheritHost") == "assembly");
+    assert(stage.resolvePrimActive("/World/InheritHost"));
+    assert(!stage.resolveHasPrimActiveOpinion("/World/InheritHost"));
 }
 
 unittest {

@@ -14,6 +14,11 @@ enum RootSublayersNone = 0;
 enum RootSublayersShallow = 1;
 enum RootSublayersDepthFirst = 2;
 
+enum PrimSpecifierDefault = 0;
+enum PrimSpecifierDef = 1;
+enum PrimSpecifierClass = 2;
+enum PrimSpecifierOver = 3;
+
 struct FreeusdStage;
 
 struct FreeusdPhysicsMassSample {
@@ -51,6 +56,27 @@ void freeusd_string_free(char* s);
 FreeusdStage* freeusd_stage_open_from_root_file_utf8(const(char)* layer_path_utf8, int sublayer_policy);
 void freeusd_stage_free(FreeusdStage* stage);
 int freeusd_stage_prim_is_valid(const(FreeusdStage)* stage, const(char)* prim_path_utf8);
+
+int freeusd_stage_resolve_prim_active(
+    const(FreeusdStage)* stage,
+    const(char)* prim_path_utf8,
+    int* out_active);
+
+int freeusd_stage_resolve_has_prim_active_opinion(
+    const(FreeusdStage)* stage,
+    const(char)* prim_path_utf8);
+
+int freeusd_stage_resolve_prim_specifier_kind(
+    const(FreeusdStage)* stage,
+    const(char)* prim_path_utf8);
+
+char* freeusd_stage_resolve_prim_kind(
+    const(FreeusdStage)* stage,
+    const(char)* prim_path_utf8);
+
+int freeusd_stage_resolve_has_prim_kind(
+    const(FreeusdStage)* stage,
+    const(char)* prim_path_utf8);
 
 int freeusd_stage_compute_local_transform_matrix4d(
     const(FreeusdStage)* stage,
