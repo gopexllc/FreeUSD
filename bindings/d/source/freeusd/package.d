@@ -47,6 +47,15 @@ struct PreviewSurfaceDiffuseColor {
     float[3] rgb;
 }
 
+struct Matrix4d {
+    double[16] rowMajor;
+}
+
+struct Bounds3d {
+    double[3] min;
+    double[3] max;
+}
+
 struct Stage {
     private FreeusdStage* handle;
 
@@ -83,6 +92,56 @@ struct Stage {
     bool primIsValid(string primPath) const {
         ensureOpen();
         return freeusd_stage_prim_is_valid(handle, primPath.toStringz) == 1;
+    }
+
+    Matrix4d computeLocalTransform(string primPath, double time = 1.0) const {
+        ensureOpen();
+        double[16] rowMajor;
+        auto rc = freeusd_stage_compute_local_transform_matrix4d(handle, primPath.toStringz, time, rowMajor.ptr);
+        check(rc, "computeLocalTransform");
+        return Matrix4d(rowMajor);
+    }
+
+    Matrix4d computeLocalToWorldTransform(string primPath, double time = 1.0) const {
+        ensureOpen();
+        double[16] rowMajor;
+        auto rc = freeusd_stage_compute_local_to_world_transform_matrix4d(handle, primPath.toStringz, time, rowMajor.ptr);
+        check(rc, "computeLocalToWorldTransform");
+        return Matrix4d(rowMajor);
+    }
+
+    bool computeImageableVisibility(string primPath, double time = 1.0) const {
+        ensureOpen();
+        int visible = 0;
+        auto rc = freeusd_stage_compute_imageable_visibility(handle, primPath.toStringz, time, &visible);
+        check(rc, "computeImageableVisibility");
+        return visible != 0;
+    }
+
+    string computeImageablePurpose(string primPath, double time = 1.0) const {
+        ensureOpen();
+        char* purpose = null;
+        auto rc = freeusd_stage_compute_imageable_purpose_utf8(handle, primPath.toStringz, time, &purpose);
+        check(rc, "computeImageablePurpose");
+        return takeOwnedCString(purpose);
+    }
+
+    Bounds3d computeBoundableLocalBounds(string primPath, double time = 1.0) const {
+        ensureOpen();
+        double minX, minY, minZ, maxX, maxY, maxZ;
+        auto rc = freeusd_stage_compute_boundable_local_bounds(
+            handle, primPath.toStringz, time, &minX, &minY, &minZ, &maxX, &maxY, &maxZ);
+        check(rc, "computeBoundableLocalBounds");
+        return Bounds3d([minX, minY, minZ], [maxX, maxY, maxZ]);
+    }
+
+    Bounds3d computeBoundableWorldBounds(string primPath, double time = 1.0) const {
+        ensureOpen();
+        double minX, minY, minZ, maxX, maxY, maxZ;
+        auto rc = freeusd_stage_compute_boundable_world_bounds(
+            handle, primPath.toStringz, time, &minX, &minY, &minZ, &maxX, &maxY, &maxZ);
+        check(rc, "computeBoundableWorldBounds");
+        return Bounds3d([minX, minY, minZ], [maxX, maxY, maxZ]);
     }
 
     double readFieldDouble(string primPath, string attrName, double time = 1.0) const {
@@ -234,6 +293,20 @@ unittest {
     assert(!stage.primIsValid("/Scene/Missing"));
     assert(stage.readFieldDouble("/Scene/Child", "mass", 1.0) == 2.5);
     assert(stage.readFieldString("/Scene/Child", "label", 1.0) == "hello");
+}
+
+unittest {
+    auto stage = Stage.open("../../tests/fixtures/parity_imageable.usda");
+    auto l2w = stage.computeLocalToWorldTransform("/World/Cube", 1.0);
+    assert(l2w.rowMajor[12] == 1.0);
+    assert(l2w.rowMajor[13] == 2.0);
+    assert(l2w.rowMajor[14] == 3.0);
+    assert(l2w.rowMajor[15] == 1.0);
+    assert(!stage.computeImageableVisibility("/World/Cube", 1.0));
+    assert(stage.computeImageablePurpose("/World/Cube", 1.0) == "render");
+    auto bounds = stage.computeBoundableWorldBounds("/World/Cube", 1.0);
+    assert(bounds.min == [0.0, 1.0, 2.0]);
+    assert(bounds.max == [2.0, 3.0, 4.0]);
 }
 
 unittest {

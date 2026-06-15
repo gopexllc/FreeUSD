@@ -52,6 +52,52 @@ FreeusdStage* freeusd_stage_open_from_root_file_utf8(const(char)* layer_path_utf
 void freeusd_stage_free(FreeusdStage* stage);
 int freeusd_stage_prim_is_valid(const(FreeusdStage)* stage, const(char)* prim_path_utf8);
 
+int freeusd_stage_compute_local_transform_matrix4d(
+    const(FreeusdStage)* stage,
+    const(char)* prim_path_utf8,
+    double time,
+    double* out_row_major);
+
+int freeusd_stage_compute_local_to_world_transform_matrix4d(
+    const(FreeusdStage)* stage,
+    const(char)* prim_path_utf8,
+    double time,
+    double* out_row_major);
+
+int freeusd_stage_compute_imageable_visibility(
+    const(FreeusdStage)* stage,
+    const(char)* prim_path_utf8,
+    double time,
+    int* out_visible);
+
+int freeusd_stage_compute_imageable_purpose_utf8(
+    const(FreeusdStage)* stage,
+    const(char)* prim_path_utf8,
+    double time,
+    char** out_purpose_utf8);
+
+int freeusd_stage_compute_boundable_local_bounds(
+    const(FreeusdStage)* stage,
+    const(char)* prim_path_utf8,
+    double time,
+    double* out_min_x,
+    double* out_min_y,
+    double* out_min_z,
+    double* out_max_x,
+    double* out_max_y,
+    double* out_max_z);
+
+int freeusd_stage_compute_boundable_world_bounds(
+    const(FreeusdStage)* stage,
+    const(char)* prim_path_utf8,
+    double time,
+    double* out_min_x,
+    double* out_min_y,
+    double* out_min_z,
+    double* out_max_x,
+    double* out_max_y,
+    double* out_max_z);
+
 int freeusd_stage_read_field_double(
     const(FreeusdStage)* stage,
     const(char)* prim_path_utf8,
