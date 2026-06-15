@@ -52,6 +52,14 @@ Requires **DUB** and a D compiler such as **LDC**. The package wraps the stable 
 cd bindings/d && dub test --compiler=ldc2
 ```
 
+## Native D (`native/d`)
+
+`native/d` is the clean-room D implementation track. It does not link to the FreeUSD C ABI. The first slice is a native USDA reader and in-memory stage for def hierarchy and basic authored values (`double`, `float`, `bool`, `int`, `string`, `token`, `token[]`, `double3`, and `vector3f` / `color3f`-style triples).
+
+```bash
+cd native/d && dub test --compiler=ldc2
+```
+
 ## Cross-language coverage (composition + reads)
 
 Shared fixture: **`tests/fixtures/usd_cross_language.usda`**. Tests: **`tests/c_usd_cross_language.c`**, **`tests/python/test_usd_cross_language.py`**, **`bindings/go/freeusd_test.go`** (`TestCrossLanguageFieldReadContract`), **`bindings/rust`** (`cross_language_field_read_contract`).
