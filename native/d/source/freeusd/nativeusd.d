@@ -4,6 +4,7 @@ import std.algorithm : canFind, startsWith;
 import std.array : split;
 import std.conv : to;
 import std.file : readText;
+import std.path : buildNormalizedPath, dirName;
 import std.string : indexOf, lineSplitter, strip, stripLeft, stripRight;
 
 struct Vec3d {
@@ -114,6 +115,7 @@ struct Prim {
     string typeName;
     Value[string] attributes;
     string[] inherits;
+    Reference[] references;
 
     bool hasAttribute(string name) const {
         return (name in attributes) !is null;
@@ -128,12 +130,18 @@ struct Prim {
     }
 }
 
+struct Reference {
+    string assetPath;
+    string primPath;
+}
+
 struct Stage {
     string defaultPrim;
+    string sourceDir;
     Prim[string] prims;
 
     static Stage open(string path) {
-        return parseUsda(readText(path));
+        return parseUsda(readText(path), dirName(path));
     }
 
     bool primIsValid(string path) const {
@@ -209,12 +217,22 @@ struct Stage {
                 // Try weaker inherited targets before reporting the value as missing.
             }
         }
+        foreach (reference; found.references) {
+            try {
+                auto refStage = Stage.open(buildNormalizedPath(sourceDir, reference.assetPath));
+                auto targetPath = reference.primPath.length != 0 ? reference.primPath : "/" ~ refStage.defaultPrim;
+                return refStage.composedAttribute(targetPath, attrName, []);
+            } catch (Exception) {
+                // Try later references before reporting the value as missing.
+            }
+        }
         throw new Exception("missing attribute: " ~ attrName);
     }
 }
 
-private Stage parseUsda(string text) {
+private Stage parseUsda(string text, string sourceDir = ".") {
     Stage stage;
+    stage.sourceDir = sourceDir.length == 0 ? "." : sourceDir;
     string[] stack;
     string pendingPrimPath;
     bool inMetadataBlock;
@@ -245,6 +263,10 @@ private Stage parseUsda(string text) {
             } else if (pendingPrimPath.length != 0 && line.canFind("inherits")) {
                 if (auto prim = pendingPrimPath in stage.prims) {
                     prim.inherits = parsePathList(afterEquals(line));
+                }
+            } else if (pendingPrimPath.length != 0 && line.canFind("references")) {
+                if (auto prim = pendingPrimPath in stage.prims) {
+                    prim.references = parseReferenceList(afterEquals(line));
                 }
             }
             continue;
@@ -433,6 +455,28 @@ private string[] parsePathList(string rawValue) {
     return path.length == 0 ? [] : [path];
 }
 
+private Reference[] parseReferenceList(string rawValue) {
+    rawValue = rawValue.strip;
+    Reference parsed = parseReferenceToken(rawValue);
+    return parsed.assetPath.length == 0 ? [] : [parsed];
+}
+
+private Reference parseReferenceToken(string rawValue) {
+    rawValue = rawValue.strip;
+    Reference reference;
+    auto assetBegin = rawValue.indexOf("@");
+    if (assetBegin < 0) {
+        return reference;
+    }
+    auto assetEnd = rawValue.indexOf("@", assetBegin + 1);
+    if (assetEnd <= assetBegin) {
+        return reference;
+    }
+    reference.assetPath = rawValue[assetBegin + 1 .. assetEnd];
+    reference.primPath = parsePathToken(rawValue[assetEnd + 1 .. $]);
+    return reference;
+}
+
 private string parsePathToken(string rawValue) {
     rawValue = rawValue.strip;
     auto begin = rawValue.indexOf("<");
@@ -473,6 +517,18 @@ unittest {
     assert(stage.readDouble("/Scene/ArcHost", "mass") == 2.5);
     assert(stage.readString("/Scene/ArcHost", "label") == "hello");
     assert(stage.readTokenArray("/Scene/ArcHost", "tags") == ["a", "b"]);
+}
+
+unittest {
+    auto stage = Stage.open("../../tests/fixtures/parity_physics_rigid_body_refs.usda");
+    assert(stage.primIsValid("/World/RefHost"));
+    assert(stage.readDouble("/World/RefHost", "physics:mass") == 7.0);
+}
+
+unittest {
+    auto stage = Stage.open("../../tests/fixtures/parity_namespace.usda");
+    assert(stage.readDouble("/Library/Source", "radius") == 2.0);
+    assert(stage.readDouble("/Library/Source", "refOnly") == 11.0);
 }
 
 unittest {
