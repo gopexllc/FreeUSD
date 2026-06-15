@@ -32,6 +32,12 @@ struct PhysicsCollisionSample {
     bool collisionEnabled;
 }
 
+struct PhysicsFixedJointSample {
+    string body0Path;
+    string body1Path;
+    bool jointEnabled;
+}
+
 struct LuxDistantLightSample {
     float intensity;
     float[3] color;
@@ -273,6 +279,25 @@ struct Stage {
         return PhysicsCollisionSample(raw.collision_enabled != 0);
     }
 
+    PhysicsFixedJointSample readPhysicsFixedJoint(string jointPath, double time = 1.0) const {
+        ensureOpen();
+        FreeusdPhysicsFixedJointSample raw;
+        auto rc = freeusd_stage_read_physics_fixed_joint_sample(handle, jointPath.toStringz, time, &raw);
+        check(rc, "readPhysicsFixedJoint");
+        scope(exit) {
+            if (raw.body0_path_utf8 !is null) {
+                freeusd_string_free(raw.body0_path_utf8);
+            }
+            if (raw.body1_path_utf8 !is null) {
+                freeusd_string_free(raw.body1_path_utf8);
+            }
+        }
+        return PhysicsFixedJointSample(
+            raw.body0_path_utf8 is null ? "" : fromStringz(raw.body0_path_utf8).idup,
+            raw.body1_path_utf8 is null ? "" : fromStringz(raw.body1_path_utf8).idup,
+            raw.joint_enabled != 0);
+    }
+
     LuxDistantLightSample readLuxDistantLight(string lightPath, double time = 1.0) const {
         ensureOpen();
         FreeusdLuxDistantLightSample raw;
@@ -408,6 +433,14 @@ unittest {
     auto stage = Stage.open("../../tests/fixtures/parity_physics_collision.usda");
     auto collision = stage.readPhysicsCollision("/World/Collider", 1.0);
     assert(!collision.collisionEnabled);
+}
+
+unittest {
+    auto stage = Stage.open("../../tests/fixtures/parity_physics_fixed_joint.usda");
+    auto joint = stage.readPhysicsFixedJoint("/World/Anchor", 1.0);
+    assert(joint.body0Path == "/World/BodyA");
+    assert(joint.body1Path == "/World/BodyB");
+    assert(joint.jointEnabled);
 }
 
 unittest {

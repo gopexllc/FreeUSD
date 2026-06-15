@@ -41,6 +41,12 @@ struct FreeusdPhysicsCollisionSample {
     int collision_enabled;
 }
 
+struct FreeusdPhysicsFixedJointSample {
+    char* body0_path_utf8;
+    char* body1_path_utf8;
+    int joint_enabled;
+}
+
 struct FreeusdLuxDistantLightSample {
     float intensity;
     float[3] color;
@@ -178,6 +184,12 @@ int freeusd_stage_read_physics_collision_sample(
     const(char)* prim_path_utf8,
     double time,
     FreeusdPhysicsCollisionSample* out_sample);
+
+int freeusd_stage_read_physics_fixed_joint_sample(
+    const(FreeusdStage)* stage,
+    const(char)* joint_path_utf8,
+    double time,
+    FreeusdPhysicsFixedJointSample* out_sample);
 
 int freeusd_stage_read_lux_distant_light_sample(
     const(FreeusdStage)* stage,

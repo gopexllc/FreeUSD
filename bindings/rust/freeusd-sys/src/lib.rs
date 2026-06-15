@@ -739,6 +739,12 @@ extern "C" {
         time: c_double,
         out_sample: *mut FreeusdPhysicsMassSample,
     ) -> c_int;
+    fn freeusd_stage_read_physics_fixed_joint_sample(
+        stage: *const FreeusdStage,
+        joint_path: *const c_char,
+        time: c_double,
+        out_sample: *mut FreeusdPhysicsFixedJointSample,
+    ) -> c_int;
     fn freeusd_usdskel_compute_skinning_matrices(
         joint_count: usize,
         joint_world_row_major: *const c_double,
@@ -872,6 +878,21 @@ pub struct FreeusdPhysicsMassSample {
 pub struct PhysicsMassSample {
     pub density: f32,
     pub center_of_mass: [f32; 3],
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default)]
+pub struct FreeusdPhysicsFixedJointSample {
+    pub body0_path_utf8: *mut c_char,
+    pub body1_path_utf8: *mut c_char,
+    pub joint_enabled: c_int,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PhysicsFixedJointSample {
+    pub body0_path: String,
+    pub body1_path: String,
+    pub joint_enabled: bool,
 }
 
 /// C API `FREEUSD_ERR_NOT_FOUND` (e.g. unmapped relocate / prefix substitution / customLayerData string read).
@@ -2581,6 +2602,54 @@ impl Stage {
         })
     }
 
+    /// Read `PhysicsFixedJoint` body targets and jointEnabled from a prim.
+    pub fn read_physics_fixed_joint_sample(
+        &self,
+        joint_path: &str,
+        time: f64,
+    ) -> Result<PhysicsFixedJointSample, i32> {
+        let jp = CString::new(joint_path).map_err(|_| 1)?;
+        let mut raw = FreeusdPhysicsFixedJointSample::default();
+        let rc = unsafe {
+            freeusd_stage_read_physics_fixed_joint_sample(
+                self.ptr as *const FreeusdStage,
+                jp.as_ptr(),
+                time as c_double,
+                &mut raw,
+            )
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        let body0_path = if raw.body0_path_utf8.is_null() {
+            String::new()
+        } else {
+            let s = unsafe {
+                CStr::from_ptr(raw.body0_path_utf8)
+                    .to_string_lossy()
+                    .into_owned()
+            };
+            unsafe { freeusd_string_free(raw.body0_path_utf8) };
+            s
+        };
+        let body1_path = if raw.body1_path_utf8.is_null() {
+            String::new()
+        } else {
+            let s = unsafe {
+                CStr::from_ptr(raw.body1_path_utf8)
+                    .to_string_lossy()
+                    .into_owned()
+            };
+            unsafe { freeusd_string_free(raw.body1_path_utf8) };
+            s
+        };
+        Ok(PhysicsFixedJointSample {
+            body0_path,
+            body1_path,
+            joint_enabled: raw.joint_enabled != 0,
+        })
+    }
+
     pub fn deform_points_with_skeleton(
         &self,
         skeleton_path: &str,
@@ -4048,6 +4117,20 @@ def Xform "Root"
         assert!((sample.center_of_mass[0] - 0.0).abs() < 1e-5);
         assert!((sample.center_of_mass[1] - 0.5).abs() < 1e-5);
         assert!((sample.center_of_mass[2] - 0.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn usd_physics_fixed_joint_binding() {
+        let path = fixture_path("parity_physics_fixed_joint.usda");
+        let stage =
+            Stage::open_from_root_file(&path.to_string_lossy(), root_sublayers::DEPTH_FIRST)
+                .expect("open fixed-joint fixture");
+        let sample = stage
+            .read_physics_fixed_joint_sample("/World/Anchor", 1.0)
+            .expect("PhysicsFixedJoint sample");
+        assert_eq!(sample.body0_path, "/World/BodyA");
+        assert_eq!(sample.body1_path, "/World/BodyB");
+        assert!(sample.joint_enabled);
     }
 
     #[test]

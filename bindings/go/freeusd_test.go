@@ -1143,6 +1143,23 @@ func TestUsdPhysicsMassBinding(t *testing.T) {
 	}
 }
 
+func TestUsdPhysicsFixedJointBinding(t *testing.T) {
+	fixture := filepath.Join("..", "..", "tests", "fixtures", "parity_physics_fixed_joint.usda")
+	st := OpenStageFromRootFile(fixture, RootSubDepthFirst)
+	if st == nil {
+		t.Fatal("OpenStageFromRootFile fixed joint:", LastErrorMessage())
+	}
+	defer st.Free()
+
+	sample, rc := st.ReadPhysicsFixedJointSample("/World/Anchor", 1.0)
+	if rc != 0 {
+		t.Fatalf("ReadPhysicsFixedJointSample rc=%d %s", rc, LastErrorMessage())
+	}
+	if sample.Body0Path != "/World/BodyA" || sample.Body1Path != "/World/BodyB" || !sample.JointEnabled {
+		t.Fatalf("unexpected PhysicsFixedJoint sample %+v", sample)
+	}
+}
+
 func TestLayerHints(t *testing.T) {
 	const usda = `#usda 1.0
 (
