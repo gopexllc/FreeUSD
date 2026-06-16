@@ -9,8 +9,8 @@
 
 namespace freeusd::usdSkel {
 
-class SkelAnimation;
-class Skeleton;
+struct SkelAnimation;
+struct Skeleton;
 
 /// Joint palette for GPU skinning (glTF ``skin.jointMatrices`` family).
 ///
