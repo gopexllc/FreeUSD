@@ -114,6 +114,7 @@ struct Prim {
     string path;
     string typeName;
     Value[string] attributes;
+    string[][string] relationships;
     string[] inherits;
     Reference[] references;
     Reference[] payloads;
@@ -205,6 +206,10 @@ struct Stage {
         return value.vec3Value;
     }
 
+    string[] relationshipTargets(string primPath, string relName) const {
+        return composedRelationshipTargets(primPath, relName, []);
+    }
+
     string[] listPrimInherits(string primPath) const {
         return (cast(string[]) primAt(primPath).inherits).dup;
     }
@@ -271,6 +276,66 @@ struct Stage {
             }
         }
         throw new Exception("missing attribute: " ~ attrName);
+    }
+
+    private string[] composedRelationshipTargets(string primPath, string relName, string[] visiting) const {
+        foreach (visited; visiting) {
+            if (visited == primPath) {
+                throw new Exception("relationship composition cycle while reading: " ~ primPath);
+            }
+        }
+        auto found = primPath in prims;
+        if (found is null) {
+            foreach (sublayer; sublayers) {
+                auto targets = sublayer.composedRelationshipTargets(primPath, relName, visiting);
+                if (targets.length != 0) {
+                    return targets;
+                }
+            }
+            return [];
+        }
+        if (auto local = relName in found.relationships) {
+            return (*local).dup;
+        }
+        auto nextVisiting = visiting ~ primPath;
+        foreach (target; found.inherits) {
+            if (!primIsValid(target)) {
+                continue;
+            }
+            auto targets = composedRelationshipTargets(target, relName, nextVisiting);
+            if (targets.length != 0) {
+                return targets;
+            }
+        }
+        foreach (reference; found.references) {
+            try {
+                auto refStage = Stage.open(buildNormalizedPath(sourceDir, reference.assetPath));
+                auto targetPath = reference.primPath.length != 0 ? reference.primPath : "/" ~ refStage.defaultPrim;
+                auto targets = refStage.composedRelationshipTargets(targetPath, relName, []);
+                if (targets.length != 0) {
+                    return targets;
+                }
+            } catch (Exception) {
+            }
+        }
+        foreach (payload; found.payloads) {
+            try {
+                auto payloadStage = Stage.open(buildNormalizedPath(sourceDir, payload.assetPath));
+                auto targetPath = payload.primPath.length != 0 ? payload.primPath : "/" ~ payloadStage.defaultPrim;
+                auto targets = payloadStage.composedRelationshipTargets(targetPath, relName, []);
+                if (targets.length != 0) {
+                    return targets;
+                }
+            } catch (Exception) {
+            }
+        }
+        foreach (sublayer; sublayers) {
+            auto targets = sublayer.composedRelationshipTargets(primPath, relName, visiting);
+            if (targets.length != 0) {
+                return targets;
+            }
+        }
+        return [];
     }
 }
 
@@ -402,6 +467,14 @@ private Stage parseUsda(string text, string sourceDir = ".") {
             continue;
         }
 
+        if (line.startsWith("rel ")) {
+            auto rel = parseRelationship(line);
+            if (rel.name.length != 0) {
+                stage.prims[stack[$ - 1]].relationships[rel.name] = rel.targets;
+            }
+            continue;
+        }
+
         auto attr = parseAttribute(line);
         if (attr.name.length == 0) {
             continue;
@@ -460,6 +533,11 @@ private ParsedPrimHeader parsePrimHeader(string line) {
 private struct ParsedAttribute {
     string name;
     Value value;
+}
+
+private struct ParsedRelationship {
+    string name;
+    string[] targets;
 }
 
 private struct ParsedVariantSelection {
@@ -601,11 +679,33 @@ private void applyVariantPayload(ref Stage stage, string hostPath, string[] line
         if (!line.canFind("=") || line.canFind(".timeSamples")) {
             continue;
         }
+        if (line.startsWith("rel ")) {
+            auto rel = parseRelationship(line);
+            if (rel.name.length != 0) {
+                stage.prims[stack[$ - 1]].relationships[rel.name] = rel.targets;
+            }
+            continue;
+        }
         auto attr = parseAttribute(line);
         if (attr.name.length != 0) {
             stage.prims[stack[$ - 1]].attributes[attr.name] = attr.value;
         }
     }
+}
+
+private ParsedRelationship parseRelationship(string line) {
+    ParsedRelationship parsed;
+    auto eq = line.indexOf("=");
+    if (eq < 0) {
+        return parsed;
+    }
+    auto lhs = line[0 .. eq].strip.split;
+    if (lhs.length < 2) {
+        return parsed;
+    }
+    parsed.name = lhs[$ - 1];
+    parsed.targets = parsePathList(line[eq + 1 .. $].stripRight(","));
+    return parsed;
 }
 
 private ParsedAttribute parseAttribute(string line) {
@@ -798,6 +898,7 @@ unittest {
     assert(stage.readDouble("/Library/Source", "radius") == 2.0);
     assert(stage.readDouble("/Library/Source", "refOnly") == 11.0);
     assert(stage.readDouble("/Library/Source", "payloadOnly") == 33.0);
+    assert(stage.relationshipTargets("/Library/Source", "refLink") == ["/RefRoot/RefLeaf"]);
 }
 
 unittest {
@@ -831,4 +932,17 @@ unittest {
     assert(stage.readDouble("/World/Cube", "size") == 2.0);
     auto translate = stage.readVec3("/World/Cube", "xformOp:translate");
     assert(translate.x == 1.0 && translate.y == 2.0 && translate.z == 3.0);
+}
+
+unittest {
+    auto stage = Stage.open("../../tests/fixtures/parity_physics_fixed_joint.usda");
+    assert(stage.relationshipTargets("/World/Anchor", "physics:body0") == ["/World/BodyA"]);
+    assert(stage.relationshipTargets("/World/Anchor", "physics:body1") == ["/World/BodyB"]);
+    assert(stage.readDouble("/World/Anchor", "physics:jointEnabled") == 1.0);
+}
+
+unittest {
+    auto stage = Stage.open("../../tests/fixtures/parity_vol_volume.usda");
+    assert(stage.relationshipTargets("/World/Cloud", "field") == ["/World/Cloud/Smoke"]);
+    assert(stage.readString("/World/Cloud/Smoke", "fieldName") == "density");
 }
