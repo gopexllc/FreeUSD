@@ -140,21 +140,35 @@ struct Stage {
     string defaultPrim;
     string sourceDir;
     Prim[string] prims;
+    Stage[] sublayers;
 
     static Stage open(string path) {
         return parseUsda(readText(path), dirName(path));
     }
 
     bool primIsValid(string path) const {
-        return (path in prims) !is null;
+        if ((path in prims) !is null) {
+            return true;
+        }
+        foreach (sublayer; sublayers) {
+            if (sublayer.primIsValid(path)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     const(Prim) primAt(string path) const {
         auto found = path in prims;
-        if (found is null) {
-            throw new Exception("missing prim: " ~ path);
+        if (found !is null) {
+            return cast(Prim) *found;
         }
-        return cast(Prim) *found;
+        foreach (sublayer; sublayers) {
+            if (sublayer.primIsValid(path)) {
+                return sublayer.primAt(path);
+            }
+        }
+        throw new Exception("missing prim: " ~ path);
     }
 
     double readDouble(string primPath, string attrName) const {
@@ -201,6 +215,13 @@ struct Stage {
         }
         auto found = primPath in prims;
         if (found is null) {
+            foreach (sublayer; sublayers) {
+                try {
+                    return sublayer.composedAttribute(primPath, attrName, visiting);
+                } catch (Exception) {
+                    // Try weaker sublayers before reporting the prim as missing.
+                }
+            }
             throw new Exception("missing prim: " ~ primPath);
         }
         auto attr = attrName in found.attributes;
@@ -234,6 +255,13 @@ struct Stage {
                 return payloadStage.composedAttribute(targetPath, attrName, []);
             } catch (Exception) {
                 // Try later payloads before reporting the value as missing.
+            }
+        }
+        foreach (sublayer; sublayers) {
+            try {
+                return sublayer.composedAttribute(primPath, attrName, visiting);
+            } catch (Exception) {
+                // Try weaker sublayers before reporting the value as missing.
             }
         }
         throw new Exception("missing attribute: " ~ attrName);
@@ -270,6 +298,10 @@ private Stage parseUsda(string text, string sourceDir = ".") {
         if (inMetadataBlock) {
             if (line.startsWith("defaultPrim")) {
                 stage.defaultPrim = parseQuotedOrToken(afterEquals(line));
+            } else if (line.startsWith("subLayers")) {
+                foreach (assetPath; parseAssetList(afterEquals(line))) {
+                    stage.sublayers ~= Stage.open(buildNormalizedPath(stage.sourceDir, assetPath));
+                }
             } else if (pendingPrimPath.length != 0 && line.canFind("inherits")) {
                 if (auto prim = pendingPrimPath in stage.prims) {
                     prim.inherits = parsePathList(afterEquals(line));
@@ -305,6 +337,12 @@ private Stage parseUsda(string text, string sourceDir = ".") {
 
         if (line.startsWith("defaultPrim")) {
             stage.defaultPrim = parseQuotedOrToken(afterEquals(line));
+            continue;
+        }
+        if (line.startsWith("subLayers")) {
+            foreach (assetPath; parseAssetList(afterEquals(line))) {
+                stage.sublayers ~= Stage.open(buildNormalizedPath(stage.sourceDir, assetPath));
+            }
             continue;
         }
 
@@ -475,6 +513,35 @@ private Reference[] parseReferenceList(string rawValue) {
     return parsed.assetPath.length == 0 ? [] : [parsed];
 }
 
+private string[] parseAssetList(string rawValue) {
+    rawValue = rawValue.strip;
+    if (rawValue.length >= 2 && rawValue[0] == '[' && rawValue[$ - 1] == ']') {
+        string[] assets;
+        foreach (part; rawValue[1 .. $ - 1].split(",")) {
+            auto asset = parseAssetToken(part.strip);
+            if (asset.length != 0) {
+                assets ~= asset;
+            }
+        }
+        return assets;
+    }
+    auto asset = parseAssetToken(rawValue);
+    return asset.length == 0 ? [] : [asset];
+}
+
+private string parseAssetToken(string rawValue) {
+    rawValue = rawValue.strip;
+    auto begin = rawValue.indexOf("@");
+    if (begin < 0) {
+        return "";
+    }
+    auto end = rawValue.indexOf("@", begin + 1);
+    if (end <= begin) {
+        return "";
+    }
+    return rawValue[begin + 1 .. end];
+}
+
 private Reference parseReferenceToken(string rawValue) {
     rawValue = rawValue.strip;
     Reference reference;
@@ -544,6 +611,14 @@ unittest {
     assert(stage.readDouble("/Library/Source", "radius") == 2.0);
     assert(stage.readDouble("/Library/Source", "refOnly") == 11.0);
     assert(stage.readDouble("/Library/Source", "payloadOnly") == 33.0);
+}
+
+unittest {
+    auto stage = Stage.open("../../tests/fixtures/parity_stack_root.usda");
+    assert(stage.defaultPrim == "World");
+    assert(stage.primIsValid("/World/Model"));
+    assert(stage.readDouble("/World/Model", "rootOnly") == 1.0);
+    assert(stage.readDouble("/World/Model", "strength") == 10.0);
 }
 
 unittest {
