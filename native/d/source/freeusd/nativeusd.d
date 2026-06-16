@@ -162,6 +162,7 @@ struct Stage {
     Prim[string] prims;
     Sublayer[] sublayers;
     string[string] relocates;
+    string[string] prefixSubstitutions;
 
     static Stage open(string path) {
         return parseUsda(readText(path), dirName(path));
@@ -251,6 +252,30 @@ struct Stage {
 
     string[] listPrimInherits(string primPath) const {
         return (cast(string[]) primAt(primPath).inherits).dup;
+    }
+
+    bool prefixSubstitutionKeyInAnyLayer(string fromPrefix) const {
+        if ((fromPrefix in prefixSubstitutions) !is null) {
+            return true;
+        }
+        foreach (sublayer; sublayers) {
+            if (sublayer.stage.prefixSubstitutionKeyInAnyLayer(fromPrefix)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    string composedPrefixSubstitution(string fromPrefix) const {
+        if (auto local = fromPrefix in prefixSubstitutions) {
+            return *local;
+        }
+        foreach (sublayer; sublayers) {
+            if (sublayer.stage.prefixSubstitutionKeyInAnyLayer(fromPrefix)) {
+                return sublayer.stage.composedPrefixSubstitution(fromPrefix);
+            }
+        }
+        throw new Exception("missing prefix substitution: " ~ fromPrefix);
     }
 
     private Value composedAttribute(string primPath, string attrName) const {
@@ -467,6 +492,7 @@ private Stage parseUsda(string text, string sourceDir = ".") {
     bool inTimeSamplesBlock;
     bool inSublayerOffsetsBlock;
     bool inRelocatesBlock;
+    bool inPrefixSubstitutionsBlock;
     bool inCustomDataBlock;
     string customDataPrimPath;
     string timeSamplePrimPath;
@@ -514,6 +540,14 @@ private Stage parseUsda(string text, string sourceDir = ".") {
                 inRelocatesBlock = false;
             } else {
                 addRelocate(stage, line);
+            }
+            continue;
+        }
+        if (inPrefixSubstitutionsBlock) {
+            if (line == "}") {
+                inPrefixSubstitutionsBlock = false;
+            } else {
+                addPrefixSubstitution(stage, line);
             }
             continue;
         }
@@ -568,6 +602,8 @@ private Stage parseUsda(string text, string sourceDir = ".") {
                 inSublayerOffsetsBlock = true;
             } else if (line.startsWith("relocates")) {
                 inRelocatesBlock = true;
+            } else if (line.startsWith("prefixSubstitutions")) {
+                inPrefixSubstitutionsBlock = true;
             } else if (pendingPrimPath.length != 0 && line.startsWith("customData")) {
                 inCustomDataBlock = true;
                 customDataPrimPath = pendingPrimPath;
@@ -633,6 +669,10 @@ private Stage parseUsda(string text, string sourceDir = ".") {
         }
         if (line.startsWith("relocates")) {
             inRelocatesBlock = true;
+            continue;
+        }
+        if (line.startsWith("prefixSubstitutions")) {
+            inPrefixSubstitutionsBlock = true;
             continue;
         }
 
@@ -1115,6 +1155,19 @@ private void addRelocate(ref Stage stage, string line) {
     stage.relocates[fromPath] = toPath;
 }
 
+private void addPrefixSubstitution(ref Stage stage, string line) {
+    auto colon = line.indexOf(":");
+    if (colon < 0) {
+        return;
+    }
+    auto fromPrefix = parseQuotedOrToken(line[0 .. colon].strip);
+    auto toPrefix = parseQuotedOrToken(line[colon + 1 .. $].stripRight(","));
+    if (fromPrefix.length == 0 || toPrefix.length == 0) {
+        return;
+    }
+    stage.prefixSubstitutions[fromPrefix] = toPrefix;
+}
+
 private string parseAssetToken(string rawValue) {
     rawValue = rawValue.strip;
     auto begin = rawValue.indexOf("@");
@@ -1201,6 +1254,8 @@ unittest {
     assert(stage.readDouble("/Library/Source", "refOnly") == 11.0);
     assert(stage.readDouble("/Library/Source", "payloadOnly") == 33.0);
     assert(stage.relationshipTargets("/Library/Source", "refLink") == ["/RefRoot/RefLeaf"]);
+    assert(stage.prefixSubstitutionKeyInAnyLayer("/Assets"));
+    assert(stage.composedPrefixSubstitution("/Assets") == "/ResolvedAssets");
     assert(stage.primIsValid("/Library/Published"));
     assert(stage.readDouble("/Library/Published", "radius") == 2.0);
     assert(stage.readDouble("/Library/Published", "refOnly") == 11.0);
