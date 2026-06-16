@@ -1,6 +1,6 @@
 module freeusd.nativeusd;
 
-import std.algorithm : canFind, startsWith;
+import std.algorithm : canFind, endsWith, startsWith;
 import std.array : split;
 import std.conv : to;
 import std.file : readText;
@@ -117,6 +117,8 @@ struct Prim {
     string[] inherits;
     Reference[] references;
     Reference[] payloads;
+    string[string] variantSelections;
+    VariantPayload[string] variants;
 
     bool hasAttribute(string name) const {
         return (name in attributes) !is null;
@@ -134,6 +136,10 @@ struct Prim {
 struct Reference {
     string assetPath;
     string primPath;
+}
+
+struct VariantPayload {
+    string[] lines;
 }
 
 struct Stage {
@@ -275,6 +281,12 @@ private Stage parseUsda(string text, string sourceDir = ".") {
     string pendingPrimPath;
     bool inMetadataBlock;
     bool inIgnoredBraceBlock;
+    bool inVariantSetsBlock;
+    bool inVariantSelectionBlock;
+    string variantPrimPath;
+    string currentVariantSet;
+    string currentVariantName;
+    int variantDepth;
 
     foreach (rawLine; text.lineSplitter()) {
         auto line = stripComment(rawLine).strip;
@@ -293,15 +305,43 @@ private Stage parseUsda(string text, string sourceDir = ".") {
         }
         if (line == ")") {
             inMetadataBlock = false;
+            inVariantSetsBlock = false;
+            inVariantSelectionBlock = false;
+            variantPrimPath = "";
+            currentVariantSet = "";
+            currentVariantName = "";
+            variantDepth = 0;
             continue;
         }
         if (inMetadataBlock) {
-            if (line.startsWith("defaultPrim")) {
+            if (inVariantSetsBlock) {
+                if ((line == "}" || line == "},") && currentVariantSet.length == 0 && currentVariantName.length == 0) {
+                    inVariantSetsBlock = false;
+                    continue;
+                }
+                parseVariantSetMetadataLine(stage, variantPrimPath, currentVariantSet, currentVariantName, variantDepth, line);
+            } else if (inVariantSelectionBlock) {
+                if (line == "}") {
+                    inVariantSelectionBlock = false;
+                } else if (pendingPrimPath.length != 0 && line.canFind("=")) {
+                    if (auto prim = pendingPrimPath in stage.prims) {
+                        auto selection = parseVariantSelectionLine(line);
+                        if (selection.setName.length != 0) {
+                            prim.variantSelections[selection.setName] = selection.variantName;
+                        }
+                    }
+                }
+            } else if (line.startsWith("defaultPrim")) {
                 stage.defaultPrim = parseQuotedOrToken(afterEquals(line));
             } else if (line.startsWith("subLayers")) {
                 foreach (assetPath; parseAssetList(afterEquals(line))) {
                     stage.sublayers ~= Stage.open(buildNormalizedPath(stage.sourceDir, assetPath));
                 }
+            } else if (pendingPrimPath.length != 0 && line.startsWith("variantSets")) {
+                inVariantSetsBlock = true;
+                variantPrimPath = pendingPrimPath;
+            } else if (pendingPrimPath.length != 0 && line.startsWith("variantSelection")) {
+                inVariantSelectionBlock = true;
             } else if (pendingPrimPath.length != 0 && line.canFind("inherits")) {
                 if (auto prim = pendingPrimPath in stage.prims) {
                     prim.inherits = parsePathList(afterEquals(line));
@@ -369,6 +409,7 @@ private Stage parseUsda(string text, string sourceDir = ".") {
         stage.prims[stack[$ - 1]].attributes[attr.name] = attr.value;
     }
 
+    applySelectedVariants(stage);
     return stage;
 }
 
@@ -419,6 +460,152 @@ private ParsedPrimHeader parsePrimHeader(string line) {
 private struct ParsedAttribute {
     string name;
     Value value;
+}
+
+private struct ParsedVariantSelection {
+    string setName;
+    string variantName;
+}
+
+private string variantKey(string setName, string variantName) {
+    return setName ~ "\x1f" ~ variantName;
+}
+
+private void parseVariantSetMetadataLine(
+    ref Stage stage,
+    string variantPrimPath,
+    ref string currentSet,
+    ref string currentVariant,
+    ref int variantDepth,
+    string line) {
+    if (variantPrimPath.length == 0) {
+        return;
+    }
+    if (currentVariant.length != 0) {
+        const bool closes = line == "}" || line == "},";
+        if (closes) {
+            if (variantDepth > 1) {
+                appendVariantPayloadLine(stage, variantPrimPath, currentSet, currentVariant, line);
+            }
+            --variantDepth;
+            if (variantDepth <= 0) {
+                currentVariant = "";
+                variantDepth = 0;
+            }
+            return;
+        }
+        appendVariantPayloadLine(stage, variantPrimPath, currentSet, currentVariant, line);
+        if (line == "{" || line.endsWith("{")) {
+            ++variantDepth;
+        }
+        return;
+    }
+
+    if (line == "}" || line == "},") {
+        if (currentSet.length != 0) {
+            currentSet = "";
+        }
+        return;
+    }
+
+    auto eq = line.indexOf("=");
+    if (eq < 0 || !line.canFind("{")) {
+        return;
+    }
+    auto lhs = line[0 .. eq].strip;
+    if (lhs.startsWith("\"")) {
+        currentVariant = parseQuotedOrToken(lhs);
+        variantDepth = 1;
+    } else {
+        currentSet = lhs;
+    }
+}
+
+private void appendVariantPayloadLine(ref Stage stage, string primPath, string setName, string variantName, string line) {
+    auto prim = primPath in stage.prims;
+    if (prim is null || setName.length == 0 || variantName.length == 0) {
+        return;
+    }
+    const key = variantKey(setName, variantName);
+    VariantPayload payload;
+    if (auto existing = key in prim.variants) {
+        payload = *existing;
+    }
+    payload.lines ~= line;
+    prim.variants[key] = payload;
+}
+
+private ParsedVariantSelection parseVariantSelectionLine(string line) {
+    ParsedVariantSelection outValue;
+    auto eq = line.indexOf("=");
+    if (eq < 0) {
+        return outValue;
+    }
+    auto lhs = line[0 .. eq].strip.split;
+    if (lhs.length == 0) {
+        return outValue;
+    }
+    outValue.setName = lhs[$ - 1];
+    outValue.variantName = parseQuotedOrToken(line[eq + 1 .. $].stripRight(","));
+    return outValue;
+}
+
+private void applySelectedVariants(ref Stage stage) {
+    auto paths = stage.prims.keys;
+    foreach (path; paths) {
+        auto prim = path in stage.prims;
+        if (prim is null) {
+            continue;
+        }
+        foreach (setName, variantName; prim.variantSelections) {
+            auto payload = variantKey(setName, variantName) in prim.variants;
+            if (payload is null) {
+                continue;
+            }
+            applyVariantPayload(stage, path, payload.lines);
+        }
+    }
+}
+
+private void applyVariantPayload(ref Stage stage, string hostPath, string[] lines) {
+    string[] stack = [hostPath];
+    string pendingPrimPath;
+    foreach (rawLine; lines) {
+        auto line = rawLine.strip;
+        if (line.length == 0 || line == "(" || line == ")") {
+            continue;
+        }
+        if (line == "{") {
+            if (pendingPrimPath.length != 0) {
+                stack ~= pendingPrimPath;
+                pendingPrimPath = "";
+            }
+            continue;
+        }
+        if (line == "}") {
+            if (stack.length > 1) {
+                stack = stack[0 .. $ - 1];
+            }
+            continue;
+        }
+        if (line.startsWith("def ") || line.startsWith("class ") || line.startsWith("over ")) {
+            auto parsed = parsePrimHeader(line);
+            auto path = stack[$ - 1] ~ "/" ~ parsed.name;
+            Prim prim;
+            prim.path = path;
+            prim.typeName = parsed.typeName;
+            stage.prims[path] = prim;
+            pendingPrimPath = path;
+            continue;
+        }
+        if (!line.canFind("=") || line.canFind(".timeSamples")) {
+            continue;
+        }
+        auto attr = parseAttribute(line);
+        if (attr.name.length != 0) {
+            stage.prims[stack[$ - 1]].attributes[attr.name] = attr.value;
+        }
+    }
 }
 
 private ParsedAttribute parseAttribute(string line) {
@@ -611,6 +798,20 @@ unittest {
     assert(stage.readDouble("/Library/Source", "radius") == 2.0);
     assert(stage.readDouble("/Library/Source", "refOnly") == 11.0);
     assert(stage.readDouble("/Library/Source", "payloadOnly") == 33.0);
+}
+
+unittest {
+    auto stage = Stage.open("../../tests/fixtures/parity_variants.usda");
+    assert(stage.primIsValid("/World/VariantHost"));
+    assert(stage.primIsValid("/World/VariantHost/VariantChild"));
+    assert(stage.readDouble("/World/VariantHost", "variantValue") == 5.0);
+    assert(stage.readDouble("/World/VariantHost/VariantChild", "branch") == 9.0);
+}
+
+unittest {
+    auto stage = Stage.open("../../tests/fixtures/parity_variant_selection_refs.usda");
+    assert(stage.primIsValid("/World/RefHost"));
+    assert(stage.readDouble("/World/RefHost", "variantValue") == 9.0);
 }
 
 unittest {

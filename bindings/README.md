@@ -54,7 +54,7 @@ cd bindings/d && dub test --compiler=ldc2
 
 ## Native D (`native/d`)
 
-`native/d` is the clean-room D implementation track. It does not link to the FreeUSD C ABI. The first slice is a native USDA reader and in-memory stage for def hierarchy, basic authored values (`double`, `float`, `bool`, `int`, `string`, `token`, `token[]`, `double3`, and `vector3f` / `color3f`-style triples), simple strongest-to-weakest sublayer reads, and simple composed reads through `inherits`, default-prim `references`, and default-prim `payloads`.
+`native/d` is the clean-room D implementation track. It does not link to the FreeUSD C ABI. The first slice is a native USDA reader and in-memory stage for def hierarchy, basic authored values (`double`, `float`, `bool`, `int`, `string`, `token`, `token[]`, `double3`, and `vector3f` / `color3f`-style triples), simple strongest-to-weakest sublayer reads, selected variants, and simple composed reads through `inherits`, default-prim `references`, and default-prim `payloads`.
 
 ```bash
 cd native/d && dub test --compiler=ldc2
