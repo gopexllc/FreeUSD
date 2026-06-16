@@ -116,6 +116,7 @@ struct Prim {
     Value[string] attributes;
     string[] inherits;
     Reference[] references;
+    Reference[] payloads;
 
     bool hasAttribute(string name) const {
         return (name in attributes) !is null;
@@ -226,6 +227,15 @@ struct Stage {
                 // Try later references before reporting the value as missing.
             }
         }
+        foreach (payload; found.payloads) {
+            try {
+                auto payloadStage = Stage.open(buildNormalizedPath(sourceDir, payload.assetPath));
+                auto targetPath = payload.primPath.length != 0 ? payload.primPath : "/" ~ payloadStage.defaultPrim;
+                return payloadStage.composedAttribute(targetPath, attrName, []);
+            } catch (Exception) {
+                // Try later payloads before reporting the value as missing.
+            }
+        }
         throw new Exception("missing attribute: " ~ attrName);
     }
 }
@@ -267,6 +277,10 @@ private Stage parseUsda(string text, string sourceDir = ".") {
             } else if (pendingPrimPath.length != 0 && line.canFind("references")) {
                 if (auto prim = pendingPrimPath in stage.prims) {
                     prim.references = parseReferenceList(afterEquals(line));
+                }
+            } else if (pendingPrimPath.length != 0 && line.canFind("payload")) {
+                if (auto prim = pendingPrimPath in stage.prims) {
+                    prim.payloads = parseReferenceList(afterEquals(line));
                 }
             }
             continue;
@@ -529,6 +543,7 @@ unittest {
     auto stage = Stage.open("../../tests/fixtures/parity_namespace.usda");
     assert(stage.readDouble("/Library/Source", "radius") == 2.0);
     assert(stage.readDouble("/Library/Source", "refOnly") == 11.0);
+    assert(stage.readDouble("/Library/Source", "payloadOnly") == 33.0);
 }
 
 unittest {
