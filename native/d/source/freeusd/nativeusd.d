@@ -111,8 +111,19 @@ struct Value {
 }
 
 struct Prim {
+    enum Specifier {
+        def_,
+        class_,
+        over
+    }
+
     string path;
     string typeName;
+    Specifier specifier;
+    string kind;
+    bool hasKind;
+    bool active = true;
+    bool hasActiveOpinion;
     Value[string] attributes;
     Value[string] customData;
     Value[double][string] timeSamples;
@@ -134,6 +145,13 @@ struct Prim {
         }
         return cast(Value) *found;
     }
+}
+
+struct PrimMetadata {
+    string kind;
+    bool hasKind;
+    bool active = true;
+    bool hasActiveOpinion;
 }
 
 struct Reference {
@@ -252,6 +270,30 @@ struct Stage {
 
     string[] listPrimInherits(string primPath) const {
         return (cast(string[]) primAt(primPath).inherits).dup;
+    }
+
+    Prim.Specifier resolvePrimSpecifier(string primPath) const {
+        return primAt(primPath).specifier;
+    }
+
+    bool resolveHasPrimKind(string primPath) const {
+        return composedPrimMetadata(primPath, []).hasKind;
+    }
+
+    string resolvePrimKind(string primPath) const {
+        auto metadata = composedPrimMetadata(primPath, []);
+        if (!metadata.hasKind) {
+            throw new Exception("missing prim kind: " ~ primPath);
+        }
+        return metadata.kind;
+    }
+
+    bool resolveHasPrimActiveOpinion(string primPath) const {
+        return composedPrimMetadata(primPath, []).hasActiveOpinion;
+    }
+
+    bool resolvePrimActive(string primPath) const {
+        return composedPrimMetadata(primPath, []).active;
     }
 
     bool prefixSubstitutionKeyInAnyLayer(string fromPrefix) const {
@@ -468,6 +510,98 @@ struct Stage {
         throw new Exception("missing customData key: " ~ key);
     }
 
+    private PrimMetadata composedPrimMetadata(string primPath, string[] visiting) const {
+        primPath = mapComposedToAuthored(primPath);
+        foreach (visited; visiting) {
+            if (visited == primPath) {
+                throw new Exception("metadata composition cycle while reading: " ~ primPath);
+            }
+        }
+        auto found = primPath in prims;
+        if (found is null) {
+            foreach (sublayer; sublayers) {
+                try {
+                    return sublayer.stage.composedPrimMetadata(primPath, visiting);
+                } catch (Exception) {
+                }
+            }
+            throw new Exception("missing prim: " ~ primPath);
+        }
+        PrimMetadata metadata;
+        metadata.kind = found.kind;
+        metadata.hasKind = found.hasKind;
+        metadata.active = found.active;
+        metadata.hasActiveOpinion = found.hasActiveOpinion;
+        if (metadata.hasKind && metadata.hasActiveOpinion) {
+            return metadata;
+        }
+        auto nextVisiting = visiting ~ primPath;
+        foreach (target; found.inherits) {
+            if (!primIsValid(target)) {
+                continue;
+            }
+            try {
+                auto inherited = composedPrimMetadata(target, nextVisiting);
+                if (!metadata.hasKind && inherited.hasKind) {
+                    metadata.kind = inherited.kind;
+                    metadata.hasKind = true;
+                }
+                if (!metadata.hasActiveOpinion && inherited.hasActiveOpinion) {
+                    metadata.active = inherited.active;
+                    metadata.hasActiveOpinion = true;
+                }
+            } catch (Exception) {
+            }
+        }
+        foreach (reference; found.references) {
+            try {
+                auto refStage = Stage.open(buildNormalizedPath(sourceDir, reference.assetPath));
+                auto targetPath = reference.primPath.length != 0 ? reference.primPath : "/" ~ refStage.defaultPrim;
+                auto refMetadata = refStage.composedPrimMetadata(targetPath, []);
+                if (!metadata.hasKind && refMetadata.hasKind) {
+                    metadata.kind = refMetadata.kind;
+                    metadata.hasKind = true;
+                }
+                if (!metadata.hasActiveOpinion && refMetadata.hasActiveOpinion) {
+                    metadata.active = refMetadata.active;
+                    metadata.hasActiveOpinion = true;
+                }
+            } catch (Exception) {
+            }
+        }
+        foreach (payload; found.payloads) {
+            try {
+                auto payloadStage = Stage.open(buildNormalizedPath(sourceDir, payload.assetPath));
+                auto targetPath = payload.primPath.length != 0 ? payload.primPath : "/" ~ payloadStage.defaultPrim;
+                auto payloadMetadata = payloadStage.composedPrimMetadata(targetPath, []);
+                if (!metadata.hasKind && payloadMetadata.hasKind) {
+                    metadata.kind = payloadMetadata.kind;
+                    metadata.hasKind = true;
+                }
+                if (!metadata.hasActiveOpinion && payloadMetadata.hasActiveOpinion) {
+                    metadata.active = payloadMetadata.active;
+                    metadata.hasActiveOpinion = true;
+                }
+            } catch (Exception) {
+            }
+        }
+        foreach (sublayer; sublayers) {
+            try {
+                auto subMetadata = sublayer.stage.composedPrimMetadata(primPath, visiting);
+                if (!metadata.hasKind && subMetadata.hasKind) {
+                    metadata.kind = subMetadata.kind;
+                    metadata.hasKind = true;
+                }
+                if (!metadata.hasActiveOpinion && subMetadata.hasActiveOpinion) {
+                    metadata.active = subMetadata.active;
+                    metadata.hasActiveOpinion = true;
+                }
+            } catch (Exception) {
+            }
+        }
+        return metadata;
+    }
+
     private string mapComposedToAuthored(string path) const {
         foreach (fromPath, toPath; relocates) {
             if (path == toPath) {
@@ -604,6 +738,16 @@ private Stage parseUsda(string text, string sourceDir = ".") {
                 inRelocatesBlock = true;
             } else if (line.startsWith("prefixSubstitutions")) {
                 inPrefixSubstitutionsBlock = true;
+            } else if (pendingPrimPath.length != 0 && line.startsWith("kind")) {
+                if (auto prim = pendingPrimPath in stage.prims) {
+                    prim.kind = parseQuotedOrToken(afterEquals(line));
+                    prim.hasKind = true;
+                }
+            } else if (pendingPrimPath.length != 0 && line.startsWith("active")) {
+                if (auto prim = pendingPrimPath in stage.prims) {
+                    prim.active = parseBoolToken(afterEquals(line));
+                    prim.hasActiveOpinion = true;
+                }
             } else if (pendingPrimPath.length != 0 && line.startsWith("customData")) {
                 inCustomDataBlock = true;
                 customDataPrimPath = pendingPrimPath;
@@ -683,6 +827,7 @@ private Stage parseUsda(string text, string sourceDir = ".") {
             Prim prim;
             prim.path = path;
             prim.typeName = parsed.typeName;
+            prim.specifier = parsed.specifier;
             stage.prims[path] = prim;
             pendingPrimPath = path;
             if (line.canFind("(")) {
@@ -743,6 +888,7 @@ private string stripQuotes(string value) {
 private struct ParsedPrimHeader {
     string typeName;
     string name;
+    Prim.Specifier specifier;
 }
 
 private ParsedPrimHeader parsePrimHeader(string line) {
@@ -753,9 +899,27 @@ private ParsedPrimHeader parsePrimHeader(string line) {
     }
     auto before = line[0 .. firstQuote].strip.split;
     ParsedPrimHeader parsed;
+    if (before.length > 0) {
+        switch (before[0]) {
+        case "class":
+            parsed.specifier = Prim.Specifier.class_;
+            break;
+        case "over":
+            parsed.specifier = Prim.Specifier.over;
+            break;
+        default:
+            parsed.specifier = Prim.Specifier.def_;
+            break;
+        }
+    }
     parsed.typeName = before.length >= 2 ? before[$ - 1] : "";
     parsed.name = line[firstQuote + 1 .. secondQuote];
     return parsed;
+}
+
+private bool parseBoolToken(string rawValue) {
+    rawValue = rawValue.strip.stripRight(",");
+    return rawValue == "true" || rawValue == "1";
 }
 
 private struct ParsedAttribute {
@@ -1260,6 +1424,19 @@ unittest {
     assert(stage.readDouble("/Library/Published", "radius") == 2.0);
     assert(stage.readDouble("/Library/Published", "refOnly") == 11.0);
     assert(stage.readDouble("/Library/Published", "payloadOnly") == 33.0);
+}
+
+unittest {
+    auto stage = Stage.open("../../tests/fixtures/parity_kind_active_refs.usda");
+    assert(stage.resolvePrimSpecifier("/World/KindClass") == Prim.Specifier.class_);
+    assert(stage.resolveHasPrimKind("/World/RefHost"));
+    assert(stage.resolvePrimKind("/World/RefHost") == "component");
+    assert(stage.resolveHasPrimActiveOpinion("/World/RefHost"));
+    assert(!stage.resolvePrimActive("/World/RefHost"));
+    assert(stage.resolvePrimKind("/World/PayloadHost") == "group");
+    assert(stage.resolvePrimKind("/World/InheritHost") == "assembly");
+    assert(stage.resolvePrimActive("/World/InheritHost"));
+    assert(!stage.resolveHasPrimActiveOpinion("/World/InheritHost"));
 }
 
 unittest {
