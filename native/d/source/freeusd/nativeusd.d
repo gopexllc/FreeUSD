@@ -47,6 +47,18 @@ struct Bounds3d {
     Vec3d max;
 }
 
+struct OpenVDBAssetInfo {
+    string primPath;
+    string filePath;
+    string fieldName;
+}
+
+struct VolumeInfo {
+    string primPath;
+    string[] fieldTargets;
+    OpenVDBAssetInfo[] openVDBFields;
+}
+
 struct Value {
     enum Kind {
         none,
@@ -423,6 +435,38 @@ struct Stage {
         return Bounds3d(
             Vec3d(local.min.x + tx, local.min.y + ty, local.min.z + tz),
             Vec3d(local.max.x + tx, local.max.y + ty, local.max.z + tz));
+    }
+
+    bool isOpenVDBAsset(string primPath) const {
+        return primAt(primPath).typeName == "OpenVDBAsset";
+    }
+
+    OpenVDBAssetInfo readOpenVDBAsset(string primPath) const {
+        if (!isOpenVDBAsset(primPath)) {
+            throw new Exception("prim is not OpenVDBAsset: " ~ primPath);
+        }
+        return OpenVDBAssetInfo(
+            primPath,
+            readString(primPath, "filePath"),
+            readString(primPath, "fieldName"));
+    }
+
+    bool isVolume(string primPath) const {
+        return primAt(primPath).typeName == "Volume";
+    }
+
+    VolumeInfo readVolume(string primPath) const {
+        if (!isVolume(primPath)) {
+            throw new Exception("prim is not Volume: " ~ primPath);
+        }
+        auto targets = relationshipTargets(primPath, "field");
+        OpenVDBAssetInfo[] fields;
+        foreach (target; targets) {
+            if (primIsValid(target) && isOpenVDBAsset(target)) {
+                fields ~= readOpenVDBAsset(target);
+            }
+        }
+        return VolumeInfo(primPath, targets, fields);
     }
 
     Value customDataValue(string primPath, string key) const {
@@ -2030,6 +2074,11 @@ unittest {
 unittest {
     auto stage = Stage.open("../../tests/fixtures/parity_vol_openvdb.usda");
     assert(stage.primAt("/World/Smoke").typeName == "OpenVDBAsset");
+    assert(stage.isOpenVDBAsset("/World/Smoke"));
+    auto smoke = stage.readOpenVDBAsset("/World/Smoke");
+    assert(smoke.primPath == "/World/Smoke");
+    assert(smoke.filePath == "volumes/smoke.vdb");
+    assert(smoke.fieldName == "density");
     assert(stage.readString("/World/Smoke", "filePath") == "volumes/smoke.vdb");
     assert(stage.readString("/World/Smoke", "fieldName") == "density");
 }
@@ -2037,7 +2086,15 @@ unittest {
 unittest {
     auto stage = Stage.open("../../tests/fixtures/parity_vol_volume.usda");
     assert(stage.primAt("/World/Cloud").typeName == "Volume");
+    assert(stage.isVolume("/World/Cloud"));
     assert(stage.relationshipTargets("/World/Cloud", "field") == ["/World/Cloud/Smoke"]);
+    auto volume = stage.readVolume("/World/Cloud");
+    assert(volume.primPath == "/World/Cloud");
+    assert(volume.fieldTargets == ["/World/Cloud/Smoke"]);
+    assert(volume.openVDBFields.length == 1);
+    assert(volume.openVDBFields[0].primPath == "/World/Cloud/Smoke");
+    assert(volume.openVDBFields[0].filePath == "volumes/cloud/smoke.vdb");
+    assert(volume.openVDBFields[0].fieldName == "density");
     assert(stage.readString("/World/Cloud/Smoke", "filePath") == "volumes/cloud/smoke.vdb");
     assert(stage.readString("/World/Cloud/Smoke", "fieldName") == "density");
 }
