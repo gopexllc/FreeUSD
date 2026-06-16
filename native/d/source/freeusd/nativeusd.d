@@ -114,6 +114,7 @@ struct Prim {
     string path;
     string typeName;
     Value[string] attributes;
+    Value[string] customData;
     Value[double][string] timeSamples;
     string[][string] relationships;
     string[] inherits;
@@ -220,6 +221,29 @@ struct Stage {
 
     string[] relationshipTargets(string primPath, string relName) const {
         return composedRelationshipTargets(primPath, relName, []);
+    }
+
+    Value customDataValue(string primPath, string key) const {
+        return composedCustomData(primPath, key, []);
+    }
+
+    string customDataString(string primPath, string key) const {
+        auto value = customDataValue(primPath, key);
+        if (value.kind != Value.Kind.string_ && value.kind != Value.Kind.token) {
+            throw new Exception("customData value is not string-like: " ~ key);
+        }
+        return value.stringValue;
+    }
+
+    long customDataInt(string primPath, string key) const {
+        auto value = customDataValue(primPath, key);
+        if (value.kind == Value.Kind.int_) {
+            return value.intValue;
+        }
+        if (value.kind == Value.Kind.bool_) {
+            return value.boolValue ? 1 : 0;
+        }
+        throw new Exception("customData value is not int-like: " ~ key);
     }
 
     string[] listPrimInherits(string primPath) const {
@@ -358,6 +382,60 @@ struct Stage {
         }
         return [];
     }
+
+    private Value composedCustomData(string primPath, string key, string[] visiting) const {
+        foreach (visited; visiting) {
+            if (visited == primPath) {
+                throw new Exception("customData composition cycle while reading: " ~ primPath);
+            }
+        }
+        auto found = primPath in prims;
+        if (found is null) {
+            foreach (sublayer; sublayers) {
+                try {
+                    return sublayer.stage.composedCustomData(primPath, key, visiting);
+                } catch (Exception) {
+                }
+            }
+            throw new Exception("missing prim: " ~ primPath);
+        }
+        if (auto local = key in found.customData) {
+            return cast(Value) *local;
+        }
+        auto nextVisiting = visiting ~ primPath;
+        foreach (target; found.inherits) {
+            if (!primIsValid(target)) {
+                continue;
+            }
+            try {
+                return composedCustomData(target, key, nextVisiting);
+            } catch (Exception) {
+            }
+        }
+        foreach (reference; found.references) {
+            try {
+                auto refStage = Stage.open(buildNormalizedPath(sourceDir, reference.assetPath));
+                auto targetPath = reference.primPath.length != 0 ? reference.primPath : "/" ~ refStage.defaultPrim;
+                return refStage.composedCustomData(targetPath, key, []);
+            } catch (Exception) {
+            }
+        }
+        foreach (payload; found.payloads) {
+            try {
+                auto payloadStage = Stage.open(buildNormalizedPath(sourceDir, payload.assetPath));
+                auto targetPath = payload.primPath.length != 0 ? payload.primPath : "/" ~ payloadStage.defaultPrim;
+                return payloadStage.composedCustomData(targetPath, key, []);
+            } catch (Exception) {
+            }
+        }
+        foreach (sublayer; sublayers) {
+            try {
+                return sublayer.stage.composedCustomData(primPath, key, visiting);
+            } catch (Exception) {
+            }
+        }
+        throw new Exception("missing customData key: " ~ key);
+    }
 }
 
 private Stage parseUsda(string text, string sourceDir = ".") {
@@ -369,6 +447,8 @@ private Stage parseUsda(string text, string sourceDir = ".") {
     bool inIgnoredBraceBlock;
     bool inTimeSamplesBlock;
     bool inSublayerOffsetsBlock;
+    bool inCustomDataBlock;
+    string customDataPrimPath;
     string timeSamplePrimPath;
     string timeSampleAttrName;
     string timeSampleType;
@@ -406,6 +486,15 @@ private Stage parseUsda(string text, string sourceDir = ".") {
                 inSublayerOffsetsBlock = false;
             } else {
                 applySublayerOffset(stage, line);
+            }
+            continue;
+        }
+        if (inCustomDataBlock) {
+            if (line == "}") {
+                inCustomDataBlock = false;
+                customDataPrimPath = "";
+            } else {
+                addCustomData(stage, customDataPrimPath, line);
             }
             continue;
         }
@@ -449,6 +538,9 @@ private Stage parseUsda(string text, string sourceDir = ".") {
                 }
             } else if (line.startsWith("subLayerOffsets")) {
                 inSublayerOffsetsBlock = true;
+            } else if (pendingPrimPath.length != 0 && line.startsWith("customData")) {
+                inCustomDataBlock = true;
+                customDataPrimPath = pendingPrimPath;
             } else if (pendingPrimPath.length != 0 && line.startsWith("variantSets")) {
                 inVariantSetsBlock = true;
                 variantPrimPath = pendingPrimPath;
@@ -519,6 +611,9 @@ private Stage parseUsda(string text, string sourceDir = ".") {
             prim.typeName = parsed.typeName;
             stage.prims[path] = prim;
             pendingPrimPath = path;
+            if (line.canFind("(")) {
+                inMetadataBlock = true;
+            }
             continue;
         }
 
@@ -650,6 +745,19 @@ private void addTimeSample(ref Stage stage, string primPath, string attrName, st
     }
     samples[time] = sample;
     prim.timeSamples[attrName] = samples;
+}
+
+private void addCustomData(ref Stage stage, string primPath, string line) {
+    if (primPath.length == 0 || !line.canFind("=")) {
+        return;
+    }
+    auto attr = parseAttribute(line);
+    if (attr.name.length == 0 || attr.value.kind == Value.Kind.none) {
+        return;
+    }
+    if (auto prim = primPath in stage.prims) {
+        prim.customData[attr.name] = attr.value;
+    }
 }
 
 private string variantKey(string setName, string variantName) {
@@ -1031,6 +1139,7 @@ unittest {
     assert(stage.readDouble("/Scene/ArcHost", "mass", 2.0) == 4.0);
     assert(stage.readString("/Scene/ArcHost", "label") == "hello");
     assert(stage.readTokenArray("/Scene/ArcHost", "tags") == ["a", "b"]);
+    assert(stage.customDataInt("/Scene/Child", "tag") == 99);
 }
 
 unittest {
@@ -1081,6 +1190,21 @@ unittest {
     assert(stage.readDouble("/World/Cube", "size") == 2.0);
     auto translate = stage.readVec3("/World/Cube", "xformOp:translate");
     assert(translate.x == 1.0 && translate.y == 2.0 && translate.z == 3.0);
+}
+
+unittest {
+    auto stage = Stage.open("../../tests/fixtures/parity_custom_data_inherit.usda");
+    assert(stage.customDataString("/World/BaseClass", "role") == "base");
+    assert(stage.customDataString("/World/Host", "role") == "base");
+    assert(stage.customDataInt("/World/Host", "priority") == 9);
+}
+
+unittest {
+    auto stage = Stage.open("../../tests/fixtures/parity_custom_data_refs.usda");
+    assert(stage.customDataString("/World/RefHost", "role") == "from_ref");
+    assert(stage.customDataInt("/World/RefHost", "priority") == 9);
+    assert(stage.customDataString("/World/PayloadHost", "role") == "from_payload");
+    assert(stage.customDataInt("/World/PayloadHost", "priority") == 3);
 }
 
 unittest {
