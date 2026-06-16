@@ -117,7 +117,7 @@ jobs:
         run: go test ./...
 
   windows:
-    runs-on: windows-latest
+    runs-on: windows-2022
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
