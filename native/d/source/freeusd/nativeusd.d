@@ -5,7 +5,7 @@ import std.array : split;
 import std.conv : to;
 import std.file : readText;
 import std.path : buildNormalizedPath, dirName;
-import std.string : indexOf, lineSplitter, strip, stripLeft, stripRight;
+import std.string : indexOf, lastIndexOf, lineSplitter, strip, stripLeft, stripRight;
 
 struct Vec3d {
     double x;
@@ -14,6 +14,24 @@ struct Vec3d {
 }
 
 alias Vec3f = Vec3d;
+
+struct Matrix4d {
+    double[16] rowMajor;
+
+    static Matrix4d identity() {
+        Matrix4d matrix;
+        matrix.rowMajor[0] = 1.0;
+        matrix.rowMajor[5] = 1.0;
+        matrix.rowMajor[10] = 1.0;
+        matrix.rowMajor[15] = 1.0;
+        return matrix;
+    }
+}
+
+struct Bounds3d {
+    Vec3d min;
+    Vec3d max;
+}
 
 struct Value {
     enum Kind {
@@ -246,6 +264,69 @@ struct Stage {
         return composedRelationshipTargets(primPath, relName, []);
     }
 
+    Matrix4d computeLocalTransform(string primPath) const {
+        auto translation = localTranslation(primPath);
+        auto matrix = Matrix4d.identity();
+        matrix.rowMajor[12] = translation.x;
+        matrix.rowMajor[13] = translation.y;
+        matrix.rowMajor[14] = translation.z;
+        return matrix;
+    }
+
+    Matrix4d computeLocalToWorldTransform(string primPath) const {
+        auto translation = Vec3d(0.0, 0.0, 0.0);
+        foreach (path; ancestorPaths(primPath)) {
+            auto local = localTranslation(path);
+            translation.x += local.x;
+            translation.y += local.y;
+            translation.z += local.z;
+        }
+        auto matrix = Matrix4d.identity();
+        matrix.rowMajor[12] = translation.x;
+        matrix.rowMajor[13] = translation.y;
+        matrix.rowMajor[14] = translation.z;
+        return matrix;
+    }
+
+    bool computeImageableVisibility(string primPath) const {
+        foreach_reverse (path; ancestorPaths(primPath)) {
+            try {
+                if (readString(path, "visibility") == "invisible") {
+                    return false;
+                }
+            } catch (Exception) {
+            }
+        }
+        return true;
+    }
+
+    string computeImageablePurpose(string primPath) const {
+        foreach_reverse (path; ancestorPaths(primPath)) {
+            try {
+                return readString(path, "purpose");
+            } catch (Exception) {
+            }
+        }
+        return "default";
+    }
+
+    Bounds3d computeBoundableLocalBounds(string primPath) const {
+        auto size = readDouble(primPath, "size");
+        auto half = size / 2.0;
+        return Bounds3d(Vec3d(-half, -half, -half), Vec3d(half, half, half));
+    }
+
+    Bounds3d computeBoundableWorldBounds(string primPath) const {
+        auto local = computeBoundableLocalBounds(primPath);
+        auto matrix = computeLocalToWorldTransform(primPath);
+        auto tx = matrix.rowMajor[12];
+        auto ty = matrix.rowMajor[13];
+        auto tz = matrix.rowMajor[14];
+        return Bounds3d(
+            Vec3d(local.min.x + tx, local.min.y + ty, local.min.z + tz),
+            Vec3d(local.max.x + tx, local.max.y + ty, local.max.z + tz));
+    }
+
     Value customDataValue(string primPath, string key) const {
         return composedCustomData(primPath, key, []);
     }
@@ -327,6 +408,14 @@ struct Stage {
 
     private Value composedAttribute(string primPath, string attrName) const {
         return composedAttribute(primPath, attrName, 1.0, []);
+    }
+
+    private Vec3d localTranslation(string primPath) const {
+        try {
+            return readVec3(primPath, "xformOp:translate");
+        } catch (Exception) {
+            return Vec3d(0.0, 0.0, 0.0);
+        }
     }
 
     private Value composedAttribute(string primPath, string attrName, double time) const {
@@ -1425,6 +1514,31 @@ private string parsePathToken(string rawValue) {
     return rawValue[begin + 1 .. end];
 }
 
+private string parentPath(string path) {
+    if (path == "/" || path.length == 0) {
+        return "";
+    }
+    auto index = lastIndexOf(path, "/");
+    if (index <= 0) {
+        return "/";
+    }
+    return path[0 .. index];
+}
+
+private string[] ancestorPaths(string path) {
+    string[] reversed;
+    auto current = path;
+    while (current.length != 0 && current != "/") {
+        reversed ~= current;
+        current = parentPath(current);
+    }
+    string[] ordered;
+    foreach_reverse (item; reversed) {
+        ordered ~= item;
+    }
+    return ordered;
+}
+
 private Vec3d parseVec3(string rawValue) {
     rawValue = rawValue.strip;
     if (rawValue.length < 2 || rawValue[0] != '(' || rawValue[$ - 1] != ')') {
@@ -1527,6 +1641,15 @@ unittest {
     assert(stage.readDouble("/World/Cube", "size") == 2.0);
     auto translate = stage.readVec3("/World/Cube", "xformOp:translate");
     assert(translate.x == 1.0 && translate.y == 2.0 && translate.z == 3.0);
+    auto local = stage.computeLocalTransform("/World/Cube");
+    assert(local.rowMajor[12] == 1.0 && local.rowMajor[13] == 2.0 && local.rowMajor[14] == 3.0);
+    auto l2w = stage.computeLocalToWorldTransform("/World/Cube");
+    assert(l2w.rowMajor[12] == 1.0 && l2w.rowMajor[13] == 2.0 && l2w.rowMajor[14] == 3.0 && l2w.rowMajor[15] == 1.0);
+    assert(!stage.computeImageableVisibility("/World/Cube"));
+    assert(stage.computeImageablePurpose("/World/Cube") == "render");
+    auto bounds = stage.computeBoundableWorldBounds("/World/Cube");
+    assert(bounds.min.x == 0.0 && bounds.min.y == 1.0 && bounds.min.z == 2.0);
+    assert(bounds.max.x == 2.0 && bounds.max.y == 3.0 && bounds.max.z == 4.0);
 }
 
 unittest {
