@@ -203,6 +203,14 @@ struct Sublayer {
 
 struct Stage {
     string defaultPrim;
+    string documentation;
+    double metersPerUnit;
+    bool hasMetersPerUnit;
+    string upAxis;
+    double startTimeCode;
+    bool hasStartTimeCode;
+    double endTimeCode;
+    bool hasEndTimeCode;
     string sourceDir;
     Prim[string] prims;
     Sublayer[] sublayers;
@@ -875,6 +883,19 @@ private Stage parseUsda(string text, string sourceDir = ".") {
                 }
             } else if (line.startsWith("defaultPrim")) {
                 stage.defaultPrim = parseQuotedOrToken(afterEquals(line));
+            } else if (pendingPrimPath.length == 0 && line.startsWith("doc")) {
+                stage.documentation = parseQuotedOrToken(afterEquals(line));
+            } else if (pendingPrimPath.length == 0 && line.startsWith("metersPerUnit")) {
+                stage.metersPerUnit = afterEquals(line).stripRight(",").to!double;
+                stage.hasMetersPerUnit = true;
+            } else if (pendingPrimPath.length == 0 && line.startsWith("upAxis")) {
+                stage.upAxis = parseQuotedOrToken(afterEquals(line));
+            } else if (pendingPrimPath.length == 0 && line.startsWith("startTimeCode")) {
+                stage.startTimeCode = afterEquals(line).stripRight(",").to!double;
+                stage.hasStartTimeCode = true;
+            } else if (pendingPrimPath.length == 0 && line.startsWith("endTimeCode")) {
+                stage.endTimeCode = afterEquals(line).stripRight(",").to!double;
+                stage.hasEndTimeCode = true;
             } else if (line.startsWith("subLayers")) {
                 foreach (assetPath; parseAssetList(afterEquals(line))) {
                     addSublayer(stage, assetPath);
@@ -950,6 +971,29 @@ private Stage parseUsda(string text, string sourceDir = ".") {
 
         if (line.startsWith("defaultPrim")) {
             stage.defaultPrim = parseQuotedOrToken(afterEquals(line));
+            continue;
+        }
+        if (line.startsWith("doc")) {
+            stage.documentation = parseQuotedOrToken(afterEquals(line));
+            continue;
+        }
+        if (line.startsWith("metersPerUnit")) {
+            stage.metersPerUnit = afterEquals(line).stripRight(",").to!double;
+            stage.hasMetersPerUnit = true;
+            continue;
+        }
+        if (line.startsWith("upAxis")) {
+            stage.upAxis = parseQuotedOrToken(afterEquals(line));
+            continue;
+        }
+        if (line.startsWith("startTimeCode")) {
+            stage.startTimeCode = afterEquals(line).stripRight(",").to!double;
+            stage.hasStartTimeCode = true;
+            continue;
+        }
+        if (line.startsWith("endTimeCode")) {
+            stage.endTimeCode = afterEquals(line).stripRight(",").to!double;
+            stage.hasEndTimeCode = true;
             continue;
         }
         if (line.startsWith("subLayers")) {
@@ -1574,6 +1618,11 @@ private Vec3d parseVec3(string rawValue) {
 unittest {
     auto stage = Stage.open("../../tests/fixtures/usd_cross_language.usda");
     assert(stage.defaultPrim == "Scene");
+    assert(stage.documentation == "cross_lang_fixture");
+    assert(stage.hasMetersPerUnit && stage.metersPerUnit == 0.01);
+    assert(stage.upAxis == "Y");
+    assert(stage.hasStartTimeCode && stage.startTimeCode == 0.0);
+    assert(stage.hasEndTimeCode && stage.endTimeCode == 100.0);
     assert(stage.primIsValid("/Scene/Child"));
     assert(!stage.primIsValid("/Scene/Missing"));
     assert(stage.primAt("/Scene/Child").typeName == "Cube");
@@ -1644,6 +1693,8 @@ unittest {
 unittest {
     auto stage = Stage.open("../../tests/fixtures/parity_stack_root.usda");
     assert(stage.defaultPrim == "World");
+    assert(stage.hasMetersPerUnit && stage.metersPerUnit == 0.01);
+    assert(stage.upAxis == "Y");
     assert(stage.primIsValid("/World/Model"));
     assert(stage.readDouble("/World/Model", "rootOnly") == 1.0);
     assert(stage.readDouble("/World/Model", "animated", 0.0) == 1.0);
