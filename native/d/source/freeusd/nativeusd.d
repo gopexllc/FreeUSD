@@ -114,6 +114,7 @@ struct Prim {
     string path;
     string typeName;
     Value[string] attributes;
+    Value[double][string] timeSamples;
     string[][string] relationships;
     string[] inherits;
     Reference[] references;
@@ -178,12 +179,12 @@ struct Stage {
         throw new Exception("missing prim: " ~ path);
     }
 
-    double readDouble(string primPath, string attrName) const {
-        return composedAttribute(primPath, attrName).asDouble();
+    double readDouble(string primPath, string attrName, double time = 1.0) const {
+        return composedAttribute(primPath, attrName, time).asDouble();
     }
 
     string readString(string primPath, string attrName) const {
-        auto value = composedAttribute(primPath, attrName);
+        auto value = composedAttribute(primPath, attrName, 1.0);
         if (value.kind != Value.Kind.string_ && value.kind != Value.Kind.token) {
             throw new Exception("attribute is not string-like: " ~ attrName);
         }
@@ -191,7 +192,7 @@ struct Stage {
     }
 
     string[] readTokenArray(string primPath, string attrName) const {
-        auto value = composedAttribute(primPath, attrName);
+        auto value = composedAttribute(primPath, attrName, 1.0);
         if (value.kind != Value.Kind.tokenArray) {
             throw new Exception("attribute is not token[]: " ~ attrName);
         }
@@ -199,7 +200,7 @@ struct Stage {
     }
 
     Vec3d readVec3(string primPath, string attrName) const {
-        auto value = composedAttribute(primPath, attrName);
+        auto value = composedAttribute(primPath, attrName, 1.0);
         if (value.kind != Value.Kind.vec3d && value.kind != Value.Kind.vec3f) {
             throw new Exception("attribute is not vec3: " ~ attrName);
         }
@@ -215,10 +216,14 @@ struct Stage {
     }
 
     private Value composedAttribute(string primPath, string attrName) const {
-        return composedAttribute(primPath, attrName, []);
+        return composedAttribute(primPath, attrName, 1.0, []);
     }
 
-    private Value composedAttribute(string primPath, string attrName, string[] visiting) const {
+    private Value composedAttribute(string primPath, string attrName, double time) const {
+        return composedAttribute(primPath, attrName, time, []);
+    }
+
+    private Value composedAttribute(string primPath, string attrName, double time, string[] visiting) const {
         foreach (visited; visiting) {
             if (visited == primPath) {
                 throw new Exception("inherit cycle while reading: " ~ primPath);
@@ -228,7 +233,7 @@ struct Stage {
         if (found is null) {
             foreach (sublayer; sublayers) {
                 try {
-                    return sublayer.composedAttribute(primPath, attrName, visiting);
+                    return sublayer.composedAttribute(primPath, attrName, time, visiting);
                 } catch (Exception) {
                     // Try weaker sublayers before reporting the prim as missing.
                 }
@@ -236,6 +241,11 @@ struct Stage {
             throw new Exception("missing prim: " ~ primPath);
         }
         auto attr = attrName in found.attributes;
+        if (auto samples = attrName in found.timeSamples) {
+            if (auto sample = time in *samples) {
+                return cast(Value) *sample;
+            }
+        }
         if (attr !is null) {
             return cast(Value) *attr;
         }
@@ -245,7 +255,7 @@ struct Stage {
                 continue;
             }
             try {
-                return composedAttribute(target, attrName, nextVisiting);
+                return composedAttribute(target, attrName, time, nextVisiting);
             } catch (Exception) {
                 // Try weaker inherited targets before reporting the value as missing.
             }
@@ -254,7 +264,7 @@ struct Stage {
             try {
                 auto refStage = Stage.open(buildNormalizedPath(sourceDir, reference.assetPath));
                 auto targetPath = reference.primPath.length != 0 ? reference.primPath : "/" ~ refStage.defaultPrim;
-                return refStage.composedAttribute(targetPath, attrName, []);
+                return refStage.composedAttribute(targetPath, attrName, time, []);
             } catch (Exception) {
                 // Try later references before reporting the value as missing.
             }
@@ -263,14 +273,14 @@ struct Stage {
             try {
                 auto payloadStage = Stage.open(buildNormalizedPath(sourceDir, payload.assetPath));
                 auto targetPath = payload.primPath.length != 0 ? payload.primPath : "/" ~ payloadStage.defaultPrim;
-                return payloadStage.composedAttribute(targetPath, attrName, []);
+                return payloadStage.composedAttribute(targetPath, attrName, time, []);
             } catch (Exception) {
                 // Try later payloads before reporting the value as missing.
             }
         }
         foreach (sublayer; sublayers) {
             try {
-                return sublayer.composedAttribute(primPath, attrName, visiting);
+                return sublayer.composedAttribute(primPath, attrName, time, visiting);
             } catch (Exception) {
                 // Try weaker sublayers before reporting the value as missing.
             }
@@ -346,6 +356,10 @@ private Stage parseUsda(string text, string sourceDir = ".") {
     string pendingPrimPath;
     bool inMetadataBlock;
     bool inIgnoredBraceBlock;
+    bool inTimeSamplesBlock;
+    string timeSamplePrimPath;
+    string timeSampleAttrName;
+    string timeSampleType;
     bool inVariantSetsBlock;
     bool inVariantSelectionBlock;
     string variantPrimPath;
@@ -361,6 +375,17 @@ private Stage parseUsda(string text, string sourceDir = ".") {
         if (inIgnoredBraceBlock) {
             if (line == "}") {
                 inIgnoredBraceBlock = false;
+            }
+            continue;
+        }
+        if (inTimeSamplesBlock) {
+            if (line == "}") {
+                inTimeSamplesBlock = false;
+                timeSamplePrimPath = "";
+                timeSampleAttrName = "";
+                timeSampleType = "";
+            } else {
+                addTimeSample(stage, timeSamplePrimPath, timeSampleAttrName, timeSampleType, line);
             }
             continue;
         }
@@ -423,7 +448,15 @@ private Stage parseUsda(string text, string sourceDir = ".") {
             continue;
         }
         if (line.canFind(".timeSamples") && line.canFind("{")) {
-            inIgnoredBraceBlock = true;
+            auto header = parseTimeSamplesHeader(line);
+            if (stack.length != 0 && header.attrName.length != 0) {
+                inTimeSamplesBlock = true;
+                timeSamplePrimPath = stack[$ - 1];
+                timeSampleAttrName = header.attrName;
+                timeSampleType = header.typeName;
+            } else {
+                inIgnoredBraceBlock = true;
+            }
             continue;
         }
         if (line == "{") {
@@ -540,9 +573,57 @@ private struct ParsedRelationship {
     string[] targets;
 }
 
+private struct ParsedTimeSamplesHeader {
+    string typeName;
+    string attrName;
+}
+
 private struct ParsedVariantSelection {
     string setName;
     string variantName;
+}
+
+private ParsedTimeSamplesHeader parseTimeSamplesHeader(string line) {
+    ParsedTimeSamplesHeader parsed;
+    auto eq = line.indexOf("=");
+    if (eq < 0) {
+        return parsed;
+    }
+    auto lhsParts = line[0 .. eq].strip.split;
+    if (lhsParts.length < 2) {
+        return parsed;
+    }
+    parsed.typeName = lhsParts[0];
+    auto name = lhsParts[$ - 1];
+    enum suffix = ".timeSamples";
+    if (!name.endsWith(suffix)) {
+        return ParsedTimeSamplesHeader();
+    }
+    parsed.attrName = name[0 .. $ - suffix.length];
+    return parsed;
+}
+
+private void addTimeSample(ref Stage stage, string primPath, string attrName, string typeName, string line) {
+    auto colon = line.indexOf(":");
+    if (colon < 0 || primPath.length == 0 || attrName.length == 0) {
+        return;
+    }
+    auto time = line[0 .. colon].strip.to!double;
+    auto rawValue = line[colon + 1 .. $].stripRight(",");
+    auto sample = parseValue(typeName, rawValue);
+    if (sample.kind == Value.Kind.none) {
+        return;
+    }
+    auto prim = primPath in stage.prims;
+    if (prim is null) {
+        return;
+    }
+    Value[double] samples;
+    if (auto existing = attrName in prim.timeSamples) {
+        samples = *existing;
+    }
+    samples[time] = sample;
+    prim.timeSamples[attrName] = samples;
 }
 
 private string variantKey(string setName, string variantName) {
@@ -874,6 +955,7 @@ unittest {
     assert(!stage.primIsValid("/Scene/Missing"));
     assert(stage.primAt("/Scene/Child").typeName == "Cube");
     assert(stage.readDouble("/Scene/Child", "mass") == 2.5);
+    assert(stage.readDouble("/Scene/Child", "mass", 2.0) == 4.0);
     assert(stage.readDouble("/Scene/Child", "density") == 1.25);
     assert(stage.readString("/Scene/Child", "label") == "hello");
     assert(stage.readString("/Scene/Child", "kind") == "component");
@@ -883,6 +965,7 @@ unittest {
     assert(stage.listPrimInherits("/Scene/ArcHost") == ["/Scene/Child"]);
     assert(stage.readDouble("/Scene/ArcHost", "arcOnly") == 7.0);
     assert(stage.readDouble("/Scene/ArcHost", "mass") == 2.5);
+    assert(stage.readDouble("/Scene/ArcHost", "mass", 2.0) == 4.0);
     assert(stage.readString("/Scene/ArcHost", "label") == "hello");
     assert(stage.readTokenArray("/Scene/ArcHost", "tags") == ["a", "b"]);
 }
@@ -920,7 +1003,10 @@ unittest {
     assert(stage.defaultPrim == "World");
     assert(stage.primIsValid("/World/Model"));
     assert(stage.readDouble("/World/Model", "rootOnly") == 1.0);
+    assert(stage.readDouble("/World/Model", "animated", 0.0) == 1.0);
+    assert(stage.readDouble("/World/Model", "animated", 10.0) == 2.0);
     assert(stage.readDouble("/World/Model", "strength") == 10.0);
+    assert(stage.readDouble("/World/Model", "stackedOnly", 5.0) == 50.0);
 }
 
 unittest {
