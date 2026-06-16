@@ -161,13 +161,15 @@ struct Stage {
     string sourceDir;
     Prim[string] prims;
     Sublayer[] sublayers;
+    string[string] relocates;
 
     static Stage open(string path) {
         return parseUsda(readText(path), dirName(path));
     }
 
     bool primIsValid(string path) const {
-        if ((path in prims) !is null) {
+        auto authored = mapComposedToAuthored(path);
+        if ((authored in prims) !is null) {
             return true;
         }
         foreach (sublayer; sublayers) {
@@ -179,7 +181,8 @@ struct Stage {
     }
 
     const(Prim) primAt(string path) const {
-        auto found = path in prims;
+        auto authored = mapComposedToAuthored(path);
+        auto found = authored in prims;
         if (found !is null) {
             return cast(Prim) *found;
         }
@@ -259,6 +262,7 @@ struct Stage {
     }
 
     private Value composedAttribute(string primPath, string attrName, double time, string[] visiting) const {
+        primPath = mapComposedToAuthored(primPath);
         foreach (visited; visiting) {
             if (visited == primPath) {
                 throw new Exception("inherit cycle while reading: " ~ primPath);
@@ -324,6 +328,7 @@ struct Stage {
     }
 
     private string[] composedRelationshipTargets(string primPath, string relName, string[] visiting) const {
+        primPath = mapComposedToAuthored(primPath);
         foreach (visited; visiting) {
             if (visited == primPath) {
                 throw new Exception("relationship composition cycle while reading: " ~ primPath);
@@ -384,6 +389,7 @@ struct Stage {
     }
 
     private Value composedCustomData(string primPath, string key, string[] visiting) const {
+        primPath = mapComposedToAuthored(primPath);
         foreach (visited; visiting) {
             if (visited == primPath) {
                 throw new Exception("customData composition cycle while reading: " ~ primPath);
@@ -436,6 +442,19 @@ struct Stage {
         }
         throw new Exception("missing customData key: " ~ key);
     }
+
+    private string mapComposedToAuthored(string path) const {
+        foreach (fromPath, toPath; relocates) {
+            if (path == toPath) {
+                return fromPath;
+            }
+            auto prefix = toPath ~ "/";
+            if (path.startsWith(prefix)) {
+                return fromPath ~ path[prefix.length - 1 .. $];
+            }
+        }
+        return path;
+    }
 }
 
 private Stage parseUsda(string text, string sourceDir = ".") {
@@ -447,6 +466,7 @@ private Stage parseUsda(string text, string sourceDir = ".") {
     bool inIgnoredBraceBlock;
     bool inTimeSamplesBlock;
     bool inSublayerOffsetsBlock;
+    bool inRelocatesBlock;
     bool inCustomDataBlock;
     string customDataPrimPath;
     string timeSamplePrimPath;
@@ -486,6 +506,14 @@ private Stage parseUsda(string text, string sourceDir = ".") {
                 inSublayerOffsetsBlock = false;
             } else {
                 applySublayerOffset(stage, line);
+            }
+            continue;
+        }
+        if (inRelocatesBlock) {
+            if (line == "}") {
+                inRelocatesBlock = false;
+            } else {
+                addRelocate(stage, line);
             }
             continue;
         }
@@ -538,6 +566,8 @@ private Stage parseUsda(string text, string sourceDir = ".") {
                 }
             } else if (line.startsWith("subLayerOffsets")) {
                 inSublayerOffsetsBlock = true;
+            } else if (line.startsWith("relocates")) {
+                inRelocatesBlock = true;
             } else if (pendingPrimPath.length != 0 && line.startsWith("customData")) {
                 inCustomDataBlock = true;
                 customDataPrimPath = pendingPrimPath;
@@ -599,6 +629,10 @@ private Stage parseUsda(string text, string sourceDir = ".") {
         }
         if (line.startsWith("subLayerOffsets")) {
             inSublayerOffsetsBlock = true;
+            continue;
+        }
+        if (line.startsWith("relocates")) {
+            inRelocatesBlock = true;
             continue;
         }
 
@@ -1068,6 +1102,19 @@ private void applySublayerOffset(ref Stage stage, string line) {
     }
 }
 
+private void addRelocate(ref Stage stage, string line) {
+    auto colon = line.indexOf(":");
+    if (colon < 0) {
+        return;
+    }
+    auto fromPath = parsePathToken(line[0 .. colon]);
+    auto toPath = parsePathToken(line[colon + 1 .. $].stripRight(","));
+    if (fromPath.length == 0 || toPath.length == 0) {
+        return;
+    }
+    stage.relocates[fromPath] = toPath;
+}
+
 private string parseAssetToken(string rawValue) {
     rawValue = rawValue.strip;
     auto begin = rawValue.indexOf("@");
@@ -1154,6 +1201,10 @@ unittest {
     assert(stage.readDouble("/Library/Source", "refOnly") == 11.0);
     assert(stage.readDouble("/Library/Source", "payloadOnly") == 33.0);
     assert(stage.relationshipTargets("/Library/Source", "refLink") == ["/RefRoot/RefLeaf"]);
+    assert(stage.primIsValid("/Library/Published"));
+    assert(stage.readDouble("/Library/Published", "radius") == 2.0);
+    assert(stage.readDouble("/Library/Published", "refOnly") == 11.0);
+    assert(stage.readDouble("/Library/Published", "payloadOnly") == 33.0);
 }
 
 unittest {
