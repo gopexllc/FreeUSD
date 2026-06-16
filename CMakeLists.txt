@@ -518,7 +518,8 @@ if(FREEUSD_BUILD_TESTS AND FREEUSD_TEST_INSTALL_INTEGRATION)
     NAME freeusd_install_integration
     COMMAND
       "${CMAKE_COMMAND}" -E env "FREEUSD_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
-      "FREEUSD_SCRATCH=${CMAKE_SOURCE_DIR}/.install_integration_scratch" "${CMAKE_COMMAND}" -P
+      "FREEUSD_SCRATCH=${CMAKE_SOURCE_DIR}/.install_integration_scratch"
+      "FREEUSD_CMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}" "${CMAKE_COMMAND}" -P
       "${CMAKE_SOURCE_DIR}/tests/install_integration.cmake")
   set_tests_properties(
     freeusd_install_integration
