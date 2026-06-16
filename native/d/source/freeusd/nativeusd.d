@@ -28,6 +28,20 @@ struct Matrix4d {
     }
 }
 
+struct Quatd {
+    double realPart;
+    double i;
+    double j;
+    double k;
+}
+
+struct Quatf {
+    float realPart;
+    float i;
+    float j;
+    float k;
+}
+
 struct Bounds3d {
     Vec3d min;
     Vec3d max;
@@ -45,7 +59,10 @@ struct Value {
         token,
         tokenArray,
         vec3d,
-        vec3f
+        vec3f,
+        matrix4d,
+        quatd,
+        quatf
     }
 
     Kind kind;
@@ -56,6 +73,9 @@ struct Value {
     string stringValue;
     string[] tokens;
     Vec3d vec3Value;
+    Matrix4d matrixValue;
+    Quatd quatdValue;
+    Quatf quatfValue;
 
     static Value makeDouble(double value) {
         Value outValue;
@@ -120,6 +140,27 @@ struct Value {
         return outValue;
     }
 
+    static Value makeMatrix4d(Matrix4d value) {
+        Value outValue;
+        outValue.kind = Kind.matrix4d;
+        outValue.matrixValue = value;
+        return outValue;
+    }
+
+    static Value makeQuatd(Quatd value) {
+        Value outValue;
+        outValue.kind = Kind.quatd;
+        outValue.quatdValue = value;
+        return outValue;
+    }
+
+    static Value makeQuatf(Quatf value) {
+        Value outValue;
+        outValue.kind = Kind.quatf;
+        outValue.quatfValue = value;
+        return outValue;
+    }
+
     double asDouble() const {
         final switch (kind) {
         case Kind.double_:
@@ -130,7 +171,8 @@ struct Value {
             return cast(double) intValue;
         case Kind.bool_:
             return boolValue ? 1.0 : 0.0;
-        case Kind.none, Kind.string_, Kind.asset, Kind.token, Kind.tokenArray, Kind.vec3d, Kind.vec3f:
+        case Kind.none, Kind.string_, Kind.asset, Kind.token, Kind.tokenArray, Kind.vec3d, Kind.vec3f, Kind.matrix4d,
+             Kind.quatd, Kind.quatf:
             throw new Exception("value is not numeric");
         }
     }
@@ -274,6 +316,34 @@ struct Stage {
             throw new Exception("attribute is not vec3: " ~ attrName);
         }
         return value.vec3Value;
+    }
+
+    Matrix4d readMatrix4d(string primPath, string attrName) const {
+        auto value = composedAttribute(primPath, attrName, 1.0);
+        if (value.kind != Value.Kind.matrix4d) {
+            throw new Exception("attribute is not matrix4d: " ~ attrName);
+        }
+        return value.matrixValue;
+    }
+
+    Quatd readQuatd(string primPath, string attrName) const {
+        auto value = composedAttribute(primPath, attrName, 1.0);
+        if (value.kind != Value.Kind.quatd) {
+            throw new Exception("attribute is not quatd: " ~ attrName);
+        }
+        return value.quatdValue;
+    }
+
+    Quatf readQuatf(string primPath, string attrName) const {
+        auto value = composedAttribute(primPath, attrName, 1.0);
+        if (value.kind == Value.Kind.quatf) {
+            return value.quatfValue;
+        }
+        if (value.kind == Value.Kind.quatd) {
+            return Quatf(cast(float) value.quatdValue.realPart, cast(float) value.quatdValue.i,
+                cast(float) value.quatdValue.j, cast(float) value.quatdValue.k);
+        }
+        throw new Exception("attribute is not quatf: " ~ attrName);
     }
 
     string[] relationshipTargets(string primPath, string relName) const {
@@ -1396,6 +1466,12 @@ private Value parseValue(string typeName, string rawValue) {
         return Value.makeTokenArray(parseTokenArray(rawValue));
     case "double3":
         return Value.makeVec3(parseVec3(rawValue), false);
+    case "matrix4d":
+        return Value.makeMatrix4d(parseMatrix4d(rawValue));
+    case "quatd":
+        return Value.makeQuatd(parseQuatd(rawValue));
+    case "quatf":
+        return Value.makeQuatf(parseQuatf(rawValue));
     case "color3f":
     case "normal3f":
     case "vector3f":
@@ -1615,6 +1691,53 @@ private Vec3d parseVec3(string rawValue) {
     return Vec3d(parts[0].strip.to!double, parts[1].strip.to!double, parts[2].strip.to!double);
 }
 
+private Matrix4d parseMatrix4d(string rawValue) {
+    Matrix4d matrix;
+    auto values = parseNumberList(rawValue);
+    if (values.length != 16) {
+        throw new Exception("invalid matrix4d component count: " ~ rawValue);
+    }
+    foreach (i, value; values) {
+        matrix.rowMajor[i] = value;
+    }
+    return matrix;
+}
+
+private Quatd parseQuatd(string rawValue) {
+    auto values = parseNumberList(rawValue);
+    if (values.length != 4) {
+        throw new Exception("invalid quatd component count: " ~ rawValue);
+    }
+    return Quatd(values[0], values[1], values[2], values[3]);
+}
+
+private Quatf parseQuatf(string rawValue) {
+    auto values = parseNumberList(rawValue);
+    if (values.length != 4) {
+        throw new Exception("invalid quatf component count: " ~ rawValue);
+    }
+    return Quatf(cast(float) values[0], cast(float) values[1], cast(float) values[2], cast(float) values[3]);
+}
+
+private double[] parseNumberList(string rawValue) {
+    string flattened;
+    foreach (ch; rawValue) {
+        if (ch == '(' || ch == ')' || ch == '[' || ch == ']') {
+            flattened ~= ' ';
+        } else {
+            flattened ~= ch;
+        }
+    }
+    double[] values;
+    foreach (part; flattened.split(",")) {
+        auto token = part.strip;
+        if (token.length != 0) {
+            values ~= token.to!double;
+        }
+    }
+    return values;
+}
+
 unittest {
     auto stage = Stage.open("../../tests/fixtures/usd_cross_language.usda");
     assert(stage.defaultPrim == "Scene");
@@ -1634,6 +1757,14 @@ unittest {
     assert(stage.readTokenArray("/Scene/Child", "tags") == ["a", "b"]);
     auto extent = stage.readVec3("/Scene/Child", "extent");
     assert(extent.x == 1.0 && extent.y == 2.0 && extent.z == 3.0);
+    auto matrix = stage.readMatrix4d("/Scene/Child", "xf");
+    assert(matrix.rowMajor[0] == 1.0 && matrix.rowMajor[5] == 1.0 && matrix.rowMajor[10] == 1.0 && matrix.rowMajor[15] == 1.0);
+    auto qd = stage.readQuatd("/Scene/Child", "qd");
+    assert(qd.realPart == 1.0 && qd.i == 0.0 && qd.j == 0.0 && qd.k == 0.0);
+    auto qf = stage.readQuatf("/Scene/Child", "qf");
+    assert(qf.realPart == 0.70710677f && qf.i == 0.0f && qf.j == 0.0f && qf.k == 0.70710677f);
+    auto qdAsFloat = stage.readQuatf("/Scene/Child", "qd");
+    assert(qdAsFloat.realPart == 1.0f && qdAsFloat.i == 0.0f && qdAsFloat.j == 0.0f && qdAsFloat.k == 0.0f);
     assert(stage.listPrimInherits("/Scene/ArcHost") == ["/Scene/Child"]);
     assert(stage.readDouble("/Scene/ArcHost", "arcOnly") == 7.0);
     assert(stage.readDouble("/Scene/ArcHost", "mass") == 2.5);
