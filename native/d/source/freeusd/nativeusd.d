@@ -129,6 +129,7 @@ struct Prim {
     Value[double][string] timeSamples;
     string[][string] relationships;
     string[] inherits;
+    string[] specializes;
     Reference[] references;
     Reference[] payloads;
     string[string] variantSelections;
@@ -272,6 +273,10 @@ struct Stage {
         return (cast(string[]) primAt(primPath).inherits).dup;
     }
 
+    string[] listPrimSpecializes(string primPath) const {
+        return (cast(string[]) primAt(primPath).specializes).dup;
+    }
+
     Prim.Specifier resolvePrimSpecifier(string primPath) const {
         return primAt(primPath).specifier;
     }
@@ -366,6 +371,16 @@ struct Stage {
                 // Try weaker inherited targets before reporting the value as missing.
             }
         }
+        foreach (target; found.specializes) {
+            if (!primIsValid(target)) {
+                continue;
+            }
+            try {
+                return composedAttribute(target, attrName, time, nextVisiting);
+            } catch (Exception) {
+                // Try weaker specialize targets before reporting the value as missing.
+            }
+        }
         foreach (reference; found.references) {
             try {
                 auto refStage = Stage.open(buildNormalizedPath(sourceDir, reference.assetPath));
@@ -416,6 +431,15 @@ struct Stage {
         }
         auto nextVisiting = visiting ~ primPath;
         foreach (target; found.inherits) {
+            if (!primIsValid(target)) {
+                continue;
+            }
+            auto targets = composedRelationshipTargets(target, relName, nextVisiting);
+            if (targets.length != 0) {
+                return targets;
+            }
+        }
+        foreach (target; found.specializes) {
             if (!primIsValid(target)) {
                 continue;
             }
@@ -477,6 +501,15 @@ struct Stage {
         }
         auto nextVisiting = visiting ~ primPath;
         foreach (target; found.inherits) {
+            if (!primIsValid(target)) {
+                continue;
+            }
+            try {
+                return composedCustomData(target, key, nextVisiting);
+            } catch (Exception) {
+            }
+        }
+        foreach (target; found.specializes) {
             if (!primIsValid(target)) {
                 continue;
             }
@@ -548,6 +581,23 @@ struct Stage {
                 }
                 if (!metadata.hasActiveOpinion && inherited.hasActiveOpinion) {
                     metadata.active = inherited.active;
+                    metadata.hasActiveOpinion = true;
+                }
+            } catch (Exception) {
+            }
+        }
+        foreach (target; found.specializes) {
+            if (!primIsValid(target)) {
+                continue;
+            }
+            try {
+                auto specialized = composedPrimMetadata(target, nextVisiting);
+                if (!metadata.hasKind && specialized.hasKind) {
+                    metadata.kind = specialized.kind;
+                    metadata.hasKind = true;
+                }
+                if (!metadata.hasActiveOpinion && specialized.hasActiveOpinion) {
+                    metadata.active = specialized.active;
                     metadata.hasActiveOpinion = true;
                 }
             } catch (Exception) {
@@ -759,6 +809,10 @@ private Stage parseUsda(string text, string sourceDir = ".") {
             } else if (pendingPrimPath.length != 0 && line.canFind("inherits")) {
                 if (auto prim = pendingPrimPath in stage.prims) {
                     prim.inherits = parsePathList(afterEquals(line));
+                }
+            } else if (pendingPrimPath.length != 0 && line.canFind("specializes")) {
+                if (auto prim = pendingPrimPath in stage.prims) {
+                    prim.specializes = parsePathList(afterEquals(line));
                 }
             } else if (pendingPrimPath.length != 0 && line.canFind("references")) {
                 if (auto prim = pendingPrimPath in stage.prims) {
@@ -1488,6 +1542,28 @@ unittest {
     assert(stage.customDataInt("/World/RefHost", "priority") == 9);
     assert(stage.customDataString("/World/PayloadHost", "role") == "from_payload");
     assert(stage.customDataInt("/World/PayloadHost", "priority") == 3);
+}
+
+unittest {
+    auto stage = Stage.open("../../tests/fixtures/parity_specializes.usda");
+    assert(stage.listPrimSpecializes("/World/Host") == ["/World/BaseSpec"]);
+    assert(stage.readDouble("/World/Host", "hostOnly") == 3.0);
+    assert(stage.readDouble("/World/Host", "fromSpec") == 99.0);
+    assert(stage.readDouble("/World/Host", "sharedStrength") == 10.0);
+}
+
+unittest {
+    auto stage = Stage.open("../../tests/fixtures/parity_custom_data_specializes.usda");
+    assert(stage.customDataString("/World/Host", "role") == "from_spec");
+    assert(stage.customDataInt("/World/Host", "priority") == 9);
+}
+
+unittest {
+    auto stage = Stage.open("../../tests/fixtures/parity_kind_active_specializes.usda");
+    assert(stage.listPrimSpecializes("/World/SpecHost") == ["/World/KindSpec"]);
+    assert(stage.resolvePrimKind("/World/SpecHost") == "assembly");
+    assert(stage.resolveHasPrimActiveOpinion("/World/SpecHost"));
+    assert(!stage.resolvePrimActive("/World/SpecHost"));
 }
 
 unittest {
