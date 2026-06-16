@@ -53,6 +53,37 @@ struct OpenVDBAssetInfo {
     string fieldName;
 }
 
+struct PhysicsSceneInfo {
+    string primPath;
+    Vec3d gravityDirection;
+    double gravityMagnitude;
+}
+
+struct PhysicsRigidBodyInfo {
+    string primPath;
+    double mass;
+    bool hasKinematicEnabled;
+    bool kinematicEnabled;
+}
+
+struct PhysicsCollisionInfo {
+    string primPath;
+    bool collisionEnabled;
+}
+
+struct PhysicsMassInfo {
+    string primPath;
+    double density;
+    Vec3d centerOfMass;
+}
+
+struct PhysicsFixedJointInfo {
+    string primPath;
+    string body0Path;
+    string body1Path;
+    bool jointEnabled;
+}
+
 struct VolumeInfo {
     string primPath;
     string[] fieldTargets;
@@ -208,6 +239,7 @@ struct Prim {
     Value[string] customData;
     Value[double][string] timeSamples;
     string[][string] relationships;
+    string[] apiSchemas;
     string[] inherits;
     string[] specializes;
     Reference[] references;
@@ -467,6 +499,89 @@ struct Stage {
             }
         }
         return VolumeInfo(primPath, targets, fields);
+    }
+
+    bool isPhysicsScene(string primPath) const {
+        return primAt(primPath).typeName == "PhysicsScene";
+    }
+
+    PhysicsSceneInfo readPhysicsScene(string primPath) const {
+        if (!isPhysicsScene(primPath)) {
+            throw new Exception("prim is not PhysicsScene: " ~ primPath);
+        }
+        return PhysicsSceneInfo(
+            primPath,
+            readVec3(primPath, "physics:gravityDirection"),
+            readDouble(primPath, "physics:gravityMagnitude"));
+    }
+
+    bool isRigidBodyAPI(string primPath) const {
+        auto prim = primAt(primPath);
+        return prim.apiSchemas.canFind("PhysicsRigidBodyAPI") || prim.hasAttribute("physics:mass");
+    }
+
+    PhysicsRigidBodyInfo readRigidBody(string primPath) const {
+        if (!isRigidBodyAPI(primPath)) {
+            throw new Exception("prim is not PhysicsRigidBodyAPI-shaped: " ~ primPath);
+        }
+        PhysicsRigidBodyInfo info;
+        info.primPath = primPath;
+        info.mass = readDouble(primPath, "physics:mass");
+        try {
+            info.kinematicEnabled = readDouble(primPath, "physics:kinematicEnabled") != 0.0;
+            info.hasKinematicEnabled = true;
+        } catch (Exception) {
+            info.hasKinematicEnabled = false;
+            info.kinematicEnabled = false;
+        }
+        return info;
+    }
+
+    bool isCollisionAPI(string primPath) const {
+        auto prim = primAt(primPath);
+        return prim.apiSchemas.canFind("PhysicsCollisionAPI") || prim.hasAttribute("physics:collisionEnabled");
+    }
+
+    PhysicsCollisionInfo readCollision(string primPath) const {
+        if (!isCollisionAPI(primPath)) {
+            throw new Exception("prim is not PhysicsCollisionAPI-shaped: " ~ primPath);
+        }
+        return PhysicsCollisionInfo(primPath, readDouble(primPath, "physics:collisionEnabled") != 0.0);
+    }
+
+    bool isMassAPI(string primPath) const {
+        auto prim = primAt(primPath);
+        return prim.apiSchemas.canFind("PhysicsMassAPI") || prim.hasAttribute("physics:density");
+    }
+
+    PhysicsMassInfo readMassAPI(string primPath) const {
+        if (!isMassAPI(primPath)) {
+            throw new Exception("prim is not PhysicsMassAPI-shaped: " ~ primPath);
+        }
+        return PhysicsMassInfo(
+            primPath,
+            readDouble(primPath, "physics:density"),
+            readVec3(primPath, "physics:centerOfMass"));
+    }
+
+    bool isFixedJoint(string primPath) const {
+        return primAt(primPath).typeName == "PhysicsFixedJoint";
+    }
+
+    PhysicsFixedJointInfo readFixedJoint(string primPath) const {
+        if (!isFixedJoint(primPath)) {
+            throw new Exception("prim is not PhysicsFixedJoint: " ~ primPath);
+        }
+        auto body0 = relationshipTargets(primPath, "physics:body0");
+        auto body1 = relationshipTargets(primPath, "physics:body1");
+        if (body0.length == 0 || body1.length == 0) {
+            throw new Exception("PhysicsFixedJoint body relationships missing: " ~ primPath);
+        }
+        return PhysicsFixedJointInfo(
+            primPath,
+            body0[0],
+            body1[0],
+            readDouble(primPath, "physics:jointEnabled") != 0.0);
     }
 
     Value customDataValue(string primPath, string key) const {
@@ -1143,6 +1258,10 @@ private Stage parseUsda(string text, string sourceDir = ".") {
                     prim.active = parseBoolToken(afterEquals(line));
                     prim.hasActiveOpinion = true;
                 }
+            } else if (pendingPrimPath.length != 0 && line.canFind("apiSchemas")) {
+                if (auto prim = pendingPrimPath in stage.prims) {
+                    prim.apiSchemas = parseTokenArray(afterEquals(line));
+                }
             } else if (pendingPrimPath.length != 0 && line.startsWith("customData")) {
                 inCustomDataBlock = true;
                 customDataPrimPath = pendingPrimPath;
@@ -1652,6 +1771,8 @@ private string[] parseTokenArray(string rawValue) {
         auto token = part.strip;
         if (token.length >= 2 && token[0] == '@' && token[$ - 1] == '@') {
             token = token[1 .. $ - 1];
+        } else {
+            token = parseQuotedOrToken(token);
         }
         values ~= token;
     }
@@ -2069,6 +2190,43 @@ unittest {
     assert(stage.relationshipTargets("/World/Anchor", "physics:body1") == ["/World/BodyB"]);
     assert(stage.listRelationshipNames("/World/Anchor") == ["physics:body0", "physics:body1"]);
     assert(stage.readDouble("/World/Anchor", "physics:jointEnabled") == 1.0);
+    assert(stage.isFixedJoint("/World/Anchor"));
+    auto joint = stage.readFixedJoint("/World/Anchor");
+    assert(joint.body0Path == "/World/BodyA");
+    assert(joint.body1Path == "/World/BodyB");
+    assert(joint.jointEnabled);
+}
+
+unittest {
+    auto stage = Stage.open("../../tests/fixtures/parity_physics_scene.usda");
+    assert(stage.isPhysicsScene("/World/Physics"));
+    auto scene = stage.readPhysicsScene("/World/Physics");
+    assert(scene.gravityDirection.x == 0.0 && scene.gravityDirection.y == 0.0 && scene.gravityDirection.z == -1.0);
+    assert(scene.gravityMagnitude == 981.0);
+}
+
+unittest {
+    auto stage = Stage.open("../../tests/fixtures/parity_physics_rigid_body_kinematic.usda");
+    assert(stage.isRigidBodyAPI("/World/Body"));
+    auto body = stage.readRigidBody("/World/Body");
+    assert(body.mass == 1.0);
+    assert(body.hasKinematicEnabled);
+    assert(body.kinematicEnabled);
+}
+
+unittest {
+    auto stage = Stage.open("../../tests/fixtures/parity_physics_collision.usda");
+    assert(stage.isCollisionAPI("/World/Collider"));
+    auto collision = stage.readCollision("/World/Collider");
+    assert(!collision.collisionEnabled);
+}
+
+unittest {
+    auto stage = Stage.open("../../tests/fixtures/parity_physics_mass.usda");
+    assert(stage.isMassAPI("/World/Prop"));
+    auto mass = stage.readMassAPI("/World/Prop");
+    assert(mass.density == 2.0);
+    assert(mass.centerOfMass.x == 0.0 && mass.centerOfMass.y == 0.5 && mass.centerOfMass.z == 0.0);
 }
 
 unittest {
