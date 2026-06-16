@@ -144,11 +144,22 @@ struct VariantPayload {
     string[] lines;
 }
 
+struct Sublayer {
+    string assetPath;
+    double offset;
+    double scale = 1.0;
+    Stage stage;
+
+    double mapTime(double composedTime) const {
+        return scale == 0.0 ? composedTime : (composedTime - offset) / scale;
+    }
+}
+
 struct Stage {
     string defaultPrim;
     string sourceDir;
     Prim[string] prims;
-    Stage[] sublayers;
+    Sublayer[] sublayers;
 
     static Stage open(string path) {
         return parseUsda(readText(path), dirName(path));
@@ -159,7 +170,7 @@ struct Stage {
             return true;
         }
         foreach (sublayer; sublayers) {
-            if (sublayer.primIsValid(path)) {
+            if (sublayer.stage.primIsValid(path)) {
                 return true;
             }
         }
@@ -172,8 +183,8 @@ struct Stage {
             return cast(Prim) *found;
         }
         foreach (sublayer; sublayers) {
-            if (sublayer.primIsValid(path)) {
-                return sublayer.primAt(path);
+            if (sublayer.stage.primIsValid(path)) {
+                return sublayer.stage.primAt(path);
             }
         }
         throw new Exception("missing prim: " ~ path);
@@ -233,7 +244,7 @@ struct Stage {
         if (found is null) {
             foreach (sublayer; sublayers) {
                 try {
-                    return sublayer.composedAttribute(primPath, attrName, time, visiting);
+                    return sublayer.stage.composedAttribute(primPath, attrName, sublayer.mapTime(time), visiting);
                 } catch (Exception) {
                     // Try weaker sublayers before reporting the prim as missing.
                 }
@@ -280,7 +291,7 @@ struct Stage {
         }
         foreach (sublayer; sublayers) {
             try {
-                return sublayer.composedAttribute(primPath, attrName, time, visiting);
+                return sublayer.stage.composedAttribute(primPath, attrName, sublayer.mapTime(time), visiting);
             } catch (Exception) {
                 // Try weaker sublayers before reporting the value as missing.
             }
@@ -297,7 +308,7 @@ struct Stage {
         auto found = primPath in prims;
         if (found is null) {
             foreach (sublayer; sublayers) {
-                auto targets = sublayer.composedRelationshipTargets(primPath, relName, visiting);
+                auto targets = sublayer.stage.composedRelationshipTargets(primPath, relName, visiting);
                 if (targets.length != 0) {
                     return targets;
                 }
@@ -340,7 +351,7 @@ struct Stage {
             }
         }
         foreach (sublayer; sublayers) {
-            auto targets = sublayer.composedRelationshipTargets(primPath, relName, visiting);
+            auto targets = sublayer.stage.composedRelationshipTargets(primPath, relName, visiting);
             if (targets.length != 0) {
                 return targets;
             }
@@ -357,6 +368,7 @@ private Stage parseUsda(string text, string sourceDir = ".") {
     bool inMetadataBlock;
     bool inIgnoredBraceBlock;
     bool inTimeSamplesBlock;
+    bool inSublayerOffsetsBlock;
     string timeSamplePrimPath;
     string timeSampleAttrName;
     string timeSampleType;
@@ -386,6 +398,14 @@ private Stage parseUsda(string text, string sourceDir = ".") {
                 timeSampleType = "";
             } else {
                 addTimeSample(stage, timeSamplePrimPath, timeSampleAttrName, timeSampleType, line);
+            }
+            continue;
+        }
+        if (inSublayerOffsetsBlock) {
+            if (line == "}") {
+                inSublayerOffsetsBlock = false;
+            } else {
+                applySublayerOffset(stage, line);
             }
             continue;
         }
@@ -425,8 +445,10 @@ private Stage parseUsda(string text, string sourceDir = ".") {
                 stage.defaultPrim = parseQuotedOrToken(afterEquals(line));
             } else if (line.startsWith("subLayers")) {
                 foreach (assetPath; parseAssetList(afterEquals(line))) {
-                    stage.sublayers ~= Stage.open(buildNormalizedPath(stage.sourceDir, assetPath));
+                    addSublayer(stage, assetPath);
                 }
+            } else if (line.startsWith("subLayerOffsets")) {
+                inSublayerOffsetsBlock = true;
             } else if (pendingPrimPath.length != 0 && line.startsWith("variantSets")) {
                 inVariantSetsBlock = true;
                 variantPrimPath = pendingPrimPath;
@@ -479,8 +501,12 @@ private Stage parseUsda(string text, string sourceDir = ".") {
         }
         if (line.startsWith("subLayers")) {
             foreach (assetPath; parseAssetList(afterEquals(line))) {
-                stage.sublayers ~= Stage.open(buildNormalizedPath(stage.sourceDir, assetPath));
+                addSublayer(stage, assetPath);
             }
+            continue;
+        }
+        if (line.startsWith("subLayerOffsets")) {
+            inSublayerOffsetsBlock = true;
             continue;
         }
 
@@ -897,6 +923,43 @@ private string[] parseAssetList(string rawValue) {
     return asset.length == 0 ? [] : [asset];
 }
 
+private void addSublayer(ref Stage stage, string assetPath) {
+    Sublayer sublayer;
+    sublayer.assetPath = assetPath;
+    sublayer.offset = 0.0;
+    sublayer.scale = 1.0;
+    sublayer.stage = Stage.open(buildNormalizedPath(stage.sourceDir, assetPath));
+    stage.sublayers ~= sublayer;
+}
+
+private void applySublayerOffset(ref Stage stage, string line) {
+    auto assetPath = parseAssetToken(line);
+    if (assetPath.length == 0) {
+        return;
+    }
+    auto colon = line.indexOf(":");
+    if (colon < 0) {
+        return;
+    }
+    auto tupleText = line[colon + 1 .. $].strip.stripRight(",");
+    if (tupleText.length < 2 || tupleText[0] != '(' || tupleText[$ - 1] != ')') {
+        return;
+    }
+    auto parts = tupleText[1 .. $ - 1].split(",");
+    if (parts.length != 2) {
+        return;
+    }
+    auto offset = parts[0].strip.to!double;
+    auto scale = parts[1].strip.to!double;
+    foreach (ref sublayer; stage.sublayers) {
+        if (sublayer.assetPath == assetPath) {
+            sublayer.offset = offset;
+            sublayer.scale = scale;
+            return;
+        }
+    }
+}
+
 private string parseAssetToken(string rawValue) {
     rawValue = rawValue.strip;
     auto begin = rawValue.indexOf("@");
@@ -1006,7 +1069,7 @@ unittest {
     assert(stage.readDouble("/World/Model", "animated", 0.0) == 1.0);
     assert(stage.readDouble("/World/Model", "animated", 10.0) == 2.0);
     assert(stage.readDouble("/World/Model", "strength") == 10.0);
-    assert(stage.readDouble("/World/Model", "stackedOnly", 5.0) == 50.0);
+    assert(stage.readDouble("/World/Model", "stackedOnly", 15.0) == 50.0);
 }
 
 unittest {
