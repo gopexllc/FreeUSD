@@ -41,6 +41,7 @@ struct Value {
         bool_,
         int_,
         string_,
+        asset,
         token,
         tokenArray,
         vec3d,
@@ -91,6 +92,13 @@ struct Value {
         return outValue;
     }
 
+    static Value makeAsset(string value) {
+        Value outValue;
+        outValue.kind = Kind.asset;
+        outValue.stringValue = value;
+        return outValue;
+    }
+
     static Value makeToken(string value) {
         Value outValue;
         outValue.kind = Kind.token;
@@ -122,7 +130,7 @@ struct Value {
             return cast(double) intValue;
         case Kind.bool_:
             return boolValue ? 1.0 : 0.0;
-        case Kind.none, Kind.string_, Kind.token, Kind.tokenArray, Kind.vec3d, Kind.vec3f:
+        case Kind.none, Kind.string_, Kind.asset, Kind.token, Kind.tokenArray, Kind.vec3d, Kind.vec3f:
             throw new Exception("value is not numeric");
         }
     }
@@ -238,7 +246,7 @@ struct Stage {
 
     string readString(string primPath, string attrName) const {
         auto value = composedAttribute(primPath, attrName, 1.0);
-        if (value.kind != Value.Kind.string_ && value.kind != Value.Kind.token) {
+        if (value.kind != Value.Kind.string_ && value.kind != Value.Kind.asset && value.kind != Value.Kind.token) {
             throw new Exception("attribute is not string-like: " ~ attrName);
         }
         return value.stringValue;
@@ -1336,6 +1344,8 @@ private Value parseValue(string typeName, string rawValue) {
         return Value.makeBool(rawValue == "true" || rawValue == "1");
     case "string":
         return Value.makeString(parseQuotedOrToken(rawValue));
+    case "asset":
+        return Value.makeAsset(parseAssetValue(rawValue));
     case "token":
         return Value.makeToken(parseQuotedOrToken(rawValue));
     case "token[]":
@@ -1484,6 +1494,16 @@ private string parseAssetToken(string rawValue) {
     auto end = rawValue.indexOf("@", begin + 1);
     if (end <= begin) {
         return "";
+    }
+    return rawValue[begin + 1 .. end];
+}
+
+private string parseAssetValue(string rawValue) {
+    rawValue = rawValue.strip;
+    auto begin = rawValue.indexOf("@");
+    auto end = rawValue.indexOf("@", begin + 1);
+    if (begin < 0 || end <= begin) {
+        return parseQuotedOrToken(rawValue);
     }
     return rawValue[begin + 1 .. end];
 }
@@ -1697,7 +1717,16 @@ unittest {
 }
 
 unittest {
+    auto stage = Stage.open("../../tests/fixtures/parity_vol_openvdb.usda");
+    assert(stage.primAt("/World/Smoke").typeName == "OpenVDBAsset");
+    assert(stage.readString("/World/Smoke", "filePath") == "volumes/smoke.vdb");
+    assert(stage.readString("/World/Smoke", "fieldName") == "density");
+}
+
+unittest {
     auto stage = Stage.open("../../tests/fixtures/parity_vol_volume.usda");
+    assert(stage.primAt("/World/Cloud").typeName == "Volume");
     assert(stage.relationshipTargets("/World/Cloud", "field") == ["/World/Cloud/Smoke"]);
+    assert(stage.readString("/World/Cloud/Smoke", "filePath") == "volumes/cloud/smoke.vdb");
     assert(stage.readString("/World/Cloud/Smoke", "fieldName") == "density");
 }
