@@ -1,6 +1,6 @@
 module freeusd.nativeusd;
 
-import std.algorithm : canFind, endsWith, startsWith;
+import std.algorithm : canFind, endsWith, sort, startsWith;
 import std.array : split;
 import std.conv : to;
 import std.file : readText;
@@ -348,6 +348,18 @@ struct Stage {
 
     string[] relationshipTargets(string primPath, string relName) const {
         return composedRelationshipTargets(primPath, relName, []);
+    }
+
+    string[] listFieldNames(string primPath) const {
+        string[string] seen;
+        collectFieldNames(primPath, seen, []);
+        return sortedKeys(seen);
+    }
+
+    string[] listRelationshipNames(string primPath) const {
+        string[string] seen;
+        collectRelationshipNames(primPath, seen, []);
+        return sortedKeys(seen);
     }
 
     Matrix4d computeLocalTransform(string primPath) const {
@@ -716,6 +728,107 @@ struct Stage {
             }
         }
         throw new Exception("missing customData key: " ~ key);
+    }
+
+    private void collectFieldNames(string primPath, ref string[string] seen, string[] visiting) const {
+        primPath = mapComposedToAuthored(primPath);
+        foreach (visited; visiting) {
+            if (visited == primPath) {
+                return;
+            }
+        }
+        auto found = primPath in prims;
+        if (found is null) {
+            foreach (sublayer; sublayers) {
+                sublayer.stage.collectFieldNames(primPath, seen, visiting);
+            }
+            return;
+        }
+        foreach (name; found.attributes.keys) {
+            seen[name] = name;
+        }
+        foreach (name; found.timeSamples.keys) {
+            seen[name] = name;
+        }
+        auto nextVisiting = visiting ~ primPath;
+        foreach (target; found.inherits) {
+            if (primIsValid(target)) {
+                collectFieldNames(target, seen, nextVisiting);
+            }
+        }
+        foreach (target; found.specializes) {
+            if (primIsValid(target)) {
+                collectFieldNames(target, seen, nextVisiting);
+            }
+        }
+        foreach (reference; found.references) {
+            try {
+                auto refStage = Stage.open(buildNormalizedPath(sourceDir, reference.assetPath));
+                auto targetPath = reference.primPath.length != 0 ? reference.primPath : "/" ~ refStage.defaultPrim;
+                refStage.collectFieldNames(targetPath, seen, []);
+            } catch (Exception) {
+            }
+        }
+        foreach (payload; found.payloads) {
+            try {
+                auto payloadStage = Stage.open(buildNormalizedPath(sourceDir, payload.assetPath));
+                auto targetPath = payload.primPath.length != 0 ? payload.primPath : "/" ~ payloadStage.defaultPrim;
+                payloadStage.collectFieldNames(targetPath, seen, []);
+            } catch (Exception) {
+            }
+        }
+        foreach (sublayer; sublayers) {
+            sublayer.stage.collectFieldNames(primPath, seen, visiting);
+        }
+    }
+
+    private void collectRelationshipNames(string primPath, ref string[string] seen, string[] visiting) const {
+        primPath = mapComposedToAuthored(primPath);
+        foreach (visited; visiting) {
+            if (visited == primPath) {
+                return;
+            }
+        }
+        auto found = primPath in prims;
+        if (found is null) {
+            foreach (sublayer; sublayers) {
+                sublayer.stage.collectRelationshipNames(primPath, seen, visiting);
+            }
+            return;
+        }
+        foreach (name; found.relationships.keys) {
+            seen[name] = name;
+        }
+        auto nextVisiting = visiting ~ primPath;
+        foreach (target; found.inherits) {
+            if (primIsValid(target)) {
+                collectRelationshipNames(target, seen, nextVisiting);
+            }
+        }
+        foreach (target; found.specializes) {
+            if (primIsValid(target)) {
+                collectRelationshipNames(target, seen, nextVisiting);
+            }
+        }
+        foreach (reference; found.references) {
+            try {
+                auto refStage = Stage.open(buildNormalizedPath(sourceDir, reference.assetPath));
+                auto targetPath = reference.primPath.length != 0 ? reference.primPath : "/" ~ refStage.defaultPrim;
+                refStage.collectRelationshipNames(targetPath, seen, []);
+            } catch (Exception) {
+            }
+        }
+        foreach (payload; found.payloads) {
+            try {
+                auto payloadStage = Stage.open(buildNormalizedPath(sourceDir, payload.assetPath));
+                auto targetPath = payload.primPath.length != 0 ? payload.primPath : "/" ~ payloadStage.defaultPrim;
+                payloadStage.collectRelationshipNames(targetPath, seen, []);
+            } catch (Exception) {
+            }
+        }
+        foreach (sublayer; sublayers) {
+            sublayer.stage.collectRelationshipNames(primPath, seen, visiting);
+        }
     }
 
     private PrimMetadata composedPrimMetadata(string primPath, string[] visiting) const {
@@ -1665,6 +1778,12 @@ private string parentPath(string path) {
     return path[0 .. index];
 }
 
+private string[] sortedKeys(string[string] values) {
+    auto outValues = values.keys;
+    sort(outValues);
+    return outValues;
+}
+
 private string[] ancestorPaths(string path) {
     string[] reversed;
     auto current = path;
@@ -1755,6 +1874,8 @@ unittest {
     assert(stage.readString("/Scene/Child", "label") == "hello");
     assert(stage.readString("/Scene/Child", "kind") == "component");
     assert(stage.readTokenArray("/Scene/Child", "tags") == ["a", "b"]);
+    assert(stage.listFieldNames("/Scene/Child").canFind("mass"));
+    assert(stage.listFieldNames("/Scene/Child").canFind("tags"));
     auto extent = stage.readVec3("/Scene/Child", "extent");
     assert(extent.x == 1.0 && extent.y == 2.0 && extent.z == 3.0);
     auto matrix = stage.readMatrix4d("/Scene/Child", "xf");
@@ -1771,6 +1892,8 @@ unittest {
     assert(stage.readDouble("/Scene/ArcHost", "mass", 2.0) == 4.0);
     assert(stage.readString("/Scene/ArcHost", "label") == "hello");
     assert(stage.readTokenArray("/Scene/ArcHost", "tags") == ["a", "b"]);
+    assert(stage.listFieldNames("/Scene/ArcHost").canFind("arcOnly"));
+    assert(stage.listFieldNames("/Scene/ArcHost").canFind("mass"));
     assert(stage.customDataInt("/Scene/Child", "tag") == 99);
 }
 
@@ -1786,6 +1909,9 @@ unittest {
     assert(stage.readDouble("/Library/Source", "refOnly") == 11.0);
     assert(stage.readDouble("/Library/Source", "payloadOnly") == 33.0);
     assert(stage.relationshipTargets("/Library/Source", "refLink") == ["/RefRoot/RefLeaf"]);
+    assert(stage.listFieldNames("/Library/Source").canFind("radius"));
+    assert(stage.listFieldNames("/Library/Source").canFind("refOnly"));
+    assert(stage.listRelationshipNames("/Library/Source") == ["refLink"]);
     assert(stage.prefixSubstitutionKeyInAnyLayer("/Assets"));
     assert(stage.composedPrefixSubstitution("/Assets") == "/ResolvedAssets");
     assert(stage.primIsValid("/Library/Published"));
@@ -1832,6 +1958,8 @@ unittest {
     assert(stage.readDouble("/World/Model", "animated", 10.0) == 2.0);
     assert(stage.readDouble("/World/Model", "strength") == 10.0);
     assert(stage.readDouble("/World/Model", "stackedOnly", 15.0) == 50.0);
+    assert(stage.listFieldNames("/World/Model").canFind("rootOnly"));
+    assert(stage.listFieldNames("/World/Model").canFind("stackedOnly"));
 }
 
 unittest {
@@ -1895,6 +2023,7 @@ unittest {
     auto stage = Stage.open("../../tests/fixtures/parity_physics_fixed_joint.usda");
     assert(stage.relationshipTargets("/World/Anchor", "physics:body0") == ["/World/BodyA"]);
     assert(stage.relationshipTargets("/World/Anchor", "physics:body1") == ["/World/BodyB"]);
+    assert(stage.listRelationshipNames("/World/Anchor") == ["physics:body0", "physics:body1"]);
     assert(stage.readDouble("/World/Anchor", "physics:jointEnabled") == 1.0);
 }
 
