@@ -423,6 +423,14 @@ if(FREEUSD_BUILD_TESTS)
       freeusd_c_usd_physics_mass PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
     set_target_properties(freeusd_c_usd_physics_mass PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX)
     add_test(NAME freeusd_c_usd_physics_mass COMMAND freeusd_c_usd_physics_mass)
+
+    add_executable(freeusd_c_usd_physics_fixed_joint tests/c_usd_physics_fixed_joint.c)
+    target_include_directories(freeusd_c_usd_physics_fixed_joint PRIVATE "${PROJECT_SOURCE_DIR}/include")
+    target_link_libraries(freeusd_c_usd_physics_fixed_joint PRIVATE freeusd::c)
+    target_compile_definitions(
+      freeusd_c_usd_physics_fixed_joint PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+    set_target_properties(freeusd_c_usd_physics_fixed_joint PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX)
+    add_test(NAME freeusd_c_usd_physics_fixed_joint COMMAND freeusd_c_usd_physics_fixed_joint)
   endif()
 
   set(
@@ -496,7 +504,8 @@ if(FREEUSD_BUILD_TESTS)
       freeusd_c_usd_physics
       freeusd_c_usd_physics_rigid_body
       freeusd_c_usd_physics_collision
-      freeusd_c_usd_physics_mass)
+      freeusd_c_usd_physics_mass
+      freeusd_c_usd_physics_fixed_joint)
   endif()
   foreach(_freeusd_test_target IN LISTS _freeusd_assert_enabled_test_targets)
     freeusd_enable_test_asserts("${_freeusd_test_target}")
@@ -509,7 +518,8 @@ if(FREEUSD_BUILD_TESTS AND FREEUSD_TEST_INSTALL_INTEGRATION)
     NAME freeusd_install_integration
     COMMAND
       "${CMAKE_COMMAND}" -E env "FREEUSD_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
-      "FREEUSD_SCRATCH=${CMAKE_SOURCE_DIR}/.install_integration_scratch" "${CMAKE_COMMAND}" -P
+      "FREEUSD_SCRATCH=${CMAKE_SOURCE_DIR}/.install_integration_scratch"
+      "FREEUSD_CMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}" "${CMAKE_COMMAND}" -P
       "${CMAKE_SOURCE_DIR}/tests/install_integration.cmake")
   set_tests_properties(
     freeusd_install_integration

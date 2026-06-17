@@ -95,6 +95,20 @@ else
   echo "SKIP: linux-bindings Go (go not found)"
 fi
 
+if command -v dub >/dev/null 2>&1; then
+  run_step "linux-bindings (D)" bash -c "
+    set -euo pipefail
+    (cd bindings/d && dub test --compiler=ldc2)
+  "
+  run_step "linux-native (D)" bash -c "
+    set -euo pipefail
+    (cd native/d && dub test --compiler=ldc2)
+  "
+else
+  echo "SKIP: linux-bindings D (dub not found)"
+  echo "SKIP: linux-native D (dub not found)"
+fi
+
 echo ""
 if [ "${FAILED}" -ne 0 ]; then
   echo "Local CI finished with failures." >&2

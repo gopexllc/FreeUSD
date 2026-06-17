@@ -4,14 +4,14 @@ FreeUSD does **not** implement Pixar production USDC compression. For tests and 
 
 ## Shared prefix
 
-Each wrapper starts with an 8-byte magic and a little-endian `uint64_t` **uncompressed_size** (must match the decompressed byte length).
+Each wrapper starts with a 7-byte magic and a little-endian `uint64_t` **uncompressed_size** (must match the decompressed byte length).
 
 | Magic | Algorithm | Reference |
 | --- | --- | --- |
 | `FUSDZC\x01` | zlib (`deflate` / RFC 1950 wrapper via `uncompress`) | [RFC 1950](https://www.rfc-editor.org/rfc/rfc1950) |
-| `FUSDZL\x01` | LZ4 block (no frame); decompress with `LZ4_decompress_safe` | [LZ4 block format](https://github.com/lz4/lz4/blob/dev/doc/lz4_Block_format.md) |
+| `FUSDZL\x01` | LZ4 block (no frame); decompressed by FreeUSD's bounded fixture block decoder | [LZ4 block format](https://github.com/lz4/lz4/blob/dev/doc/lz4_Block_format.md) |
 
-Bytes after the 12-byte header are the compressed payload only.
+Bytes after the 15-byte header are the compressed payload only.
 
 ## Fixtures
 

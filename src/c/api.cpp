@@ -30,6 +30,7 @@
 #include "freeusd/usdGeom/xformable.hpp"
 #include "freeusd/usdLux/distantLight.hpp"
 #include "freeusd/usdPhysics/collisionAPI.hpp"
+#include "freeusd/usdPhysics/fixedJoint.hpp"
 #include "freeusd/usdPhysics/massAPI.hpp"
 #include "freeusd/usdPhysics/physicsScene.hpp"
 #include "freeusd/usdPhysics/rigidBodyAPI.hpp"
@@ -3569,6 +3570,53 @@ int freeusd_stage_read_physics_mass_sample(const FreeusdStage* stage, const char
     out_sample->center_of_mass[0] = center_of_mass.x();
     out_sample->center_of_mass[1] = center_of_mass.y();
     out_sample->center_of_mass[2] = center_of_mass.z();
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_read_physics_fixed_joint_sample(const FreeusdStage* stage, const char* joint_path_utf8, double time,
+                                                  FreeusdPhysicsFixedJointSample* out_sample) {
+  if (!stage || !stage->inner || !joint_path_utf8 || !out_sample) {
+    set_error("freeusd_stage_read_physics_fixed_joint_sample: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_sample = FreeusdPhysicsFixedJointSample{};
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(joint_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid PhysicsFixedJoint prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const freeusd::usdPhysics::FixedJoint joint = freeusd::usdPhysics::FixedJoint::ReadFromPrim(stage->inner, p);
+    if (!joint || !joint.IsFixedJoint()) {
+      set_error("PhysicsFixedJoint prim not found or invalid");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    freeusd::sdf::Path body0;
+    freeusd::sdf::Path body1;
+    bool joint_enabled = false;
+    if (!joint.GetBody0(&body0) || !joint.GetBody1(&body1) || !joint.GetJointEnabled(&joint_enabled, time)) {
+      set_error("PhysicsFixedJoint inputs not available");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    char* body0_dup = dup_cstr(body0.GetString());
+    char* body1_dup = dup_cstr(body1.GetString());
+    if (!body0_dup || !body1_dup) {
+      std::free(body0_dup);
+      std::free(body1_dup);
+      set_error("out of memory");
+      return FREEUSD_ERR_INTERNAL;
+    }
+    out_sample->body0_path_utf8 = body0_dup;
+    out_sample->body1_path_utf8 = body1_dup;
+    out_sample->joint_enabled = joint_enabled ? 1 : 0;
     clear_error();
     return FREEUSD_OK;
   } catch (const std::exception& e) {
