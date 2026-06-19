@@ -1,20 +1,10 @@
 # FreeUSD
 
-A **GPL-2.0-or-later** licensed, independent implementation of the OpenUSD (Universal Scene Description) file formats and core data model.
-
-It is intended for **GPL-2-or-later-compatible** stacks (for example a **GPL-2 or GPL-3 game engine**) that want USD-style authoring and composition under the **same license family** as the engine, rather than depending on upstream OpenUSD’s license for that layer.
+An independent implementation of the OpenUSD (Universal Scene Description) file formats and core data model.
 
 ---
 
 FreeUSD is an independent project and is not endorsed by or affiliated with Pixar, the Alliance for OpenUSD, or the official OpenUSD project. It aims for compliance with the published OpenUSD Core Specification.
-
-## Licensing
-
-All **FreeUSD** library and tool sources in this repository are licensed under the **GNU General Public License v2.0 or later**; see [`LICENSE`](LICENSE).
-
-Implementation is **clean-room** relative to Pixar’s OpenUSD sources: **do not copy upstream OpenUSD/AOUSD code** into this repository; only independent implementations. See [docs/openusd-repo-alignment.md](docs/openusd-repo-alignment.md). Compatibility targets **published formats and behavior**, not upstream source.
-
-**Third-party components** used at build or test time remain under their own licenses (for example **pybind11**, fetched by CMake when the Python module is enabled, is BSD-style and commonly paired with GPLv2 or later software). You are responsible for satisfying the license terms of any dependency you ship alongside FreeUSD.
 
 ## Layout
 
