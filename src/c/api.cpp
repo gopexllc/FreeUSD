@@ -133,6 +133,125 @@ struct FreeusdStage {
   std::shared_ptr<freeusd::usd::Stage> inner;
 };
 
+namespace {
+
+using PreviewSurfaceColorGetter = bool (freeusd::usdShade::PreviewSurface::*)(freeusd::gf::Vec3f*, double) const;
+using PreviewSurfaceScalarGetter = bool (freeusd::usdShade::PreviewSurface::*)(float*, double) const;
+using PreviewSurfaceTextureGetter = bool (freeusd::usdShade::PreviewSurface::*)(std::string*, double) const;
+
+freeusd::usdShade::PreviewSurface read_preview_surface_or_set_error(const FreeusdStage* stage,
+                                                                    const char* shader_path_utf8) {
+  const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(shader_path_utf8);
+  if (p.IsEmpty()) {
+    set_error("invalid shader path");
+    return {};
+  }
+  const freeusd::usdShade::PreviewSurface preview =
+      freeusd::usdShade::PreviewSurface::ReadFromPrim(stage->inner, p);
+  if (!preview || !preview.IsPreviewSurface()) {
+    set_error("shader prim is not UsdPreviewSurface");
+    return {};
+  }
+  return preview;
+}
+
+int read_preview_surface_color_input(const FreeusdStage* stage, const char* shader_path_utf8, double time,
+                                     float out_rgb[3], PreviewSurfaceColorGetter getter,
+                                     const char* missing_message) {
+  if (!stage || !stage->inner || !shader_path_utf8 || !out_rgb) {
+    set_error("read_preview_surface_color_input: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  out_rgb[0] = out_rgb[1] = out_rgb[2] = 0.0f;
+  try {
+    const freeusd::usdShade::PreviewSurface preview = read_preview_surface_or_set_error(stage, shader_path_utf8);
+    if (!preview) {
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    freeusd::gf::Vec3f value{};
+    if (!(preview.*getter)(&value, time)) {
+      set_error(missing_message);
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    out_rgb[0] = value.x();
+    out_rgb[1] = value.y();
+    out_rgb[2] = value.z();
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int read_preview_surface_scalar_input(const FreeusdStage* stage, const char* shader_path_utf8, double time,
+                                      float* out_value, PreviewSurfaceScalarGetter getter,
+                                      const char* missing_message) {
+  if (!stage || !stage->inner || !shader_path_utf8 || !out_value) {
+    set_error("read_preview_surface_scalar_input: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_value = 0.0f;
+  try {
+    const freeusd::usdShade::PreviewSurface preview = read_preview_surface_or_set_error(stage, shader_path_utf8);
+    if (!preview) {
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    if (!(preview.*getter)(out_value, time)) {
+      set_error(missing_message);
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int read_preview_surface_texture_asset_path(const FreeusdStage* stage, const char* shader_path_utf8, double time,
+                                            char** out_path_utf8, PreviewSurfaceTextureGetter getter,
+                                            const char* missing_message) {
+  if (!stage || !stage->inner || !shader_path_utf8 || !out_path_utf8) {
+    set_error("read_preview_surface_texture_asset_path: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_path_utf8 = nullptr;
+  try {
+    const freeusd::usdShade::PreviewSurface preview = read_preview_surface_or_set_error(stage, shader_path_utf8);
+    if (!preview) {
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    std::string texture_path;
+    if (!(preview.*getter)(&texture_path, time)) {
+      set_error(missing_message);
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    char* dup = dup_cstr(texture_path);
+    if (!dup) {
+      set_error("out of memory");
+      return FREEUSD_ERR_INTERNAL;
+    }
+    *out_path_utf8 = dup;
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+}  // namespace
+
 extern "C" {
 
 const char* freeusd_version_string(void) {
@@ -3299,6 +3418,34 @@ int freeusd_stage_read_preview_surface_diffuse_color(const FreeusdStage* stage, 
   }
 }
 
+int freeusd_stage_read_preview_surface_emissive_color(const FreeusdStage* stage, const char* shader_path_utf8,
+                                                      double time, float out_rgb[3]) {
+  return read_preview_surface_color_input(stage, shader_path_utf8, time, out_rgb,
+                                          &freeusd::usdShade::PreviewSurface::GetEmissiveColor,
+                                          "inputs:emissiveColor not available");
+}
+
+int freeusd_stage_read_preview_surface_metallic(const FreeusdStage* stage, const char* shader_path_utf8, double time,
+                                                float* out_value) {
+  return read_preview_surface_scalar_input(stage, shader_path_utf8, time, out_value,
+                                           &freeusd::usdShade::PreviewSurface::GetMetallic,
+                                           "inputs:metallic not available");
+}
+
+int freeusd_stage_read_preview_surface_roughness(const FreeusdStage* stage, const char* shader_path_utf8, double time,
+                                                 float* out_value) {
+  return read_preview_surface_scalar_input(stage, shader_path_utf8, time, out_value,
+                                           &freeusd::usdShade::PreviewSurface::GetRoughness,
+                                           "inputs:roughness not available");
+}
+
+int freeusd_stage_read_preview_surface_opacity(const FreeusdStage* stage, const char* shader_path_utf8, double time,
+                                               float* out_value) {
+  return read_preview_surface_scalar_input(stage, shader_path_utf8, time, out_value,
+                                           &freeusd::usdShade::PreviewSurface::GetOpacity,
+                                           "inputs:opacity not available");
+}
+
 int freeusd_stage_read_preview_surface_diffuse_texture_asset_path(const FreeusdStage* stage,
                                                                   const char* shader_path_utf8, double time,
                                                                   char** out_path_utf8) {
@@ -3339,6 +3486,38 @@ int freeusd_stage_read_preview_surface_diffuse_texture_asset_path(const FreeusdS
     set_error("unknown exception");
     return FREEUSD_ERR_INTERNAL;
   }
+}
+
+int freeusd_stage_read_preview_surface_normal_texture_asset_path(const FreeusdStage* stage,
+                                                                 const char* shader_path_utf8, double time,
+                                                                 char** out_path_utf8) {
+  return read_preview_surface_texture_asset_path(stage, shader_path_utf8, time, out_path_utf8,
+                                                 &freeusd::usdShade::PreviewSurface::GetNormalTextureAssetPath,
+                                                 "normal texture asset path not available");
+}
+
+int freeusd_stage_read_preview_surface_occlusion_texture_asset_path(const FreeusdStage* stage,
+                                                                    const char* shader_path_utf8, double time,
+                                                                    char** out_path_utf8) {
+  return read_preview_surface_texture_asset_path(stage, shader_path_utf8, time, out_path_utf8,
+                                                 &freeusd::usdShade::PreviewSurface::GetOcclusionTextureAssetPath,
+                                                 "occlusion texture asset path not available");
+}
+
+int freeusd_stage_read_preview_surface_metallic_texture_asset_path(const FreeusdStage* stage,
+                                                                   const char* shader_path_utf8, double time,
+                                                                   char** out_path_utf8) {
+  return read_preview_surface_texture_asset_path(stage, shader_path_utf8, time, out_path_utf8,
+                                                 &freeusd::usdShade::PreviewSurface::GetMetallicTextureAssetPath,
+                                                 "metallic texture asset path not available");
+}
+
+int freeusd_stage_read_preview_surface_roughness_texture_asset_path(const FreeusdStage* stage,
+                                                                    const char* shader_path_utf8, double time,
+                                                                    char** out_path_utf8) {
+  return read_preview_surface_texture_asset_path(stage, shader_path_utf8, time, out_path_utf8,
+                                                 &freeusd::usdShade::PreviewSurface::GetRoughnessTextureAssetPath,
+                                                 "roughness texture asset path not available");
 }
 
 int freeusd_stage_read_lux_distant_light_sample(const FreeusdStage* stage, const char* light_path_utf8, double time,

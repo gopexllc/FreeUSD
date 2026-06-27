@@ -239,11 +239,75 @@ struct Stage {
         return PreviewSurfaceDiffuseColor(rgb);
     }
 
+    PreviewSurfaceDiffuseColor readPreviewSurfaceEmissiveColor(string shaderPath, double time = 1.0) const {
+        ensureOpen();
+        float[3] rgb;
+        auto rc = freeusd_stage_read_preview_surface_emissive_color(handle, shaderPath.toStringz, time, rgb.ptr);
+        check(rc, "readPreviewSurfaceEmissiveColor");
+        return PreviewSurfaceDiffuseColor(rgb);
+    }
+
+    float readPreviewSurfaceMetallic(string shaderPath, double time = 1.0) const {
+        ensureOpen();
+        float value = 0.0f;
+        auto rc = freeusd_stage_read_preview_surface_metallic(handle, shaderPath.toStringz, time, &value);
+        check(rc, "readPreviewSurfaceMetallic");
+        return value;
+    }
+
+    float readPreviewSurfaceRoughness(string shaderPath, double time = 1.0) const {
+        ensureOpen();
+        float value = 0.0f;
+        auto rc = freeusd_stage_read_preview_surface_roughness(handle, shaderPath.toStringz, time, &value);
+        check(rc, "readPreviewSurfaceRoughness");
+        return value;
+    }
+
+    float readPreviewSurfaceOpacity(string shaderPath, double time = 1.0) const {
+        ensureOpen();
+        float value = 0.0f;
+        auto rc = freeusd_stage_read_preview_surface_opacity(handle, shaderPath.toStringz, time, &value);
+        check(rc, "readPreviewSurfaceOpacity");
+        return value;
+    }
+
     string readPreviewSurfaceDiffuseTextureAssetPath(string shaderPath, double time = 1.0) const {
         ensureOpen();
         char* assetPath = null;
         auto rc = freeusd_stage_read_preview_surface_diffuse_texture_asset_path(handle, shaderPath.toStringz, time, &assetPath);
         check(rc, "readPreviewSurfaceDiffuseTextureAssetPath");
+        return takeOwnedCString(assetPath);
+    }
+
+    string readPreviewSurfaceNormalTextureAssetPath(string shaderPath, double time = 1.0) const {
+        ensureOpen();
+        char* assetPath = null;
+        auto rc = freeusd_stage_read_preview_surface_normal_texture_asset_path(handle, shaderPath.toStringz, time, &assetPath);
+        check(rc, "readPreviewSurfaceNormalTextureAssetPath");
+        return takeOwnedCString(assetPath);
+    }
+
+    string readPreviewSurfaceOcclusionTextureAssetPath(string shaderPath, double time = 1.0) const {
+        ensureOpen();
+        char* assetPath = null;
+        auto rc = freeusd_stage_read_preview_surface_occlusion_texture_asset_path(handle, shaderPath.toStringz, time, &assetPath);
+        check(rc, "readPreviewSurfaceOcclusionTextureAssetPath");
+        return takeOwnedCString(assetPath);
+    }
+
+    string readPreviewSurfaceMetallicTextureAssetPath(string shaderPath, double time = 1.0) const {
+        ensureOpen();
+        char* assetPath = null;
+        auto rc = freeusd_stage_read_preview_surface_metallic_texture_asset_path(handle, shaderPath.toStringz, time, &assetPath);
+        check(rc, "readPreviewSurfaceMetallicTextureAssetPath");
+        return takeOwnedCString(assetPath);
+    }
+
+    string readPreviewSurfaceRoughnessTextureAssetPath(string shaderPath, double time = 1.0) const {
+        ensureOpen();
+        char* assetPath = null;
+        auto rc = freeusd_stage_read_preview_surface_roughness_texture_asset_path(handle, shaderPath.toStringz, time, &assetPath);
+        check(rc, "readPreviewSurfaceRoughnessTextureAssetPath");
         return takeOwnedCString(assetPath);
     }
 
@@ -468,6 +532,9 @@ unittest {
     assert(diffuse.rgb[0] == 0.8f);
     assert(diffuse.rgb[1] == 0.2f);
     assert(diffuse.rgb[2] == 0.1f);
+    assert(stage.readPreviewSurfaceMetallic(shaderPath, 1.0) == 0.5f);
+    assert(stage.readPreviewSurfaceRoughness(shaderPath, 1.0) == 0.3f);
+    assert(stage.readPreviewSurfaceOpacity(shaderPath, 1.0) == 1.0f);
 }
 
 unittest {
@@ -475,4 +542,15 @@ unittest {
     auto shaderPath = stage.readMaterialSurfaceShaderPath("/World/Looks/Material");
     auto texturePath = stage.readPreviewSurfaceDiffuseTextureAssetPath(shaderPath, 1.0);
     assert(texturePath == "textures/albedo.png");
+}
+
+unittest {
+    auto stage = Stage.open("../../tests/fixtures/parity_shade_pbr_textures.usda");
+    auto shaderPath = "/World/Looks/Material/PreviewSurface";
+    auto emissive = stage.readPreviewSurfaceEmissiveColor(shaderPath, 1.0);
+    assert(emissive.rgb[0] == 0.1f);
+    assert(stage.readPreviewSurfaceNormalTextureAssetPath(shaderPath, 1.0) == "textures/normal.png");
+    assert(stage.readPreviewSurfaceOcclusionTextureAssetPath(shaderPath, 1.0) == "textures/ao.png");
+    assert(stage.readPreviewSurfaceMetallicTextureAssetPath(shaderPath, 1.0) == "textures/metallic.png");
+    assert(stage.readPreviewSurfaceRoughnessTextureAssetPath(shaderPath, 1.0) == "textures/roughness.png");
 }

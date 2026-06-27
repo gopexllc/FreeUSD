@@ -155,7 +155,55 @@ int freeusd_stage_read_preview_surface_diffuse_color(
     double time,
     float* out_rgb);
 
+int freeusd_stage_read_preview_surface_emissive_color(
+    const(FreeusdStage)* stage,
+    const(char)* shader_path_utf8,
+    double time,
+    float* out_rgb);
+
+int freeusd_stage_read_preview_surface_metallic(
+    const(FreeusdStage)* stage,
+    const(char)* shader_path_utf8,
+    double time,
+    float* out_value);
+
+int freeusd_stage_read_preview_surface_roughness(
+    const(FreeusdStage)* stage,
+    const(char)* shader_path_utf8,
+    double time,
+    float* out_value);
+
+int freeusd_stage_read_preview_surface_opacity(
+    const(FreeusdStage)* stage,
+    const(char)* shader_path_utf8,
+    double time,
+    float* out_value);
+
 int freeusd_stage_read_preview_surface_diffuse_texture_asset_path(
+    const(FreeusdStage)* stage,
+    const(char)* shader_path_utf8,
+    double time,
+    char** out_path_utf8);
+
+int freeusd_stage_read_preview_surface_normal_texture_asset_path(
+    const(FreeusdStage)* stage,
+    const(char)* shader_path_utf8,
+    double time,
+    char** out_path_utf8);
+
+int freeusd_stage_read_preview_surface_occlusion_texture_asset_path(
+    const(FreeusdStage)* stage,
+    const(char)* shader_path_utf8,
+    double time,
+    char** out_path_utf8);
+
+int freeusd_stage_read_preview_surface_metallic_texture_asset_path(
+    const(FreeusdStage)* stage,
+    const(char)* shader_path_utf8,
+    double time,
+    char** out_path_utf8);
+
+int freeusd_stage_read_preview_surface_roughness_texture_asset_path(
     const(FreeusdStage)* stage,
     const(char)* shader_path_utf8,
     double time,
