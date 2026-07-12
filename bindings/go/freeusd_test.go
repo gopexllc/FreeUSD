@@ -1039,6 +1039,79 @@ func TestUsdLuxDistantLightBinding(t *testing.T) {
 	}
 }
 
+func TestUsdLuxAdditionalLightBindings(t *testing.T) {
+	cases := []struct {
+		fixture string
+		path    string
+		check   func(*Stage)
+	}{
+		{
+			fixture: "parity_lux_sphere.usda",
+			path:    "/World/Bulb",
+			check: func(st *Stage) {
+				sample, rc := st.ReadLuxSphereLightSample("/World/Bulb", 1.0)
+				if rc != 0 || sample.Intensity != 500 || sample.Color[1] != 0.9 || sample.Radius != 0.25 {
+					t.Fatalf("sphere sample=%+v rc=%d %s", sample, rc, LastErrorMessage())
+				}
+			},
+		},
+		{
+			fixture: "parity_lux_rect.usda",
+			path:    "/World/Panel",
+			check: func(st *Stage) {
+				sample, rc := st.ReadLuxRectLightSample("/World/Panel", 1.0)
+				if rc != 0 || sample.Intensity != 1200 || sample.Color[0] != 0.95 || sample.Width != 2 || sample.Height != 1 {
+					t.Fatalf("rect sample=%+v rc=%d %s", sample, rc, LastErrorMessage())
+				}
+			},
+		},
+		{
+			fixture: "parity_lux_disk.usda",
+			path:    "/World/Softbox",
+			check: func(st *Stage) {
+				sample, rc := st.ReadLuxDiskLightSample("/World/Softbox", 1.0)
+				if rc != 0 || sample.Intensity != 800 || sample.Color[0] != 1 || sample.Radius != 0.75 {
+					t.Fatalf("disk sample=%+v rc=%d %s", sample, rc, LastErrorMessage())
+				}
+			},
+		},
+		{
+			fixture: "parity_lux_cylinder.usda",
+			path:    "/World/Tube",
+			check: func(st *Stage) {
+				sample, rc := st.ReadLuxCylinderLightSample("/World/Tube", 1.0)
+				if rc != 0 || sample.Length != 2.5 || sample.Radius != 0.05 {
+					t.Fatalf("cylinder sample=%+v rc=%d %s", sample, rc, LastErrorMessage())
+				}
+			},
+		},
+		{
+			fixture: "parity_lux_dome.usda",
+			path:    "/World/Sky",
+			check: func(st *Stage) {
+				sample, rc := st.ReadLuxDomeLightSample("/World/Sky", 1.0)
+				if rc != 0 || sample.Intensity != 1 || sample.TextureFileAssetPath != "textures/sky.hdr" || sample.TextureFormat != "latlong" {
+					t.Fatalf("dome sample=%+v rc=%d %s", sample, rc, LastErrorMessage())
+				}
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.fixture, func(t *testing.T) {
+			fixture := filepath.Join("..", "..", "tests", "fixtures", tc.fixture)
+			st := OpenStageFromRootFile(fixture, RootSubDepthFirst)
+			if st == nil {
+				t.Fatalf("OpenStageFromRootFile %s: %s", tc.fixture, LastErrorMessage())
+			}
+			defer st.Free()
+			if !st.PrimPathInUse(tc.path) {
+				t.Fatalf("expected prim %s in %s", tc.path, tc.fixture)
+			}
+			tc.check(st)
+		})
+	}
+}
+
 func TestUsdVolOpenVDBAssetBinding(t *testing.T) {
 	fixture := filepath.Join("..", "..", "tests", "fixtures", "parity_vol_openvdb.usda")
 	st := OpenStageFromRootFile(fixture, RootSubDepthFirst)
