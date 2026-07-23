@@ -560,7 +560,7 @@ if(FREEUSD_BUILD_PYTHON)
   add_custom_command(
     TARGET _native
     POST_BUILD
-    COMMAND ${Python_EXECUTABLE} ${CMAKE_SOURCE_DIR}/cmake/sync_native_post_build.py $<TARGET_FILE:_native>
+    COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/cmake/sync_native_post_build.py $<TARGET_FILE:_native>
     COMMENT "Sync _native into site-packages/freeusd when present (editable / venv)")
 
   install(TARGETS _native LIBRARY DESTINATION freeusd)
@@ -628,7 +628,7 @@ if(FREEUSD_BUILD_PYTHON AND FREEUSD_BUILD_TESTS)
 endif()
 
 install(DIRECTORY include/freeusd TYPE INCLUDE)
-install(FILES "${CMAKE_SOURCE_DIR}/LICENSE"
+install(FILES "${CMAKE_CURRENT_LIST_DIR}/LICENSE"
         DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/doc/${PROJECT_NAME}")
 
 # Targets exported as freeusd::<name> for find_package(FreeUSD) (see EXPORT_NAME in src/CMakeLists.txt).
@@ -684,7 +684,7 @@ install(
 
 set(_freeusd_cmake_dir "${CMAKE_INSTALL_LIBDIR}/cmake/FreeUSD")
 configure_package_config_file(
-  "${CMAKE_SOURCE_DIR}/cmake/FreeUSDConfig.cmake.in"
+  "${CMAKE_CURRENT_LIST_DIR}/cmake/FreeUSDConfig.cmake.in"
   "${CMAKE_CURRENT_BINARY_DIR}/FreeUSDConfig.cmake"
   INSTALL_DESTINATION "${_freeusd_cmake_dir}")
 
@@ -713,7 +713,7 @@ else()
   set(FREEUSD_PC_LINK_WRAP_START "")
   set(FREEUSD_PC_LINK_WRAP_END "")
 endif()
-configure_file("${CMAKE_SOURCE_DIR}/cmake/freeusd.pc.in" "${CMAKE_CURRENT_BINARY_DIR}/freeusd.pc" @ONLY)
+configure_file("${CMAKE_CURRENT_LIST_DIR}/cmake/freeusd.pc.in" "${CMAKE_CURRENT_BINARY_DIR}/freeusd.pc" @ONLY)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/freeusd.pc" DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
 
 # Binary archives (run from build dir after configure: cpack [-G TGZ]).
@@ -721,8 +721,8 @@ set(CPACK_PACKAGE_NAME "FreeUSD")
 set(CPACK_PACKAGE_VENDOR "FreeUSD")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "GPL-3.0-or-later USD-shaped scene libraries (clean-room)")
 set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
-set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE")
-set(CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/README.md")
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_LIST_DIR}/LICENSE")
+set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_LIST_DIR}/README.md")
 if(WIN32)
   set(CPACK_GENERATOR "ZIP")
 else()
