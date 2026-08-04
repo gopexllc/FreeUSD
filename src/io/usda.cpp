@@ -51,6 +51,10 @@ bool sdf_type_is_float2_tuple_family(std::string_view type_l) noexcept {
   return type_l == "float2" || type_l == "texcoord2f";
 }
 
+bool sdf_type_is_float4_tuple_family(std::string_view type_l) noexcept {
+  return type_l == "float4" || type_l == "color4f";
+}
+
 bool sv_starts_with(std::string_view s, std::string_view p) noexcept {
   return s.size() >= p.size() && s.compare(0, p.size(), p) == 0;
 }
@@ -618,6 +622,23 @@ freeusd::vt::Value parse_value(std::string_view t, ParseResult* err, std::size_t
         return {};
       }
       return freeusd::vt::Value::MakeFloatArray(std::vector<float>{u, v});
+    }
+
+    if (sdf_type_is_float4_tuple_family(type_l)) {
+      float a{}, b{}, c{}, d{};
+      char c1 = 0, c2 = 0, c3 = 0;
+      std::istringstream iss{inner_str};
+      iss >> a >> c1 >> b >> c2 >> c >> c3 >> d;
+      if (!iss || c1 != ',' || c2 != ',' || c3 != ',') {
+        set_err(err, line, "bad vec4f tuple literal");
+        return {};
+      }
+      iss >> std::ws;
+      if (!iss.eof()) {
+        set_err(err, line, "bad vec4f tuple literal (trailing tokens)");
+        return {};
+      }
+      return freeusd::vt::Value::MakeFloatArray(std::vector<float>{a, b, c, d});
     }
 
     if (sdf_type_is_float3_tuple_family(type_l)) {
@@ -2623,7 +2644,8 @@ ParseResult LoadFromString(std::string_view text, const std::shared_ptr<freeusd:
 
   std::vector<std::string> lines;
   {
-    std::string buf{text};
+    /* USDA exporters commonly wrap large array attributes across lines. */
+    std::string buf = flatten_newlines_inside_square_brackets( text );
     std::istringstream iss{buf};
     std::string line;
     while (std::getline(iss, line)) {
@@ -2853,6 +2875,15 @@ ParseResult LoadFromString(std::string_view text, const std::shared_ptr<freeusd:
       r.line = line_no;
       r.message = "attribute outside prim scope";
       return r;
+    }
+
+    /* Some exporters attach property metadata after the value, for example
+     * `float3[] primvars:normals = [...] ( interpolation = "vertex" )`.
+     * The mesh importer already derives interpolation from array cardinality;
+     * accept and ignore this metadata block instead of treating it as a new
+     * typed attribute. */
+    if (s == ")" || sv_starts_with(s, "interpolation =") || s.find('=') == std::string_view::npos) {
+      continue;
     }
 
     std::string typ;

@@ -28,6 +28,7 @@ def Xform "World"
                 float inputs:metallic = 0.5
                 float inputs:roughness = 0.3
                 float inputs:opacity = 1.0
+                float inputs:opacityThreshold = 0.5
             }
         }
     }

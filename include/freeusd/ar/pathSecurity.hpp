@@ -7,7 +7,14 @@
 namespace freeusd::ar {
 
 /// Maximum bytes read from a single on-disk USDA layer file (DoS guard for ``LoadFromFile``).
-constexpr std::size_t kMaxUsdaLayerFileBytes = 64u * 1024u * 1024u;
+/*
+ * USDA is commonly used as a monolithic interchange/export format.  The
+ * original 64 MiB guard rejected production validation scenes such as the
+ * 417 MiB Sponza main layer before the renderer could select a mesh.  Keep a
+ * bounded parser allocation while admitting the main validation tier; large
+ * foliage/instancing layers remain intentionally outside this limit.
+ */
+constexpr std::size_t kMaxUsdaLayerFileBytes = 512u * 1024u * 1024u;
 
 /// Maximum bytes for a USDC crate file used by bootstrap/TOC/section readers.
 constexpr std::size_t kMaxUsdcCrateFileBytes = 256u * 1024u * 1024u;
