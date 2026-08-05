@@ -1004,6 +1004,18 @@ func TestUsdShadePreviewSurfaceBindings(t *testing.T) {
 	if rc != 0 || rgb[0] != 0.8 || rgb[1] != 0.2 || rgb[2] != 0.1 {
 		t.Fatalf("ReadPreviewSurfaceDiffuseColor rgb=%v rc=%d %s", rgb, rc, LastErrorMessage())
 	}
+	metallic, rc := st.ReadPreviewSurfaceMetallic(shaderPath, 1.0)
+	if rc != 0 || metallic != 0.5 {
+		t.Fatalf("ReadPreviewSurfaceMetallic value=%v rc=%d %s", metallic, rc, LastErrorMessage())
+	}
+	roughness, rc := st.ReadPreviewSurfaceRoughness(shaderPath, 1.0)
+	if rc != 0 || roughness != 0.3 {
+		t.Fatalf("ReadPreviewSurfaceRoughness value=%v rc=%d %s", roughness, rc, LastErrorMessage())
+	}
+	opacity, rc := st.ReadPreviewSurfaceOpacity(shaderPath, 1.0)
+	if rc != 0 || opacity != 1.0 {
+		t.Fatalf("ReadPreviewSurfaceOpacity value=%v rc=%d %s", opacity, rc, LastErrorMessage())
+	}
 
 	textureFixture := filepath.Join("..", "..", "tests", "fixtures", "parity_shade_texture.usda")
 	textureStage := OpenStageFromRootFile(textureFixture, RootSubDepthFirst)
@@ -1018,6 +1030,34 @@ func TestUsdShadePreviewSurfaceBindings(t *testing.T) {
 	texturePath, rc := textureStage.ReadPreviewSurfaceDiffuseTextureAssetPath(shaderPath, 1.0)
 	if rc != 0 || texturePath != "textures/albedo.png" {
 		t.Fatalf("ReadPreviewSurfaceDiffuseTextureAssetPath path=%q rc=%d %s", texturePath, rc, LastErrorMessage())
+	}
+
+	pbrFixture := filepath.Join("..", "..", "tests", "fixtures", "parity_shade_pbr_textures.usda")
+	pbrStage := OpenStageFromRootFile(pbrFixture, RootSubDepthFirst)
+	if pbrStage == nil {
+		t.Fatal("OpenStageFromRootFile pbr:", LastErrorMessage())
+	}
+	defer pbrStage.Free()
+	pbrShaderPath := "/World/Looks/Material/PreviewSurface"
+	emissive, rc := pbrStage.ReadPreviewSurfaceEmissiveColor(pbrShaderPath, 1.0)
+	if rc != 0 || emissive[0] != 0.1 {
+		t.Fatalf("ReadPreviewSurfaceEmissiveColor rgb=%v rc=%d %s", emissive, rc, LastErrorMessage())
+	}
+	textureChecks := []struct {
+		name string
+		read func(string, float64) (string, int)
+		want string
+	}{
+		{"normal", pbrStage.ReadPreviewSurfaceNormalTextureAssetPath, "textures/normal.png"},
+		{"occlusion", pbrStage.ReadPreviewSurfaceOcclusionTextureAssetPath, "textures/ao.png"},
+		{"metallic", pbrStage.ReadPreviewSurfaceMetallicTextureAssetPath, "textures/metallic.png"},
+		{"roughness", pbrStage.ReadPreviewSurfaceRoughnessTextureAssetPath, "textures/roughness.png"},
+	}
+	for _, tc := range textureChecks {
+		got, rc := tc.read(pbrShaderPath, 1.0)
+		if rc != 0 || got != tc.want {
+			t.Fatalf("%s texture path=%q rc=%d %s", tc.name, got, rc, LastErrorMessage())
+		}
 	}
 }
 

@@ -50,6 +50,29 @@ int main(void) {
     freeusd_stage_free(stage);
     return 6;
   }
+  float scalar = 0.0f;
+  if (freeusd_stage_read_preview_surface_metallic(stage, "/World/Looks/Material/PreviewSurface", 1.0, &scalar) !=
+          FREEUSD_OK ||
+      !flt_eq(scalar, 0.5f)) {
+    fprintf(stderr, "metallic read failed: %s\n", freeusd_last_error_message());
+    freeusd_stage_free(stage);
+    return 11;
+  }
+  if (freeusd_stage_read_preview_surface_roughness(stage, "/World/Looks/Material/PreviewSurface", 1.0, &scalar) !=
+          FREEUSD_OK ||
+      !flt_eq(scalar, 0.3f)) {
+    fprintf(stderr, "roughness read failed: %s\n", freeusd_last_error_message());
+    freeusd_stage_free(stage);
+    return 12;
+  }
+  if (freeusd_stage_read_preview_surface_opacity(stage, "/World/Looks/Material/PreviewSurface", 1.0, &scalar) !=
+          FREEUSD_OK ||
+      !flt_eq(scalar, 1.0f)) {
+    fprintf(stderr, "opacity read failed: %s\n", freeusd_last_error_message());
+    freeusd_stage_free(stage);
+    return 13;
+  }
+  freeusd_stage_free(stage);
 
   if (snprintf(path, sizeof path, "%s/parity_shade_texture.usda", FREEUSD_TEST_FIXTURES_DIR) >= (int)sizeof path) {
     fprintf(stderr, "fixture path too long\n");
@@ -83,7 +106,50 @@ int main(void) {
   }
   freeusd_string_free(texture_path);
   freeusd_string_free(shader_path);
+  freeusd_stage_free(stage);
 
+  if (snprintf(path, sizeof path, "%s/parity_shade_pbr_textures.usda", FREEUSD_TEST_FIXTURES_DIR) >=
+      (int)sizeof path) {
+    fprintf(stderr, "fixture path too long\n");
+    return 1;
+  }
+  stage = freeusd_stage_open_from_root_file_utf8(path, 2);
+  if (!stage) {
+    fprintf(stderr, "pbr stage open failed: %s\n", freeusd_last_error_message());
+    return 14;
+  }
+  const char* pbr_shader = "/World/Looks/Material/PreviewSurface";
+  float emissive[3] = {0.0f, 0.0f, 0.0f};
+  if (freeusd_stage_read_preview_surface_emissive_color(stage, pbr_shader, 1.0, emissive) != FREEUSD_OK ||
+      !flt_eq(emissive[0], 0.1f)) {
+    fprintf(stderr, "emissive read failed: %s\n", freeusd_last_error_message());
+    freeusd_stage_free(stage);
+    return 15;
+  }
+  struct TextureCheck {
+    int (*fn)(const FreeusdStage*, const char*, double, char**);
+    const char* expected;
+  } checks[] = {
+      {freeusd_stage_read_preview_surface_normal_texture_asset_path, "textures/normal.png"},
+      {freeusd_stage_read_preview_surface_occlusion_texture_asset_path, "textures/ao.png"},
+      {freeusd_stage_read_preview_surface_metallic_texture_asset_path, "textures/metallic.png"},
+      {freeusd_stage_read_preview_surface_roughness_texture_asset_path, "textures/roughness.png"},
+  };
+  for (int i = 0; i < 4; ++i) {
+    texture_path = NULL;
+    if (checks[i].fn(stage, pbr_shader, 1.0, &texture_path) != FREEUSD_OK) {
+      fprintf(stderr, "pbr texture read failed: %s\n", freeusd_last_error_message());
+      freeusd_stage_free(stage);
+      return 16 + i;
+    }
+    if (strcmp(texture_path, checks[i].expected) != 0) {
+      fprintf(stderr, "unexpected pbr texture path: %s\n", texture_path);
+      freeusd_string_free(texture_path);
+      freeusd_stage_free(stage);
+      return 20 + i;
+    }
+    freeusd_string_free(texture_path);
+  }
   freeusd_stage_free(stage);
   return 0;
 }

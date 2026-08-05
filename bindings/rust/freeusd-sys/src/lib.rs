@@ -696,7 +696,55 @@ extern "C" {
         time: c_double,
         out_rgb: *mut c_float,
     ) -> c_int;
+    fn freeusd_stage_read_preview_surface_emissive_color(
+        stage: *const FreeusdStage,
+        shader_path: *const c_char,
+        time: c_double,
+        out_rgb: *mut c_float,
+    ) -> c_int;
+    fn freeusd_stage_read_preview_surface_metallic(
+        stage: *const FreeusdStage,
+        shader_path: *const c_char,
+        time: c_double,
+        out_value: *mut c_float,
+    ) -> c_int;
+    fn freeusd_stage_read_preview_surface_roughness(
+        stage: *const FreeusdStage,
+        shader_path: *const c_char,
+        time: c_double,
+        out_value: *mut c_float,
+    ) -> c_int;
+    fn freeusd_stage_read_preview_surface_opacity(
+        stage: *const FreeusdStage,
+        shader_path: *const c_char,
+        time: c_double,
+        out_value: *mut c_float,
+    ) -> c_int;
     fn freeusd_stage_read_preview_surface_diffuse_texture_asset_path(
+        stage: *const FreeusdStage,
+        shader_path: *const c_char,
+        time: c_double,
+        out_path: *mut *mut c_char,
+    ) -> c_int;
+    fn freeusd_stage_read_preview_surface_normal_texture_asset_path(
+        stage: *const FreeusdStage,
+        shader_path: *const c_char,
+        time: c_double,
+        out_path: *mut *mut c_char,
+    ) -> c_int;
+    fn freeusd_stage_read_preview_surface_occlusion_texture_asset_path(
+        stage: *const FreeusdStage,
+        shader_path: *const c_char,
+        time: c_double,
+        out_path: *mut *mut c_char,
+    ) -> c_int;
+    fn freeusd_stage_read_preview_surface_metallic_texture_asset_path(
+        stage: *const FreeusdStage,
+        shader_path: *const c_char,
+        time: c_double,
+        out_path: *mut *mut c_char,
+    ) -> c_int;
+    fn freeusd_stage_read_preview_surface_roughness_texture_asset_path(
         stage: *const FreeusdStage,
         shader_path: *const c_char,
         time: c_double,
@@ -2401,10 +2449,41 @@ impl Stage {
         shader_path: &str,
         time: f64,
     ) -> Result<[f32; 3], i32> {
+        self.read_preview_surface_color_with(
+            shader_path,
+            time,
+            freeusd_stage_read_preview_surface_diffuse_color,
+        )
+    }
+
+    /// Read `UsdPreviewSurface` `inputs:emissiveColor` from a shader prim.
+    pub fn read_preview_surface_emissive_color(
+        &self,
+        shader_path: &str,
+        time: f64,
+    ) -> Result<[f32; 3], i32> {
+        self.read_preview_surface_color_with(
+            shader_path,
+            time,
+            freeusd_stage_read_preview_surface_emissive_color,
+        )
+    }
+
+    fn read_preview_surface_color_with(
+        &self,
+        shader_path: &str,
+        time: f64,
+        f: unsafe extern "C" fn(
+            *const FreeusdStage,
+            *const c_char,
+            c_double,
+            *mut c_float,
+        ) -> c_int,
+    ) -> Result<[f32; 3], i32> {
         let sp = CString::new(shader_path).map_err(|_| 1)?;
         let mut rgb = [0.0f32; 3];
         let rc = unsafe {
-            freeusd_stage_read_preview_surface_diffuse_color(
+            f(
                 self.ptr as *const FreeusdStage,
                 sp.as_ptr(),
                 time as c_double,
@@ -2418,16 +2497,141 @@ impl Stage {
         }
     }
 
+    /// Read `UsdPreviewSurface` `inputs:metallic` from a shader prim.
+    pub fn read_preview_surface_metallic(&self, shader_path: &str, time: f64) -> Result<f32, i32> {
+        self.read_preview_surface_scalar_with(
+            shader_path,
+            time,
+            freeusd_stage_read_preview_surface_metallic,
+        )
+    }
+
+    /// Read `UsdPreviewSurface` `inputs:roughness` from a shader prim.
+    pub fn read_preview_surface_roughness(&self, shader_path: &str, time: f64) -> Result<f32, i32> {
+        self.read_preview_surface_scalar_with(
+            shader_path,
+            time,
+            freeusd_stage_read_preview_surface_roughness,
+        )
+    }
+
+    /// Read `UsdPreviewSurface` `inputs:opacity` from a shader prim.
+    pub fn read_preview_surface_opacity(&self, shader_path: &str, time: f64) -> Result<f32, i32> {
+        self.read_preview_surface_scalar_with(
+            shader_path,
+            time,
+            freeusd_stage_read_preview_surface_opacity,
+        )
+    }
+
+    fn read_preview_surface_scalar_with(
+        &self,
+        shader_path: &str,
+        time: f64,
+        f: unsafe extern "C" fn(
+            *const FreeusdStage,
+            *const c_char,
+            c_double,
+            *mut c_float,
+        ) -> c_int,
+    ) -> Result<f32, i32> {
+        let sp = CString::new(shader_path).map_err(|_| 1)?;
+        let mut value = 0.0f32;
+        let rc = unsafe {
+            f(
+                self.ptr as *const FreeusdStage,
+                sp.as_ptr(),
+                time as c_double,
+                &mut value,
+            )
+        };
+        if rc != 0 {
+            Err(rc as i32)
+        } else {
+            Ok(value)
+        }
+    }
+
     /// Read a direct or connected diffuse texture asset path from a preview-surface shader.
     pub fn read_preview_surface_diffuse_texture_asset_path(
         &self,
         shader_path: &str,
         time: f64,
     ) -> Result<String, i32> {
+        self.read_preview_surface_texture_asset_path_with(
+            shader_path,
+            time,
+            freeusd_stage_read_preview_surface_diffuse_texture_asset_path,
+        )
+    }
+
+    /// Read a connected normal texture asset path from a preview-surface shader.
+    pub fn read_preview_surface_normal_texture_asset_path(
+        &self,
+        shader_path: &str,
+        time: f64,
+    ) -> Result<String, i32> {
+        self.read_preview_surface_texture_asset_path_with(
+            shader_path,
+            time,
+            freeusd_stage_read_preview_surface_normal_texture_asset_path,
+        )
+    }
+
+    /// Read a connected occlusion texture asset path from a preview-surface shader.
+    pub fn read_preview_surface_occlusion_texture_asset_path(
+        &self,
+        shader_path: &str,
+        time: f64,
+    ) -> Result<String, i32> {
+        self.read_preview_surface_texture_asset_path_with(
+            shader_path,
+            time,
+            freeusd_stage_read_preview_surface_occlusion_texture_asset_path,
+        )
+    }
+
+    /// Read a connected metallic texture asset path from a preview-surface shader.
+    pub fn read_preview_surface_metallic_texture_asset_path(
+        &self,
+        shader_path: &str,
+        time: f64,
+    ) -> Result<String, i32> {
+        self.read_preview_surface_texture_asset_path_with(
+            shader_path,
+            time,
+            freeusd_stage_read_preview_surface_metallic_texture_asset_path,
+        )
+    }
+
+    /// Read a connected roughness texture asset path from a preview-surface shader.
+    pub fn read_preview_surface_roughness_texture_asset_path(
+        &self,
+        shader_path: &str,
+        time: f64,
+    ) -> Result<String, i32> {
+        self.read_preview_surface_texture_asset_path_with(
+            shader_path,
+            time,
+            freeusd_stage_read_preview_surface_roughness_texture_asset_path,
+        )
+    }
+
+    fn read_preview_surface_texture_asset_path_with(
+        &self,
+        shader_path: &str,
+        time: f64,
+        f: unsafe extern "C" fn(
+            *const FreeusdStage,
+            *const c_char,
+            c_double,
+            *mut *mut c_char,
+        ) -> c_int,
+    ) -> Result<String, i32> {
         let sp = CString::new(shader_path).map_err(|_| 1)?;
         let mut out: *mut c_char = ptr::null_mut();
         let rc = unsafe {
-            freeusd_stage_read_preview_surface_diffuse_texture_asset_path(
+            f(
                 self.ptr as *const FreeusdStage,
                 sp.as_ptr(),
                 time as c_double,
@@ -4012,6 +4216,30 @@ def Xform "Root"
         assert!((rgb[0] - 0.8).abs() < 1e-5);
         assert!((rgb[1] - 0.2).abs() < 1e-5);
         assert!((rgb[2] - 0.1).abs() < 1e-5);
+        assert!(
+            (stage
+                .read_preview_surface_metallic(&shader_path, 1.0)
+                .unwrap()
+                - 0.5)
+                .abs()
+                < 1e-5
+        );
+        assert!(
+            (stage
+                .read_preview_surface_roughness(&shader_path, 1.0)
+                .unwrap()
+                - 0.3)
+                .abs()
+                < 1e-5
+        );
+        assert!(
+            (stage
+                .read_preview_surface_opacity(&shader_path, 1.0)
+                .unwrap()
+                - 1.0)
+                .abs()
+                < 1e-5
+        );
 
         let textured = fixture_path("parity_shade_texture.usda");
         let texture_stage =
@@ -4025,6 +4253,40 @@ def Xform "Root"
                 .read_preview_surface_diffuse_texture_asset_path(&shader_path, 1.0)
                 .expect("diffuse texture"),
             "textures/albedo.png"
+        );
+
+        let pbr = fixture_path("parity_shade_pbr_textures.usda");
+        let pbr_stage =
+            Stage::open_from_root_file(&pbr.to_string_lossy(), root_sublayers::DEPTH_FIRST)
+                .expect("open pbr fixture");
+        let pbr_shader = "/World/Looks/Material/PreviewSurface";
+        let emissive = pbr_stage
+            .read_preview_surface_emissive_color(pbr_shader, 1.0)
+            .expect("emissive color");
+        assert!((emissive[0] - 0.1).abs() < 1e-5);
+        assert_eq!(
+            pbr_stage
+                .read_preview_surface_normal_texture_asset_path(pbr_shader, 1.0)
+                .expect("normal texture"),
+            "textures/normal.png"
+        );
+        assert_eq!(
+            pbr_stage
+                .read_preview_surface_occlusion_texture_asset_path(pbr_shader, 1.0)
+                .expect("occlusion texture"),
+            "textures/ao.png"
+        );
+        assert_eq!(
+            pbr_stage
+                .read_preview_surface_metallic_texture_asset_path(pbr_shader, 1.0)
+                .expect("metallic texture"),
+            "textures/metallic.png"
+        );
+        assert_eq!(
+            pbr_stage
+                .read_preview_surface_roughness_texture_asset_path(pbr_shader, 1.0)
+                .expect("roughness texture"),
+            "textures/roughness.png"
         );
     }
 
