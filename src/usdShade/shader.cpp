@@ -1,6 +1,7 @@
 #include "freeusd/usdShade/shader.hpp"
 
 #include <optional>
+#include <unordered_map>
 
 #include "freeusd/usd/stage.hpp"
 #include "freeusd/usdShade/previewSurface.hpp"
@@ -79,6 +80,39 @@ bool find_asset_path_recursive(const freeusd::usd::Prim& prim, std::string* out_
     }
   }
   return false;
+}
+
+bool find_asset_path_by_composed_name(const std::shared_ptr<const freeusd::usd::Stage>& stage,
+                                      const freeusd::usd::Prim& connected, std::string* out_path) {
+  if (!stage || !connected.IsValid() || !out_path) {
+    return false;
+  }
+  const std::string name = connected.GetName();
+  if (name.empty()) {
+    return false;
+  }
+  struct AssetIndex {
+    const freeusd::usd::Stage* stage{nullptr};
+    std::unordered_map<std::string, std::string> paths;
+  };
+  static thread_local AssetIndex index;
+  if (index.stage != stage.get()) {
+    index.stage = stage.get();
+    index.paths.clear();
+    stage->TraversePreorder([&](const freeusd::usd::Prim& candidate) {
+      std::string asset;
+      if (read_asset_path_from_value(candidate.GetAttribute(inputs_file_token(), 1.0), &asset)) {
+        index.paths.emplace(candidate.GetName(), std::move(asset));
+      }
+      return true;
+    });
+  }
+  const auto it = index.paths.find(name);
+  if (it == index.paths.end()) {
+    return false;
+  }
+  *out_path = it->second;
+  return true;
 }
 
 }  // namespace
@@ -181,7 +215,14 @@ bool Shader::GetInputAssetPath(const freeusd::tf::Token& input_name, std::string
   }
   /* Exporters commonly connect PreviewSurface inputs to a NodeGraph output,
    * whose UsdUVTexture is one or two child prims below the connection target. */
-  return find_asset_path_recursive(connected, out_path, 0);
+  if (find_asset_path_recursive(connected, out_path, 0)) {
+    return true;
+  }
+  /* Referenced NodeGraphs can expose the output prim without exposing the
+   * referenced child list through the lightweight composed Prim handle.  A
+   * same-name traversal keeps asset lookup deterministic while still staying
+   * inside the stage's composed namespace. */
+  return find_asset_path_by_composed_name(stage, connected, out_path);
 }
 
 }  // namespace freeusd::usdShade

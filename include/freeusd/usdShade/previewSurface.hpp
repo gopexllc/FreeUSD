@@ -44,6 +44,7 @@ struct FREEUSD_API PreviewSurface {
 
   /// ``inputs:diffuseColor`` asset path, or ``inputs:file`` on a connected texture shader (e.g. ``UsdUVTexture``).
   bool GetDiffuseTextureAssetPath(std::string* out_path, double time = 1.0) const;
+  bool GetEmissiveTextureAssetPath(std::string* out_path, double time = 1.0) const;
   bool GetNormalTextureAssetPath(std::string* out_path, double time = 1.0) const;
   bool GetOcclusionTextureAssetPath(std::string* out_path, double time = 1.0) const;
   bool GetMetallicTextureAssetPath(std::string* out_path, double time = 1.0) const;

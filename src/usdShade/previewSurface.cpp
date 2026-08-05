@@ -47,6 +47,13 @@ bool PreviewSurface::GetDiffuseTextureAssetPath(std::string* out_path, double ti
   return shader.GetInputAssetPath(previewSurfaceTokens::inputs_diffuseColor(), out_path, time);
 }
 
+bool PreviewSurface::GetEmissiveTextureAssetPath(std::string* out_path, double time) const {
+  if (!IsPreviewSurface() || !out_path) {
+    return false;
+  }
+  return shader.GetInputAssetPath(previewSurfaceTokens::inputs_emissiveColor(), out_path, time);
+}
+
 bool PreviewSurface::GetNormalTextureAssetPath(std::string* out_path, double time) const {
   if (!IsPreviewSurface() || !out_path) {
     return false;
