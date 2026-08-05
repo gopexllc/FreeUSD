@@ -89,6 +89,11 @@ if(FREEUSD_BUILD_TESTS)
   target_compile_definitions(
     freeusd_usd_geom_mesh_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
 
+  add_executable(freeusd_usd_geom_boundable_mesh_test tests/usd_geom_boundable_mesh_test.cpp)
+  target_link_libraries(freeusd_usd_geom_boundable_mesh_test PRIVATE freeusd::usd freeusd::usdGeom freeusd::usdUtils)
+  target_compile_definitions(
+    freeusd_usd_geom_boundable_mesh_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+
   add_executable(freeusd_usd_skel_smoke_test tests/usd_skel_smoke_test.cpp)
   target_link_libraries(freeusd_usd_skel_smoke_test PRIVATE freeusd::usd freeusd::usdSkel)
   target_compile_definitions(
@@ -257,6 +262,7 @@ if(FREEUSD_BUILD_TESTS)
   add_test(NAME freeusd_usdc_fieldsets_test COMMAND freeusd_usdc_fieldsets_test)
   add_test(NAME freeusd_usdc_values_test COMMAND freeusd_usdc_values_test)
   add_test(NAME freeusd_usd_geom_mesh_test COMMAND freeusd_usd_geom_mesh_test)
+  add_test(NAME freeusd_usd_geom_boundable_mesh_test COMMAND freeusd_usd_geom_boundable_mesh_test)
   add_test(NAME freeusd_usd_skel_smoke_test COMMAND freeusd_usd_skel_smoke_test)
   add_test(NAME freeusd_usd_shade_smoke_test COMMAND freeusd_usd_shade_smoke_test)
   add_test(NAME freeusd_usd_skel_blend_shapes_test COMMAND freeusd_usd_skel_blend_shapes_test)
@@ -451,6 +457,14 @@ if(FREEUSD_BUILD_TESTS)
       freeusd_c_usd_physics_mass PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
     set_target_properties(freeusd_c_usd_physics_mass PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX)
     add_test(NAME freeusd_c_usd_physics_mass COMMAND freeusd_c_usd_physics_mass)
+
+    add_executable(freeusd_c_usd_physics_fixed_joint tests/c_usd_physics_fixed_joint.c)
+    target_include_directories(freeusd_c_usd_physics_fixed_joint PRIVATE "${PROJECT_SOURCE_DIR}/include")
+    target_link_libraries(freeusd_c_usd_physics_fixed_joint PRIVATE freeusd::c)
+    target_compile_definitions(
+      freeusd_c_usd_physics_fixed_joint PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+    set_target_properties(freeusd_c_usd_physics_fixed_joint PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX)
+    add_test(NAME freeusd_c_usd_physics_fixed_joint COMMAND freeusd_c_usd_physics_fixed_joint)
   endif()
 
   set(
@@ -469,6 +483,7 @@ if(FREEUSD_BUILD_TESTS)
     freeusd_usdc_fieldsets_test
     freeusd_usdc_values_test
     freeusd_usd_geom_mesh_test
+    freeusd_usd_geom_boundable_mesh_test
     freeusd_usd_lux_sphere_light_test
     freeusd_usd_lux_rect_light_test
     freeusd_usd_shade_texture_test
@@ -491,6 +506,7 @@ if(FREEUSD_BUILD_TESTS)
     freeusd_usd_lux_distant_light_test
     freeusd_ar_path_security_test
     freeusd_engine_integration_test
+    freeusd_usdutils_spatial_grounding_test
     freeusd_schema_tokens_bundle_test
     freeusd_time_code_test
     freeusd_edit_target_test
@@ -527,7 +543,8 @@ if(FREEUSD_BUILD_TESTS)
       freeusd_c_usd_physics
       freeusd_c_usd_physics_rigid_body
       freeusd_c_usd_physics_collision
-      freeusd_c_usd_physics_mass)
+      freeusd_c_usd_physics_mass
+      freeusd_c_usd_physics_fixed_joint)
   endif()
   foreach(_freeusd_test_target IN LISTS _freeusd_assert_enabled_test_targets)
     freeusd_enable_test_asserts("${_freeusd_test_target}")
@@ -540,7 +557,8 @@ if(FREEUSD_BUILD_TESTS AND FREEUSD_TEST_INSTALL_INTEGRATION)
     NAME freeusd_install_integration
     COMMAND
       "${CMAKE_COMMAND}" -E env "FREEUSD_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
-      "FREEUSD_SCRATCH=${CMAKE_SOURCE_DIR}/.install_integration_scratch" "${CMAKE_COMMAND}" -P
+      "FREEUSD_SCRATCH=${CMAKE_SOURCE_DIR}/.install_integration_scratch"
+      "FREEUSD_CMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}" "${CMAKE_COMMAND}" -P
       "${CMAKE_SOURCE_DIR}/tests/install_integration.cmake")
   set_tests_properties(
     freeusd_install_integration
@@ -574,7 +592,7 @@ if(FREEUSD_BUILD_PYTHON)
   add_custom_command(
     TARGET _native
     POST_BUILD
-    COMMAND ${Python_EXECUTABLE} ${CMAKE_SOURCE_DIR}/cmake/sync_native_post_build.py $<TARGET_FILE:_native>
+    COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/cmake/sync_native_post_build.py $<TARGET_FILE:_native>
     COMMENT "Sync _native into site-packages/freeusd when present (editable / venv)")
 
   install(TARGETS _native LIBRARY DESTINATION freeusd)
@@ -642,7 +660,7 @@ if(FREEUSD_BUILD_PYTHON AND FREEUSD_BUILD_TESTS)
 endif()
 
 install(DIRECTORY include/freeusd TYPE INCLUDE)
-install(FILES "${CMAKE_SOURCE_DIR}/LICENSE"
+install(FILES "${CMAKE_CURRENT_LIST_DIR}/LICENSE"
         DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/doc/${PROJECT_NAME}")
 
 # Targets exported as freeusd::<name> for find_package(FreeUSD) (see EXPORT_NAME in src/CMakeLists.txt).
@@ -698,7 +716,7 @@ install(
 
 set(_freeusd_cmake_dir "${CMAKE_INSTALL_LIBDIR}/cmake/FreeUSD")
 configure_package_config_file(
-  "${CMAKE_SOURCE_DIR}/cmake/FreeUSDConfig.cmake.in"
+  "${CMAKE_CURRENT_LIST_DIR}/cmake/FreeUSDConfig.cmake.in"
   "${CMAKE_CURRENT_BINARY_DIR}/FreeUSDConfig.cmake"
   INSTALL_DESTINATION "${_freeusd_cmake_dir}")
 
@@ -727,7 +745,7 @@ else()
   set(FREEUSD_PC_LINK_WRAP_START "")
   set(FREEUSD_PC_LINK_WRAP_END "")
 endif()
-configure_file("${CMAKE_SOURCE_DIR}/cmake/freeusd.pc.in" "${CMAKE_CURRENT_BINARY_DIR}/freeusd.pc" @ONLY)
+configure_file("${CMAKE_CURRENT_LIST_DIR}/cmake/freeusd.pc.in" "${CMAKE_CURRENT_BINARY_DIR}/freeusd.pc" @ONLY)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/freeusd.pc" DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
 
 # Binary archives (run from build dir after configure: cpack [-G TGZ]).
@@ -735,8 +753,8 @@ set(CPACK_PACKAGE_NAME "FreeUSD")
 set(CPACK_PACKAGE_VENDOR "FreeUSD")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "GPL-3.0-or-later USD-shaped scene libraries (clean-room)")
 set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
-set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE")
-set(CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/README.md")
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_LIST_DIR}/LICENSE")
+set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_LIST_DIR}/README.md")
 if(WIN32)
   set(CPACK_GENERATOR "ZIP")
 else()

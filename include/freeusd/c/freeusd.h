@@ -860,6 +860,23 @@ FREEUSD_C_API int freeusd_stage_read_physics_mass_sample(const FreeusdStage* sta
                                                          const char* prim_path_utf8, double time,
                                                          FreeusdPhysicsMassSample* out_sample);
 
+/** Evaluated ``PhysicsFixedJoint`` fields at a time code. */
+typedef struct FreeusdPhysicsFixedJointSample {
+  char* body0_path_utf8;
+  char* body1_path_utf8;
+  int joint_enabled;
+} FreeusdPhysicsFixedJointSample;
+
+/**
+ * Read ``PhysicsFixedJoint`` ``physics:body0``, ``physics:body1``, and ``physics:jointEnabled`` at @p time.
+ * On @ref FREEUSD_OK, @p out_sample->body0_path_utf8 and @p out_sample->body1_path_utf8 are malloc'd; free with
+ * @ref freeusd_string_free. Missing joint prims, missing body relationships, or missing ``physics:jointEnabled``
+ * report @ref FREEUSD_ERR_NOT_FOUND.
+ */
+FREEUSD_C_API int freeusd_stage_read_physics_fixed_joint_sample(const FreeusdStage* stage,
+                                                                const char* joint_path_utf8, double time,
+                                                                FreeusdPhysicsFixedJointSample* out_sample);
+
 /**
  * Count of bound blend-shape targets on a geom prim (``skel:blendShapes`` token count).
  * Missing geom or unbound prim reports @ref FREEUSD_ERR_NOT_FOUND.

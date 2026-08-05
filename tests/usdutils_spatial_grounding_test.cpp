@@ -73,7 +73,8 @@ int main() {
   assert(near(cup->world_bound_dimensions.y(), 1.5));
   assert(near(cup->world_bound_dimensions.z(), 0.25));
   assert(cup->mass_kg.has_value());
-  assert(near(*cup->mass_kg, 0.35));
+  // Authored as float; compare with float-precision tolerance.
+  assert(std::fabs(*cup->mass_kg - 0.35) < 1e-6);
 
   assert(kitchen->name == "Kitchen");
   assert(kitchen->parent_path == Path::FromString("/World"));
@@ -82,7 +83,11 @@ int main() {
   assert(near(kitchen->world_position.x(), 10.0));
   assert(near(kitchen->world_position.y(), 0.0));
   assert(near(kitchen->world_position.z(), 0.0));
-  assert(!kitchen->has_world_bound);
+  // Xform prims without local bounds now aggregate descendant world bounds.
+  assert(kitchen->has_world_bound);
+  assert(near(kitchen->world_bound_dimensions.x(), 9.25));
+  assert(near(kitchen->world_bound_dimensions.y(), 4.25));
+  assert(near(kitchen->world_bound_dimensions.z(), 7.5));
   assert(!kitchen->mass_kg.has_value());
 
   return 0;

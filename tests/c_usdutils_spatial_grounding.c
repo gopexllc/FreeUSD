@@ -99,9 +99,12 @@ int main(void) {
     return 8;
   }
 
+  /* Xform prims without local bounds aggregate descendant world bounds. */
   const FreeusdSpatialGroundingRecord* kitchen = find_record(records, count, "/World/Kitchen");
   if (!kitchen || strcmp(kitchen->parent_path_utf8, "/World") != 0 || kitchen->sibling_name_count != 0 ||
-      kitchen->semantic_label_set_count != 0 || !nearly(kitchen->world_position[0], 10.0) || kitchen->has_world_bound ||
+      kitchen->semantic_label_set_count != 0 || !nearly(kitchen->world_position[0], 10.0) ||
+      !kitchen->has_world_bound || !nearly(kitchen->world_bound_dimensions[0], 9.25) ||
+      !nearly(kitchen->world_bound_dimensions[1], 4.25) || !nearly(kitchen->world_bound_dimensions[2], 7.5) ||
       kitchen->has_mass_kg) {
     fprintf(stderr, "unexpected kitchen record\n");
     freeusd_usdutils_spatial_grounding_records_free(records, count);

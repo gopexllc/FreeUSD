@@ -2,13 +2,13 @@
 
 #include "freeusd/ar/pathSecurity.hpp"
 
+#include <algorithm>
 #include <cstring>
 #include <fstream>
 #include <limits>
 #include <vector>
 
 #include <zlib.h>
-#include <lz4.h>
 
 namespace freeusd::usd::crate {
 
@@ -236,6 +236,104 @@ bool readSpecsTableSection(const std::string& path, std::vector<UsdcCrateSpecEnt
   return true;
 }
 
+bool read_lz4_length(const std::vector<std::uint8_t>& bytes, std::size_t* cursor, std::size_t initial,
+                     std::size_t limit, std::size_t* out, std::string* err_out) {
+  if (!out) {
+    set_detail(err_out, "null USDC fixture lz4 length output");
+    return false;
+  }
+  if (initial > limit) {
+    set_detail(err_out, "USDC fixture lz4 length exceeds output limit");
+    return false;
+  }
+  std::size_t len = initial;
+  if (initial != 15u) {
+    *out = len;
+    return true;
+  }
+  while (*cursor < bytes.size()) {
+    const std::uint8_t extra = bytes[*cursor];
+    ++(*cursor);
+    if (extra > limit - len) {
+      set_detail(err_out, "USDC fixture lz4 length exceeds output limit");
+      return false;
+    }
+    len += extra;
+    if (extra != 255u) {
+      *out = len;
+      return true;
+    }
+  }
+  set_detail(err_out, "USDC fixture lz4 extended length is truncated");
+  return false;
+}
+
+bool decompress_lz4_block(const std::vector<std::uint8_t>& bytes, std::size_t compressed_offset,
+                          std::vector<std::uint8_t>* out, std::string* err_out) {
+  if (!out) {
+    set_detail(err_out, "null USDC fixture lz4 output");
+    return false;
+  }
+  std::size_t cursor = compressed_offset;
+  std::size_t output_cursor = 0u;
+  while (cursor < bytes.size()) {
+    const std::uint8_t token = bytes[cursor];
+    ++cursor;
+
+    const std::size_t literal_limit = out->size() - output_cursor;
+    std::size_t literal_len = static_cast<std::size_t>(token >> 4u);
+    if (!read_lz4_length(bytes, &cursor, literal_len, literal_limit, &literal_len, err_out)) {
+      return false;
+    }
+    if (literal_len > bytes.size() - cursor) {
+      set_detail(err_out, "USDC fixture lz4 literal run exceeds input");
+      return false;
+    }
+    std::memcpy(out->data() + output_cursor, bytes.data() + cursor, literal_len);
+    cursor += literal_len;
+    output_cursor += literal_len;
+
+    if (cursor == bytes.size()) {
+      break;
+    }
+    if (cursor + 2u > bytes.size()) {
+      set_detail(err_out, "USDC fixture lz4 match offset is truncated");
+      return false;
+    }
+    const std::size_t offset = static_cast<std::size_t>(bytes[cursor]) |
+                               (static_cast<std::size_t>(bytes[cursor + 1u]) << 8u);
+    cursor += 2u;
+    if (offset == 0u || offset > output_cursor) {
+      set_detail(err_out, "USDC fixture lz4 match offset is invalid");
+      return false;
+    }
+
+    const std::size_t match_limit = out->size() - output_cursor;
+    std::size_t match_len = static_cast<std::size_t>(token & 0x0Fu);
+    if (match_limit < 4u) {
+      set_detail(err_out, "USDC fixture lz4 match run exceeds output");
+      return false;
+    }
+    if (!read_lz4_length(bytes, &cursor, match_len, match_limit - 4u, &match_len, err_out)) {
+      return false;
+    }
+    match_len += 4u;
+    if (match_len > out->size() - output_cursor) {
+      set_detail(err_out, "USDC fixture lz4 match run exceeds output");
+      return false;
+    }
+    for (std::size_t i = 0; i < match_len; ++i) {
+      (*out)[output_cursor] = (*out)[output_cursor - offset];
+      ++output_cursor;
+    }
+  }
+  if (output_cursor != out->size()) {
+    set_detail(err_out, "USDC fixture lz4 decoded size mismatch");
+    return false;
+  }
+  return true;
+}
+
 bool readFieldSetsTableSection(const std::string& path, std::vector<UsdcCrateFieldSet>* out, std::size_t max_field_sets,
                                std::size_t max_fields_per_set, std::size_t max_total_bytes, std::string* err_out) {
   if (!out) {
@@ -312,13 +410,8 @@ bool try_unwrap_fixture_lz4_payload(std::vector<std::uint8_t>* bytes, std::strin
     return false;
   }
   const std::size_t compressed_offset = sizeof(kMagic) + 8u;
-  const std::size_t compressed_size = bytes->size() - compressed_offset;
   std::vector<std::uint8_t> out(static_cast<std::size_t>(expected));
-  const int decoded = LZ4_decompress_safe(reinterpret_cast<const char*>(bytes->data() + compressed_offset),
-                                          reinterpret_cast<char*>(out.data()),
-                                          static_cast<int>(compressed_size), static_cast<int>(out.size()));
-  if (decoded < 0 || static_cast<std::size_t>(decoded) != expected) {
-    set_detail(err_out, "USDC fixture lz4 decompress failed");
+  if (!decompress_lz4_block(*bytes, compressed_offset, &out, err_out)) {
     return false;
   }
   *bytes = std::move(out);

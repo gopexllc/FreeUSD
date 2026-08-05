@@ -76,6 +76,7 @@ This document freezes the exact FreeUSD subset a GPL-compatible engine may rely 
 | selected variant expansion | `tests/fixtures/parity_variants.usda` |
 | visibility / purpose / bounds / transforms | `tests/fixtures/parity_imageable.usda` |
 | spatial grounding cues for downstream diagnostics | `tests/fixtures/parity_spatial_grounding.usda` |
+| mesh point bounds + descendant xform aggregation | `tests/fixtures/parity_boundable_mesh.usda` |
 | material bindings / preview surface | `tests/fixtures/parity_shade_preview.usda` |
 | preview-surface texture assets | `tests/fixtures/parity_shade_pbr_textures.usda` |
 | usdLux lights in engine snapshots | `tests/fixtures/parity_lux_sphere.usda` |

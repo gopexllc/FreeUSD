@@ -1493,6 +1493,13 @@ type PhysicsMassSample struct {
 	CenterOfMass [3]float32
 }
 
+// PhysicsFixedJointSample is the evaluated PhysicsFixedJoint C ABI sample.
+type PhysicsFixedJointSample struct {
+	Body0Path    string
+	Body1Path    string
+	JointEnabled bool
+}
+
 // ReadPhysicsMassSample reads density and centerOfMass from a PhysicsMassAPI prim.
 func (s *Stage) ReadPhysicsMassSample(primPath string, time float64) (sample PhysicsMassSample, rc int) {
 	if s == nil || s.ptr == nil {
@@ -1509,6 +1516,30 @@ func (s *Stage) ReadPhysicsMassSample(primPath string, time float64) (sample Phy
 		Density:      float32(out.density),
 		CenterOfMass: [3]float32{float32(out.center_of_mass[0]), float32(out.center_of_mass[1]), float32(out.center_of_mass[2])},
 	}, 0
+}
+
+// ReadPhysicsFixedJointSample reads body relationships and jointEnabled from a PhysicsFixedJoint prim.
+func (s *Stage) ReadPhysicsFixedJointSample(jointPath string, time float64) (sample PhysicsFixedJointSample, rc int) {
+	if s == nil || s.ptr == nil {
+		return sample, 1
+	}
+	jp := C.CString(jointPath)
+	defer C.free(unsafe.Pointer(jp))
+	var out C.FreeusdPhysicsFixedJointSample
+	rc = int(C.freeusd_stage_read_physics_fixed_joint_sample(s.ptr, jp, C.double(time), &out))
+	if rc != 0 {
+		return sample, rc
+	}
+	if out.body0_path_utf8 != nil {
+		sample.Body0Path = C.GoString(out.body0_path_utf8)
+		C.freeusd_string_free(out.body0_path_utf8)
+	}
+	if out.body1_path_utf8 != nil {
+		sample.Body1Path = C.GoString(out.body1_path_utf8)
+		C.freeusd_string_free(out.body1_path_utf8)
+	}
+	sample.JointEnabled = out.joint_enabled != 0
+	return sample, 0
 }
 
 // ListFieldSampleTimes returns sorted composed time-sample times for an attribute (rc 0 ok; empty slice valid).

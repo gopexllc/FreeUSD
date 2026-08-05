@@ -1144,6 +1144,23 @@ func TestUsdPhysicsMassBinding(t *testing.T) {
 	}
 }
 
+func TestUsdPhysicsFixedJointBinding(t *testing.T) {
+	fixture := filepath.Join("..", "..", "tests", "fixtures", "parity_physics_fixed_joint.usda")
+	st := OpenStageFromRootFile(fixture, RootSubDepthFirst)
+	if st == nil {
+		t.Fatal("OpenStageFromRootFile fixed joint:", LastErrorMessage())
+	}
+	defer st.Free()
+
+	sample, rc := st.ReadPhysicsFixedJointSample("/World/Anchor", 1.0)
+	if rc != 0 {
+		t.Fatalf("ReadPhysicsFixedJointSample rc=%d %s", rc, LastErrorMessage())
+	}
+	if sample.Body0Path != "/World/BodyA" || sample.Body1Path != "/World/BodyB" || !sample.JointEnabled {
+		t.Fatalf("unexpected PhysicsFixedJoint sample %+v", sample)
+	}
+}
+
 func TestLayerHints(t *testing.T) {
 	const usda = `#usda 1.0
 (
@@ -1244,9 +1261,10 @@ func TestUsdGeomEngineSubsetParityImageable(t *testing.T) {
 		t.Fatalf("world bounds (%g,%g,%g)-(%g,%g,%g)", minX, minY, minZ, maxX, maxY, maxZ)
 	}
 
-	_, _, _, _, _, _, rc = st.ComputeBoundableWorldBounds("/World", 1.0)
-	if rc == 0 {
-		t.Fatal("expected NOT_FOUND for non-boundable /World")
+	// Xform prims without local bounds aggregate descendant world bounds.
+	wMinX, wMinY, wMinZ, wMaxX, wMaxY, wMaxZ, rc := st.ComputeBoundableWorldBounds("/World", 1.0)
+	if rc != 0 || wMinX != 0 || wMinY != 1 || wMinZ != 2 || wMaxX != 2 || wMaxY != 3 || wMaxZ != 4 {
+		t.Fatalf("aggregated /World bounds (%g,%g,%g)-(%g,%g,%g) rc=%d", wMinX, wMinY, wMinZ, wMaxX, wMaxY, wMaxZ, rc)
 	}
 }
 
@@ -1296,7 +1314,8 @@ func TestUsdUtilsSpatialGroundingContext(t *testing.T) {
 	if cup.WorldPosition != [3]float64{6, 2, 3} || !cup.HasWorldBound || cup.WorldBoundDimensions != [3]float64{0.5, 1.5, 0.25} || !cup.HasMassKg || math.Abs(cup.MassKg-0.35) > 1e-6 {
 		t.Fatalf("cup spatial values=%+v", cup)
 	}
-	if kitchen == nil || kitchen.ParentPath != "/World" || len(kitchen.SiblingNames) != 0 || len(kitchen.SemanticLabelSets) != 0 || kitchen.WorldPosition != [3]float64{10, 0, 0} || kitchen.HasWorldBound || kitchen.HasMassKg {
+	// Xform prims without local bounds aggregate descendant world bounds.
+	if kitchen == nil || kitchen.ParentPath != "/World" || len(kitchen.SiblingNames) != 0 || len(kitchen.SemanticLabelSets) != 0 || kitchen.WorldPosition != [3]float64{10, 0, 0} || !kitchen.HasWorldBound || kitchen.WorldBoundDimensions != [3]float64{9.25, 4.25, 7.5} || kitchen.HasMassKg {
 		t.Fatalf("kitchen record=%+v", kitchen)
 	}
 }

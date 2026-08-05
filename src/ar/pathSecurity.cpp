@@ -1,5 +1,6 @@
 #include "freeusd/ar/pathSecurity.hpp"
 
+#include <algorithm>
 #include <filesystem>
 
 namespace freeusd::ar {
@@ -15,7 +16,7 @@ std::string CanonicalizeFilesystemPath(const std::string& path) {
   if (ec) {
     return {};
   }
-  return canon.string();
+  return canon.generic_string();
 }
 
 bool PathIsWithinRootDirectory(const std::string& resolved_canonical, const std::string& root_canonical) {
@@ -24,6 +25,8 @@ bool PathIsWithinRootDirectory(const std::string& resolved_canonical, const std:
   }
   std::string root = root_canonical;
   std::string resolved = resolved_canonical;
+  std::replace(root.begin(), root.end(), '\\', '/');
+  std::replace(resolved.begin(), resolved.end(), '\\', '/');
   if (root.back() != '/') {
     root.push_back('/');
   }

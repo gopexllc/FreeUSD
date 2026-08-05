@@ -69,7 +69,9 @@ def test_spatial_grounding_context_binding() -> None:
     assert kitchen["sibling_names"] == []
     assert kitchen["semantic_label_sets"] == []
     assert kitchen["world_position"] == (10.0, 0.0, 0.0)
-    assert kitchen["has_world_bound"] is False
+    # Xform prims without local bounds aggregate descendant world bounds.
+    assert kitchen["has_world_bound"] is True
+    assert kitchen["world_bound_dimensions"] == (9.25, 4.25, 7.5)
     assert kitchen["mass_kg"] is None
 
 

@@ -24,6 +24,10 @@ set(_build "${FREEUSD_SCRATCH}/_build")
 set(_prefix "${FREEUSD_SCRATCH}/_prefix")
 # Multi-config generators (Visual Studio) need an explicit configuration; single-config ignores it.
 set(_buildcfg Release)
+set(_toolchain_args "")
+if(DEFINED ENV{FREEUSD_CMAKE_TOOLCHAIN_FILE} AND NOT "$ENV{FREEUSD_CMAKE_TOOLCHAIN_FILE}" STREQUAL "")
+  list(APPEND _toolchain_args "-DCMAKE_TOOLCHAIN_FILE=$ENV{FREEUSD_CMAKE_TOOLCHAIN_FILE}")
+endif()
 
 file(REMOVE_RECURSE "${FREEUSD_SCRATCH}")
 file(MAKE_DIRECTORY "${FREEUSD_SCRATCH}")
@@ -38,7 +42,7 @@ endfunction()
 
 message(STATUS "FreeUSD install integration: configure (prefix=${_prefix})")
 _freeusd_run("${CMAKE_COMMAND}" -S "${FREEUSD_SOURCE_DIR}" -B "${_build}" -DCMAKE_BUILD_TYPE=Release
-             "-DCMAKE_INSTALL_PREFIX=${_prefix}" -DFREEUSD_BUILD_PYTHON=OFF -DFREEUSD_BUILD_TESTS=OFF)
+             "-DCMAKE_INSTALL_PREFIX=${_prefix}" ${_toolchain_args} -DFREEUSD_BUILD_PYTHON=OFF -DFREEUSD_BUILD_TESTS=OFF)
 
 set(_cache_ready FALSE)
 foreach(_wait RANGE 30)
@@ -78,7 +82,7 @@ _freeusd_run("${CMAKE_COMMAND}" --install "${_build}" --config "${_buildcfg}")
 set(_consumer "${FREEUSD_SCRATCH}/_consumer")
 message(STATUS "FreeUSD install integration: consumer find_package")
 _freeusd_run("${CMAKE_COMMAND}" -S "${FREEUSD_SOURCE_DIR}/tests/cmake_find_consumer" -B "${_consumer}"
-             "-DCMAKE_PREFIX_PATH=${_prefix}")
+             "-DCMAKE_PREFIX_PATH=${_prefix}" ${_toolchain_args})
 
 set(_consumer_ready FALSE)
 foreach(_wait RANGE 30)
