@@ -57,7 +57,7 @@ Typical OpenUSD trees that **do not** have FreeUSD counterparts yet (documented 
 
 - **Imaging / Hydra / Hgi / Hd***: render delegate stack; **UsdImaging** scene adapters.
 - **Hydra integration**: FreeUSD exposes **UsdHydra-shaped schema token strings** only (`freeusd::usdHydra::tokens`); there is no Hd render index, scene delegate, or imaging bridge.
-- **MaterialX / UI / procedural semantics logic**: **`usdMtlx`**, **`usdUI`**, **`usdProc`**, **`usdSemantics`** supply **token names** from published schema data only; there is no MaterialX graph compiler, UI layout engine, or procedural execution.
+- **MaterialX / UI / procedural logic**: **`usdMtlx`**, **`usdUI`**, and **`usdProc`** supply **token names** from published schema data only; **`usdSemantics`** additionally has a narrow authored semantic-label reader. There is no MaterialX graph compiler, UI layout engine, or procedural execution.
 - **Ndr / Sdr**: shader discovery and parsing.
 - **exec** and full **trace** implementations beyond the current lightweight stubs.
 
