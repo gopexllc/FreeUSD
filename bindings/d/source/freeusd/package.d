@@ -44,6 +44,39 @@ struct LuxDistantLightSample {
     float angle;
 }
 
+struct LuxSphereLightSample {
+    float intensity;
+    float[3] color;
+    float radius;
+}
+
+struct LuxRectLightSample {
+    float intensity;
+    float[3] color;
+    float width;
+    float height;
+}
+
+struct LuxDiskLightSample {
+    float intensity;
+    float[3] color;
+    float radius;
+}
+
+struct LuxCylinderLightSample {
+    float intensity;
+    float[3] color;
+    float length;
+    float radius;
+}
+
+struct LuxDomeLightSample {
+    float intensity;
+    float[3] color;
+    string textureFileAssetPath;
+    string textureFormat;
+}
+
 struct OpenVDBAssetInfo {
     string filePath;
     string fieldName;
@@ -306,6 +339,58 @@ struct Stage {
         return LuxDistantLightSample(raw.intensity, raw.color, raw.angle);
     }
 
+    LuxSphereLightSample readLuxSphereLight(string lightPath, double time = 1.0) const {
+        ensureOpen();
+        FreeusdLuxSphereLightSample raw;
+        auto rc = freeusd_stage_read_lux_sphere_light_sample(handle, lightPath.toStringz, time, &raw);
+        check(rc, "readLuxSphereLight");
+        return LuxSphereLightSample(raw.intensity, raw.color, raw.radius);
+    }
+
+    LuxRectLightSample readLuxRectLight(string lightPath, double time = 1.0) const {
+        ensureOpen();
+        FreeusdLuxRectLightSample raw;
+        auto rc = freeusd_stage_read_lux_rect_light_sample(handle, lightPath.toStringz, time, &raw);
+        check(rc, "readLuxRectLight");
+        return LuxRectLightSample(raw.intensity, raw.color, raw.width, raw.height);
+    }
+
+    LuxDiskLightSample readLuxDiskLight(string lightPath, double time = 1.0) const {
+        ensureOpen();
+        FreeusdLuxDiskLightSample raw;
+        auto rc = freeusd_stage_read_lux_disk_light_sample(handle, lightPath.toStringz, time, &raw);
+        check(rc, "readLuxDiskLight");
+        return LuxDiskLightSample(raw.intensity, raw.color, raw.radius);
+    }
+
+    LuxCylinderLightSample readLuxCylinderLight(string lightPath, double time = 1.0) const {
+        ensureOpen();
+        FreeusdLuxCylinderLightSample raw;
+        auto rc = freeusd_stage_read_lux_cylinder_light_sample(handle, lightPath.toStringz, time, &raw);
+        check(rc, "readLuxCylinderLight");
+        return LuxCylinderLightSample(raw.intensity, raw.color, raw.length, raw.radius);
+    }
+
+    LuxDomeLightSample readLuxDomeLight(string lightPath, double time = 1.0) const {
+        ensureOpen();
+        FreeusdLuxDomeLightSample raw;
+        auto rc = freeusd_stage_read_lux_dome_light_sample(handle, lightPath.toStringz, time, &raw);
+        check(rc, "readLuxDomeLight");
+        scope(exit) {
+            if (raw.texture_file_asset_path_utf8 !is null) {
+                freeusd_string_free(raw.texture_file_asset_path_utf8);
+            }
+            if (raw.texture_format_utf8 !is null) {
+                freeusd_string_free(raw.texture_format_utf8);
+            }
+        }
+        return LuxDomeLightSample(
+            raw.intensity,
+            raw.color,
+            raw.texture_file_asset_path_utf8 is null ? "" : fromStringz(raw.texture_file_asset_path_utf8).idup,
+            raw.texture_format_utf8 is null ? "" : fromStringz(raw.texture_format_utf8).idup);
+    }
+
     OpenVDBAssetInfo readOpenVDBAsset(string assetPath, double time = 1.0) const {
         ensureOpen();
         char* filePath = null;
@@ -451,6 +536,37 @@ unittest {
     assert(light.color[1] == 0.95f);
     assert(light.color[2] == 0.8f);
     assert(light.angle == 0.53f);
+}
+
+unittest {
+    auto sphereStage = Stage.open("../../tests/fixtures/parity_lux_sphere.usda");
+    auto sphere = sphereStage.readLuxSphereLight("/World/Bulb", 1.0);
+    assert(sphere.intensity == 500.0f);
+    assert(sphere.color[1] == 0.9f);
+    assert(sphere.radius == 0.25f);
+
+    auto rectStage = Stage.open("../../tests/fixtures/parity_lux_rect.usda");
+    auto rect = rectStage.readLuxRectLight("/World/Panel", 1.0);
+    assert(rect.intensity == 1200.0f);
+    assert(rect.color[0] == 0.95f);
+    assert(rect.width == 2.0f);
+    assert(rect.height == 1.0f);
+
+    auto diskStage = Stage.open("../../tests/fixtures/parity_lux_disk.usda");
+    auto disk = diskStage.readLuxDiskLight("/World/Softbox", 1.0);
+    assert(disk.intensity == 800.0f);
+    assert(disk.radius == 0.75f);
+
+    auto cylinderStage = Stage.open("../../tests/fixtures/parity_lux_cylinder.usda");
+    auto cylinder = cylinderStage.readLuxCylinderLight("/World/Tube", 1.0);
+    assert(cylinder.length == 2.5f);
+    assert(cylinder.radius == 0.05f);
+
+    auto domeStage = Stage.open("../../tests/fixtures/parity_lux_dome.usda");
+    auto dome = domeStage.readLuxDomeLight("/World/Sky", 1.0);
+    assert(dome.intensity == 1.0f);
+    assert(dome.textureFileAssetPath == "textures/sky.hdr");
+    assert(dome.textureFormat == "latlong");
 }
 
 unittest {

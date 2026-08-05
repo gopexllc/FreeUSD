@@ -708,6 +708,36 @@ extern "C" {
         time: c_double,
         out_sample: *mut FreeusdLuxDistantLightSample,
     ) -> c_int;
+    fn freeusd_stage_read_lux_sphere_light_sample(
+        stage: *const FreeusdStage,
+        light_path: *const c_char,
+        time: c_double,
+        out_sample: *mut FreeusdLuxSphereLightSample,
+    ) -> c_int;
+    fn freeusd_stage_read_lux_rect_light_sample(
+        stage: *const FreeusdStage,
+        light_path: *const c_char,
+        time: c_double,
+        out_sample: *mut FreeusdLuxRectLightSample,
+    ) -> c_int;
+    fn freeusd_stage_read_lux_disk_light_sample(
+        stage: *const FreeusdStage,
+        light_path: *const c_char,
+        time: c_double,
+        out_sample: *mut FreeusdLuxDiskLightSample,
+    ) -> c_int;
+    fn freeusd_stage_read_lux_cylinder_light_sample(
+        stage: *const FreeusdStage,
+        light_path: *const c_char,
+        time: c_double,
+        out_sample: *mut FreeusdLuxCylinderLightSample,
+    ) -> c_int;
+    fn freeusd_stage_read_lux_dome_light_sample(
+        stage: *const FreeusdStage,
+        light_path: *const c_char,
+        time: c_double,
+        out_sample: *mut FreeusdLuxDomeLightSample,
+    ) -> c_int;
     fn freeusd_stage_read_openvdb_asset_info(
         stage: *const FreeusdStage,
         asset_path: *const c_char,
@@ -820,6 +850,98 @@ pub struct LuxDistantLightSample {
     pub intensity: f32,
     pub color: [f32; 3],
     pub angle: f32,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default)]
+pub struct FreeusdLuxSphereLightSample {
+    pub intensity: c_float,
+    pub color: [c_float; 3],
+    pub radius: c_float,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LuxSphereLightSample {
+    pub intensity: f32,
+    pub color: [f32; 3],
+    pub radius: f32,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default)]
+pub struct FreeusdLuxRectLightSample {
+    pub intensity: c_float,
+    pub color: [c_float; 3],
+    pub width: c_float,
+    pub height: c_float,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LuxRectLightSample {
+    pub intensity: f32,
+    pub color: [f32; 3],
+    pub width: f32,
+    pub height: f32,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default)]
+pub struct FreeusdLuxDiskLightSample {
+    pub intensity: c_float,
+    pub color: [c_float; 3],
+    pub radius: c_float,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LuxDiskLightSample {
+    pub intensity: f32,
+    pub color: [f32; 3],
+    pub radius: f32,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default)]
+pub struct FreeusdLuxCylinderLightSample {
+    pub intensity: c_float,
+    pub color: [c_float; 3],
+    pub length: c_float,
+    pub radius: c_float,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LuxCylinderLightSample {
+    pub intensity: f32,
+    pub color: [f32; 3],
+    pub length: f32,
+    pub radius: f32,
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct FreeusdLuxDomeLightSample {
+    pub intensity: c_float,
+    pub color: [c_float; 3],
+    pub texture_file_asset_path_utf8: *mut c_char,
+    pub texture_format_utf8: *mut c_char,
+}
+
+impl Default for FreeusdLuxDomeLightSample {
+    fn default() -> Self {
+        Self {
+            intensity: 0.0,
+            color: [0.0; 3],
+            texture_file_asset_path_utf8: ptr::null_mut(),
+            texture_format_utf8: ptr::null_mut(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct LuxDomeLightSample {
+    pub intensity: f32,
+    pub color: [f32; 3],
+    pub texture_file_asset_path: String,
+    pub texture_format: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -2471,6 +2593,161 @@ impl Stage {
         })
     }
 
+    /// Read `UsdLuxSphereLight` intensity, color, and radius from a light prim.
+    pub fn read_lux_sphere_light_sample(
+        &self,
+        light_path: &str,
+        time: f64,
+    ) -> Result<LuxSphereLightSample, i32> {
+        let lp = CString::new(light_path).map_err(|_| 1)?;
+        let mut raw = FreeusdLuxSphereLightSample::default();
+        let rc = unsafe {
+            freeusd_stage_read_lux_sphere_light_sample(
+                self.ptr as *const FreeusdStage,
+                lp.as_ptr(),
+                time as c_double,
+                &mut raw,
+            )
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        Ok(LuxSphereLightSample {
+            intensity: raw.intensity,
+            color: raw.color,
+            radius: raw.radius,
+        })
+    }
+
+    /// Read `UsdLuxRectLight` intensity, color, width, and height from a light prim.
+    pub fn read_lux_rect_light_sample(
+        &self,
+        light_path: &str,
+        time: f64,
+    ) -> Result<LuxRectLightSample, i32> {
+        let lp = CString::new(light_path).map_err(|_| 1)?;
+        let mut raw = FreeusdLuxRectLightSample::default();
+        let rc = unsafe {
+            freeusd_stage_read_lux_rect_light_sample(
+                self.ptr as *const FreeusdStage,
+                lp.as_ptr(),
+                time as c_double,
+                &mut raw,
+            )
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        Ok(LuxRectLightSample {
+            intensity: raw.intensity,
+            color: raw.color,
+            width: raw.width,
+            height: raw.height,
+        })
+    }
+
+    /// Read `UsdLuxDiskLight` intensity, color, and radius from a light prim.
+    pub fn read_lux_disk_light_sample(
+        &self,
+        light_path: &str,
+        time: f64,
+    ) -> Result<LuxDiskLightSample, i32> {
+        let lp = CString::new(light_path).map_err(|_| 1)?;
+        let mut raw = FreeusdLuxDiskLightSample::default();
+        let rc = unsafe {
+            freeusd_stage_read_lux_disk_light_sample(
+                self.ptr as *const FreeusdStage,
+                lp.as_ptr(),
+                time as c_double,
+                &mut raw,
+            )
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        Ok(LuxDiskLightSample {
+            intensity: raw.intensity,
+            color: raw.color,
+            radius: raw.radius,
+        })
+    }
+
+    /// Read `UsdLuxCylinderLight` intensity, color, length, and radius from a light prim.
+    pub fn read_lux_cylinder_light_sample(
+        &self,
+        light_path: &str,
+        time: f64,
+    ) -> Result<LuxCylinderLightSample, i32> {
+        let lp = CString::new(light_path).map_err(|_| 1)?;
+        let mut raw = FreeusdLuxCylinderLightSample::default();
+        let rc = unsafe {
+            freeusd_stage_read_lux_cylinder_light_sample(
+                self.ptr as *const FreeusdStage,
+                lp.as_ptr(),
+                time as c_double,
+                &mut raw,
+            )
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        Ok(LuxCylinderLightSample {
+            intensity: raw.intensity,
+            color: raw.color,
+            length: raw.length,
+            radius: raw.radius,
+        })
+    }
+
+    /// Read `UsdLuxDomeLight` common inputs from a light prim.
+    pub fn read_lux_dome_light_sample(
+        &self,
+        light_path: &str,
+        time: f64,
+    ) -> Result<LuxDomeLightSample, i32> {
+        let lp = CString::new(light_path).map_err(|_| 1)?;
+        let mut raw = FreeusdLuxDomeLightSample::default();
+        let rc = unsafe {
+            freeusd_stage_read_lux_dome_light_sample(
+                self.ptr as *const FreeusdStage,
+                lp.as_ptr(),
+                time as c_double,
+                &mut raw,
+            )
+        };
+        if rc != 0 {
+            return Err(rc as i32);
+        }
+        let texture_file_asset_path = if raw.texture_file_asset_path_utf8.is_null() {
+            String::new()
+        } else {
+            let value = unsafe {
+                CStr::from_ptr(raw.texture_file_asset_path_utf8)
+                    .to_string_lossy()
+                    .into_owned()
+            };
+            unsafe { freeusd_string_free(raw.texture_file_asset_path_utf8) };
+            value
+        };
+        let texture_format = if raw.texture_format_utf8.is_null() {
+            String::new()
+        } else {
+            let value = unsafe {
+                CStr::from_ptr(raw.texture_format_utf8)
+                    .to_string_lossy()
+                    .into_owned()
+            };
+            unsafe { freeusd_string_free(raw.texture_format_utf8) };
+            value
+        };
+        Ok(LuxDomeLightSample {
+            intensity: raw.intensity,
+            color: raw.color,
+            texture_file_asset_path,
+            texture_format,
+        })
+    }
+
     /// Read `OpenVDBAsset` file path and field name from an asset prim.
     pub fn read_openvdb_asset_info(
         &self,
@@ -4042,6 +4319,63 @@ def Xform "Root"
         assert!((sample.color[1] - 0.95).abs() < 1e-5);
         assert!((sample.color[2] - 0.8).abs() < 1e-5);
         assert!((sample.angle - 0.53).abs() < 1e-5);
+    }
+
+    #[test]
+    fn usd_lux_additional_light_bindings() {
+        let path = fixture_path("parity_lux_sphere.usda");
+        let stage =
+            Stage::open_from_root_file(&path.to_string_lossy(), root_sublayers::DEPTH_FIRST)
+                .expect("open sphere fixture");
+        let sphere = stage
+            .read_lux_sphere_light_sample("/World/Bulb", 1.0)
+            .expect("sphere sample");
+        assert!((sphere.intensity - 500.0).abs() < 1e-5);
+        assert!((sphere.color[1] - 0.9).abs() < 1e-5);
+        assert!((sphere.radius - 0.25).abs() < 1e-5);
+
+        let path = fixture_path("parity_lux_rect.usda");
+        let stage =
+            Stage::open_from_root_file(&path.to_string_lossy(), root_sublayers::DEPTH_FIRST)
+                .expect("open rect fixture");
+        let rect = stage
+            .read_lux_rect_light_sample("/World/Panel", 1.0)
+            .expect("rect sample");
+        assert!((rect.intensity - 1200.0).abs() < 1e-5);
+        assert!((rect.color[0] - 0.95).abs() < 1e-5);
+        assert!((rect.width - 2.0).abs() < 1e-5);
+        assert!((rect.height - 1.0).abs() < 1e-5);
+
+        let path = fixture_path("parity_lux_disk.usda");
+        let stage =
+            Stage::open_from_root_file(&path.to_string_lossy(), root_sublayers::DEPTH_FIRST)
+                .expect("open disk fixture");
+        let disk = stage
+            .read_lux_disk_light_sample("/World/Softbox", 1.0)
+            .expect("disk sample");
+        assert!((disk.intensity - 800.0).abs() < 1e-5);
+        assert!((disk.radius - 0.75).abs() < 1e-5);
+
+        let path = fixture_path("parity_lux_cylinder.usda");
+        let stage =
+            Stage::open_from_root_file(&path.to_string_lossy(), root_sublayers::DEPTH_FIRST)
+                .expect("open cylinder fixture");
+        let cylinder = stage
+            .read_lux_cylinder_light_sample("/World/Tube", 1.0)
+            .expect("cylinder sample");
+        assert!((cylinder.length - 2.5).abs() < 1e-5);
+        assert!((cylinder.radius - 0.05).abs() < 1e-5);
+
+        let path = fixture_path("parity_lux_dome.usda");
+        let stage =
+            Stage::open_from_root_file(&path.to_string_lossy(), root_sublayers::DEPTH_FIRST)
+                .expect("open dome fixture");
+        let dome = stage
+            .read_lux_dome_light_sample("/World/Sky", 1.0)
+            .expect("dome sample");
+        assert!((dome.intensity - 1.0).abs() < 1e-5);
+        assert_eq!(dome.texture_file_asset_path, "textures/sky.hdr");
+        assert_eq!(dome.texture_format, "latlong");
     }
 
     #[test]

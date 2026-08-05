@@ -28,7 +28,12 @@
 #include "freeusd/usdGeom/boundable.hpp"
 #include "freeusd/usdGeom/imageable.hpp"
 #include "freeusd/usdGeom/xformable.hpp"
+#include "freeusd/usdLux/cylinderLight.hpp"
+#include "freeusd/usdLux/diskLight.hpp"
 #include "freeusd/usdLux/distantLight.hpp"
+#include "freeusd/usdLux/domeLight.hpp"
+#include "freeusd/usdLux/rectLight.hpp"
+#include "freeusd/usdLux/sphereLight.hpp"
 #include "freeusd/usdPhysics/collisionAPI.hpp"
 #include "freeusd/usdPhysics/fixedJoint.hpp"
 #include "freeusd/usdPhysics/massAPI.hpp"
@@ -3371,6 +3376,228 @@ int freeusd_stage_read_lux_distant_light_sample(const FreeusdStage* stage, const
     out_sample->color[1] = color.y();
     out_sample->color[2] = color.z();
     out_sample->angle = angle;
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_read_lux_sphere_light_sample(const FreeusdStage* stage, const char* light_path_utf8, double time,
+                                               FreeusdLuxSphereLightSample* out_sample) {
+  if (!stage || !stage->inner || !light_path_utf8 || !out_sample) {
+    set_error("freeusd_stage_read_lux_sphere_light_sample: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_sample = FreeusdLuxSphereLightSample{};
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(light_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid sphere light path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const freeusd::usdLux::SphereLight light = freeusd::usdLux::SphereLight::ReadFromPrim(stage->inner, p);
+    if (!light) {
+      set_error("sphere light prim not found or invalid");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    float intensity = 0.0f;
+    freeusd::gf::Vec3f color{};
+    float radius = 0.0f;
+    if (!light.GetIntensity(&intensity, time) || !light.GetColor(&color, time) || !light.GetRadius(&radius, time)) {
+      set_error("sphere light input not available");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    out_sample->intensity = intensity;
+    out_sample->color[0] = color.x();
+    out_sample->color[1] = color.y();
+    out_sample->color[2] = color.z();
+    out_sample->radius = radius;
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_read_lux_rect_light_sample(const FreeusdStage* stage, const char* light_path_utf8, double time,
+                                             FreeusdLuxRectLightSample* out_sample) {
+  if (!stage || !stage->inner || !light_path_utf8 || !out_sample) {
+    set_error("freeusd_stage_read_lux_rect_light_sample: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_sample = FreeusdLuxRectLightSample{};
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(light_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid rect light path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const freeusd::usdLux::RectLight light = freeusd::usdLux::RectLight::ReadFromPrim(stage->inner, p);
+    if (!light) {
+      set_error("rect light prim not found or invalid");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    float intensity = 0.0f;
+    freeusd::gf::Vec3f color{};
+    float width = 0.0f;
+    float height = 0.0f;
+    if (!light.GetIntensity(&intensity, time) || !light.GetColor(&color, time) || !light.GetWidth(&width, time) ||
+        !light.GetHeight(&height, time)) {
+      set_error("rect light input not available");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    out_sample->intensity = intensity;
+    out_sample->color[0] = color.x();
+    out_sample->color[1] = color.y();
+    out_sample->color[2] = color.z();
+    out_sample->width = width;
+    out_sample->height = height;
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_read_lux_disk_light_sample(const FreeusdStage* stage, const char* light_path_utf8, double time,
+                                             FreeusdLuxDiskLightSample* out_sample) {
+  if (!stage || !stage->inner || !light_path_utf8 || !out_sample) {
+    set_error("freeusd_stage_read_lux_disk_light_sample: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_sample = FreeusdLuxDiskLightSample{};
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(light_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid disk light path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const freeusd::usdLux::DiskLight light = freeusd::usdLux::DiskLight::ReadFromPrim(stage->inner, p);
+    if (!light) {
+      set_error("disk light prim not found or invalid");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    float intensity = 0.0f;
+    freeusd::gf::Vec3f color{};
+    float radius = 0.0f;
+    if (!light.GetIntensity(&intensity, time) || !light.GetColor(&color, time) || !light.GetRadius(&radius, time)) {
+      set_error("disk light input not available");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    out_sample->intensity = intensity;
+    out_sample->color[0] = color.x();
+    out_sample->color[1] = color.y();
+    out_sample->color[2] = color.z();
+    out_sample->radius = radius;
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_read_lux_cylinder_light_sample(const FreeusdStage* stage, const char* light_path_utf8, double time,
+                                                 FreeusdLuxCylinderLightSample* out_sample) {
+  if (!stage || !stage->inner || !light_path_utf8 || !out_sample) {
+    set_error("freeusd_stage_read_lux_cylinder_light_sample: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_sample = FreeusdLuxCylinderLightSample{};
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(light_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid cylinder light path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const freeusd::usdLux::CylinderLight light = freeusd::usdLux::CylinderLight::ReadFromPrim(stage->inner, p);
+    if (!light) {
+      set_error("cylinder light prim not found or invalid");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    float intensity = 0.0f;
+    freeusd::gf::Vec3f color{};
+    float length = 0.0f;
+    float radius = 0.0f;
+    if (!light.GetIntensity(&intensity, time) || !light.GetColor(&color, time) || !light.GetLength(&length, time) ||
+        !light.GetRadius(&radius, time)) {
+      set_error("cylinder light input not available");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    out_sample->intensity = intensity;
+    out_sample->color[0] = color.x();
+    out_sample->color[1] = color.y();
+    out_sample->color[2] = color.z();
+    out_sample->length = length;
+    out_sample->radius = radius;
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_read_lux_dome_light_sample(const FreeusdStage* stage, const char* light_path_utf8, double time,
+                                             FreeusdLuxDomeLightSample* out_sample) {
+  if (!stage || !stage->inner || !light_path_utf8 || !out_sample) {
+    set_error("freeusd_stage_read_lux_dome_light_sample: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_sample = FreeusdLuxDomeLightSample{};
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(light_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid dome light path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const freeusd::usdLux::DomeLight light = freeusd::usdLux::DomeLight::ReadFromPrim(stage->inner, p);
+    if (!light) {
+      set_error("dome light prim not found or invalid");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    float intensity = 0.0f;
+    freeusd::gf::Vec3f color{};
+    std::string texture_file;
+    std::string texture_format;
+    if (!light.GetIntensity(&intensity, time) || !light.GetColor(&color, time) ||
+        !light.GetTextureFileAssetPath(&texture_file, time) || !light.GetTextureFormat(&texture_format, time)) {
+      set_error("dome light input not available");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    char* file_dup = dup_cstr(texture_file);
+    char* format_dup = dup_cstr(texture_format);
+    if (!file_dup || !format_dup) {
+      std::free(file_dup);
+      std::free(format_dup);
+      set_error("out of memory");
+      return FREEUSD_ERR_INTERNAL;
+    }
+    out_sample->intensity = intensity;
+    out_sample->color[0] = color.x();
+    out_sample->color[1] = color.y();
+    out_sample->color[2] = color.z();
+    out_sample->texture_file_asset_path_utf8 = file_dup;
+    out_sample->texture_format_utf8 = format_dup;
     clear_error();
     return FREEUSD_OK;
   } catch (const std::exception& e) {
