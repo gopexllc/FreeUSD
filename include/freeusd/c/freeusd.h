@@ -794,6 +794,68 @@ FREEUSD_C_API int freeusd_stage_read_lux_distant_light_sample(const FreeusdStage
                                                               const char* light_path_utf8, double time,
                                                               FreeusdLuxDistantLightSample* out_sample);
 
+/** Evaluated ``UsdLuxSphereLight`` scalar inputs at a time code. */
+typedef struct FreeusdLuxSphereLightSample {
+  float intensity;
+  float color[3];
+  float radius;
+} FreeusdLuxSphereLightSample;
+
+FREEUSD_C_API int freeusd_stage_read_lux_sphere_light_sample(const FreeusdStage* stage,
+                                                             const char* light_path_utf8, double time,
+                                                             FreeusdLuxSphereLightSample* out_sample);
+
+/** Evaluated ``UsdLuxRectLight`` scalar inputs at a time code. */
+typedef struct FreeusdLuxRectLightSample {
+  float intensity;
+  float color[3];
+  float width;
+  float height;
+} FreeusdLuxRectLightSample;
+
+FREEUSD_C_API int freeusd_stage_read_lux_rect_light_sample(const FreeusdStage* stage,
+                                                           const char* light_path_utf8, double time,
+                                                           FreeusdLuxRectLightSample* out_sample);
+
+/** Evaluated ``UsdLuxDiskLight`` scalar inputs at a time code. */
+typedef struct FreeusdLuxDiskLightSample {
+  float intensity;
+  float color[3];
+  float radius;
+} FreeusdLuxDiskLightSample;
+
+FREEUSD_C_API int freeusd_stage_read_lux_disk_light_sample(const FreeusdStage* stage,
+                                                           const char* light_path_utf8, double time,
+                                                           FreeusdLuxDiskLightSample* out_sample);
+
+/** Evaluated ``UsdLuxCylinderLight`` scalar inputs at a time code. */
+typedef struct FreeusdLuxCylinderLightSample {
+  float intensity;
+  float color[3];
+  float length;
+  float radius;
+} FreeusdLuxCylinderLightSample;
+
+FREEUSD_C_API int freeusd_stage_read_lux_cylinder_light_sample(const FreeusdStage* stage,
+                                                               const char* light_path_utf8, double time,
+                                                               FreeusdLuxCylinderLightSample* out_sample);
+
+/** Evaluated ``UsdLuxDomeLight`` fields at a time code. */
+typedef struct FreeusdLuxDomeLightSample {
+  float intensity;
+  float color[3];
+  char* texture_file_asset_path_utf8;
+  char* texture_format_utf8;
+} FreeusdLuxDomeLightSample;
+
+/**
+ * Read ``UsdLuxDomeLight`` inputs at @p time.
+ * On @ref FREEUSD_OK, string fields are malloc'd; free with @ref freeusd_string_free.
+ */
+FREEUSD_C_API int freeusd_stage_read_lux_dome_light_sample(const FreeusdStage* stage,
+                                                           const char* light_path_utf8, double time,
+                                                           FreeusdLuxDomeLightSample* out_sample);
+
 /**
  * Read ``OpenVDBAsset`` ``filePath`` and ``fieldName`` at @p time.
  * On @ref FREEUSD_OK, @p *out_file_path_utf8 and @p *out_field_name_utf8 are malloc'd; free with

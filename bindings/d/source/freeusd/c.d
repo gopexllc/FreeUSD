@@ -53,6 +53,39 @@ struct FreeusdLuxDistantLightSample {
     float angle;
 }
 
+struct FreeusdLuxSphereLightSample {
+    float intensity;
+    float[3] color;
+    float radius;
+}
+
+struct FreeusdLuxRectLightSample {
+    float intensity;
+    float[3] color;
+    float width;
+    float height;
+}
+
+struct FreeusdLuxDiskLightSample {
+    float intensity;
+    float[3] color;
+    float radius;
+}
+
+struct FreeusdLuxCylinderLightSample {
+    float intensity;
+    float[3] color;
+    float length;
+    float radius;
+}
+
+struct FreeusdLuxDomeLightSample {
+    float intensity;
+    float[3] color;
+    char* texture_file_asset_path_utf8;
+    char* texture_format_utf8;
+}
+
 const(char)* freeusd_version_string();
 const(char)* freeusd_usdc_crate_identifier_utf8();
 const(char)* freeusd_last_error_message();
@@ -196,6 +229,36 @@ int freeusd_stage_read_lux_distant_light_sample(
     const(char)* light_path_utf8,
     double time,
     FreeusdLuxDistantLightSample* out_sample);
+
+int freeusd_stage_read_lux_sphere_light_sample(
+    const(FreeusdStage)* stage,
+    const(char)* light_path_utf8,
+    double time,
+    FreeusdLuxSphereLightSample* out_sample);
+
+int freeusd_stage_read_lux_rect_light_sample(
+    const(FreeusdStage)* stage,
+    const(char)* light_path_utf8,
+    double time,
+    FreeusdLuxRectLightSample* out_sample);
+
+int freeusd_stage_read_lux_disk_light_sample(
+    const(FreeusdStage)* stage,
+    const(char)* light_path_utf8,
+    double time,
+    FreeusdLuxDiskLightSample* out_sample);
+
+int freeusd_stage_read_lux_cylinder_light_sample(
+    const(FreeusdStage)* stage,
+    const(char)* light_path_utf8,
+    double time,
+    FreeusdLuxCylinderLightSample* out_sample);
+
+int freeusd_stage_read_lux_dome_light_sample(
+    const(FreeusdStage)* stage,
+    const(char)* light_path_utf8,
+    double time,
+    FreeusdLuxDomeLightSample* out_sample);
 
 int freeusd_stage_read_openvdb_asset_info(
     const(FreeusdStage)* stage,

@@ -1368,6 +1368,44 @@ type LuxDistantLightSample struct {
 	Angle     float32
 }
 
+// LuxSphereLightSample is the evaluated UsdLuxSphereLight C ABI sample.
+type LuxSphereLightSample struct {
+	Intensity float32
+	Color     [3]float32
+	Radius    float32
+}
+
+// LuxRectLightSample is the evaluated UsdLuxRectLight C ABI sample.
+type LuxRectLightSample struct {
+	Intensity float32
+	Color     [3]float32
+	Width     float32
+	Height    float32
+}
+
+// LuxDiskLightSample is the evaluated UsdLuxDiskLight C ABI sample.
+type LuxDiskLightSample struct {
+	Intensity float32
+	Color     [3]float32
+	Radius    float32
+}
+
+// LuxCylinderLightSample is the evaluated UsdLuxCylinderLight C ABI sample.
+type LuxCylinderLightSample struct {
+	Intensity float32
+	Color     [3]float32
+	Length    float32
+	Radius    float32
+}
+
+// LuxDomeLightSample is the evaluated UsdLuxDomeLight C ABI sample.
+type LuxDomeLightSample struct {
+	Intensity            float32
+	Color                [3]float32
+	TextureFileAssetPath string
+	TextureFormat        string
+}
+
 // ReadLuxDistantLightSample reads intensity, color, and angle from a DistantLight prim.
 func (s *Stage) ReadLuxDistantLightSample(lightPath string, time float64) (sample LuxDistantLightSample, rc int) {
 	if s == nil || s.ptr == nil {
@@ -1385,6 +1423,109 @@ func (s *Stage) ReadLuxDistantLightSample(lightPath string, time float64) (sampl
 		Color:     [3]float32{float32(out.color[0]), float32(out.color[1]), float32(out.color[2])},
 		Angle:     float32(out.angle),
 	}, 0
+}
+
+// ReadLuxSphereLightSample reads intensity, color, and radius from a SphereLight prim.
+func (s *Stage) ReadLuxSphereLightSample(lightPath string, time float64) (sample LuxSphereLightSample, rc int) {
+	if s == nil || s.ptr == nil {
+		return sample, 1
+	}
+	lp := C.CString(lightPath)
+	defer C.free(unsafe.Pointer(lp))
+	var out C.FreeusdLuxSphereLightSample
+	rc = int(C.freeusd_stage_read_lux_sphere_light_sample(s.ptr, lp, C.double(time), &out))
+	if rc != 0 {
+		return sample, rc
+	}
+	return LuxSphereLightSample{
+		Intensity: float32(out.intensity),
+		Color:     [3]float32{float32(out.color[0]), float32(out.color[1]), float32(out.color[2])},
+		Radius:    float32(out.radius),
+	}, 0
+}
+
+// ReadLuxRectLightSample reads intensity, color, width, and height from a RectLight prim.
+func (s *Stage) ReadLuxRectLightSample(lightPath string, time float64) (sample LuxRectLightSample, rc int) {
+	if s == nil || s.ptr == nil {
+		return sample, 1
+	}
+	lp := C.CString(lightPath)
+	defer C.free(unsafe.Pointer(lp))
+	var out C.FreeusdLuxRectLightSample
+	rc = int(C.freeusd_stage_read_lux_rect_light_sample(s.ptr, lp, C.double(time), &out))
+	if rc != 0 {
+		return sample, rc
+	}
+	return LuxRectLightSample{
+		Intensity: float32(out.intensity),
+		Color:     [3]float32{float32(out.color[0]), float32(out.color[1]), float32(out.color[2])},
+		Width:     float32(out.width),
+		Height:    float32(out.height),
+	}, 0
+}
+
+// ReadLuxDiskLightSample reads intensity, color, and radius from a DiskLight prim.
+func (s *Stage) ReadLuxDiskLightSample(lightPath string, time float64) (sample LuxDiskLightSample, rc int) {
+	if s == nil || s.ptr == nil {
+		return sample, 1
+	}
+	lp := C.CString(lightPath)
+	defer C.free(unsafe.Pointer(lp))
+	var out C.FreeusdLuxDiskLightSample
+	rc = int(C.freeusd_stage_read_lux_disk_light_sample(s.ptr, lp, C.double(time), &out))
+	if rc != 0 {
+		return sample, rc
+	}
+	return LuxDiskLightSample{
+		Intensity: float32(out.intensity),
+		Color:     [3]float32{float32(out.color[0]), float32(out.color[1]), float32(out.color[2])},
+		Radius:    float32(out.radius),
+	}, 0
+}
+
+// ReadLuxCylinderLightSample reads intensity, color, length, and radius from a CylinderLight prim.
+func (s *Stage) ReadLuxCylinderLightSample(lightPath string, time float64) (sample LuxCylinderLightSample, rc int) {
+	if s == nil || s.ptr == nil {
+		return sample, 1
+	}
+	lp := C.CString(lightPath)
+	defer C.free(unsafe.Pointer(lp))
+	var out C.FreeusdLuxCylinderLightSample
+	rc = int(C.freeusd_stage_read_lux_cylinder_light_sample(s.ptr, lp, C.double(time), &out))
+	if rc != 0 {
+		return sample, rc
+	}
+	return LuxCylinderLightSample{
+		Intensity: float32(out.intensity),
+		Color:     [3]float32{float32(out.color[0]), float32(out.color[1]), float32(out.color[2])},
+		Length:    float32(out.length),
+		Radius:    float32(out.radius),
+	}, 0
+}
+
+// ReadLuxDomeLightSample reads common fields from a DomeLight prim.
+func (s *Stage) ReadLuxDomeLightSample(lightPath string, time float64) (sample LuxDomeLightSample, rc int) {
+	if s == nil || s.ptr == nil {
+		return sample, 1
+	}
+	lp := C.CString(lightPath)
+	defer C.free(unsafe.Pointer(lp))
+	var out C.FreeusdLuxDomeLightSample
+	rc = int(C.freeusd_stage_read_lux_dome_light_sample(s.ptr, lp, C.double(time), &out))
+	if rc != 0 {
+		return sample, rc
+	}
+	if out.texture_file_asset_path_utf8 != nil {
+		defer C.freeusd_string_free(out.texture_file_asset_path_utf8)
+		sample.TextureFileAssetPath = C.GoString(out.texture_file_asset_path_utf8)
+	}
+	if out.texture_format_utf8 != nil {
+		defer C.freeusd_string_free(out.texture_format_utf8)
+		sample.TextureFormat = C.GoString(out.texture_format_utf8)
+	}
+	sample.Intensity = float32(out.intensity)
+	sample.Color = [3]float32{float32(out.color[0]), float32(out.color[1]), float32(out.color[2])}
+	return sample, 0
 }
 
 // OpenVDBAssetInfo is the evaluated usdVol::OpenVDBAsset C ABI sample.
