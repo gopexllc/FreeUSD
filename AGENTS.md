@@ -122,6 +122,7 @@ Follow [docs/compatibility-claims.md](docs/compatibility-claims.md). Never claim
 - Run `ctest` and `scripts/run_ci_locally.sh` when GitHub Actions is blocked before reporting work complete.
 - Create git commits and pushes only when the user explicitly asks; exclude unrelated WIP from commits.
 - Target GPL game-engine integration (importer/editor/runtime subset), not drop-in full OpenUSD replacement.
+- Keep USD-to-knowledge-graph and ontology-grounding work inside clean-room, GPL-compatible boundaries; treat papers as research context, not source text or proof of implemented parity.
 - Use plain ASCII punctuation in user-facing docs (avoid em dashes).
 - Cross-language parity matters: mirror validated C ABI slices in Go/Rust, not only Python.
 
@@ -137,6 +138,7 @@ Follow [docs/compatibility-claims.md](docs/compatibility-claims.md). Never claim
 - C/C++ test targets keep runtime assertions enabled in Release builds so `assert`-based tests are meaningful.
 - Optional cloud agents use `.github/workflows/cursor-agent.yml` with `CURSOR_API_KEY`; they do not replace merge gates.
 - Most non-core schema packages remain token-only until a fixture-backed runtime slice lands.
+- USD scene-to-ontology research context highlights prim names, parent paths, siblings, world-frame positions, bounding boxes, mass, and ontology TBox linearization as useful cues; semantic scene graph signals should be tested against geometry-only baselines before claims.
 
 ## Cursor Cloud specific instructions
 

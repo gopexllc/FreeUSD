@@ -36,11 +36,22 @@ bool PreviewSurface::GetOpacity(float* out, double time) const {
   return IsPreviewSurface() && shader.GetOpacity(out, time);
 }
 
+bool PreviewSurface::GetOpacityThreshold(float* out, double time) const {
+  return IsPreviewSurface() && shader.GetOpacityThreshold(out, time);
+}
+
 bool PreviewSurface::GetDiffuseTextureAssetPath(std::string* out_path, double time) const {
   if (!IsPreviewSurface() || !out_path) {
     return false;
   }
   return shader.GetInputAssetPath(previewSurfaceTokens::inputs_diffuseColor(), out_path, time);
+}
+
+bool PreviewSurface::GetEmissiveTextureAssetPath(std::string* out_path, double time) const {
+  if (!IsPreviewSurface() || !out_path) {
+    return false;
+  }
+  return shader.GetInputAssetPath(previewSurfaceTokens::inputs_emissiveColor(), out_path, time);
 }
 
 bool PreviewSurface::GetNormalTextureAssetPath(std::string* out_path, double time) const {

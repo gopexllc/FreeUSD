@@ -59,13 +59,16 @@ int main() {
   float metallic = 0.0f;
   float roughness = 0.0f;
   float opacity = 0.0f;
+  float opacity_threshold = 0.0f;
   assert(shader.GetMetallic(&metallic, 1.0) && near(metallic, 0.5f));
   assert(shader.GetRoughness(&roughness, 1.0) && near(roughness, 0.3f));
   assert(shader.GetOpacity(&opacity, 1.0) && near(opacity, 1.0f));
+  assert(shader.GetOpacityThreshold(&opacity_threshold, 1.0) && near(opacity_threshold, 0.5f));
 
   const PreviewSurface preview = PreviewSurface::ReadFromPrim(stage, surface_shader);
   assert(preview);
   assert(preview.IsPreviewSurface());
+  assert(preview.GetOpacityThreshold(&opacity_threshold, 1.0) && near(opacity_threshold, 0.5f));
 
   freeusd::gf::Vec3f diffuse2{};
   assert(preview.GetDiffuseColor(&diffuse2, 1.0));
