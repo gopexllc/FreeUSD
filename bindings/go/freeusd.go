@@ -1342,6 +1342,57 @@ func (s *Stage) ReadPreviewSurfaceDiffuseColor(shaderPath string, time float64) 
 	return [3]float32{float32(out[0]), float32(out[1]), float32(out[2])}, 0
 }
 
+// ReadPreviewSurfaceEmissiveColor reads UsdPreviewSurface inputs:emissiveColor at time.
+func (s *Stage) ReadPreviewSurfaceEmissiveColor(shaderPath string, time float64) (rgb [3]float32, rc int) {
+	if s == nil || s.ptr == nil {
+		return rgb, 1
+	}
+	sp := C.CString(shaderPath)
+	defer C.free(unsafe.Pointer(sp))
+	var out [3]C.float
+	rc = int(C.freeusd_stage_read_preview_surface_emissive_color(s.ptr, sp, C.double(time), &out[0]))
+	if rc != 0 {
+		return rgb, rc
+	}
+	return [3]float32{float32(out[0]), float32(out[1]), float32(out[2])}, 0
+}
+
+// ReadPreviewSurfaceMetallic reads UsdPreviewSurface inputs:metallic at time.
+func (s *Stage) ReadPreviewSurfaceMetallic(shaderPath string, time float64) (value float32, rc int) {
+	if s == nil || s.ptr == nil {
+		return 0, 1
+	}
+	sp := C.CString(shaderPath)
+	defer C.free(unsafe.Pointer(sp))
+	var out C.float
+	rc = int(C.freeusd_stage_read_preview_surface_metallic(s.ptr, sp, C.double(time), &out))
+	return float32(out), rc
+}
+
+// ReadPreviewSurfaceRoughness reads UsdPreviewSurface inputs:roughness at time.
+func (s *Stage) ReadPreviewSurfaceRoughness(shaderPath string, time float64) (value float32, rc int) {
+	if s == nil || s.ptr == nil {
+		return 0, 1
+	}
+	sp := C.CString(shaderPath)
+	defer C.free(unsafe.Pointer(sp))
+	var out C.float
+	rc = int(C.freeusd_stage_read_preview_surface_roughness(s.ptr, sp, C.double(time), &out))
+	return float32(out), rc
+}
+
+// ReadPreviewSurfaceOpacity reads UsdPreviewSurface inputs:opacity at time.
+func (s *Stage) ReadPreviewSurfaceOpacity(shaderPath string, time float64) (value float32, rc int) {
+	if s == nil || s.ptr == nil {
+		return 0, 1
+	}
+	sp := C.CString(shaderPath)
+	defer C.free(unsafe.Pointer(sp))
+	var out C.float
+	rc = int(C.freeusd_stage_read_preview_surface_opacity(s.ptr, sp, C.double(time), &out))
+	return float32(out), rc
+}
+
 // ReadPreviewSurfaceDiffuseTextureAssetPath reads a direct or connected diffuse texture asset path.
 func (s *Stage) ReadPreviewSurfaceDiffuseTextureAssetPath(shaderPath string, time float64) (assetPath string, rc int) {
 	if s == nil || s.ptr == nil {
@@ -1359,6 +1410,55 @@ func (s *Stage) ReadPreviewSurfaceDiffuseTextureAssetPath(shaderPath string, tim
 	}
 	defer C.freeusd_string_free(out)
 	return C.GoString(out), 0
+}
+
+func (s *Stage) readPreviewSurfaceTextureAssetPath(shaderPath string, time float64, kind int) (assetPath string, rc int) {
+	if s == nil || s.ptr == nil {
+		return "", 1
+	}
+	sp := C.CString(shaderPath)
+	defer C.free(unsafe.Pointer(sp))
+	var out *C.char
+	switch kind {
+	case 1:
+		rc = int(C.freeusd_stage_read_preview_surface_normal_texture_asset_path(s.ptr, sp, C.double(time), &out))
+	case 2:
+		rc = int(C.freeusd_stage_read_preview_surface_occlusion_texture_asset_path(s.ptr, sp, C.double(time), &out))
+	case 3:
+		rc = int(C.freeusd_stage_read_preview_surface_metallic_texture_asset_path(s.ptr, sp, C.double(time), &out))
+	case 4:
+		rc = int(C.freeusd_stage_read_preview_surface_roughness_texture_asset_path(s.ptr, sp, C.double(time), &out))
+	default:
+		return "", 1
+	}
+	if rc != 0 {
+		return "", rc
+	}
+	if out == nil {
+		return "", 0
+	}
+	defer C.freeusd_string_free(out)
+	return C.GoString(out), 0
+}
+
+// ReadPreviewSurfaceNormalTextureAssetPath reads a connected normal texture asset path.
+func (s *Stage) ReadPreviewSurfaceNormalTextureAssetPath(shaderPath string, time float64) (string, int) {
+	return s.readPreviewSurfaceTextureAssetPath(shaderPath, time, 1)
+}
+
+// ReadPreviewSurfaceOcclusionTextureAssetPath reads a connected occlusion texture asset path.
+func (s *Stage) ReadPreviewSurfaceOcclusionTextureAssetPath(shaderPath string, time float64) (string, int) {
+	return s.readPreviewSurfaceTextureAssetPath(shaderPath, time, 2)
+}
+
+// ReadPreviewSurfaceMetallicTextureAssetPath reads a connected metallic texture asset path.
+func (s *Stage) ReadPreviewSurfaceMetallicTextureAssetPath(shaderPath string, time float64) (string, int) {
+	return s.readPreviewSurfaceTextureAssetPath(shaderPath, time, 3)
+}
+
+// ReadPreviewSurfaceRoughnessTextureAssetPath reads a connected roughness texture asset path.
+func (s *Stage) ReadPreviewSurfaceRoughnessTextureAssetPath(shaderPath string, time float64) (string, int) {
+	return s.readPreviewSurfaceTextureAssetPath(shaderPath, time, 4)
 }
 
 // LuxDistantLightSample is the evaluated UsdLuxDistantLight C ABI sample.

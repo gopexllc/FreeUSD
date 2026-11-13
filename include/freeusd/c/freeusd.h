@@ -772,11 +772,44 @@ FREEUSD_C_API int freeusd_stage_read_preview_surface_diffuse_color(const Freeusd
                                                                  const char* shader_path_utf8, double time,
                                                                  float out_rgb[3]);
 
+/** Read ``UsdPreviewSurface`` ``inputs:emissiveColor`` (color3f) at @p time from a shader prim. */
+FREEUSD_C_API int freeusd_stage_read_preview_surface_emissive_color(const FreeusdStage* stage,
+                                                                    const char* shader_path_utf8,
+                                                                    double time,
+                                                                    float out_rgb[3]);
+
+/** Read scalar ``UsdPreviewSurface`` ``inputs:metallic`` at @p time from a shader prim. */
+FREEUSD_C_API int freeusd_stage_read_preview_surface_metallic(const FreeusdStage* stage,
+                                                              const char* shader_path_utf8, double time,
+                                                              float* out_value);
+
+/** Read scalar ``UsdPreviewSurface`` ``inputs:roughness`` at @p time from a shader prim. */
+FREEUSD_C_API int freeusd_stage_read_preview_surface_roughness(const FreeusdStage* stage,
+                                                               const char* shader_path_utf8, double time,
+                                                               float* out_value);
+
+/** Read scalar ``UsdPreviewSurface`` ``inputs:opacity`` at @p time from a shader prim. */
+FREEUSD_C_API int freeusd_stage_read_preview_surface_opacity(const FreeusdStage* stage,
+                                                             const char* shader_path_utf8, double time,
+                                                             float* out_value);
+
 /**
  * Read ``UsdPreviewSurface`` diffuse texture asset path (direct asset or connected ``inputs:file``).
  * On @ref FREEUSD_OK, @p *out_path_utf8 is malloc'd; free with @ref freeusd_string_free.
  */
 FREEUSD_C_API int freeusd_stage_read_preview_surface_diffuse_texture_asset_path(
+    const FreeusdStage* stage, const char* shader_path_utf8, double time, char** out_path_utf8);
+
+FREEUSD_C_API int freeusd_stage_read_preview_surface_normal_texture_asset_path(
+    const FreeusdStage* stage, const char* shader_path_utf8, double time, char** out_path_utf8);
+
+FREEUSD_C_API int freeusd_stage_read_preview_surface_occlusion_texture_asset_path(
+    const FreeusdStage* stage, const char* shader_path_utf8, double time, char** out_path_utf8);
+
+FREEUSD_C_API int freeusd_stage_read_preview_surface_metallic_texture_asset_path(
+    const FreeusdStage* stage, const char* shader_path_utf8, double time, char** out_path_utf8);
+
+FREEUSD_C_API int freeusd_stage_read_preview_surface_roughness_texture_asset_path(
     const FreeusdStage* stage, const char* shader_path_utf8, double time, char** out_path_utf8);
 
 /** Evaluated ``UsdLuxDistantLight`` scalar inputs at a time code. */
