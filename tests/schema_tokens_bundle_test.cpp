@@ -11,6 +11,7 @@ int main() {
   assert(freeusd::usdGeom::tokens::points().GetText() == std::string("points"));
   assert(freeusd::usdShade::tokens::Material().GetText() == std::string("Material"));
   assert(freeusd::usdPhysics::tokens::PhysicsScene().GetText() == std::string("PhysicsScene"));
+  assert(freeusd::usdSemantics::tokens::SemanticsLabelsAPI().GetText() == std::string("SemanticsLabelsAPI"));
   assert(freeusd::usdRender::tokens::RenderSettings().GetText() == std::string("RenderSettings"));
   assert(freeusd::usdUI::tokens::ui_displayName().GetText() == std::string("ui:displayName"));
   assert(freeusd::usd::schemaDataTokens::ModelAPI().GetText() == std::string("ModelAPI"));
