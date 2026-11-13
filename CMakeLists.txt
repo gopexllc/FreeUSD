@@ -89,6 +89,11 @@ if(FREEUSD_BUILD_TESTS)
   target_compile_definitions(
     freeusd_usd_geom_mesh_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
 
+  add_executable(freeusd_usd_geom_boundable_mesh_test tests/usd_geom_boundable_mesh_test.cpp)
+  target_link_libraries(freeusd_usd_geom_boundable_mesh_test PRIVATE freeusd::usd freeusd::usdGeom freeusd::usdUtils)
+  target_compile_definitions(
+    freeusd_usd_geom_boundable_mesh_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+
   add_executable(freeusd_usd_skel_smoke_test tests/usd_skel_smoke_test.cpp)
   target_link_libraries(freeusd_usd_skel_smoke_test PRIVATE freeusd::usd freeusd::usdSkel)
   target_compile_definitions(
@@ -187,6 +192,11 @@ if(FREEUSD_BUILD_TESTS)
   target_compile_definitions(
     freeusd_usd_vol_volume_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
 
+  add_executable(freeusd_usd_semantics_labels_test tests/usd_semantics_labels_test.cpp)
+  target_link_libraries(freeusd_usd_semantics_labels_test PRIVATE freeusd::usd freeusd::usdSemantics)
+  target_compile_definitions(
+    freeusd_usd_semantics_labels_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+
   add_executable(freeusd_ar_path_security_test tests/ar_path_security_test.cpp)
   target_link_libraries(freeusd_ar_path_security_test PRIVATE freeusd::ar)
 
@@ -195,6 +205,11 @@ if(FREEUSD_BUILD_TESTS)
                                                                  freeusd::usdShade)
   target_compile_definitions(
     freeusd_engine_integration_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+
+  add_executable(freeusd_usdutils_spatial_grounding_test tests/usdutils_spatial_grounding_test.cpp)
+  target_link_libraries(freeusd_usdutils_spatial_grounding_test PRIVATE freeusd::usd freeusd::usdUtils)
+  target_compile_definitions(
+    freeusd_usdutils_spatial_grounding_test PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
 
   add_executable(freeusd_schema_tokens_bundle_test tests/schema_tokens_bundle_test.cpp)
   target_link_libraries(freeusd_schema_tokens_bundle_test PRIVATE freeusd::usd_schemas)
@@ -247,6 +262,7 @@ if(FREEUSD_BUILD_TESTS)
   add_test(NAME freeusd_usdc_fieldsets_test COMMAND freeusd_usdc_fieldsets_test)
   add_test(NAME freeusd_usdc_values_test COMMAND freeusd_usdc_values_test)
   add_test(NAME freeusd_usd_geom_mesh_test COMMAND freeusd_usd_geom_mesh_test)
+  add_test(NAME freeusd_usd_geom_boundable_mesh_test COMMAND freeusd_usd_geom_boundable_mesh_test)
   add_test(NAME freeusd_usd_skel_smoke_test COMMAND freeusd_usd_skel_smoke_test)
   add_test(NAME freeusd_usd_shade_smoke_test COMMAND freeusd_usd_shade_smoke_test)
   add_test(NAME freeusd_usd_skel_blend_shapes_test COMMAND freeusd_usd_skel_blend_shapes_test)
@@ -267,8 +283,10 @@ if(FREEUSD_BUILD_TESTS)
   add_test(NAME freeusd_usd_physics_fixed_joint_test COMMAND freeusd_usd_physics_fixed_joint_test)
   add_test(NAME freeusd_usd_vol_openvdb_test COMMAND freeusd_usd_vol_openvdb_test)
   add_test(NAME freeusd_usd_vol_volume_test COMMAND freeusd_usd_vol_volume_test)
+  add_test(NAME freeusd_usd_semantics_labels_test COMMAND freeusd_usd_semantics_labels_test)
   add_test(NAME freeusd_ar_path_security_test COMMAND freeusd_ar_path_security_test)
   add_test(NAME freeusd_engine_integration_test COMMAND freeusd_engine_integration_test)
+  add_test(NAME freeusd_usdutils_spatial_grounding_test COMMAND freeusd_usdutils_spatial_grounding_test)
   add_test(NAME freeusd_schema_tokens_bundle_test COMMAND freeusd_schema_tokens_bundle_test)
   add_test(NAME freeusd_time_code_test COMMAND freeusd_time_code_test)
   add_test(NAME freeusd_edit_target_test COMMAND freeusd_edit_target_test)
@@ -365,6 +383,22 @@ if(FREEUSD_BUILD_TESTS)
     set_target_properties(freeusd_c_engine_integration PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX)
     add_test(NAME freeusd_c_engine_integration COMMAND freeusd_c_engine_integration)
 
+    add_executable(freeusd_c_usdutils_spatial_grounding tests/c_usdutils_spatial_grounding.c)
+    target_include_directories(freeusd_c_usdutils_spatial_grounding PRIVATE "${PROJECT_SOURCE_DIR}/include")
+    target_link_libraries(freeusd_c_usdutils_spatial_grounding PRIVATE freeusd::c)
+    target_compile_definitions(
+      freeusd_c_usdutils_spatial_grounding PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+    set_target_properties(freeusd_c_usdutils_spatial_grounding PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX)
+    add_test(NAME freeusd_c_usdutils_spatial_grounding COMMAND freeusd_c_usdutils_spatial_grounding)
+
+    add_executable(freeusd_c_usd_semantics_labels tests/c_usd_semantics_labels.c)
+    target_include_directories(freeusd_c_usd_semantics_labels PRIVATE "${PROJECT_SOURCE_DIR}/include")
+    target_link_libraries(freeusd_c_usd_semantics_labels PRIVATE freeusd::c)
+    target_compile_definitions(
+      freeusd_c_usd_semantics_labels PRIVATE "FREEUSD_TEST_FIXTURES_DIR=\"${CMAKE_SOURCE_DIR}/tests/fixtures\"")
+    set_target_properties(freeusd_c_usd_semantics_labels PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX)
+    add_test(NAME freeusd_c_usd_semantics_labels COMMAND freeusd_c_usd_semantics_labels)
+
     add_executable(freeusd_c_usd_skel tests/c_usd_skel.c)
     target_include_directories(freeusd_c_usd_skel PRIVATE "${PROJECT_SOURCE_DIR}/include")
     target_link_libraries(freeusd_c_usd_skel PRIVATE freeusd::c)
@@ -449,6 +483,7 @@ if(FREEUSD_BUILD_TESTS)
     freeusd_usdc_fieldsets_test
     freeusd_usdc_values_test
     freeusd_usd_geom_mesh_test
+    freeusd_usd_geom_boundable_mesh_test
     freeusd_usd_lux_sphere_light_test
     freeusd_usd_lux_rect_light_test
     freeusd_usd_shade_texture_test
@@ -463,6 +498,7 @@ if(FREEUSD_BUILD_TESTS)
     freeusd_usd_physics_fixed_joint_test
     freeusd_usd_vol_openvdb_test
     freeusd_usd_vol_volume_test
+    freeusd_usd_semantics_labels_test
     freeusd_usd_skel_smoke_test
     freeusd_usd_skel_skinning_matrices_test
     freeusd_usd_shade_smoke_test
@@ -470,6 +506,7 @@ if(FREEUSD_BUILD_TESTS)
     freeusd_usd_lux_distant_light_test
     freeusd_ar_path_security_test
     freeusd_engine_integration_test
+    freeusd_usdutils_spatial_grounding_test
     freeusd_schema_tokens_bundle_test
     freeusd_time_code_test
     freeusd_edit_target_test
@@ -497,6 +534,8 @@ if(FREEUSD_BUILD_TESTS)
       freeusd_c_stage_prim_specifier
       freeusd_c_stage_layer_hints
       freeusd_c_engine_integration
+      freeusd_c_usdutils_spatial_grounding
+      freeusd_c_usd_semantics_labels
       freeusd_c_usd_skel
       freeusd_c_usd_shade
       freeusd_c_usd_lux
@@ -553,7 +592,7 @@ if(FREEUSD_BUILD_PYTHON)
   add_custom_command(
     TARGET _native
     POST_BUILD
-    COMMAND ${Python_EXECUTABLE} ${CMAKE_SOURCE_DIR}/cmake/sync_native_post_build.py $<TARGET_FILE:_native>
+    COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/cmake/sync_native_post_build.py $<TARGET_FILE:_native>
     COMMENT "Sync _native into site-packages/freeusd when present (editable / venv)")
 
   install(TARGETS _native LIBRARY DESTINATION freeusd)
@@ -621,7 +660,7 @@ if(FREEUSD_BUILD_PYTHON AND FREEUSD_BUILD_TESTS)
 endif()
 
 install(DIRECTORY include/freeusd TYPE INCLUDE)
-install(FILES "${CMAKE_SOURCE_DIR}/LICENSE"
+install(FILES "${CMAKE_CURRENT_LIST_DIR}/LICENSE"
         DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/doc/${PROJECT_NAME}")
 
 # Targets exported as freeusd::<name> for find_package(FreeUSD) (see EXPORT_NAME in src/CMakeLists.txt).
@@ -677,7 +716,7 @@ install(
 
 set(_freeusd_cmake_dir "${CMAKE_INSTALL_LIBDIR}/cmake/FreeUSD")
 configure_package_config_file(
-  "${CMAKE_SOURCE_DIR}/cmake/FreeUSDConfig.cmake.in"
+  "${CMAKE_CURRENT_LIST_DIR}/cmake/FreeUSDConfig.cmake.in"
   "${CMAKE_CURRENT_BINARY_DIR}/FreeUSDConfig.cmake"
   INSTALL_DESTINATION "${_freeusd_cmake_dir}")
 
@@ -706,7 +745,7 @@ else()
   set(FREEUSD_PC_LINK_WRAP_START "")
   set(FREEUSD_PC_LINK_WRAP_END "")
 endif()
-configure_file("${CMAKE_SOURCE_DIR}/cmake/freeusd.pc.in" "${CMAKE_CURRENT_BINARY_DIR}/freeusd.pc" @ONLY)
+configure_file("${CMAKE_CURRENT_LIST_DIR}/cmake/freeusd.pc.in" "${CMAKE_CURRENT_BINARY_DIR}/freeusd.pc" @ONLY)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/freeusd.pc" DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
 
 # Binary archives (run from build dir after configure: cpack [-G TGZ]).
@@ -714,8 +753,8 @@ set(CPACK_PACKAGE_NAME "FreeUSD")
 set(CPACK_PACKAGE_VENDOR "FreeUSD")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "GPL-3.0-or-later USD-shaped scene libraries (clean-room)")
 set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
-set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE")
-set(CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/README.md")
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_LIST_DIR}/LICENSE")
+set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_LIST_DIR}/README.md")
 if(WIN32)
   set(CPACK_GENERATOR "ZIP")
 else()

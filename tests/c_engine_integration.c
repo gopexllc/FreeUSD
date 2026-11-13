@@ -68,9 +68,16 @@ int main(void) {
     return 8;
   }
 
+  /* Xform prims without local bounds aggregate descendant world bounds. */
   if (freeusd_stage_compute_boundable_world_bounds(stage, "/World", 1.0, &min_x, &min_y, &min_z, &max_x, &max_y,
-                                                   &max_z) != FREEUSD_ERR_NOT_FOUND) {
-    fprintf(stderr, "expected NOT_FOUND for non-boundable world prim\n");
+                                                   &max_z) != FREEUSD_OK) {
+    fprintf(stderr, "expected aggregated world bounds for /World: %s\n", freeusd_last_error_message());
+    freeusd_stage_free(stage);
+    return 9;
+  }
+  if (!nearly(min_x, 0.0) || !nearly(min_y, 1.0) || !nearly(min_z, 2.0) || !nearly(max_x, 2.0) ||
+      !nearly(max_y, 3.0) || !nearly(max_z, 4.0)) {
+    fprintf(stderr, "unexpected aggregated world bounds\n");
     freeusd_stage_free(stage);
     return 9;
   }
@@ -106,6 +113,24 @@ int main(void) {
     fprintf(stderr, "crate stage missing /World/Cube\n");
     freeusd_stage_free(stage);
     return 14;
+  }
+  freeusd_stage_free(stage);
+
+  if (snprintf(path, sizeof path, "%s/parity_semantics_labels.usda", FREEUSD_TEST_FIXTURES_DIR) >= (int)sizeof path) {
+    fprintf(stderr, "semantics fixture path too long\n");
+    return 15;
+  }
+  stage = freeusd_stage_open_from_root_file_utf8(path, 2);
+  if (!stage) {
+    fprintf(stderr, "semantics stage open failed: %s\n", freeusd_last_error_message());
+    return 16;
+  }
+  FreeusdEngineRuntimeSupport report;
+  if (freeusd_usdutils_assess_engine_runtime_support(stage, &report) != FREEUSD_OK || !report.uses_semantic_labels ||
+      report.recommended_mode != FREEUSD_ENGINE_RUNTIME_HYBRID) {
+    fprintf(stderr, "semantic runtime report mismatch: %s\n", freeusd_last_error_message());
+    freeusd_stage_free(stage);
+    return 17;
   }
   freeusd_stage_free(stage);
   return 0;

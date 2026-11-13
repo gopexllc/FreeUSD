@@ -28,12 +28,18 @@
 #include "freeusd/usdGeom/boundable.hpp"
 #include "freeusd/usdGeom/imageable.hpp"
 #include "freeusd/usdGeom/xformable.hpp"
+#include "freeusd/usdLux/cylinderLight.hpp"
+#include "freeusd/usdLux/diskLight.hpp"
 #include "freeusd/usdLux/distantLight.hpp"
+#include "freeusd/usdLux/domeLight.hpp"
+#include "freeusd/usdLux/rectLight.hpp"
+#include "freeusd/usdLux/sphereLight.hpp"
 #include "freeusd/usdPhysics/collisionAPI.hpp"
 #include "freeusd/usdPhysics/fixedJoint.hpp"
 #include "freeusd/usdPhysics/massAPI.hpp"
 #include "freeusd/usdPhysics/physicsScene.hpp"
 #include "freeusd/usdPhysics/rigidBodyAPI.hpp"
+#include "freeusd/usdSemantics/labelsAPI.hpp"
 #include "freeusd/usdSkel/skelAnimation.hpp"
 #include "freeusd/usdSkel/skelBlendShapes.hpp"
 #include "freeusd/usdSkel/skinning.hpp"
@@ -89,6 +95,40 @@ int malloc_string_list(const std::vector<std::string>& items, char*** out_arr, s
   *out_arr = arr;
   *out_count = items.size();
   return FREEUSD_OK;
+}
+
+void free_spatial_grounding_record(FreeusdSpatialGroundingRecord* record) {
+  if (!record) {
+    return;
+  }
+  std::free(record->path_utf8);
+  std::free(record->name_utf8);
+  std::free(record->parent_path_utf8);
+  if (record->sibling_names_utf8) {
+    for (size_t i = 0; i < record->sibling_name_count; ++i) {
+      std::free(record->sibling_names_utf8[i]);
+    }
+    std::free(record->sibling_names_utf8);
+  }
+  if (record->semantic_label_sets) {
+    for (size_t i = 0; i < record->semantic_label_set_count; ++i) {
+      std::free(record->semantic_label_sets[i].name_utf8);
+      if (record->semantic_label_sets[i].labels_utf8) {
+        for (size_t j = 0; j < record->semantic_label_sets[i].label_count; ++j) {
+          std::free(record->semantic_label_sets[i].labels_utf8[j]);
+        }
+        std::free(record->semantic_label_sets[i].labels_utf8);
+      }
+    }
+    std::free(record->semantic_label_sets);
+  }
+  record->path_utf8 = nullptr;
+  record->name_utf8 = nullptr;
+  record->parent_path_utf8 = nullptr;
+  record->sibling_names_utf8 = nullptr;
+  record->sibling_name_count = 0;
+  record->semantic_label_sets = nullptr;
+  record->semantic_label_set_count = 0;
 }
 
 bool value_to_int64(const freeusd::vt::Value& v, std::int64_t* out) {
@@ -3329,6 +3369,176 @@ int freeusd_usdutils_assess_engine_runtime_support(const FreeusdStage* stage, Fr
     out->uses_physics_fixed_joints = report.uses_physics_fixed_joints ? 1 : 0;
     out->uses_open_vdb_assets = report.uses_open_vdb_assets ? 1 : 0;
     out->uses_volumes = report.uses_volumes ? 1 : 0;
+    out->uses_semantic_labels = report.uses_semantic_labels ? 1 : 0;
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_usdutils_build_spatial_grounding_context(const FreeusdStage* stage, double time,
+                                                     FreeusdSpatialGroundingRecord** out_records, size_t* out_count) {
+  if (!stage || !stage->inner || !out_records || !out_count) {
+    set_error("freeusd_usdutils_build_spatial_grounding_context: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_records = nullptr;
+  *out_count = 0;
+  try {
+    const std::vector<freeusd::usdUtils::EngineSpatialGroundingRecord> records =
+        freeusd::usdUtils::BuildEngineSpatialGroundingContext(*stage->inner, time);
+    if (records.empty()) {
+      clear_error();
+      return FREEUSD_OK;
+    }
+    FreeusdSpatialGroundingRecord* out = static_cast<FreeusdSpatialGroundingRecord*>(
+        std::calloc(records.size(), sizeof(FreeusdSpatialGroundingRecord)));
+    if (!out) {
+      set_error("out of memory");
+      return FREEUSD_ERR_INTERNAL;
+    }
+    for (size_t i = 0; i < records.size(); ++i) {
+      const auto& src = records[i];
+      FreeusdSpatialGroundingRecord& dst = out[i];
+      dst.path_utf8 = dup_cstr(src.path.GetString());
+      dst.name_utf8 = dup_cstr(src.name);
+      dst.parent_path_utf8 = dup_cstr(src.parent_path.GetString());
+      if (!dst.path_utf8 || !dst.name_utf8 || !dst.parent_path_utf8) {
+        freeusd_usdutils_spatial_grounding_records_free(out, records.size());
+        set_error("out of memory");
+        return FREEUSD_ERR_INTERNAL;
+      }
+      const int list_rc = malloc_string_list(src.sibling_names, &dst.sibling_names_utf8, &dst.sibling_name_count);
+      if (list_rc != FREEUSD_OK) {
+        freeusd_usdutils_spatial_grounding_records_free(out, records.size());
+        set_error("out of memory");
+        return list_rc;
+      }
+      if (!src.semantic_label_sets.empty()) {
+        dst.semantic_label_sets = static_cast<FreeusdSemanticLabelSet*>(
+            std::calloc(src.semantic_label_sets.size(), sizeof(FreeusdSemanticLabelSet)));
+        if (!dst.semantic_label_sets) {
+          freeusd_usdutils_spatial_grounding_records_free(out, records.size());
+          set_error("out of memory");
+          return FREEUSD_ERR_INTERNAL;
+        }
+        dst.semantic_label_set_count = src.semantic_label_sets.size();
+        for (size_t j = 0; j < src.semantic_label_sets.size(); ++j) {
+          dst.semantic_label_sets[j].name_utf8 = dup_cstr(src.semantic_label_sets[j].name);
+          if (!dst.semantic_label_sets[j].name_utf8) {
+            freeusd_usdutils_spatial_grounding_records_free(out, records.size());
+            set_error("out of memory");
+            return FREEUSD_ERR_INTERNAL;
+          }
+          const int label_rc = malloc_string_list(src.semantic_label_sets[j].labels,
+                                                  &dst.semantic_label_sets[j].labels_utf8,
+                                                  &dst.semantic_label_sets[j].label_count);
+          if (label_rc != FREEUSD_OK) {
+            freeusd_usdutils_spatial_grounding_records_free(out, records.size());
+            set_error("out of memory");
+            return label_rc;
+          }
+        }
+      }
+      dst.world_position[0] = src.world_position.x();
+      dst.world_position[1] = src.world_position.y();
+      dst.world_position[2] = src.world_position.z();
+      dst.has_world_bound = src.has_world_bound ? 1 : 0;
+      dst.world_bound_dimensions[0] = src.world_bound_dimensions.x();
+      dst.world_bound_dimensions[1] = src.world_bound_dimensions.y();
+      dst.world_bound_dimensions[2] = src.world_bound_dimensions.z();
+      dst.has_mass_kg = src.mass_kg.has_value() ? 1 : 0;
+      dst.mass_kg = src.mass_kg.value_or(0.0);
+    }
+    *out_records = out;
+    *out_count = records.size();
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+void freeusd_usdutils_spatial_grounding_records_free(FreeusdSpatialGroundingRecord* records, size_t count) {
+  if (!records) {
+    return;
+  }
+  for (size_t i = 0; i < count; ++i) {
+    free_spatial_grounding_record(&records[i]);
+  }
+  std::free(records);
+}
+
+int freeusd_stage_list_semantic_label_sets(const FreeusdStage* stage, const char* prim_path_utf8, char*** out_strings,
+                                           size_t* out_count) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !out_strings || !out_count) {
+    set_error("freeusd_stage_list_semantic_label_sets: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_strings = nullptr;
+  *out_count = 0;
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid prim path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const freeusd::usdSemantics::SemanticLabelsAPI api =
+        freeusd::usdSemantics::SemanticLabelsAPI::ReadFromPrim(stage->inner, p);
+    if (!api) {
+      set_error("prim not found");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    const int rc = malloc_string_list(api.ListLabelSetNames(), out_strings, out_count);
+    if (rc != FREEUSD_OK) {
+      set_error("out of memory");
+      return rc;
+    }
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_read_semantic_labels(const FreeusdStage* stage, const char* prim_path_utf8,
+                                       const char* instance_name_utf8, char*** out_strings, size_t* out_count) {
+  if (!stage || !stage->inner || !prim_path_utf8 || !instance_name_utf8 || !out_strings || !out_count) {
+    set_error("freeusd_stage_read_semantic_labels: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_strings = nullptr;
+  *out_count = 0;
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(prim_path_utf8);
+    if (p.IsEmpty() || std::strlen(instance_name_utf8) == 0) {
+      set_error("invalid semantic labels argument");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const freeusd::usdSemantics::SemanticLabelsAPI api =
+        freeusd::usdSemantics::SemanticLabelsAPI::ReadFromPrim(stage->inner, p);
+    if (!api) {
+      set_error("prim not found");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    const int rc = malloc_string_list(api.GetLabels(instance_name_utf8), out_strings, out_count);
+    if (rc != FREEUSD_OK) {
+      set_error("out of memory");
+      return rc;
+    }
     clear_error();
     return FREEUSD_OK;
   } catch (const std::exception& e) {
@@ -3550,6 +3760,228 @@ int freeusd_stage_read_lux_distant_light_sample(const FreeusdStage* stage, const
     out_sample->color[1] = color.y();
     out_sample->color[2] = color.z();
     out_sample->angle = angle;
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_read_lux_sphere_light_sample(const FreeusdStage* stage, const char* light_path_utf8, double time,
+                                               FreeusdLuxSphereLightSample* out_sample) {
+  if (!stage || !stage->inner || !light_path_utf8 || !out_sample) {
+    set_error("freeusd_stage_read_lux_sphere_light_sample: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_sample = FreeusdLuxSphereLightSample{};
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(light_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid sphere light path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const freeusd::usdLux::SphereLight light = freeusd::usdLux::SphereLight::ReadFromPrim(stage->inner, p);
+    if (!light) {
+      set_error("sphere light prim not found or invalid");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    float intensity = 0.0f;
+    freeusd::gf::Vec3f color{};
+    float radius = 0.0f;
+    if (!light.GetIntensity(&intensity, time) || !light.GetColor(&color, time) || !light.GetRadius(&radius, time)) {
+      set_error("sphere light input not available");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    out_sample->intensity = intensity;
+    out_sample->color[0] = color.x();
+    out_sample->color[1] = color.y();
+    out_sample->color[2] = color.z();
+    out_sample->radius = radius;
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_read_lux_rect_light_sample(const FreeusdStage* stage, const char* light_path_utf8, double time,
+                                             FreeusdLuxRectLightSample* out_sample) {
+  if (!stage || !stage->inner || !light_path_utf8 || !out_sample) {
+    set_error("freeusd_stage_read_lux_rect_light_sample: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_sample = FreeusdLuxRectLightSample{};
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(light_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid rect light path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const freeusd::usdLux::RectLight light = freeusd::usdLux::RectLight::ReadFromPrim(stage->inner, p);
+    if (!light) {
+      set_error("rect light prim not found or invalid");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    float intensity = 0.0f;
+    freeusd::gf::Vec3f color{};
+    float width = 0.0f;
+    float height = 0.0f;
+    if (!light.GetIntensity(&intensity, time) || !light.GetColor(&color, time) || !light.GetWidth(&width, time) ||
+        !light.GetHeight(&height, time)) {
+      set_error("rect light input not available");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    out_sample->intensity = intensity;
+    out_sample->color[0] = color.x();
+    out_sample->color[1] = color.y();
+    out_sample->color[2] = color.z();
+    out_sample->width = width;
+    out_sample->height = height;
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_read_lux_disk_light_sample(const FreeusdStage* stage, const char* light_path_utf8, double time,
+                                             FreeusdLuxDiskLightSample* out_sample) {
+  if (!stage || !stage->inner || !light_path_utf8 || !out_sample) {
+    set_error("freeusd_stage_read_lux_disk_light_sample: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_sample = FreeusdLuxDiskLightSample{};
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(light_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid disk light path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const freeusd::usdLux::DiskLight light = freeusd::usdLux::DiskLight::ReadFromPrim(stage->inner, p);
+    if (!light) {
+      set_error("disk light prim not found or invalid");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    float intensity = 0.0f;
+    freeusd::gf::Vec3f color{};
+    float radius = 0.0f;
+    if (!light.GetIntensity(&intensity, time) || !light.GetColor(&color, time) || !light.GetRadius(&radius, time)) {
+      set_error("disk light input not available");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    out_sample->intensity = intensity;
+    out_sample->color[0] = color.x();
+    out_sample->color[1] = color.y();
+    out_sample->color[2] = color.z();
+    out_sample->radius = radius;
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_read_lux_cylinder_light_sample(const FreeusdStage* stage, const char* light_path_utf8, double time,
+                                                 FreeusdLuxCylinderLightSample* out_sample) {
+  if (!stage || !stage->inner || !light_path_utf8 || !out_sample) {
+    set_error("freeusd_stage_read_lux_cylinder_light_sample: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_sample = FreeusdLuxCylinderLightSample{};
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(light_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid cylinder light path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const freeusd::usdLux::CylinderLight light = freeusd::usdLux::CylinderLight::ReadFromPrim(stage->inner, p);
+    if (!light) {
+      set_error("cylinder light prim not found or invalid");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    float intensity = 0.0f;
+    freeusd::gf::Vec3f color{};
+    float length = 0.0f;
+    float radius = 0.0f;
+    if (!light.GetIntensity(&intensity, time) || !light.GetColor(&color, time) || !light.GetLength(&length, time) ||
+        !light.GetRadius(&radius, time)) {
+      set_error("cylinder light input not available");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    out_sample->intensity = intensity;
+    out_sample->color[0] = color.x();
+    out_sample->color[1] = color.y();
+    out_sample->color[2] = color.z();
+    out_sample->length = length;
+    out_sample->radius = radius;
+    clear_error();
+    return FREEUSD_OK;
+  } catch (const std::exception& e) {
+    set_error(e.what());
+    return FREEUSD_ERR_INTERNAL;
+  } catch (...) {
+    set_error("unknown exception");
+    return FREEUSD_ERR_INTERNAL;
+  }
+}
+
+int freeusd_stage_read_lux_dome_light_sample(const FreeusdStage* stage, const char* light_path_utf8, double time,
+                                             FreeusdLuxDomeLightSample* out_sample) {
+  if (!stage || !stage->inner || !light_path_utf8 || !out_sample) {
+    set_error("freeusd_stage_read_lux_dome_light_sample: null argument");
+    return FREEUSD_ERR_INVALID_ARGUMENT;
+  }
+  *out_sample = FreeusdLuxDomeLightSample{};
+  try {
+    const freeusd::sdf::Path p = freeusd::sdf::Path::FromString(light_path_utf8);
+    if (p.IsEmpty()) {
+      set_error("invalid dome light path");
+      return FREEUSD_ERR_INVALID_ARGUMENT;
+    }
+    const freeusd::usdLux::DomeLight light = freeusd::usdLux::DomeLight::ReadFromPrim(stage->inner, p);
+    if (!light) {
+      set_error("dome light prim not found or invalid");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    float intensity = 0.0f;
+    freeusd::gf::Vec3f color{};
+    std::string texture_file;
+    std::string texture_format;
+    if (!light.GetIntensity(&intensity, time) || !light.GetColor(&color, time) ||
+        !light.GetTextureFileAssetPath(&texture_file, time) || !light.GetTextureFormat(&texture_format, time)) {
+      set_error("dome light input not available");
+      return FREEUSD_ERR_NOT_FOUND;
+    }
+    char* file_dup = dup_cstr(texture_file);
+    char* format_dup = dup_cstr(texture_format);
+    if (!file_dup || !format_dup) {
+      std::free(file_dup);
+      std::free(format_dup);
+      set_error("out of memory");
+      return FREEUSD_ERR_INTERNAL;
+    }
+    out_sample->intensity = intensity;
+    out_sample->color[0] = color.x();
+    out_sample->color[1] = color.y();
+    out_sample->color[2] = color.z();
+    out_sample->texture_file_asset_path_utf8 = file_dup;
+    out_sample->texture_format_utf8 = format_dup;
     clear_error();
     return FREEUSD_OK;
   } catch (const std::exception& e) {

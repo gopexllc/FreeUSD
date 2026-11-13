@@ -31,6 +31,19 @@ struct BBox3d {
     out.max.set(std::max(a.x(), b.x()), std::max(a.y(), b.y()), std::max(a.z(), b.z()));
     return out;
   }
+
+  /// Union of two boxes; empty boxes are identity for the other operand.
+  static BBox3d Union(const BBox3d& a, const BBox3d& b) noexcept {
+    if (a.IsEmpty()) {
+      return b;
+    }
+    if (b.IsEmpty()) {
+      return a;
+    }
+    return FromMinMax(
+        Vec3d{std::min(a.min.x(), b.min.x()), std::min(a.min.y(), b.min.y()), std::min(a.min.z(), b.min.z())},
+        Vec3d{std::max(a.max.x(), b.max.x()), std::max(a.max.y(), b.max.y()), std::max(a.max.z(), b.max.z())});
+  }
 };
 
 inline bool operator==(const BBox3d& u, const BBox3d& v) noexcept {

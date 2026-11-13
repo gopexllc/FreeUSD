@@ -18,6 +18,7 @@ inline freeusd::tf::Token inputs_occlusion() { return freeusd::tf::Token("inputs
 inline freeusd::tf::Token inputs_metallic() { return freeusd::tf::Token("inputs:metallic"); }
 inline freeusd::tf::Token inputs_roughness() { return freeusd::tf::Token("inputs:roughness"); }
 inline freeusd::tf::Token inputs_opacity() { return freeusd::tf::Token("inputs:opacity"); }
+inline freeusd::tf::Token inputs_opacityThreshold() { return freeusd::tf::Token("inputs:opacityThreshold"); }
 
 }  // namespace previewSurfaceTokens
 
@@ -39,9 +40,11 @@ struct FREEUSD_API PreviewSurface {
   bool GetMetallic(float* out, double time = 1.0) const;
   bool GetRoughness(float* out, double time = 1.0) const;
   bool GetOpacity(float* out, double time = 1.0) const;
+  bool GetOpacityThreshold(float* out, double time = 1.0) const;
 
   /// ``inputs:diffuseColor`` asset path, or ``inputs:file`` on a connected texture shader (e.g. ``UsdUVTexture``).
   bool GetDiffuseTextureAssetPath(std::string* out_path, double time = 1.0) const;
+  bool GetEmissiveTextureAssetPath(std::string* out_path, double time = 1.0) const;
   bool GetNormalTextureAssetPath(std::string* out_path, double time = 1.0) const;
   bool GetOcclusionTextureAssetPath(std::string* out_path, double time = 1.0) const;
   bool GetMetallicTextureAssetPath(std::string* out_path, double time = 1.0) const;

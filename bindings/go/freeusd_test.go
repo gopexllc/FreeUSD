@@ -2,6 +2,7 @@ package freeusd
 
 import (
 	"encoding/binary"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -1079,6 +1080,79 @@ func TestUsdLuxDistantLightBinding(t *testing.T) {
 	}
 }
 
+func TestUsdLuxAdditionalLightBindings(t *testing.T) {
+	cases := []struct {
+		fixture string
+		path    string
+		check   func(*Stage)
+	}{
+		{
+			fixture: "parity_lux_sphere.usda",
+			path:    "/World/Bulb",
+			check: func(st *Stage) {
+				sample, rc := st.ReadLuxSphereLightSample("/World/Bulb", 1.0)
+				if rc != 0 || sample.Intensity != 500 || sample.Color[1] != 0.9 || sample.Radius != 0.25 {
+					t.Fatalf("sphere sample=%+v rc=%d %s", sample, rc, LastErrorMessage())
+				}
+			},
+		},
+		{
+			fixture: "parity_lux_rect.usda",
+			path:    "/World/Panel",
+			check: func(st *Stage) {
+				sample, rc := st.ReadLuxRectLightSample("/World/Panel", 1.0)
+				if rc != 0 || sample.Intensity != 1200 || sample.Color[0] != 0.95 || sample.Width != 2 || sample.Height != 1 {
+					t.Fatalf("rect sample=%+v rc=%d %s", sample, rc, LastErrorMessage())
+				}
+			},
+		},
+		{
+			fixture: "parity_lux_disk.usda",
+			path:    "/World/Softbox",
+			check: func(st *Stage) {
+				sample, rc := st.ReadLuxDiskLightSample("/World/Softbox", 1.0)
+				if rc != 0 || sample.Intensity != 800 || sample.Color[0] != 1 || sample.Radius != 0.75 {
+					t.Fatalf("disk sample=%+v rc=%d %s", sample, rc, LastErrorMessage())
+				}
+			},
+		},
+		{
+			fixture: "parity_lux_cylinder.usda",
+			path:    "/World/Tube",
+			check: func(st *Stage) {
+				sample, rc := st.ReadLuxCylinderLightSample("/World/Tube", 1.0)
+				if rc != 0 || sample.Length != 2.5 || sample.Radius != 0.05 {
+					t.Fatalf("cylinder sample=%+v rc=%d %s", sample, rc, LastErrorMessage())
+				}
+			},
+		},
+		{
+			fixture: "parity_lux_dome.usda",
+			path:    "/World/Sky",
+			check: func(st *Stage) {
+				sample, rc := st.ReadLuxDomeLightSample("/World/Sky", 1.0)
+				if rc != 0 || sample.Intensity != 1 || sample.TextureFileAssetPath != "textures/sky.hdr" || sample.TextureFormat != "latlong" {
+					t.Fatalf("dome sample=%+v rc=%d %s", sample, rc, LastErrorMessage())
+				}
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.fixture, func(t *testing.T) {
+			fixture := filepath.Join("..", "..", "tests", "fixtures", tc.fixture)
+			st := OpenStageFromRootFile(fixture, RootSubDepthFirst)
+			if st == nil {
+				t.Fatalf("OpenStageFromRootFile %s: %s", tc.fixture, LastErrorMessage())
+			}
+			defer st.Free()
+			if !st.PrimPathInUse(tc.path) {
+				t.Fatalf("expected prim %s in %s", tc.path, tc.fixture)
+			}
+			tc.check(st)
+		})
+	}
+}
+
 func TestUsdVolOpenVDBAssetBinding(t *testing.T) {
 	fixture := filepath.Join("..", "..", "tests", "fixtures", "parity_vol_openvdb.usda")
 	st := OpenStageFromRootFile(fixture, RootSubDepthFirst)
@@ -1300,9 +1374,95 @@ func TestUsdGeomEngineSubsetParityImageable(t *testing.T) {
 		t.Fatalf("world bounds (%g,%g,%g)-(%g,%g,%g)", minX, minY, minZ, maxX, maxY, maxZ)
 	}
 
-	_, _, _, _, _, _, rc = st.ComputeBoundableWorldBounds("/World", 1.0)
-	if rc == 0 {
-		t.Fatal("expected NOT_FOUND for non-boundable /World")
+	// Xform prims without local bounds aggregate descendant world bounds.
+	wMinX, wMinY, wMinZ, wMaxX, wMaxY, wMaxZ, rc := st.ComputeBoundableWorldBounds("/World", 1.0)
+	if rc != 0 || wMinX != 0 || wMinY != 1 || wMinZ != 2 || wMaxX != 2 || wMaxY != 3 || wMaxZ != 4 {
+		t.Fatalf("aggregated /World bounds (%g,%g,%g)-(%g,%g,%g) rc=%d", wMinX, wMinY, wMinZ, wMaxX, wMaxY, wMaxZ, rc)
+	}
+}
+
+func hasString(items []string, want string) bool {
+	for _, item := range items {
+		if item == want {
+			return true
+		}
+	}
+	return false
+}
+
+func TestUsdUtilsSpatialGroundingContext(t *testing.T) {
+	fixture := filepath.Join("..", "..", "tests", "fixtures", "parity_spatial_grounding.usda")
+	st := OpenStageFromRootFile(fixture, RootSubDepthFirst)
+	if st == nil {
+		t.Fatalf("OpenStageFromRootFile: %s", LastErrorMessage())
+	}
+	defer st.Free()
+
+	records, rc := st.BuildSpatialGroundingContext(1.0)
+	if rc != 0 {
+		t.Fatalf("BuildSpatialGroundingContext rc=%d %s", rc, LastErrorMessage())
+	}
+	if len(records) != 5 {
+		t.Fatalf("record count=%d", len(records))
+	}
+	var cup *SpatialGroundingRecord
+	var kitchen *SpatialGroundingRecord
+	for i := range records {
+		switch records[i].Path {
+		case "/World/Kitchen/CupBlue":
+			cup = &records[i]
+		case "/World/Kitchen":
+			kitchen = &records[i]
+		}
+	}
+	if cup == nil || cup.Name != "CupBlue" || cup.ParentPath != "/World/Kitchen" {
+		t.Fatalf("cup record=%+v", cup)
+	}
+	if len(cup.SiblingNames) != 2 || !hasString(cup.SiblingNames, "PlateGreen") || !hasString(cup.SiblingNames, "Stove") {
+		t.Fatalf("cup siblings=%v", cup.SiblingNames)
+	}
+	if len(cup.SemanticLabelSets) != 2 || cup.SemanticLabelSets[0].Name != "engine" || !hasString(cup.SemanticLabelSets[0].Labels, "pickup") || cup.SemanticLabelSets[1].Name != "somaHome" || !hasString(cup.SemanticLabelSets[1].Labels, "Crockery") {
+		t.Fatalf("cup semantic label sets=%v", cup.SemanticLabelSets)
+	}
+	if cup.WorldPosition != [3]float64{6, 2, 3} || !cup.HasWorldBound || cup.WorldBoundDimensions != [3]float64{0.5, 1.5, 0.25} || !cup.HasMassKg || math.Abs(cup.MassKg-0.35) > 1e-6 {
+		t.Fatalf("cup spatial values=%+v", cup)
+	}
+	// Xform prims without local bounds aggregate descendant world bounds.
+	if kitchen == nil || kitchen.ParentPath != "/World" || len(kitchen.SiblingNames) != 0 || len(kitchen.SemanticLabelSets) != 0 || kitchen.WorldPosition != [3]float64{10, 0, 0} || !kitchen.HasWorldBound || kitchen.WorldBoundDimensions != [3]float64{9.25, 4.25, 7.5} || kitchen.HasMassKg {
+		t.Fatalf("kitchen record=%+v", kitchen)
+	}
+}
+
+func TestUsdSemanticsLabels(t *testing.T) {
+	fixture := filepath.Join("..", "..", "tests", "fixtures", "parity_semantics_labels.usda")
+	st := OpenStageFromRootFile(fixture, RootSubDepthFirst)
+	if st == nil {
+		t.Fatalf("OpenStageFromRootFile: %s", LastErrorMessage())
+	}
+	defer st.Free()
+
+	sets, rc := st.ListSemanticLabelSets("/World/Kitchen/CupBlue")
+	if rc != 0 {
+		t.Fatalf("ListSemanticLabelSets rc=%d %s", rc, LastErrorMessage())
+	}
+	if len(sets) != 2 || !hasString(sets, "engine") || !hasString(sets, "somaHome") {
+		t.Fatalf("sets=%v", sets)
+	}
+	labels, rc := st.ReadSemanticLabels("/World/Kitchen/CupBlue", "somaHome")
+	if rc != 0 || len(labels) != 2 || labels[0] != "Crockery" || labels[1] != "DesignedContainer" {
+		t.Fatalf("labels=%v rc=%d", labels, rc)
+	}
+	stoveLabels, rc := st.ReadSemanticLabels("/World/Kitchen/Stove", "somaHome")
+	if rc != 0 || len(stoveLabels) != 1 || stoveLabels[0] != "Appliance" {
+		t.Fatalf("stoveLabels=%v rc=%d", stoveLabels, rc)
+	}
+	missing, rc := st.ReadSemanticLabels("/World/Kitchen/CupBlue", "missing")
+	if rc != 0 || len(missing) != 0 {
+		t.Fatalf("missing=%v rc=%d", missing, rc)
+	}
+	report, rc := st.AssessEngineRuntimeSupport()
+	if rc != 0 || !report.UsesSemanticLabels || report.RecommendedMode != EngineRuntimeHybrid {
+		t.Fatalf("semantic runtime report=%+v rc=%d", report, rc)
 	}
 }
 

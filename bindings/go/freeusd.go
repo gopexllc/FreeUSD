@@ -10,8 +10,8 @@ package freeusd
 
 /*
 #cgo CFLAGS: -I${SRCDIR}/../../include
-#cgo linux LDFLAGS: -L${SRCDIR}/../../build/src -lfreeusd_c -lfreeusd_base -lfreeusd_usdUtils -lfreeusd_usdSkel -lfreeusd_usdShade -lfreeusd_usdLux -lfreeusd_usdPhysics -lfreeusd_usdVol -lfreeusd_usdGeom -lfreeusd_usd -lfreeusd_ar -lfreeusd_io -lfreeusd_pcp -lfreeusd_sdf -lfreeusd_vt -lfreeusd_tf -lfreeusd_gf -lfreeusd_plug -lstdc++ -lm -lz -llz4
-#cgo darwin LDFLAGS: -L${SRCDIR}/../../build/src -lfreeusd_c -lfreeusd_base -lfreeusd_usdUtils -lfreeusd_usdSkel -lfreeusd_usdShade -lfreeusd_usdLux -lfreeusd_usdPhysics -lfreeusd_usdVol -lfreeusd_usdGeom -lfreeusd_usd -lfreeusd_ar -lfreeusd_io -lfreeusd_pcp -lfreeusd_sdf -lfreeusd_vt -lfreeusd_tf -lfreeusd_gf -lfreeusd_plug -lc++ -lm -lz -llz4
+#cgo linux LDFLAGS: -L${SRCDIR}/../../build/src -lfreeusd_c -lfreeusd_base -lfreeusd_usdUtils -lfreeusd_usdSkel -lfreeusd_usdShade -lfreeusd_usdLux -lfreeusd_usdPhysics -lfreeusd_usdVol -lfreeusd_usdSemantics -lfreeusd_usdGeom -lfreeusd_usd -lfreeusd_ar -lfreeusd_io -lfreeusd_pcp -lfreeusd_sdf -lfreeusd_vt -lfreeusd_tf -lfreeusd_gf -lfreeusd_plug -lstdc++ -lm -lz -llz4
+#cgo darwin LDFLAGS: -L${SRCDIR}/../../build/src -lfreeusd_c -lfreeusd_base -lfreeusd_usdUtils -lfreeusd_usdSkel -lfreeusd_usdShade -lfreeusd_usdLux -lfreeusd_usdPhysics -lfreeusd_usdVol -lfreeusd_usdSemantics -lfreeusd_usdGeom -lfreeusd_usd -lfreeusd_ar -lfreeusd_io -lfreeusd_pcp -lfreeusd_sdf -lfreeusd_vt -lfreeusd_tf -lfreeusd_gf -lfreeusd_plug -lc++ -lm -lz -llz4
 #include <stdlib.h>
 #include <freeusd/c/freeusd.h>
 */
@@ -1468,6 +1468,44 @@ type LuxDistantLightSample struct {
 	Angle     float32
 }
 
+// LuxSphereLightSample is the evaluated UsdLuxSphereLight C ABI sample.
+type LuxSphereLightSample struct {
+	Intensity float32
+	Color     [3]float32
+	Radius    float32
+}
+
+// LuxRectLightSample is the evaluated UsdLuxRectLight C ABI sample.
+type LuxRectLightSample struct {
+	Intensity float32
+	Color     [3]float32
+	Width     float32
+	Height    float32
+}
+
+// LuxDiskLightSample is the evaluated UsdLuxDiskLight C ABI sample.
+type LuxDiskLightSample struct {
+	Intensity float32
+	Color     [3]float32
+	Radius    float32
+}
+
+// LuxCylinderLightSample is the evaluated UsdLuxCylinderLight C ABI sample.
+type LuxCylinderLightSample struct {
+	Intensity float32
+	Color     [3]float32
+	Length    float32
+	Radius    float32
+}
+
+// LuxDomeLightSample is the evaluated UsdLuxDomeLight C ABI sample.
+type LuxDomeLightSample struct {
+	Intensity            float32
+	Color                [3]float32
+	TextureFileAssetPath string
+	TextureFormat        string
+}
+
 // ReadLuxDistantLightSample reads intensity, color, and angle from a DistantLight prim.
 func (s *Stage) ReadLuxDistantLightSample(lightPath string, time float64) (sample LuxDistantLightSample, rc int) {
 	if s == nil || s.ptr == nil {
@@ -1485,6 +1523,109 @@ func (s *Stage) ReadLuxDistantLightSample(lightPath string, time float64) (sampl
 		Color:     [3]float32{float32(out.color[0]), float32(out.color[1]), float32(out.color[2])},
 		Angle:     float32(out.angle),
 	}, 0
+}
+
+// ReadLuxSphereLightSample reads intensity, color, and radius from a SphereLight prim.
+func (s *Stage) ReadLuxSphereLightSample(lightPath string, time float64) (sample LuxSphereLightSample, rc int) {
+	if s == nil || s.ptr == nil {
+		return sample, 1
+	}
+	lp := C.CString(lightPath)
+	defer C.free(unsafe.Pointer(lp))
+	var out C.FreeusdLuxSphereLightSample
+	rc = int(C.freeusd_stage_read_lux_sphere_light_sample(s.ptr, lp, C.double(time), &out))
+	if rc != 0 {
+		return sample, rc
+	}
+	return LuxSphereLightSample{
+		Intensity: float32(out.intensity),
+		Color:     [3]float32{float32(out.color[0]), float32(out.color[1]), float32(out.color[2])},
+		Radius:    float32(out.radius),
+	}, 0
+}
+
+// ReadLuxRectLightSample reads intensity, color, width, and height from a RectLight prim.
+func (s *Stage) ReadLuxRectLightSample(lightPath string, time float64) (sample LuxRectLightSample, rc int) {
+	if s == nil || s.ptr == nil {
+		return sample, 1
+	}
+	lp := C.CString(lightPath)
+	defer C.free(unsafe.Pointer(lp))
+	var out C.FreeusdLuxRectLightSample
+	rc = int(C.freeusd_stage_read_lux_rect_light_sample(s.ptr, lp, C.double(time), &out))
+	if rc != 0 {
+		return sample, rc
+	}
+	return LuxRectLightSample{
+		Intensity: float32(out.intensity),
+		Color:     [3]float32{float32(out.color[0]), float32(out.color[1]), float32(out.color[2])},
+		Width:     float32(out.width),
+		Height:    float32(out.height),
+	}, 0
+}
+
+// ReadLuxDiskLightSample reads intensity, color, and radius from a DiskLight prim.
+func (s *Stage) ReadLuxDiskLightSample(lightPath string, time float64) (sample LuxDiskLightSample, rc int) {
+	if s == nil || s.ptr == nil {
+		return sample, 1
+	}
+	lp := C.CString(lightPath)
+	defer C.free(unsafe.Pointer(lp))
+	var out C.FreeusdLuxDiskLightSample
+	rc = int(C.freeusd_stage_read_lux_disk_light_sample(s.ptr, lp, C.double(time), &out))
+	if rc != 0 {
+		return sample, rc
+	}
+	return LuxDiskLightSample{
+		Intensity: float32(out.intensity),
+		Color:     [3]float32{float32(out.color[0]), float32(out.color[1]), float32(out.color[2])},
+		Radius:    float32(out.radius),
+	}, 0
+}
+
+// ReadLuxCylinderLightSample reads intensity, color, length, and radius from a CylinderLight prim.
+func (s *Stage) ReadLuxCylinderLightSample(lightPath string, time float64) (sample LuxCylinderLightSample, rc int) {
+	if s == nil || s.ptr == nil {
+		return sample, 1
+	}
+	lp := C.CString(lightPath)
+	defer C.free(unsafe.Pointer(lp))
+	var out C.FreeusdLuxCylinderLightSample
+	rc = int(C.freeusd_stage_read_lux_cylinder_light_sample(s.ptr, lp, C.double(time), &out))
+	if rc != 0 {
+		return sample, rc
+	}
+	return LuxCylinderLightSample{
+		Intensity: float32(out.intensity),
+		Color:     [3]float32{float32(out.color[0]), float32(out.color[1]), float32(out.color[2])},
+		Length:    float32(out.length),
+		Radius:    float32(out.radius),
+	}, 0
+}
+
+// ReadLuxDomeLightSample reads common fields from a DomeLight prim.
+func (s *Stage) ReadLuxDomeLightSample(lightPath string, time float64) (sample LuxDomeLightSample, rc int) {
+	if s == nil || s.ptr == nil {
+		return sample, 1
+	}
+	lp := C.CString(lightPath)
+	defer C.free(unsafe.Pointer(lp))
+	var out C.FreeusdLuxDomeLightSample
+	rc = int(C.freeusd_stage_read_lux_dome_light_sample(s.ptr, lp, C.double(time), &out))
+	if rc != 0 {
+		return sample, rc
+	}
+	if out.texture_file_asset_path_utf8 != nil {
+		defer C.freeusd_string_free(out.texture_file_asset_path_utf8)
+		sample.TextureFileAssetPath = C.GoString(out.texture_file_asset_path_utf8)
+	}
+	if out.texture_format_utf8 != nil {
+		defer C.freeusd_string_free(out.texture_format_utf8)
+		sample.TextureFormat = C.GoString(out.texture_format_utf8)
+	}
+	sample.Intensity = float32(out.intensity)
+	sample.Color = [3]float32{float32(out.color[0]), float32(out.color[1]), float32(out.color[2])}
+	return sample, 0
 }
 
 // OpenVDBAssetInfo is the evaluated usdVol::OpenVDBAsset C ABI sample.
@@ -1934,6 +2075,7 @@ type EngineRuntimeSupport struct {
 	UsesPhysicsFixedJoints     bool
 	UsesOpenVdbAssets          bool
 	UsesVolumes                bool
+	UsesSemanticLabels         bool
 }
 
 // AssessEngineRuntimeSupport reports which engine integration mode fits the composed stage.
@@ -1977,7 +2119,151 @@ func (s *Stage) AssessEngineRuntimeSupport() (report EngineRuntimeSupport, rc in
 	report.UsesPhysicsFixedJoints = raw.uses_physics_fixed_joints != 0
 	report.UsesOpenVdbAssets = raw.uses_open_vdb_assets != 0
 	report.UsesVolumes = raw.uses_volumes != 0
+	report.UsesSemanticLabels = raw.uses_semantic_labels != 0
 	return report, 0
+}
+
+// SemanticLabelSet contains one authored semantics:labels:<set> value.
+type SemanticLabelSet struct {
+	Name   string
+	Labels []string
+}
+
+// SpatialGroundingRecord contains clean-room USD-derived cues for text/spatial diagnostics.
+type SpatialGroundingRecord struct {
+	Path                 string
+	Name                 string
+	ParentPath           string
+	SiblingNames         []string
+	SemanticLabelSets    []SemanticLabelSet
+	WorldPosition        [3]float64
+	HasWorldBound        bool
+	WorldBoundDimensions [3]float64
+	HasMassKg            bool
+	MassKg               float64
+}
+
+// BuildSpatialGroundingContext extracts spatial/text cue records for every traversed prim.
+func (s *Stage) BuildSpatialGroundingContext(time float64) (records []SpatialGroundingRecord, rc int) {
+	if s == nil || s.ptr == nil {
+		return nil, 1
+	}
+	var raw *C.FreeusdSpatialGroundingRecord
+	var count C.size_t
+	rc = int(C.freeusd_usdutils_build_spatial_grounding_context(s.ptr, C.double(time), &raw, &count))
+	if rc != 0 {
+		return nil, rc
+	}
+	defer C.freeusd_usdutils_spatial_grounding_records_free(raw, count)
+	if raw == nil || count == 0 {
+		return []SpatialGroundingRecord{}, 0
+	}
+	cRecords := unsafe.Slice(raw, int(count))
+	records = make([]SpatialGroundingRecord, 0, int(count))
+	for _, item := range cRecords {
+		rec := SpatialGroundingRecord{
+			Path:       C.GoString(item.path_utf8),
+			Name:       C.GoString(item.name_utf8),
+			ParentPath: C.GoString(item.parent_path_utf8),
+			WorldPosition: [3]float64{
+				float64(item.world_position[0]),
+				float64(item.world_position[1]),
+				float64(item.world_position[2]),
+			},
+			HasWorldBound: item.has_world_bound != 0,
+			WorldBoundDimensions: [3]float64{
+				float64(item.world_bound_dimensions[0]),
+				float64(item.world_bound_dimensions[1]),
+				float64(item.world_bound_dimensions[2]),
+			},
+			HasMassKg: item.has_mass_kg != 0,
+			MassKg:    float64(item.mass_kg),
+		}
+		if item.sibling_names_utf8 != nil && item.sibling_name_count > 0 {
+			cSiblings := unsafe.Slice(item.sibling_names_utf8, int(item.sibling_name_count))
+			rec.SiblingNames = make([]string, 0, int(item.sibling_name_count))
+			for _, sibling := range cSiblings {
+				if sibling != nil {
+					rec.SiblingNames = append(rec.SiblingNames, C.GoString(sibling))
+				}
+			}
+		}
+		if item.semantic_label_sets != nil && item.semantic_label_set_count > 0 {
+			cSets := unsafe.Slice(item.semantic_label_sets, int(item.semantic_label_set_count))
+			rec.SemanticLabelSets = make([]SemanticLabelSet, 0, int(item.semantic_label_set_count))
+			for _, cSet := range cSets {
+				set := SemanticLabelSet{Name: C.GoString(cSet.name_utf8)}
+				if cSet.labels_utf8 != nil && cSet.label_count > 0 {
+					cLabels := unsafe.Slice(cSet.labels_utf8, int(cSet.label_count))
+					set.Labels = make([]string, 0, int(cSet.label_count))
+					for _, label := range cLabels {
+						if label != nil {
+							set.Labels = append(set.Labels, C.GoString(label))
+						}
+					}
+				}
+				rec.SemanticLabelSets = append(rec.SemanticLabelSets, set)
+			}
+		}
+		records = append(records, rec)
+	}
+	return records, 0
+}
+
+// ListSemanticLabelSets returns authored semantics:labels:<set> instance names for a prim.
+func (s *Stage) ListSemanticLabelSets(primPath string) (sets []string, rc int) {
+	if s == nil || s.ptr == nil {
+		return nil, 1
+	}
+	pp := C.CString(primPath)
+	defer C.free(unsafe.Pointer(pp))
+	var arr **C.char
+	var count C.size_t
+	rc = int(C.freeusd_stage_list_semantic_label_sets(s.ptr, pp, &arr, &count))
+	if rc != 0 {
+		return nil, rc
+	}
+	if arr == nil || count == 0 {
+		return []string{}, 0
+	}
+	defer C.freeusd_path_list_free(arr, count)
+	items := unsafe.Slice(arr, int(count))
+	sets = make([]string, 0, int(count))
+	for _, item := range items {
+		if item != nil {
+			sets = append(sets, C.GoString(item))
+		}
+	}
+	return sets, 0
+}
+
+// ReadSemanticLabels returns authored labels for one semantics:labels:<set> instance.
+func (s *Stage) ReadSemanticLabels(primPath, instanceName string) (labels []string, rc int) {
+	if s == nil || s.ptr == nil {
+		return nil, 1
+	}
+	pp := C.CString(primPath)
+	defer C.free(unsafe.Pointer(pp))
+	in := C.CString(instanceName)
+	defer C.free(unsafe.Pointer(in))
+	var arr **C.char
+	var count C.size_t
+	rc = int(C.freeusd_stage_read_semantic_labels(s.ptr, pp, in, &arr, &count))
+	if rc != 0 {
+		return nil, rc
+	}
+	if arr == nil || count == 0 {
+		return []string{}, 0
+	}
+	defer C.freeusd_path_list_free(arr, count)
+	items := unsafe.Slice(arr, int(count))
+	labels = make([]string, 0, int(count))
+	for _, item := range items {
+		if item != nil {
+			labels = append(labels, C.GoString(item))
+		}
+	}
+	return labels, 0
 }
 
 // ReadSkelJointNames returns skeleton joint names (rc 0 ok).

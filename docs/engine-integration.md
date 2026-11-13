@@ -58,8 +58,10 @@ target_link_libraries(engine_runtime_bridge PRIVATE freeusd::c)
 - `freeusd::usdGeom::Xformable`
 - `freeusd::usdGeom::Imageable`
 - `freeusd::usdGeom::Boundable`
+- `freeusd::usdSemantics::SemanticLabelsAPI`
 - `freeusd::usdUtils::FlattenStageAtTime`
 - `freeusd::usdUtils::BuildEngineSceneSnapshot`
+- `freeusd::usdUtils::BuildEngineSpatialGroundingContext`
 - `freeusd::usdUtils::BuildEnginePrimEditorView`
 - `freeusd::usdUtils::AssessEngineRuntimeSupport`
 
@@ -75,6 +77,8 @@ target_link_libraries(engine_runtime_bridge PRIVATE freeusd::c)
 - `freeusd_stage_compute_imageable_purpose_utf8`
 - `freeusd_stage_compute_boundable_local_bounds`
 - `freeusd_stage_compute_boundable_world_bounds`
+- spatial grounding context (`freeusd_usdutils_build_spatial_grounding_context`)
+- semantic label reads (`freeusd_stage_list_semantic_label_sets`, `freeusd_stage_read_semantic_labels`)
 
 ## Build Options Relevant To Engines
 
@@ -108,6 +112,8 @@ target_link_libraries(engine_runtime_bridge PRIVATE freeusd::c)
 - composed prim customData through references / payloads: `tests/fixtures/parity_custom_data_refs.usda`
 - variants: `tests/fixtures/parity_variants.usda`
 - transforms / visibility / purpose / bounds: `tests/fixtures/parity_imageable.usda`
+- spatial grounding cues for downstream diagnostics: `tests/fixtures/parity_spatial_grounding.usda`
+- semantic labels: `tests/fixtures/parity_semantics_labels.usda`
 - preview materials / bindings: `tests/fixtures/parity_shade_preview.usda`
 - preview-surface texture assets: `tests/fixtures/parity_shade_pbr_textures.usda`
 - usdLux light families: `tests/fixtures/parity_lux_sphere.usda` (and sibling `parity_lux_*.usda` fixtures)

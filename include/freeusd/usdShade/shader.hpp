@@ -40,6 +40,7 @@ struct FREEUSD_API Shader {
   bool GetMetallic(float* out, double time = 1.0) const;
   bool GetRoughness(float* out, double time = 1.0) const;
   bool GetOpacity(float* out, double time = 1.0) const;
+  bool GetOpacityThreshold(float* out, double time = 1.0) const;
 
   /// Resolved asset path for a shader input (direct ``asset`` value or one connection hop to ``inputs:file``).
   bool GetInputAssetPath(const freeusd::tf::Token& input_name, std::string* out_path, double time = 1.0) const;

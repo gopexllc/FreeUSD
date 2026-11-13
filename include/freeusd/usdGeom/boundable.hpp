@@ -6,8 +6,9 @@
 namespace freeusd::usdGeom {
 
 /// ``UsdGeomBoundable``-shaped helper for a tiny executable subset backed by authored scene data.
-/// Currently understands scalar ``size`` (cube-like) and ``radius`` extents, then applies any
-/// composed ``Xformable`` transform to produce a world-space box.
+/// Understands scalar ``size`` / ``radius``, ``UsdGeom.Mesh`` point arrays and ``extent``,
+/// then unions descendant bounds for transform-only prims. Applies composed ``Xformable``
+/// transforms to produce world-space boxes.
 struct FREEUSD_API Boundable {
   freeusd::usd::Prim prim;
 
